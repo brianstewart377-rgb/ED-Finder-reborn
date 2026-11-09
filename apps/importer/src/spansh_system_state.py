@@ -417,7 +417,7 @@ class LoadStats:
 
 def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
                       source_label: str, log: Any = None,
-                      progress_every: int = 100_000) -> LoadStats:
+                      progress_every: int = 25_000) -> LoadStats:
     """Write the full psql load script for the given dumps to `out`."""
     stats = LoadStats()
     started = time.monotonic()
@@ -425,6 +425,9 @@ def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
     out.write(stream_header().encode("utf-8"))
     for path in paths:
         entry = stats.start_file(path)
+        if log is not None:
+            print("Reading %s (a full dump takes several minutes) ..." % os.path.basename(path),
+                  file=log, flush=True)
         kept_ids = stats.kept_ids_by_file[-1]
         populated_ids = stats.populated_ids_by_file[-1]
         handle = open_dump(path)
