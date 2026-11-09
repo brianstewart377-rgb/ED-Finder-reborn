@@ -541,10 +541,19 @@ def single_run(directory: Path) -> Iterator[None]:
 
 # -- the steps ------------------------------------------------------------------
 
+def remove_trial(settings: Settings) -> None:
+    """Remove this tool's own test containers, however they were left."""
+    project = settings.trial_project
+    compose_down(settings, project)
+    # By name as well: the names are this tool's own, and a container left by
+    # an interrupted run must not block the next one.
+    run(["docker", "rm", "-f", project + "-web", project + "-api"], check=False, timeout=120)
+
+
 def trial(settings: Settings, release: Release) -> None:
     """Start the release on the spare address, test it, and remove it again."""
     project = settings.trial_project
-    compose_down(settings, project)  # clear anything a crashed run left behind
+    remove_trial(settings)  # clear anything a crashed run left behind
     others = [container_name(c) for c in port_holders(settings.trial_bind)]
     if others:
         raise Refused("the spare address %s is in use by %s" % (
@@ -562,7 +571,7 @@ def trial(settings: Settings, release: Release) -> None:
         raise DeployError("the test start failed: %s\n    Last lines from its API:\n%s" % (
             error, tail or "      (none)")) from error
     finally:
-        compose_down(settings, project)
+        remove_trial(settings)
     say("  passed: page, health, API description and sign-in state all correct.")
 
 
@@ -586,7 +595,7 @@ def stop_originals(state: State, containers: List[Dict[str, Any]]) -> List[Dict[
     for target in reversed(targets):  # web first, so nothing is served half-broken
         say("  stopping %s (kept, not deleted)" % target["name"])
         docker("update", "--restart=no", target["name"])
-        docker("stop", "--time", "30", target["name"], timeout=120)
+        docker("stop", "-t", "30", target["name"], timeout=120)
     return targets
 
 
@@ -834,9 +843,17 @@ def command_check(settings: Settings) -> None:
         say("Compared with the site running now: same network, and every setting of the "
             "live API is in the settings file.")
     trial_users = [container_name(c) for c in port_holders(settings.trial_bind)]
-    if trial_users:
-        say("Spare address %s is in use by %s (a leftover test is cleared automatically)" % (
-            settings.trial_bind, ", ".join(trial_users)))
+    own_trial = settings.trial_project + "-web"
+    strangers = [name for name in trial_users if name != own_trial]
+    if strangers:
+        problems.append(
+            "spare address %s is in use by %s, which this tool did not start.\n"
+            "      Put another free address in a deploy.conf file beside this script, "
+            "for example:\n      EDFINDER_TRIAL_BIND=127.0.0.1:58082" % (
+                settings.trial_bind, ", ".join(strangers)))
+    elif trial_users:
+        say("Spare address %s: held by a leftover test of this tool, which the next run "
+            "clears" % settings.trial_bind)
     elif not port_is_free(settings.trial_bind):
         problems.append("spare address %s is in use by a program outside Docker"
                         % settings.trial_bind)
