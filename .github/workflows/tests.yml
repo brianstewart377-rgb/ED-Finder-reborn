@@ -1,0 +1,56 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python and database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        # Same major version as the real database.
+        image: postgres:18
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: state_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SYSTEM_STATE_TEST_DSN: postgresql://postgres@localhost:5432/state_test
+      # Database tests must run here; they fail instead of being skipped.
+      REQUIRE_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            tests/requirements-ci.txt
+            apps/api/requirements.txt
+            apps/importer/requirements.txt
+      - name: Install test dependencies
+        run: python -m pip install -r tests/requirements-ci.txt
+      - name: Show tool versions
+        run: |
+          python --version
+          psql --version
+          psql -X -At -d "$SYSTEM_STATE_TEST_DSN" -c "SELECT version()"
+      - name: Run tests
+        run: python -m pytest -q tests
