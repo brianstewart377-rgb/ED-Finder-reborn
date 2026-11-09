@@ -474,3 +474,44 @@ def test_running_api_on_an_extra_network_blocks_the_take_over_until_accepted(sit
     result = site.tool("live", tag(SHA_A), "--take-over", "--accept-differences")
     assert result.returncode == 0, result.stdout
     assert site.serving() == SHA_A
+
+
+# -- the spare address ------------------------------------------------------------
+
+def test_spare_address_held_by_something_else_is_reported_and_never_disturbed(site):
+    squatter = "edft-squatter-%s" % site.suffix
+    docker("run", "-d", "--name", squatter, "--network", site.network,
+           "-p", "127.0.0.1:%d:8000" % site.trial_port,
+           "%s:git-%s" % (site.images.api, SHA_OLD))
+    try:
+        result = site.tool("check")
+        assert result.returncode == 1
+        assert squatter in result.stdout and "EDFINDER_TRIAL_BIND" in result.stdout
+
+        result = site.tool("live", tag(SHA_A))
+        assert result.returncode == 2
+        assert "spare address" in result.stdout and squatter in result.stdout
+        assert squatter in site.names()
+        assert site.serving() is None
+    finally:
+        docker("rm", "-f", squatter, check=False)
+
+
+def test_leftover_test_containers_of_this_tool_are_cleared_by_the_next_run(site):
+    leftover = site.project + "-trial-web"
+    docker("run", "-d", "--name", site.project + "-trial-api", "--network", site.network,
+           "--label", "com.docker.compose.project=%s-trial" % site.project,
+           "%s:git-%s" % (site.images.api, SHA_OLD))
+    docker("run", "-d", "--name", leftover, "--network", site.network,
+           "--label", "com.docker.compose.project=%s-trial" % site.project,
+           "-e", "EDFINDER_API_UPSTREAM=%s-trial-api:8000" % site.project,
+           "-p", "127.0.0.1:%d:8080" % site.trial_port,
+           "%s:git-%s" % (site.images.web, SHA_OLD))
+    result = site.tool("check")
+    assert result.returncode == 0, result.stdout
+    assert "leftover test of this tool" in result.stdout
+
+    result = site.tool("live", tag(SHA_A))
+    assert result.returncode == 0, result.stdout
+    assert site.serving() == SHA_A
+    assert leftover not in site.names()
