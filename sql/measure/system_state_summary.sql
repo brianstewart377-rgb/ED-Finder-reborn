@@ -24,7 +24,9 @@ SELECT count(*)                                                        AS stored
                                OR colonisation_ship_present))          AS no_population_being_colonised,
        count(*) FILTER (WHERE population > 0
                           AND (construction_site_count > 0
-                               OR colonisation_ship_present))          AS inhabited_still_building
+                               OR colonisation_ship_present))          AS inhabited_still_building,
+       count(*) FILTER (WHERE population > 0 AND station_count = 0)    AS inhabited_no_station_known,
+       count(*) FILTER (WHERE system_updated_at > now() + interval '2 days') AS dated_in_the_future
   FROM v3_state.system_state;
 
 \echo '=== 3. Station types (fleet carriers left out) ==='
@@ -46,7 +48,24 @@ SELECT (SELECT string_agg(k, ' + ' ORDER BY k)
  WHERE s.population = 0
  GROUP BY 1, 2
  ORDER BY count(*) DESC
- LIMIT 25;
+ LIMIT 12;
+
+\echo '=== 4b. Systems with no population: when a station there was last seen ==='
+SELECT CASE WHEN colonisation_ship_present OR construction_site_count > 0
+            THEN 'colonisation ship or construction site'
+            ELSE 'other stations only' END AS kind,
+       count(*) FILTER (WHERE stations_updated_at >= now() - interval '30 days')  AS seen_last_30_days,
+       count(*) FILTER (WHERE stations_updated_at <  now() - interval '30 days'
+                          AND stations_updated_at >= now() - interval '90 days')  AS seen_31_to_90_days_ago,
+       count(*) FILTER (WHERE stations_updated_at <  now() - interval '90 days'
+                          AND stations_updated_at >= now() - interval '365 days') AS seen_91_to_365_days_ago,
+       count(*) FILTER (WHERE stations_updated_at <  now() - interval '365 days') AS seen_over_a_year_ago,
+       count(*) FILTER (WHERE stations_updated_at IS NULL)                        AS no_time_known,
+       count(*) AS systems
+  FROM v3_state.system_state
+ WHERE population = 0
+ GROUP BY 1
+ ORDER BY 1;
 
 \echo '=== 5. How fresh the records are ==='
 SELECT count(*) FILTER (WHERE system_updated_at >= now() - interval '7 days')   AS updated_last_7_days,
