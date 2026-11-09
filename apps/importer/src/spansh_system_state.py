@@ -39,6 +39,9 @@ STAGE_COLUMNS: Tuple[str, ...] = (
 )
 
 UNKNOWN_STATION_TYPE = "Unknown"
+# A load is abandoned when more than 1% of a file's records (and more than
+# this many) cannot be used.
+MAX_BAD_RECORDS_FLOOR = 10
 
 _TIMESTAMP = re.compile(
     r"^(\d{4}-\d\d-\d\d)[ T](\d\d:\d\d:\d\d)(?:\.\d+)?(?:Z|[+-]00(?::?00)?)?$"
@@ -103,7 +106,7 @@ def iter_stations(system: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
         if not isinstance(station, dict):
             return False
         station_id = station.get("id")
-        if station_id is None:
+        if isinstance(station_id, bool) or not isinstance(station_id, (int, str)):
             return True
         if station_id in seen:
             return False
@@ -439,14 +442,20 @@ def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
                 entry["records"] += 1
                 try:
                     row = system_row(record)
-                except SkipSystem:
+                    line = None if row is None else copy_line(seq + 1, row).encode("utf-8")
+                except (SkipSystem, ValueError, TypeError, OverflowError) as error:
+                    # One odd record must not sink a whole load; too many do
+                    # (see the check after the file is read).
                     entry["unusable"] += 1
+                    if log is not None and entry["unusable"] <= 5:
+                        print("  unusable record at line %d: %s: %s" % (
+                            _line_number, type(error).__name__, error), file=log, flush=True)
                     continue
-                if row is None:
+                if row is None or line is None:
                     entry["no_state"] += 1
                 else:
                     seq += 1
-                    out.write(copy_line(seq, row).encode("utf-8"))
+                    out.write(line)
                     entry["kept"] += 1
                     kept_ids.add(row["system_id64"])
                     if row["population"] > 0:
@@ -458,6 +467,12 @@ def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
         finally:
             if handle is not sys.stdin.buffer:
                 handle.close()
+        bad = entry["unusable"] + entry["unreadable_lines"]
+        if bad > max(MAX_BAD_RECORDS_FLOOR, entry["records"] // 100):
+            raise RuntimeError(
+                "%s: %d of %d records could not be used; that is too many to trust "
+                "the file" % (os.path.basename(path), bad,
+                              entry["records"] + entry["unreadable_lines"]))
     if seq == 0:
         raise RuntimeError("no system with a population or a station was found; nothing to load")
     out.write(stream_footer(snapshot, source_label).encode("utf-8"))

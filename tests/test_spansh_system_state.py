@@ -421,3 +421,50 @@ def test_plain_json_file_is_read_without_gzip(real_systems, tmp_path):
     out = io.BytesIO()
     stats = state.write_load_stream([str(path)], out, snapshot=False, source_label="x")
     assert stats.files[0]["kept"] == 1
+
+
+def test_station_with_an_odd_id_does_not_break_counting():
+    row = state.system_row(synthetic(stations=[
+        {"id": {"nested": 1}, "name": "A", "type": "Outpost"},
+        {"id": ["x"], "name": "B", "type": "Outpost"},
+        {"id": None, "name": "C", "type": "Outpost"},
+    ]))
+    assert row["station_count"] == 3
+
+
+def test_one_odd_record_is_skipped_and_the_rest_still_load(real_systems, tmp_path):
+    odd = synthetic(id64=5, population=10)
+    odd["factions"] = [{"name": "X", "activeStates": [{"state": "Boom", "trend": float("nan")}]}]
+    lone_surrogate = synthetic(id64=6, population=10, name="bad \ud83d name")
+    path = tmp_path / "mixed.json"
+    lines = [json.dumps(real_systems["Sol"]), json.dumps(odd),
+             json.dumps(lone_surrogate), json.dumps(real_systems["Maia"])]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    out = io.BytesIO()
+    stats = state.write_load_stream([str(path)], out, snapshot=False, source_label="x")
+    assert stats.files[0]["kept"] == 2
+    assert stats.files[0]["unusable"] == 2
+    data = out.getvalue().decode("utf-8").partition("FROM stdin;\n")[2].partition("\\.\n")[0]
+    rows = [parse_copy_line(line + "\n") for line in data.splitlines()]
+    assert [(row["seq"], row["name"]) for row in rows] == [("1", "Sol"), ("2", "Maia")]
+
+
+def test_file_with_too_many_unusable_records_is_refused(tmp_path):
+    good = [synthetic(id64=n, population=10) for n in range(1, 21)]
+    bad = [synthetic(id64=100 + n, population=10, coords=None) for n in range(11)]
+    path = tmp_path / "mostly_bad.json"
+    path.write_text("\n".join(json.dumps(item) for item in good + bad) + "\n", encoding="utf-8")
+    out = io.BytesIO()
+    with pytest.raises(RuntimeError, match="too many"):
+        state.write_load_stream([str(path)], out, snapshot=False, source_label="x")
+    assert b"COMMIT" not in out.getvalue()
+
+
+def test_a_few_unusable_records_in_a_big_file_are_tolerated(tmp_path):
+    good = [synthetic(id64=n, population=10) for n in range(1, 2001)]
+    bad = [synthetic(id64=5000 + n, population=10, coords=None) for n in range(15)]
+    path = tmp_path / "mostly_good.json"
+    path.write_text("\n".join(json.dumps(item) for item in good + bad) + "\n", encoding="utf-8")
+    out = io.BytesIO()
+    stats = state.write_load_stream([str(path)], out, snapshot=False, source_label="x")
+    assert (stats.files[0]["kept"], stats.files[0]["unusable"]) == (2000, 15)
