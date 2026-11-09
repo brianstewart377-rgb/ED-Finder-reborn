@@ -1,0 +1,15 @@
+{
+  "schema_version": "ratings-v4-source-fixtures-1",
+  "files_sha256": {
+    "canonical.json": "b85d654086fb94511b498f61d915ed72ad51b0f16bb3281699f5201516aae987",
+    "source-metadata.json": "100bbb794f54ef8fbbc7c4c6655ec5c014a078f1365f8dd3e0fdfaa74eb14e4c",
+    "spansh-system-dumps.zip": "6cb0dd411dfc827b104a99ced131b3e275307aace2685abe746a1b54b3f858e3"
+  },
+  "github_artifacts": {
+    "canonical.json": {"run_id": 34271006659, "artifact_id": 10073799050, "head_sha": "20597c167ed10974116aaabdd323bdc86725b60b", "zip_sha256": "08c216adb4cb6954167ddf04d4bca1a67f926507a8ac9af37953a134734c0db3"},
+    "source-metadata.json": {"run_id": 34271647038, "artifact_id": 10074039639},
+    "spansh-system-dumps.zip": {"run_id": 34271850775, "artifact_id": 10074128265, "head_sha": "8e6ea5c1d3f2df42f3de8ad35987383e7a0018d6", "retrieved_at": "2026-09-08T19:56:40Z"}
+  },
+  "retention": "Original canonical export, source metadata and all 12 original API response bytes are retained losslessly. ZIP compression only; no bit-packed or inferred facts.",
+  "usage": "Canonical source facts retain their own source run and timestamps. Only exact identity-joined subType values are used from the newer API snapshot. Missing scan/ground/reserve evidence remains unknown."
+}

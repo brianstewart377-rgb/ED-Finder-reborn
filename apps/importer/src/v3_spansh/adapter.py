@@ -364,6 +364,9 @@ class CanonicalBatch:
     unmapped: set[tuple[str, str]] = field(default_factory=set)
     raw_economy_evidence: list[dict[str, Any]] = field(default_factory=list)
     feature_flags: set[str] = field(default_factory=set)
+    # Parent matches are counted, not stored: one row per body cost 116 GB and
+    # nothing in the app read it. bodies.direct_parent_body_pk holds the result.
+    parent_resolution: dict[str, int] = field(default_factory=dict)
 
     def add(self, table: str, *values: Any) -> None:
         self.rows.setdefault(table, []).append(tuple(values))
@@ -374,6 +377,8 @@ class CanonicalBatch:
         self.unmapped.update(other.unmapped)
         self.raw_economy_evidence.extend(other.raw_economy_evidence)
         self.feature_flags.update(other.feature_flags)
+        for state, count in other.parent_resolution.items():
+            self.parent_resolution[state] = self.parent_resolution.get(state, 0) + count
 
     @property
     def rows_written(self) -> int:
@@ -509,12 +514,8 @@ class SpanshAdapter:
             except (TypeError, ValueError):
                 raw_id_int = None
             direct_parent = body_keys.get(raw_id_int) if raw_id_int is not None else None
-            state = "RESOLVED" if direct_parent is not None else "UNRESOLVED"
-            batch.add(
-                "body_parent_evidence", body_pk, system_id64, self.source_run_id, 0,
-                str(raw_label), raw_id_int, state, direct_parent,
-                json.dumps({"source_path": "parents[0]", "additional_parent_count": max(0, len(parents) - 1)}),
-            )
+            state = "resolved" if direct_parent is not None else "unresolved"
+            batch.parent_resolution[state] = batch.parent_resolution.get(state, 0) + 1
 
         semi_au = finite_float(body.get("semiMajorAxis"))
         radius = finite_float(body.get("radius"))

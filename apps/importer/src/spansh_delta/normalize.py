@@ -43,7 +43,7 @@ POLICIES = ("strict", "stable")
 # ``station_alias`` are part of the canonical schema but the Spansh adapter
 # never emits them, so they cannot change through a Spansh delta.
 CONTENT_TABLES: tuple[str, ...] = (
-    "systems", "bodies", "body_composition", "body_parent_evidence", "rings",
+    "systems", "bodies", "body_composition", "rings",
     "body_signal_current", "body_genus_current", "ring_signal_current",
     "stations", "station_placement", "station_service_current",
     "station_economy_current",
@@ -72,7 +72,6 @@ FLOAT4_COLUMNS = frozenset({
 JSON_COLUMNS = frozenset({
     ("body_composition", "materials"),
     ("body_composition", "atmosphere"),
-    ("body_parent_evidence", "detail"),
     ("station_placement", "evidence_detail"),
 })
 
@@ -80,7 +79,6 @@ IDENTITY_COLUMNS: Mapping[str, tuple[str, ...]] = {
     "systems": ("id64",),
     "bodies": ("body_pk",),
     "body_composition": ("body_pk",),
-    "body_parent_evidence": ("body_pk", "source_parent_ordinal"),
     "rings": ("ring_pk",),
     "body_signal_current": ("body_pk", "signal_type_id"),
     "body_genus_current": ("body_pk", "genus_id"),
@@ -419,8 +417,6 @@ def _base_for_system(id64: int, base_rows: Mapping[str, Iterable[Mapping[str, An
             continue
         if table in ("body_composition", "body_signal_current", "body_genus_current"):
             selected[table] = [row for row in rows(table) if int(row["body_pk"]) in body_pks]
-        elif table == "body_parent_evidence":
-            selected[table] = [row for row in rows(table) if int(row["system_id64"]) == id64]
         elif table == "ring_signal_current":
             selected[table] = [row for row in rows(table) if int(row["ring_pk"]) in ring_pks]
         elif table == "station_placement":
