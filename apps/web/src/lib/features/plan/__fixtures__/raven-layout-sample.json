@@ -1,0 +1,74 @@
+{
+  "v": "6",
+  "name": "Velora Lantern",
+  "id64": "1234567890123456789",
+  "bodies": [
+    {
+      "name": "Velora Lantern A",
+      "num": 0,
+      "parents": [],
+      "type": "st",
+      "subType": "G (White-Yellow) Star",
+      "features": []
+    },
+    {
+      "name": "Velora Lantern A 1",
+      "num": 16,
+      "parents": [{ "Star": 0 }],
+      "type": "pl",
+      "subType": "Rocky body",
+      "features": []
+    },
+    {
+      "name": "Velora Lantern A 1 a",
+      "num": 17,
+      "parents": [{ "Planet": 16 }, { "Star": 0 }],
+      "type": "pl",
+      "subType": "Rocky body",
+      "features": []
+    },
+    {
+      "name": "Velora Lantern A 2",
+      "num": 32,
+      "parents": [{ "Star": 0 }],
+      "type": "pl",
+      "subType": "Icy body",
+      "features": []
+    }
+  ],
+  "sites": [
+    {
+      "id": "synthetic-dock",
+      "name": "Copper Finch Dock",
+      "bodyNum": 16,
+      "buildType": "vulcan",
+      "status": "complete"
+    },
+    {
+      "id": "synthetic-farm",
+      "name": "Amber Sprout Fields",
+      "bodyNum": 17,
+      "buildType": "ceres",
+      "status": "plan"
+    },
+    {
+      "id": "synthetic-port",
+      "name": "Glasswing Station",
+      "bodyNum": 0,
+      "buildType": "quad_truss",
+      "status": "build"
+    },
+    {
+      "id": "synthetic-works",
+      "name": "Frostbell Works",
+      "bodyNum": 32,
+      "buildType": "molae",
+      "status": "demolish"
+    }
+  ],
+  "slots": {
+    "16": [4, 10],
+    "17": [2, 6],
+    "32": [0, 8]
+  }
+}

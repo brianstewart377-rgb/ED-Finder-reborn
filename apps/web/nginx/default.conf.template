@@ -1,0 +1,52 @@
+# The public edge forwards the scheme the visitor used (it terminates nothing
+# itself: TLS ends in front of it). This container listens on plain http, so
+# its own $scheme is always "http"; pass the edge's value on instead.
+map $http_x_forwarded_proto $forwarded_proto {
+    ""      $scheme;
+    default $http_x_forwarded_proto;
+}
+
+server {
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Baseline security headers on every response, including proxied API
+    # responses and errors. No location below sets add_header, so all inherit.
+    # frame-ancestors/X-Frame-Options stop other sites framing ED-Finder
+    # (including the signed-in account page). HSTS belongs to the TLS
+    # terminator, not this plain-http hop. A full CSP comes later, report-only
+    # first: the SvelteKit bootstrap, Babylon and the journal worker need it.
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Content-Security-Policy "frame-ancestors 'self'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+
+    location = /api {
+        proxy_pass http://${EDFINDER_API_UPSTREAM};
+        include /etc/nginx/proxy_params;
+    }
+
+    location ^~ /api/ {
+        proxy_pass http://${EDFINDER_API_UPSTREAM};
+        include /etc/nginx/proxy_params;
+    }
+
+    location = /openapi.json {
+        proxy_pass http://${EDFINDER_API_UPSTREAM};
+        include /etc/nginx/proxy_params;
+    }
+
+    # Keep this regex exact. Non-numeric and nested /s routes are Svelte routes.
+    location ~ ^/s/[0-9]+$ {
+        proxy_pass http://${EDFINDER_API_UPSTREAM};
+        include /etc/nginx/proxy_params;
+    }
+
+    location / {
+        try_files $uri $uri/ /200.html;
+    }
+}

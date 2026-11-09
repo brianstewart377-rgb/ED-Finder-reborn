@@ -1,0 +1,19 @@
+ED-Finder complete nebula-coordinate asset
+
+Source publisher: EDAstro / CMDR Orvidius
+Publishing page: https://edastro.com/mapcharts/files.html
+Source CSV: https://edastro.com/mapcharts/files/nebulae-coordinates.csv
+Rights notice shown by publisher: Copyright © CMDR Orvidius, All Rights Reserved
+Source Last-Modified: Sat, 12 Sep 2026 11:01:30 GMT
+Source bytes: 471705
+Source SHA-256: cd5f0e44c51b971b1df52f566dd5b542bcaf4de567b6c308912dfaa1c5553a9e
+
+Usage decision: the ED-Finder owner confirmed that the application is
+non-commercial and directed use of this purpose-published CSV. The publishing
+page explicitly describes automation and instructs automated consumers to
+detect the CSV column order. This notice retains the publisher credit and source
+links and does not claim that the Mapcharts CSV is Creative Commons licensed.
+
+ED-Finder preserves catalogue coordinates as authoritative reference-system
+positions. Rendered cloud radii are schematic presentation only and do not
+represent measured physical nebula extents.

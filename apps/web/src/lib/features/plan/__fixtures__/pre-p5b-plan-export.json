@@ -1,0 +1,30 @@
+{
+  "schema": "cpe_plan_export_v1",
+  "system_id64": "42",
+  "sites": [
+    {
+      "schema": "cpe_site_v1",
+      "site_id": "imported-port",
+      "facility_id": "primary-port",
+      "body_ref": "1",
+      "slot_kind": "orbital",
+      "status": "planned",
+      "name": "Original primary port"
+    },
+    {
+      "schema": "cpe_site_v1",
+      "site_id": "imported-installation",
+      "facility_id": "installation",
+      "body_ref": null,
+      "slot_kind": "orbital",
+      "status": "building",
+      "name": "Unplaced installation"
+    }
+  ],
+  "slots": {
+    "1": {
+      "orbital_slots": 5,
+      "surface_slots": null
+    }
+  }
+}

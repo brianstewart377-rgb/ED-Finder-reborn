@@ -1,0 +1,10 @@
+node_modules/
+.svelte-kit/
+build/
+cypress/artifacts/
+
+# The repository root ignores generic lib/ output; this generated client is source.
+!src/lib/
+!src/lib/api/
+!src/lib/api/generated/
+!src/lib/api/generated/**

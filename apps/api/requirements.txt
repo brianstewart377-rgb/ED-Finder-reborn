@@ -1,0 +1,44 @@
+# apps/api — runtime dependencies for the FastAPI service only.
+# Importer-only libraries (ijson, Psycopg 3, tqdm) live in
+# apps/importer/requirements.txt and are NOT installed into this image.
+asyncpg==0.31.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+redis[asyncio]==8.1.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+slowapi==0.1.10
+httpx==0.28.1
+
+# XXE-safe XML parsing for routers/news.py's Galnet RSS feed (2026-08-08,
+# Semgrep use-defused-xml finding) — drop-in replacement for xml.etree.
+defusedxml==0.7.1
+
+# EDDN simulation ingest (apps/api/src/ingest/eddn_client.py) — opt-in via
+# EDDN_SIMULATION_INGEST_ENABLED, see config.py. Needed to actually connect
+# to the EDDN ZMQ relay; without it the ingest task degrades to a no-op
+# (logs a warning, sleeps) even when enabled.
+pyzmq==27.2.0
+
+# Windows-only zmq.asyncio compatibility shim (root-caused 2026-08-08).
+# On Windows, asyncio's default ProactorEventLoop doesn't implement the
+# add_reader family pyzmq needs; without tornado, the first zmq socket
+# recv() raises RuntimeError, and because zmq's own Socket._get_loop()
+# marks the loop as registered *before* attempting that registration, the
+# subsequent close() cleanup hits the identical RuntimeError before it can
+# call the real native close — leaking the socket, and a later
+# Context.term() on that leaked socket blocks the entire asyncio event
+# loop indefinitely (verified directly: a concurrent heartbeat coroutine
+# stops being scheduled and never resumes). pyzmq detects tornado
+# automatically at runtime and uses its AddThreadSelectorEventLoop shim
+# instead of raising, with no application code changes needed. A no-op on
+# Linux (production): this code path is only reached when the running
+# loop is an instance of asyncio.ProactorEventLoop, which is Windows-only.
+tornado==6.5.8
+
+# OpenGraph share-card rendering (/api/share/og/{id64}).
+Pillow==12.3.0
+
+# Optional error tracking (GlitchTip/Sentry-API-compatible). Only active
+# when SENTRY_DSN is set — see config.py and docs/operations/glitchtip-error-tracking.md.
+sentry-sdk==2.68.1

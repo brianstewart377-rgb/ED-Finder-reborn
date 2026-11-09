@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "json-with-bigint": ["../../apps/web/node_modules/json-with-bigint/json-with-bigint.d.ts"]
+    }
+  }
+}

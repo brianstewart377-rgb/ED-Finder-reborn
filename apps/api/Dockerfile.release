@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+FROM ghcr.io/brianstewart377-rgb/ed-finder/mirror/python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS build
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# uv is itself pinned; every application dependency is resolved only from the
+# committed lock. This stage runs in release CI, never on the production host.
+RUN python -m pip install --no-cache-dir uv==0.11.33
+COPY apps/api/pyproject.toml apps/api/uv.lock ./
+RUN python -c "import platform, sys; assert platform.python_implementation() == 'CPython'; assert sys.version_info[:2] == (3, 14)" && \
+    test "$(python -m uv --version | cut -d' ' -f1-2)" = "uv 0.11.33" && \
+    python -m uv sync --frozen --no-dev --no-group test --no-install-project
+
+FROM ghcr.io/brianstewart377-rgb/ed-finder/mirror/python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS runtime
+
+ARG BUILD_SHA
+WORKDIR /app
+
+RUN case "$BUILD_SHA" in \
+      *[!0-9a-f]*|'') exit 64 ;; \
+    esac && [ "${#BUILD_SHA}" -eq 40 ]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl libpq5 libjpeg62-turbo zlib1g libfreetype6 fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/.venv /app/.venv
+RUN /app/.venv/bin/python -c "import platform, sys; assert platform.python_implementation() == 'CPython'; assert sys.version_info[:2] == (3, 14)"
+COPY apps/api/src/ ./
+COPY shared_contracts/ ./shared_contracts/
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    APP_VERSION="3.0.1" \
+    BUILD_SHA="$BUILD_SHA" \
+    PYTHONUNBUFFERED=1
+LABEL org.opencontainers.image.revision="$BUILD_SHA" \
+      org.opencontainers.image.version="3.0.1"
+
+EXPOSE 8000
+CMD ["uvicorn", "edfinder_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

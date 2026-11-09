@@ -1,0 +1,15 @@
+# apps/importer — runtime dependencies for the Spansh dump pipeline.
+# Psycopg 3 is the synchronous PostgreSQL authority for importer code.
+# ijson handles streaming JSON; tqdm provides progress bars.
+# numpy backs build_regional_analysis.py's in-memory candidate-pool distance
+# search (see its module docstring) — the only vectorized-math consumer here.
+psycopg[binary]==3.3.4
+ijson==3.5.1
+tqdm==4.70.0
+pydantic==2.13.5
+numpy==2.5.2
+
+# XXE-safe XML parsing for import_facility_templates_from_daftmav.py's
+# xlsx sharedStrings/workbook parsing (2026-08-08, Semgrep use-defused-xml
+# finding) — drop-in replacement for xml.etree.
+defusedxml==0.7.1

@@ -1,0 +1,14 @@
+{
+  "code_sha256_lf": {
+    "apps/api/src/domain/ratings_v4.py": "344c620fa29cda725fcecf6aaa18acd7ae68730b9919f22d86a23dea643d29ad",
+    "apps/api/src/domain/ratings_v4_canonical.py": "99882b08aa112c80f8b673b553a374fbc58c4da4db27619042367ba6fdfa6e84",
+    "scripts/ratings_v4/canonical_stream.py": "9a501bd1584f05b68612dca672e68dfaf69867412abb75a68fad72ce2cc9ad8e",
+    "scripts/ratings_v4/production_generation.py": "29e169aa01671175770253bc30e493a10849cfacbb7f0c4043dee9e25bcc00f8",
+    "scripts/ratings_v4/resume_upgrade.py": "98b7d775ece2718e3304d0e7227da2ed8f61ea6e526021ea7d69da83ce7ff4d2",
+    "scripts/ratings_v4/run_generation.py": "f8dc1c169e497a3f15593a5b2e0cca392ca8f124c6160e8e3020f97ada38f9cd",
+    "scripts/ratings_v4/verify_freeze.py": "479b16028c08e5c2352dcf8d75e831f919e43820ec8b92552ce6bb48bbad32dc",
+    "sql/v3/migrations/003_ratings_v4_derived.sql": "c7818f98ad00b4b99b7ce0f7c3fa12ece555e59e761b7b1ca15d437a39c499cb",
+    "sql/v3/proposals/007_ratings_v4_code_upgrade.sql": "adc9fc5dcf8ee500b29fe49886367fe71c539a75c7e4df84dfa490a367796c2e"
+  },
+  "upgrade_id": "ratings-v4-direct-parser-1"
+}

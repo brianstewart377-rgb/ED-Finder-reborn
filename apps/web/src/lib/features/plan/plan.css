@@ -1,0 +1,570 @@
+.plan-workspace.product-page {
+  width: calc(100% - 1.5rem);
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 1rem 0 2rem;
+  overflow-wrap: anywhere;
+}
+.plan-workspace button,
+.plan-workspace input,
+.plan-workspace select {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--panel-raised);
+  padding: 0.45rem 0.65rem;
+  min-width: 0;
+  max-width: 100%;
+}
+.plan-workspace button[aria-pressed='true'] {
+  border-color: var(--neon);
+  background: var(--neon-soft);
+}
+.plan-header nav,
+.plan-header-actions,
+.plan-view,
+.pane-heading,
+.plan-filters,
+.summary-results {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.plan-header nav {
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+.build-order-blocked {
+  color: var(--accent);
+}
+.plan-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.plan-title h1 {
+  font-family: var(--font-hud, inherit);
+  margin: 0.15rem 0;
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+}
+.plan-title p {
+  margin: 0.3rem 0;
+}
+/* On wide screens the title and the actions share one row, as in the concept;
+   the buttons are a little more compact so seven of them fit beside the name.
+   Narrower screens keep the wrapped layout. */
+@media (min-width: 1340px) {
+  .plan-title {
+    flex-wrap: nowrap;
+  }
+  .plan-title > div:first-child {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .plan-header-actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+  .plan-header-actions > button,
+  .plan-view > button,
+  .plan-import summary {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+}
+/* Import is a disclosure with the two file choices inside it. */
+.plan-import {
+  position: relative;
+}
+.plan-import summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--panel-raised);
+  cursor: pointer;
+  list-style: none;
+}
+.plan-import summary::-webkit-details-marker {
+  display: none;
+}
+.plan-import summary::after {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-0.15rem) rotate(45deg);
+}
+.plan-import[open] summary {
+  border-color: var(--neon);
+}
+.plan-import summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.plan-import-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 12rem;
+  padding: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-panel);
+}
+.plan-import-panel button {
+  text-align: left;
+  white-space: nowrap;
+}
+/* Review & export is the page's one primary action. The kit's orange skin loses
+   to the workspace's own button rule above, so it is set here. */
+.plan-header-actions .plan-review-button {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hi));
+  color: var(--accent-text);
+  font-weight: 650;
+}
+.plan-header-actions .plan-review-button:hover,
+.plan-header-actions .plan-review-button:focus-visible {
+  border-color: var(--accent-hi);
+  box-shadow: var(--accent-glow);
+}
+.plan-task-tabs[role='tablist'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.35rem;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.plan-task-tabs [role='tab'] {
+  min-height: 44px;
+  font-family: var(--font-hud, inherit);
+  border-radius: var(--radius-sm);
+  border-color: transparent;
+  color: var(--text-muted);
+}
+.plan-task-tabs [role='tab'][aria-selected='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--neon) 10%, var(--panel-raised));
+}
+.plan-task-tabs [role='tab']:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.plan-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+.plan-pane {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  background-image: var(--panel-gloss);
+  box-shadow: var(--shadow-panel);
+  padding: 0.65rem;
+}
+.plan-workspace [hidden] {
+  display: none;
+}
+.plan-import-notes {
+  margin-bottom: 1rem;
+}
+.plan-import-notes summary {
+  cursor: pointer;
+}
+.plan-import-notes li + li {
+  margin-top: 0.35rem;
+}
+.pane-heading {
+  justify-content: space-between;
+}
+.plan-pane h2 {
+  font-family: var(--font-hud, inherit);
+  font-size: 1.1rem;
+  margin: 0;
+}
+.plan-pane h3 {
+  font-size: 0.95rem;
+}
+.plan-muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.plan-chip {
+  border: 1px solid var(--neon);
+  border-radius: var(--radius-pill);
+  background: var(--neon-soft);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.72rem;
+}
+.plan-body-tree,
+.build-order-list,
+.attention-list {
+  list-style: none;
+  padding: 0;
+}
+/* Body and build-order row layouts remain with their components. */
+.plan-site-group {
+  min-width: 0;
+  margin: 0 0 2px 1.8rem;
+  padding: 2px 0.25rem;
+}
+.plan-site-group.surface {
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+.plan-pane .site-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 16px;
+}
+.plan-sites {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plan-site-row {
+  min-width: 0;
+}
+.plan-workspace .plan-tile {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 0.3rem;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+  font-size: 0.7rem;
+  line-height: 16px;
+}
+.plan-tile .tile-number {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.plan-tile .tile-label {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.plan-tile .site-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 650;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.plan-tile .site-type {
+  flex: 0 2 auto;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-tile .plan-chip {
+  flex-shrink: 0;
+  padding: 0 0.15rem;
+  font-size: 0.6rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.plan-filters {
+  margin: 0.6rem 0;
+  font-size: 0.8rem;
+}
+.blocked {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel)) !important;
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line)) !important;
+}
+.stale {
+  /* Keep pending/last-good text readable; opacity breaks text contrast. */
+  filter: grayscale(1);
+}
+.negative,
+.plan-error {
+  color: var(--danger);
+}
+.negative {
+  text-decoration: underline dotted;
+}
+.plan-error {
+  padding: 0.7rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+}
+.plan-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0.85rem 0;
+}
+.plan-totals > div {
+  padding: 0.7rem;
+  background: var(--panel);
+  background-image: var(--panel-gloss);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+}
+.plan-totals dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.plan-totals dd {
+  margin: 0.3rem 0 0;
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+.plan-totals small {
+  display: block;
+  font-size: 0.75rem;
+}
+.next-port > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+}
+.next-port dd {
+  margin: 0;
+  white-space: nowrap;
+}
+.summary-results {
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin: 0.85rem 0;
+}
+.attention-list {
+  font-size: 0.85rem;
+}
+.attention-list li {
+  margin: 0.5rem 0;
+}
+.attention-list button {
+  width: 100%;
+  text-align: left;
+}
+.attention-list small {
+  display: block;
+}
+.review-item-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+}
+.review-unresolved-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+.review-unresolved-list li {
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-sunken);
+}
+.review-unresolved-list button {
+  width: 100%;
+  text-align: left;
+}
+.review-unresolved-list small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+}
+.rulebook {
+  margin: 0;
+}
+.review-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-raised));
+}
+.review-banner p {
+  display: grid;
+  flex: 1;
+  margin: 0;
+}
+.review-banner span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.review-dialog :is(h3, h4) {
+  margin: 0.9rem 0 0.3rem;
+  color: var(--text);
+  font-weight: 700;
+}
+.review-dialog h3 {
+  font-size: 1.05rem;
+}
+.review-dialog h4 {
+  font-size: 0.95rem;
+}
+.review-layout {
+  display: grid;
+  gap: 0 1.5rem;
+}
+@media (min-width: 900px) {
+  .review-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+/* The Review tabs reuse the task-tab look but sit flush in the pop-out. */
+.review-tabs[role='tablist'] {
+  margin: 0.75rem 0 0.5rem;
+}
+.review-table-wrap {
+  overflow-x: auto;
+}
+.review-table-wrap:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.review-build-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.review-build-table :is(th, td) {
+  padding: 0.45rem 0.3rem;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.review-build-table thead th {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.review-build-table tbody th {
+  min-width: 6rem;
+  font-weight: 600;
+  white-space: normal;
+}
+@media (min-width: 600px) {
+  .review-build-table :is(th, td) {
+    padding: 0.45rem 0.6rem;
+  }
+}
+.review-status {
+  text-transform: capitalize;
+}
+.review-notes {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.1rem;
+  line-height: 1.5;
+}
+/* Export stays in view while the lists scroll. */
+.review-footer {
+  position: sticky;
+  bottom: -0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem -0.9rem -0.9rem;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.older-items {
+  margin-top: 1rem;
+}
+.older-items pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+.plan-empty {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.plan-file-input,
+.plan-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .plan-site-group {
+    margin-left: 1rem;
+  }
+}
+@media (min-width: 1100px) {
+  .plan-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+  .system-pane,
+  .build-order-pane {
+    max-height: calc(100dvh - 22rem);
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+  .summary-pane {
+    position: sticky;
+    top: 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-workspace *,
+  .plan-workspace *::before {
+    scroll-behavior: auto;
+    transition: none;
+    animation: none;
+  }
+}

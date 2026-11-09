@@ -1,0 +1,26 @@
+{
+  "v": "6",
+  "name": "Planner Reference",
+  "id64": "9007199254740993",
+  "bodies": [
+    { "num": 1, "name": "Planner Reference A 1" },
+    { "num": 3, "name": "Planner Reference A A Belt Cluster 3" }
+  ],
+  "sites": [
+    {
+      "id": "lantern-harbour",
+      "name": "Lantern Harbour",
+      "bodyNum": 1,
+      "buildType": "quad_truss",
+      "status": "plan"
+    },
+    {
+      "id": "copper-quarry",
+      "name": "Copper Quarry",
+      "bodyNum": 3,
+      "buildType": "phorcys",
+      "status": "plan"
+    }
+  ],
+  "slots": { "1": [4, 8], "3": [2, -1] }
+}

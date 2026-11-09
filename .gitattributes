@@ -1,0 +1,22 @@
+*.sh text eol=lf
+# Immutable validation source artifacts retain their original byte checksums.
+tests/fixtures/ratings_v4_sources/canonical.json -text
+tests/fixtures/ratings_v4_sources/source-metadata.json -text
+tests/fixtures/ratings_v4_sources/spansh-system-dumps.zip -text
+# Recovered canonical source is verified against the published run's byte hash.
+apps/importer/src/v3_spansh/*.py -text
+sql/v3/migrations/001_v3_baseline.sql -text
+sql/v3/migrations/002_v3_accounts_identity.sql -text
+sql/v3/migrations/003_ratings_v4_derived.sql -text
+sql/v3/migrations/004_v3_search_spatial_clusters.sql -text
+sql/v3/migrations/005_v3_journal_intelligence.sql -text
+sql/r1_v3/001_structural_shell.sql -text
+sql/v3/migration-manifest.txt -text
+# Search manifests seal source bytes; keep identities stable across platforms.
+scripts/v3_system_search.py text eol=lf
+scripts/v3_system_search_parallel.py text eol=lf
+sql/v3/migrations/006_v3_derived_product_lifecycle.sql text eol=lf
+sql/v3/migrations/010_v3_system_search_body_type_counts.sql text eol=lf
+sql/v3/migrations/013_v3_system_search_parallel.sql text eol=lf
+# Committed reference text whose SHA-256 is recorded in its README.
+docs/reference/colonisation/sources/mega-guide-v2.3.0/mega-guide-v2.3.0.txt -text

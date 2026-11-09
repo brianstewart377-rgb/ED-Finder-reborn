@@ -1,0 +1,68 @@
+[project]
+name = "ed-finder"
+version = "3.0.1"
+description = "Elite Dangerous colonisation planner — searches 186M star systems by economy, body types, and distance."
+requires-python = ">=3.14,<3.15"
+classifiers = [
+  "Programming Language :: Python :: 3.14",
+]
+
+# This file is the CPython 3.14 repository/tooling authority. The V3 API
+# runtime lock remains apps/api/pyproject.toml + apps/api/uv.lock; services and
+# tooling use their focused per-app requirements files. CI validates this
+# authority directly on the integration head:
+#
+#   apps/api/requirements.txt        — API compatibility mirror (not V3 lock authority)
+#   apps/eddn/requirements.txt       — EDDN listener
+#   apps/importer/requirements.txt   — Spansh importer + builders
+#
+# To install everything for local dev / CI:
+#
+#   pip install -r apps/api/requirements.txt \
+#               -r apps/eddn/requirements.txt \
+#               -r apps/importer/requirements.txt
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["B905", "E4", "E7", "E9", "F"]
+# E701/E702 are accepted legacy one-line style, not defect-class findings.
+ignore = ["E701", "E702"]
+
+[tool.ruff.lint.per-file-ignores]
+# Retained canonical source must stay byte-identical to its published run hash.
+# Its unused Iterator import is harmless; new bridge code is linted normally.
+"apps/importer/src/v3_spansh/pipeline.py" = ["F401"]
+"apps/importer/src/build_regional_analysis.py" = ["E402"]
+"scripts/checks/data_invariants.py" = ["E402"]
+"scripts/dev/review_environment.py" = ["E402"]
+"tests/test_body_hierarchy_sort.py" = ["E402"]
+"tests/test_elite_news_parser.py" = ["E402"]
+"tests/test_facility_catalogue.py" = ["E402"]
+"tests/test_observations.py" = ["E402"]
+"tests/test_pagination_input_bounds.py" = ["E402"]
+"tests/test_ring_data_model.py" = ["E402"]
+"tests/test_simulation_contracts.py" = ["E402"]
+"tests/test_smoke.py" = ["E402"]
+"tests/test_stage17n2c_data_trust.py" = ["E402"]
+"tests/test_stage6c_comparison.py" = ["E402"]
+"tests/test_stage6e_review.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "unit: unit-level tests that do not require external services",
+    "integration: integration tests that exercise cross-module or service boundaries",
+    "db: tests that require a database contract or a live database",
+    "operator: tests for operator scripts, operator APIs, and operator safety surfaces",
+    "slow: tests that are expected to take longer than the default unit path",
+    "e2e: browser or full-stack end-to-end tests",
+    "frontend: frontend tests",
+    "requires_docker: tests or preflights that require Docker",
+    "requires_postgres: tests or preflights that require local Postgres",
+    "requires_redis: tests or preflights that require Redis",
+]

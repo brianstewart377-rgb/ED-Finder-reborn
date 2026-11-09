@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@ed-finder/api-client": ["../api-client/dist/index.d.ts"],
+      "@ed-finder/api-client/*": ["../api-client/dist/*.d.ts"],
+      "json-with-bigint": ["../../apps/web/node_modules/json-with-bigint/json-with-bigint.d.ts"]
+    }
+  }
+}

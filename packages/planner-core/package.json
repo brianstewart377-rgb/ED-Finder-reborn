@@ -1,0 +1,39 @@
+{
+  "name": "@ed-finder/planner-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./comparison": {
+      "types": "./src/comparison/index.ts",
+      "import": "./src/comparison/index.ts",
+      "default": "./src/comparison/index.ts"
+    },
+    "./journal": {
+      "types": "./src/journal/index.ts",
+      "import": "./src/journal/index.ts",
+      "default": "./src/journal/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "import": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "json-with-bigint": "3.5.11"
+  },
+  "peerDependencies": {
+    "@ed-finder/api-client": "0.1.0"
+  }
+}

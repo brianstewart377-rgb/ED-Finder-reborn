@@ -1,0 +1,16 @@
+[project]
+name = "ed-finder-eddn-v3"
+version = "0.1.0"
+description = "V3 EDDN Docked station-sighting worker (writes v3_observe only)."
+requires-python = ">=3.14,<3.15"
+# Deliberately minimal: the ZeroMQ relay client and the synchronous Psycopg 3
+# driver, pinned to the same versions the V3 API lock already carries.
+dependencies = [
+  "psycopg[binary]==3.3.4",
+  "pyzmq==27.2.0",
+]
+
+[tool.uv]
+package = false
+required-version = "==0.11.33"
+exclude-newer = "1 week"

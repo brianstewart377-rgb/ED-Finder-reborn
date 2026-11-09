@@ -1,0 +1,551 @@
+# LEGACY SELF-HOST / LOCAL-CI COMPOSE — NEVER V3 PRODUCTION OR BACKUP AUTHORITY.
+# It is retained for repository/local/CI and legacy compatibility only. Its
+# PostgreSQL 16 services and maintenance sidecar intentionally match that old
+# environment; current V3 production uses PostgreSQL 18. Only an explicitly
+# current V3 runbook/workflow may define production host/service/storage or
+# backup/PITR truth. Do not infer a V3 deployment or recovery procedure here.
+#
+# Shared logging config — applied to every long-lived service via YAML anchor.
+# Without this, container stdout/stderr accumulates in /var/lib/docker/containers
+# until the disk fills; on a large ingestion workload that takes weeks, not months.
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+services:
+
+  # ── PostgreSQL 16 — legacy/local Compose compatibility ────────────────────
+  # Historical high-memory single-host tuning. This is not the PostgreSQL 18
+  # V3 production database contract and must not be copied to V3 by inference.
+  postgres:
+    image: postgres:16-bookworm
+    container_name: ed-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 96g
+    cpus: 10.0
+    environment:
+      POSTGRES_USER:     edfinder
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       edfinder
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+      - /data/dumps:/data/dumps:ro
+      - /data/logs:/data/logs
+    ports:
+      - "127.0.0.1:5432:5432"
+    command: >
+      postgres
+        -c shared_buffers=32GB
+        -c effective_cache_size=96GB
+        -c maintenance_work_mem=8GB
+        -c checkpoint_completion_target=0.99
+        -c wal_buffers=256MB
+        -c default_statistics_target=500
+        -c random_page_cost=1.0
+        -c effective_io_concurrency=300
+        -c work_mem=512MB
+        -c max_worker_processes=12
+        -c max_parallel_workers_per_gather=6
+        -c max_parallel_workers=12
+        -c max_parallel_maintenance_workers=6
+        -c max_connections=200
+        -c log_min_duration_statement=1000
+        -c log_line_prefix='%t [%p]: [%l-1] '
+        -c log_checkpoints=on
+        -c log_connections=off
+        -c log_disconnections=off
+        -c autovacuum_vacuum_scale_factor=0.02
+        -c autovacuum_analyze_scale_factor=0.02
+        -c autovacuum_max_workers=6
+        -c autovacuum_naptime=15s
+        -c autovacuum_vacuum_cost_limit=5000
+        -c autovacuum_vacuum_cost_delay=2ms
+        -c max_wal_size=32GB
+        -c min_wal_size=4GB
+        -c wal_compression=on
+        -c huge_pages=try
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edfinder -d edfinder"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    shm_size: 8gb
+
+  # ── pgBouncer (connection pooler) — OPT-IN ────────────────────────────────
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.23.1-p3
+    container_name: ed-pgbouncer
+    profiles: ["pooler"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      DB_USER:      edfinder
+      DB_PASSWORD:  ${POSTGRES_PASSWORD}
+      DB_HOST:      postgres
+      DB_NAME:      edfinder
+      POOL_MODE:    transaction
+      MAX_CLIENT_CONN:  500
+      DEFAULT_POOL_SIZE: 25
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      LOG_CONNECTIONS: 0
+      LOG_DISCONNECTIONS: 0
+      AUTH_TYPE:    md5
+      SERVER_AUTH_TYPE: scram-sha-256
+      SERVER_TLS_SSLMODE: disable
+    ports:
+      - "127.0.0.1:5433:5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ed-redis
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 5g
+    cpus: 2.0
+    command: >
+      redis-server
+        --maxmemory 4gb
+        --maxmemory-policy allkeys-lru
+        --save ""
+        --appendonly no
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ── FastAPI backend ────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ed-api
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 4g
+    cpus: 4.0
+    environment:
+      DATABASE_URL:          ${DATABASE_APP_URL:-postgresql://edfinder:${POSTGRES_PASSWORD}@postgres:5432/edfinder}
+      DATABASE_READONLY_URL: ${DATABASE_READONLY_URL:-}
+      REDIS_URL:             redis://redis:6379/0
+      LOG_LEVEL:             ${LOG_LEVEL:-INFO}
+      TTL_SEARCH:            3600
+      TTL_SYSTEM:            86400
+      TTL_CLUSTER:           86400
+      BUILD_SHA:             ${EDFINDER_BUILD_SHA:-unknown}
+      # Legacy/local compatibility only; not a V3 host-layout declaration.
+      COMPOSE_PROJECT_DIR:   /opt/ed-finder
+      ADMIN_TOKEN:           ${ADMIN_TOKEN:-}
+      FRONTIER_CLIENT_ID:     ${FRONTIER_CLIENT_ID:-}
+      FRONTIER_CLIENT_SECRET: ${FRONTIER_CLIENT_SECRET:-}
+      FRONTIER_REDIRECT_URI:  ${FRONTIER_REDIRECT_URI:-https://ed-finder.app/api/auth/frontier/callback}
+      FRONTIER_OWNER_CUSTOMER_IDS: ${FRONTIER_OWNER_CUSTOMER_IDS:-}
+      AUTH_COOKIE_SECURE:     ${AUTH_COOKIE_SECURE:-true}
+      ENRICHMENT_STATUS_JSON_PATH: ${ENRICHMENT_STATUS_JSON_PATH:-}
+      ENRICHMENT_WAREHOUSE_STATUS_JSON_PATH: ${ENRICHMENT_WAREHOUSE_STATUS_JSON_PATH:-}
+      CORS_ORIGINS:          ${CORS_ORIGINS:-https://ed-finder.app,https://www.ed-finder.app}
+      EXPOSE_ERROR_DETAIL:   ${EXPOSE_ERROR_DETAIL:-false}
+      SENTRY_DSN:            ${SENTRY_DSN:-}
+      EDDN_SIMULATION_INGEST_ENABLED: ${EDDN_SIMULATION_INGEST_ENABLED:-true}
+    volumes:
+      - /data/logs:/data/logs
+      - /data/receipts:/data/receipts:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ── EDDN Listener ─────────────────────────────────────────────────────────
+  eddn:
+    build:
+      context: .
+      dockerfile: apps/eddn/Dockerfile
+    container_name: ed-eddn
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1g
+    cpus: 2.0
+    environment:
+      DATABASE_URL:         ${DATABASE_APP_URL:-postgresql://edfinder:${POSTGRES_PASSWORD}@postgres:5432/edfinder}
+      REDIS_URL:            redis://redis:6379/0
+      LOG_LEVEL:            ${LOG_LEVEL:-INFO}
+      LOG_FORMAT:           ${EDDN_LOG_FORMAT:-text}
+      METRICS_PORT:         9091
+      DIRTY_FLUSH_INTERVAL: 300
+    expose:
+      - "9091"
+    volumes:
+      - /data/logs:/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Scheduled DB maintenance — legacy/local Compose helper ────────────────
+  maintenance:
+    build:
+      context: .
+      dockerfile: apps/maintenance/Dockerfile
+    container_name: ed-maintenance
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      DATABASE_URL:  ${DATABASE_MAINTENANCE_URL:-postgresql://edfinder:${POSTGRES_PASSWORD}@postgres:5432/edfinder}
+      DATA_INVARIANTS_DATABASE_URL: ${DATABASE_READONLY_URL:-${DATABASE_APP_URL:-postgresql://edfinder:${POSTGRES_PASSWORD}@postgres:5432/edfinder}}
+      LOG_FILE:      /data/logs/maintenance.log
+      BACKUP_DIR:    /data/backups/postgres
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_RETENTION_MIN_ARCHIVES: ${BACKUP_RETENTION_MIN_ARCHIVES:-3}
+      BACKUP_OFFSITE_REMOTE: ${BACKUP_OFFSITE_REMOTE:-}
+      BACKUP_OFFSITE_RETENTION_DAYS: ${BACKUP_OFFSITE_RETENTION_DAYS:-30}
+      BACKUP_OFFSITE_RETENTION_MIN_ARCHIVES: ${BACKUP_OFFSITE_RETENTION_MIN_ARCHIVES:-3}
+      BACKUP_HEARTBEAT_URL: ${BACKUP_HEARTBEAT_URL:-}
+      BACKUP_OFFSITE_HEARTBEAT_URL: ${BACKUP_OFFSITE_HEARTBEAT_URL:-}
+      EDDN_WATCHDOG_HEARTBEAT_URL: ${EDDN_WATCHDOG_HEARTBEAT_URL:-}
+      EDDN_WATCHDOG_MAX_AGE_MINUTES: ${EDDN_WATCHDOG_MAX_AGE_MINUTES:-30}
+      MAINTENANCE_HEARTBEAT_URL: ${MAINTENANCE_HEARTBEAT_URL:-}
+      DISK_WATCHDOG_HEARTBEAT_URL: ${DISK_WATCHDOG_HEARTBEAT_URL:-}
+      DISK_WATCHDOG_MIN_FREE_GB: ${DISK_WATCHDOG_MIN_FREE_GB:-40}
+      DISK_WATCHDOG_MAX_PERCENT_USED: ${DISK_WATCHDOG_MAX_PERCENT_USED:-80}
+      DISK_WATCHDOG_PATH: ${DISK_WATCHDOG_PATH:-/data}
+      EVIDENCE_RECORD_RETENTION_DAYS: ${EVIDENCE_RECORD_RETENTION_DAYS:-90}
+      ADMIN_JOB_RUN_RETENTION_DAYS: ${ADMIN_JOB_RUN_RETENTION_DAYS:-60}
+      BACKUP_LOG_FILE: /data/logs/backup.log
+      TZ:            UTC
+    volumes:
+      - /data/logs:/data/logs
+      - /data/backups:/data/backups
+      - /data/receipts:/data/receipts
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Nginx (static files / legacy-local Compose edge) ──────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ed-nginx
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 1.0
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
+      - ./frontend/dist:/var/www/app:ro
+      - /opt/octopus/ui.htpasswd:/etc/nginx/octopus.htpasswd:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
+      - /var/log/nginx:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "--tries=1", "--timeout=2", "http://127.0.0.1/nginx-healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - default
+
+  # ── Import runner (one-shot, run manually) ─────────────────────────────────
+  importer:
+    build:
+      context: .
+      dockerfile: apps/importer/Dockerfile
+    container_name: ed-importer
+    profiles: ["import"]
+    logging: *default-logging
+    mem_limit: 8g
+    cpus: 4.0
+    env_file:
+      - .env
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL:  ${DATABASE_IMPORT_URL:-postgresql://edfinder:${POSTGRES_PASSWORD}@postgres:5432/edfinder}
+      DUMP_DIR:     /data/dumps
+      BATCH_SIZE:   ${BATCH_SIZE:-50000}
+      RATING_DIRTY_CLEANUP_CHUNK:   ${RATING_DIRTY_CLEANUP_CHUNK:-1000}
+      RATING_DIRTY_CLEANUP_RETRIES: ${RATING_DIRTY_CLEANUP_RETRIES:-3}
+      LOG_LEVEL:    INFO
+      LOG_FILE:     /data/logs/import.log
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - /data/dumps:/data/dumps
+      - /data/logs:/data/logs
+      - ./scripts:/opt/ed-finder/scripts:ro
+      - ./apps/importer/src/import_spansh.py:/app/import_spansh.py:ro
+      - ./apps/importer/src/progress.py:/app/progress.py:ro
+      - ./apps/importer/src/build_grid.py:/app/build_grid.py:ro
+      - ./apps/importer/src/build_ratings.py:/app/build_ratings.py:ro
+      - ./apps/importer/src/build_clusters.py:/app/build_clusters.py:ro
+      - ./apps/importer/src/build_topology.py:/app/build_topology.py:ro
+      - ./apps/importer/src/build_archetype_scores.py:/app/build_archetype_scores.py:ro
+      - ./apps/importer/src/build_regional_analysis.py:/app/build_regional_analysis.py:ro
+      - ./apps/importer/src/api_source_resolver.py:/app/api_source_resolver.py:ro
+      - ./apps/importer/src/edsm_station_enrichment_probe.py:/app/edsm_station_enrichment_probe.py:ro
+      - ./apps/importer/src/dirty_flags.py:/app/dirty_flags.py:ro
+      - ./apps/importer/src/region_map.py:/app/region_map.py:ro
+      - ./apps/importer/src/ring_facts.py:/app/ring_facts.py:ro
+      - ./shared_contracts:/app/shared_contracts:ro
+      - ./apps/api/src/station_body_resolver.py:/app/station_body_resolver.py:ro
+      - ./apps/api/src:/app/apps_api_src:ro
+      - ./apps/importer/src/data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Prometheus (metrics collection) ──────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.13.2
+    container_name: ed-prometheus
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1g
+    cpus: 1.0
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus_rules.yml:/etc/prometheus/rules.yml:ro
+      - ${HEALTHCHECKS_PROMETHEUS_TARGETS_FILE:-./config/healthchecks_targets.empty.yml}:/etc/prometheus/healthchecks-targets.yml:ro
+      - prometheus_data:/prometheus
+    secrets:
+      - healthchecks_readonly_api_key
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - api
+
+  # ── Grafana (dashboards) ──────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:13.1.1
+    container_name: ed-grafana
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      GF_SECURITY_ADMIN_USER:     ${GRAFANA_USER:-admin}
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+      GF_SERVER_ROOT_URL:         "%(protocol)s://%(domain)s:%(http_port)s/"
+      GF_INSTALL_PLUGINS: grafana-sentry-datasource
+      GLITCHTIP_GRAFANA_AUTH_TOKEN_SECRET_FILE: /run/secrets/glitchtip_grafana_auth_token
+      GLITCHTIP_GRAFANA_ORG_SLUG: ${GLITCHTIP_GRAFANA_ORG_SLUG:-not-configured}
+    entrypoint: ["/bin/sh", "/etc/grafana/start-with-secret.sh"]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./config/grafana/start-with-secret.sh:/etc/grafana/start-with-secret.sh:ro
+    secrets:
+      - grafana_admin_password
+      - glitchtip_grafana_auth_token
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    container_name: ed-postgres-exporter
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.5
+    command:
+      - '--config.file=/etc/postgres_exporter/postgres_exporter.yml'
+    environment:
+      DATA_SOURCE_NAME: "postgresql://edfinder:${POSTGRES_PASSWORD}@postgres:5432/edfinder?sslmode=disable"
+    volumes:
+      - ./config/postgres_exporter.yml:/etc/postgres_exporter/postgres_exporter.yml:ro
+    ports:
+      - "127.0.0.1:9187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres_custom_exporter:
+    image: burningalchemist/sql_exporter:0.24.4
+    container_name: ed-postgres-custom-exporter
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.5
+    entrypoint: ["/bin/sh", "/etc/sql_exporter/start.sh"]
+    command:
+      - '--config.file=/etc/sql_exporter/sql_exporter.yml'
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./config/sql_exporter.yml:/etc/sql_exporter/sql_exporter.yml:ro
+      - ./config/sql_exporter_ed_finder.collector.yml:/etc/sql_exporter/ed_finder.collector.yml:ro
+      - ./config/sql_exporter_start.sh:/etc/sql_exporter/start.sh:ro
+    ports:
+      - "127.0.0.1:9399:9399"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis_exporter:
+    image: oliver006/redis_exporter:v1.88.0
+    container_name: ed-redis-exporter
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    ports:
+      - "127.0.0.1:9121:9121"
+    depends_on:
+      - redis
+
+  # ── GlitchTip (optional local/legacy error-tracking profile) ───────────────
+  glitchtip_postgres:
+    image: postgres:16-alpine
+    container_name: ed-glitchtip-postgres
+    profiles: ["errortracking"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      POSTGRES_USER:     glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD}
+      POSTGRES_DB:       glitchtip
+    volumes:
+      - glitchtip_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  glitchtip_redis:
+    image: redis:7-alpine
+    container_name: ed-glitchtip-redis
+    profiles: ["errortracking"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 0.5
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  glitchtip_migrate:
+    image: glitchtip/glitchtip:6.2.3
+    container_name: ed-glitchtip-migrate
+    profiles: ["errortracking"]
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 1.0
+    command: ./manage.py migrate
+    environment: &glitchtip-environment
+      SECRET_KEY:       ${GLITCHTIP_SECRET_KEY}
+      DATABASE_URL:     postgresql://glitchtip:${GLITCHTIP_POSTGRES_PASSWORD}@glitchtip_postgres:5432/glitchtip
+      REDIS_URL:        redis://glitchtip_redis:6379/0
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8080}
+      ENABLE_USER_REGISTRATION: "false"
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_DEFAULT_FROM_EMAIL:-glitchtip@ed-finder.app}
+    depends_on:
+      glitchtip_postgres:
+        condition: service_healthy
+
+  glitchtip_web:
+    image: glitchtip/glitchtip:6.2.3
+    container_name: ed-glitchtip-web
+    profiles: ["errortracking"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1g
+    cpus: 1.0
+    environment: *glitchtip-environment
+    ports:
+      - "127.0.0.1:8080:8000"
+    depends_on:
+      glitchtip_postgres:
+        condition: service_healthy
+      glitchtip_redis:
+        condition: service_healthy
+      glitchtip_migrate:
+        condition: service_completed_successfully
+
+  glitchtip_worker:
+    image: glitchtip/glitchtip:6.2.3
+    container_name: ed-glitchtip-worker
+    profiles: ["errortracking"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1g
+    cpus: 1.0
+    command: ./bin/run-celery-with-beat.sh
+    environment: *glitchtip-environment
+    depends_on:
+      glitchtip_postgres:
+        condition: service_healthy
+      glitchtip_redis:
+        condition: service_healthy
+      glitchtip_migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  glitchtip_postgres_data:
+
+secrets:
+  grafana_admin_password:
+    file: ${GRAFANA_PASSWORD_FILE:-./config/grafana_admin_password.disabled}
+  healthchecks_readonly_api_key:
+    file: ${HEALTHCHECKS_PROMETHEUS_TOKEN_FILE:-./config/healthchecks_readonly_api_key.disabled}
+  glitchtip_grafana_auth_token:
+    file: ${GLITCHTIP_GRAFANA_AUTH_TOKEN_FILE:-./config/glitchtip_grafana_auth_token.disabled}
+
+networks:
+  default:
+    name: ed-finder_default

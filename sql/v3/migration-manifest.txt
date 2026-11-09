@@ -1,0 +1,116 @@
+# ED-Finder V3 production migration lineage
+#
+# This is the independent PostgreSQL 18 lineage that the retained production
+# database actually runs. It is deliberately separate from the V2
+# sql/migration-manifest.txt ordered set: never append V2 sql/NNN_*.sql files
+# here.
+#
+# Format: <sha256>  <ledger-name>  <path-under-sql>
+#
+# <ledger-name> is the exact migration_name recorded in v3_meta.schema_migration,
+# so the reviewed live ledger and this manifest are compared directly instead of
+# guessing at a naming convention. <path-under-sql> locates the bytes that hash
+# to <sha256>.
+#
+# Provenance of the retained production rows:
+#
+#   001_v3_baseline.sql           applied 2026-08-27T12:05:58Z by the
+#                                 edfinder-v3-phase4c-full-20260827_r5 rehearsal
+#   002_v3_accounts_identity.sql  applied 2026-08-27T12:05:58Z by the same
+#                                 rehearsal; recovered from the preserved
+#                                 cleanup-snapshot/v3-production-readiness commit
+#   r1_v3/001_structural_shell.sql applied 2026-08-31T16:22:56Z as the additive
+#                                 R1 normalized shell; recovered from the
+#                                 chatgpt-ed-new-ops-requests branch
+#   003_ratings_v4_derived.sql,
+#   004_v3_search_spatial_clusters.sql and
+#   005_v3_journal_intelligence.sql were confirmed applied in retained production
+#                                 on 2026-09-12 before the first full Ratings V4
+#                                 generation was started.
+#
+#   006_v3_derived_product_lifecycle.sql is the next declared migration. It adds
+#                                 independently validated derived products and a
+#                                 publication gate; it must be applied through the
+#                                 reviewed V3 migration operation before Search is
+#                                 attached to a production generation.
+#
+#   010/011/013/015/016 are declared after 014; registration does not claim application.
+#                                 011 was therefore rewritten in place as the
+#                                 one-wide-row-per-system archetype schema. 013 is
+#                                 the parallel-rebuild scheduler schema and creates
+#                                 two new empty tables. 015 adds the audited product-
+#                                 publication gate that allows Finder products to be
+#                                 attached to the current PUBLISHED generation.
+#                                 016 installs the governed derived-purge capability,
+#                                 append-only ledger and recovery fences; installation
+#                                 performs no purge, payload DELETE or VACUUM.
+#                                 Registration is not application.
+#
+#   019_v3_purge_copy_and_drop.sql is declared after 016 (owner-accepted
+#                                 copy-and-drop design, 2026-10-24). It installs the
+#                                 staging/retired schemas, the append-only copy ledger
+#                                 and the copy/swap/drop definers; installation copies,
+#                                 swaps, drops or deletes no payload row. It must be
+#                                 applied before purge plan and authorize.
+#                                 Registration is not application.
+#
+#   020_v3_purge_swap_lock_order.sql is declared after 019 (smoke rehearsal run
+#                                 40466831980 stopped on a Finder read deadlocked by
+#                                 019's swap). It replaces only the locking of 019's
+#                                 swap, swap-back and relocation: dependent view first,
+#                                 locked alone, then NOWAIT. Installation copies,
+#                                 swaps, drops or deletes no payload row. It must be
+#                                 applied before purge plan and authorize.
+#                                 Registration is not application.
+#
+#   021_v3_purge_long_phase_bounds.sql is declared after 020 (one_percent purge
+#                                 rehearsal run 40571954621: two verifications and the
+#                                 Search index build exceeded the 7,200 s envelope). It
+#                                 replaces 019's prepare, index build and verify: the
+#                                 live GiST indexes are created on the empty staging
+#                                 table and filled by the chunk inserts, and each
+#                                 verification chunk is re-read with the copy's keyset
+#                                 read. Installation copies, swaps, drops or deletes no
+#                                 payload row. It must be applied before purge plan and
+#                                 authorize. Registration is not application.
+#
+#   022_v3_purge_keyset_start.sql is declared after 021 (production
+#                                 copy-economy-opportunity runs 41140926027 and
+#                                 41155213939: every chunk read walked the survivor
+#                                 index entries before its low key). It replaces 019's
+#                                 chunk copy, 021's verify and 016's request check:
+#                                 each chunk read starts at its keyset, and a purge
+#                                 authorized before 022 accepts exactly 022's own
+#                                 ledger row. Installation copies, swaps, drops or
+#                                 deletes no payload row. It is applied with no copy
+#                                 staged or swapped. Registration is not application.
+
+#   023_v3_system_search_name_prefix_index.sql is declared after 022. It adds
+#                                 the generation-scoped text_pattern_ops name
+#                                 index for V3 prefix autocomplete. Existing indexes
+#                                 and payload remain unchanged. The non-concurrent
+#                                 build permits reads and blocks derived writers
+#                                 inside the governed transaction. Registration is
+#                                 not application.
+
+ee08c17eb3f87f614468db5a038d2f23273ce2b72906226c9aa1f669e724cd2e  001_v3_baseline.sql  v3/migrations/001_v3_baseline.sql
+e7a2f404b7d8194d74ba4e807ae450c7520a1c8a186ca77e41377307e7b12b07  002_v3_accounts_identity.sql  v3/migrations/002_v3_accounts_identity.sql
+1a2d15c2db5cff7714a01a5d0c710a22326ed57d90d9a20e362495714ad97a40  r1_v3/001_structural_shell.sql  r1_v3/001_structural_shell.sql
+c7818f98ad00b4b99b7ce0f7c3fa12ece555e59e761b7b1ca15d437a39c499cb  003_ratings_v4_derived.sql  v3/migrations/003_ratings_v4_derived.sql
+e1c59def52b6a92a337f1da35c921bd0c135877f7843049ca9dec718aa01a1f2  004_v3_search_spatial_clusters.sql  v3/migrations/004_v3_search_spatial_clusters.sql
+e5c853bcc35da054aff67356a95cbe3d668f6bf2dd1d97b497b9ba7d8cae02ac  005_v3_journal_intelligence.sql  v3/migrations/005_v3_journal_intelligence.sql
+85f38fe5f0251bf3d5f81485a8a5b7de439750b4cc12ef9449755454898767f4  006_v3_derived_product_lifecycle.sql  v3/migrations/006_v3_derived_product_lifecycle.sql
+bfb2456cc89cdd389ea5edca55c211e849664f2303b9805cfc5dfa23df3f6d7c  008_v3_journal_commander_ownership.sql  v3/migrations/008_v3_journal_commander_ownership.sql
+d7fa24abff95a91ee81a11493681f6df60b20bbb3840314c3fabb04b59532861  009_v3_journal_galaxy_contributions.sql  v3/migrations/009_v3_journal_galaxy_contributions.sql
+5ca6a12e969392fe9562e7b2217d77988f4f2b27258ffa84845cb2c5314680ee  012_v3_spatial_pyramid_decouple.sql  v3/migrations/012_v3_spatial_pyramid_decouple.sql
+6b189f5714c305ccd750c1c3af8a4d2741f1f7c5063ab663af55f575dc15bfe6  014_v3_watchlist.sql  v3/migrations/014_v3_watchlist.sql
+a042ccd1544d95cf47407a0722497321a544f15c62ac07dc83c914a19d7acbdf  010_v3_system_search_body_type_counts.sql  v3/migrations/010_v3_system_search_body_type_counts.sql
+652982595f7ff86f78452bcadd467e399643980e126fbf9c427854608d8c5e25  011_v3_system_archetype.sql  v3/migrations/011_v3_system_archetype.sql
+2f3c444b30339aa414fe1555fbcc917d30649fb9516d28a86c9d25a3b0086041  013_v3_system_search_parallel.sql  v3/migrations/013_v3_system_search_parallel.sql
+319a4655478e2da9b8d7f7e0c44d7d0c2b3548b8b2934a9564a3b6af897c5791  015_v3_derived_product_publication.sql  v3/migrations/015_v3_derived_product_publication.sql
+559fa7ea35fc9ad43635e90cdedcbefd47b2f30dcf479843911bfba0b3dfb0aa  016_v3_governed_derived_purge.sql  v3/migrations/016_v3_governed_derived_purge.sql
+111f1aac4b6b8b0aea74e1c57ba1edd32f9ab39fa583d9969129e9208cfbee46  019_v3_purge_copy_and_drop.sql  v3/migrations/019_v3_purge_copy_and_drop.sql
+73f9bf7bf3b9d603046374f82239791fbcc78b139f0c33c46a3947fa64c0b23a  020_v3_purge_swap_lock_order.sql  v3/migrations/020_v3_purge_swap_lock_order.sql
+bdc73a55c13872343c116f8c5846e6989b0b2ffc583d397334ae05a157cbfd64  021_v3_purge_long_phase_bounds.sql  v3/migrations/021_v3_purge_long_phase_bounds.sql
+c69b2bf5eaef8c4deb0c18c562c18cd336159030b6f45bc46c913ef6809061ef  022_v3_purge_keyset_start.sql  v3/migrations/022_v3_purge_keyset_start.sql
+05763b796617cf6e063273ae119d37453d3a4d3956f1c98a849c723a8099eaab  023_v3_system_search_name_prefix_index.sql  v3/migrations/023_v3_system_search_name_prefix_index.sql

@@ -1,0 +1,33 @@
+{
+  "v": 6,
+  "id64": "42",
+  "name": "Test System",
+  "bodies": [
+    { "num": 1, "name": "Test System A" },
+    { "num": 2, "name": "Test System Lost Moon" }
+  ],
+  "sites": [
+    {
+      "id": "lumen-port",
+      "buildType": "plutus",
+      "name": "Lumen Port",
+      "bodyNum": 1,
+      "status": "plan"
+    },
+    {
+      "id": "echo-relay",
+      "buildType": "aletheia",
+      "name": "Echo Relay",
+      "bodyNum": 1,
+      "status": "build"
+    },
+    {
+      "id": "far-lantern",
+      "buildType": "hermes",
+      "name": "Far Lantern",
+      "bodyNum": 2,
+      "status": "complete"
+    }
+  ],
+  "slots": { "1": [5, -1] }
+}

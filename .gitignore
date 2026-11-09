@@ -1,0 +1,210 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+*.tgz
+.pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+htmlcov/
+
+# ── Carve-outs: the Python-style `lib/` ignore above unfortunately
+#    matches `frontend/src/lib/{api,format}.ts` (used heavily by the
+#    React app). Without these re-includes, fresh checkouts fail to
+#    build the v2 app with "Cannot find module '@/lib/api'".
+!frontend/src/lib/
+!frontend/src/lib/**
+!frontend/src/_redesign/lib/
+!frontend/src/_redesign/lib/**
+!apps/web/src/lib/
+!apps/web/src/lib/**
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual Environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+*~
+.project
+.classpath
+.settings/
+*.sublime-*
+
+# Logs
+logs/
+*.log
+log/
+
+# Environment variables (never commit real .env files with secrets)
+# See the consolidated block at the bottom of this file.
+
+
+# Build outputs
+/out
+/target
+/.next
+/.nuxt
+/dist
+/build
+/.cache
+
+# Testing
+/coverage
+/.nyc_output
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+Dockerfile.local
+docker-compose.override.yml
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.grunt
+.lock-wscript
+
+.emergent/
+memory/
+
+# Platform bot identity — must never land in the repo
+.gitconfig
+
+# ─── Environment and credential files ────────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+.env.*
+*.env
+# V3 r5 retention cleanup-protection manifest is intentionally version-controlled
+!scripts/operator/protected_resources.env
+credentials.json
+*.pem
+*.key
+.credentials
+.secrets/
+.review/
+config/grafana_admin_password.local
+config/healthchecks_targets.local.yml
+config/healthchecks_readonly_api_key.local
+config/glitchtip_grafana_auth_token.local
+
+# Local scratch clones / promotion worktrees kept outside git history
+_promote_chip/
+_promote_main_cleanup/
+
+# Generated artifact outputs; keep durable receipts, ignore disposable binaries
+artifacts/frontend-bundles/*.tar.gz
+artifacts/frontend-bundles/*.tar.gz.sha256
+artifacts/restore-rehearsals/latest.dump
+
+# Local, non-product side project (CAD/3D); not part of the repo
+artifacts/mouse-house/
+
+# Tool and session artifacts
+.mcp.json
+.superpowers/
+# Some Windows tooling has historically flattened an absolute Superpowers path
+# into a single root filename (for example C:Users...superpowerssddtask-1-diff.patch).
+# Keep that malformed scratch output out of tracked repo root as well.
+/C*Users*ed-finder.superpowerssdd*
+ed-finder-deployed.png
+ed-finder-finder-page.png
+tools/
+
+# uv: only apps/api/uv.lock is authoritative. Ignore a stray root-level lock
+# (anchored so apps/api/uv.lock stays tracked — never use a bare `uv.lock`).
+/uv.lock
+
+# Tool caches not otherwise covered
+.ruff_cache/
+
+# Local browser/test scratch dirs (their contents currently collapse via
+# *.log/*.db/*.pyc rules, but the directories themselves are not ignored)
+chrome-artifact/
+.edge-headless/
+.tmp-r1-scan/
+
+# Claude Code runtime lock
+.claude/scheduled_tasks.lock
+
+# Transient CI / Review Lab failure artifacts downloaded into the working tree
+artifacts/firefox-fail-*/
+artifacts/review-lab-fail/
+/review-report-artifact*/
+
+# Governed production purge admission helpers are committed operator code.
+!scripts/operator/lib/
+!scripts/operator/lib/v3_purge_state.py
+!scripts/operator/lib/v3-purge-state.sh
