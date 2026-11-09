@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS v3_state.system_state (
     -- Newest "last updated" time Spansh gives for the system itself, its
     -- factions/powers and its non-carrier stations.
     system_updated_at timestamptz NOT NULL,
+    -- Newest time any non-carrier station here was seen (NULL: no station).
+    stations_updated_at timestamptz,
     -- Fingerprint of everything loaded for this system (including its faction
     -- and power lists), so a reload only rewrites systems that changed.
     content_hash text NOT NULL,
@@ -130,10 +132,15 @@ CREATE UNLOGGED TABLE IF NOT EXISTS v3_state.system_stage (
     colonisation_ship_present boolean NOT NULL,
     field_timestamps jsonb NOT NULL,
     system_updated_at timestamptz NOT NULL,
+    stations_updated_at timestamptz,
     content_hash text NOT NULL,
     factions jsonb NOT NULL,
     powers jsonb NOT NULL
 );
+
+-- Added after the first production load; a no-op on a fresh install.
+ALTER TABLE v3_state.system_state ADD COLUMN IF NOT EXISTS stations_updated_at timestamptz;
+ALTER TABLE v3_state.system_stage ADD COLUMN IF NOT EXISTS stations_updated_at timestamptz;
 
 CREATE TABLE IF NOT EXISTS v3_state.load_log (
     load_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -161,6 +168,10 @@ COMMENT ON TABLE v3_state.load_log IS
 --     the stage are then removed, unless they were updated after the newest
 --     staged record. To guard against an incomplete input, a full snapshot
 --     that would remove more than a fifth of the stored systems is refused.
+--   * A time more than two days in the future cannot be real (Spansh's data
+--     has a few). Staged records dated like that are refused, and a stored
+--     row dated like that is treated as out of date: any load may replace or
+--     remove it.
 CREATE OR REPLACE FUNCTION v3_state.apply_stage(full_snapshot boolean, source_label text)
 RETURNS TABLE (
     staged_rows bigint,
@@ -181,6 +192,7 @@ DECLARE
     newest_ timestamptz;
     stored_before_ bigint;
     would_remove_ bigint;
+    horizon_ timestamptz := now() + interval '2 days';
 BEGIN
     IF source_label IS NULL OR btrim(source_label) = '' THEN
         RAISE EXCEPTION 'source_label is required';
@@ -199,6 +211,11 @@ BEGIN
     IF staged_rows_ = 0 THEN
         RAISE EXCEPTION 'nothing staged: refusing to apply an empty load';
     END IF;
+    IF newest_ > horizon_ THEN
+        RAISE EXCEPTION
+            'staged data holds a record dated in the future (%); the loader should have ignored it, nothing was changed',
+            newest_;
+    END IF;
 
     CREATE TEMP TABLE picked_ ON COMMIT DROP AS
     SELECT DISTINCT ON (s.system_id64) s.*
@@ -211,7 +228,7 @@ BEGIN
         SELECT count(*) INTO stored_before_ FROM v3_state.system_state;
         SELECT count(*) INTO would_remove_
           FROM v3_state.system_state t
-         WHERE t.system_updated_at <= newest_
+         WHERE (t.system_updated_at <= newest_ OR t.system_updated_at > horizon_)
            AND NOT EXISTS (SELECT 1 FROM picked_ p WHERE p.system_id64 = t.system_id64);
         IF would_remove_ * 5 > stored_before_ THEN
             RAISE EXCEPTION
@@ -229,7 +246,8 @@ BEGIN
             power_state_control_progress, power_state_reinforcement,
             power_state_undermining, station_type_counts, station_count,
             carrier_count, construction_site_count, colonisation_ship_present,
-            field_timestamps, system_updated_at, content_hash, source, loaded_at
+            field_timestamps, system_updated_at, stations_updated_at, content_hash,
+            source, loaded_at
         )
         SELECT p.system_id64, p.name, p.x_ly, p.y_ly, p.z_ly, p.population, p.allegiance,
                p.government, p.security, p.primary_economy, p.secondary_economy,
@@ -237,7 +255,8 @@ BEGIN
                p.power_state, p.power_state_control_progress, p.power_state_reinforcement,
                p.power_state_undermining, p.station_type_counts, p.station_count,
                p.carrier_count, p.construction_site_count, p.colonisation_ship_present,
-               p.field_timestamps, p.system_updated_at, p.content_hash, source_label, now()
+               p.field_timestamps, p.system_updated_at, p.stations_updated_at,
+               p.content_hash, source_label, now()
           FROM picked_ p
         ON CONFLICT (system_id64) DO UPDATE SET
             name = EXCLUDED.name,
@@ -262,12 +281,14 @@ BEGIN
             colonisation_ship_present = EXCLUDED.colonisation_ship_present,
             field_timestamps = EXCLUDED.field_timestamps,
             system_updated_at = EXCLUDED.system_updated_at,
+            stations_updated_at = EXCLUDED.stations_updated_at,
             content_hash = EXCLUDED.content_hash,
             source = EXCLUDED.source,
             loaded_at = EXCLUDED.loaded_at
         WHERE EXCLUDED.system_updated_at > t.system_updated_at
            OR (EXCLUDED.system_updated_at = t.system_updated_at
                AND EXCLUDED.content_hash <> t.content_hash)
+           OR t.system_updated_at > horizon_
         RETURNING t.system_id64
     )
     INSERT INTO written_ids_ (system_id64) SELECT u.system_id64 FROM upserted u;
@@ -308,7 +329,7 @@ BEGIN
 
     IF full_snapshot THEN
         DELETE FROM v3_state.system_state t
-         WHERE t.system_updated_at <= newest_
+         WHERE (t.system_updated_at <= newest_ OR t.system_updated_at > horizon_)
            AND NOT EXISTS (SELECT 1 FROM picked_ p WHERE p.system_id64 = t.system_id64);
         GET DIAGNOSTICS removed_ = ROW_COUNT;
     END IF;

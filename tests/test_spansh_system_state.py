@@ -468,3 +468,74 @@ def test_a_few_unusable_records_in_a_big_file_are_tolerated(tmp_path):
     out = io.BytesIO()
     stats = state.write_load_stream([str(path)], out, snapshot=False, source_label="x")
     assert (stats.files[0]["kept"], stats.files[0]["unusable"]) == (2000, 15)
+
+
+# -- timestamps dated in the future ---------------------------------------------
+
+CUTOFF = "2026-11-10 00:00:00+00"
+FUTURE = "2198-09-24 02:41:44+00"
+
+
+def test_future_dated_times_are_ignored_wherever_they_appear():
+    system = synthetic(
+        population=10, date="2026-11-01 10:00:00+00",
+        timestamps={"factions": FUTURE, "powers": "2026-11-02T00:00:00Z"},
+        stations=[{"id": 1, "name": "A", "type": "Outpost", "updateTime": FUTURE},
+                  {"id": 2, "name": "B", "type": "Outpost", "updateTime": "2026-11-03 00:00:00+00"}])
+    row = state.system_row(system, CUTOFF)
+    assert row["system_updated_at"] == "2026-11-03 00:00:00+00"
+    assert row["stations_updated_at"] == "2026-11-03 00:00:00+00"
+    assert row["field_timestamps"] == {"powers": "2026-11-02 00:00:00+00"}
+    assert row["ignored_future_timestamps"] == 2
+    assert row["station_count"] == 2
+
+
+def test_future_system_date_falls_back_to_the_other_times():
+    system = synthetic(population=10, date=FUTURE,
+                       stations=[{"id": 1, "name": "A", "type": "Outpost",
+                                  "updateTime": "2026-10-01 00:00:00+00"}])
+    row = state.system_row(system, CUTOFF)
+    assert row["system_updated_at"] == "2026-10-01 00:00:00+00"
+
+
+def test_record_with_only_future_times_is_refused():
+    with pytest.raises(state.SkipSystem):
+        state.system_row(synthetic(population=10, date=FUTURE), CUTOFF)
+
+
+def test_without_a_cutoff_nothing_is_ignored():
+    row = state.system_row(synthetic(population=10, date=FUTURE))
+    assert row["system_updated_at"] == FUTURE
+    assert row["ignored_future_timestamps"] == 0
+
+
+def test_newest_station_time_leaves_out_carriers_and_is_empty_without_stations(real_systems):
+    assert state.system_row(synthetic(population=10))["stations_updated_at"] is None
+    row = state.system_row(synthetic(population=10, stations=[
+        {"id": 1, "name": "A", "type": "Outpost", "updateTime": "2026-10-01 00:00:00+00"},
+        {"id": 2, "name": "XXX-000", "type": "Drake-Class Carrier",
+         "updateTime": "2026-11-05 00:00:00+00"}]))
+    assert row["stations_updated_at"] == "2026-10-01 00:00:00+00"
+    assert state.system_row(real_systems["Sol"])["stations_updated_at"] == "2026-09-08 19:55:40+00"
+
+
+def test_load_stream_ignores_future_times_by_default_and_reports_them(tmp_path):
+    system = synthetic(population=10, date="2026-11-01 10:00:00+00",
+                       stations=[{"id": 1, "name": "A", "type": "Outpost", "updateTime": FUTURE}])
+    path = tmp_path / "one.json"
+    path.write_text(json.dumps(system) + "\n", encoding="utf-8")
+    out = io.BytesIO()
+    stats = state.write_load_stream([str(path)], out, snapshot=False, source_label="x")
+    assert stats.files[0]["future_timestamps"] == 1
+    assert "one.json: 1 timestamps dated in the future were ignored" in stats.summary_lines()
+    data = out.getvalue().decode("utf-8").partition("FROM stdin;\n")[2].partition("\\.\n")[0]
+    row = parse_copy_line(data)
+    assert row["system_updated_at"] == "2026-11-01 10:00:00+00"
+    assert row["stations_updated_at"] is None
+    assert "ignored_future_timestamps" not in row
+
+
+def test_future_cutoff_is_about_a_day_ahead_in_the_normal_form():
+    cutoff = state.future_cutoff()
+    assert state.normalise_timestamp(cutoff) == cutoff
+    assert state.future_cutoff(0) < cutoff < state.future_cutoff(2 * 86400)

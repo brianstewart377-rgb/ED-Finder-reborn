@@ -103,7 +103,7 @@ def made_up(number: int, **overrides) -> dict:
     return system
 
 
-def stream_for(tmp_path: Path, *file_contents, snapshot: bool) -> bytes:
+def stream_for(tmp_path: Path, *file_contents, snapshot: bool, not_after=None) -> bytes:
     paths = []
     for index, systems in enumerate(file_contents):
         path = tmp_path / ("dump%d_%d.json.gz" % (index, len(list(tmp_path.iterdir()))))
@@ -112,7 +112,8 @@ def stream_for(tmp_path: Path, *file_contents, snapshot: bool) -> bytes:
             handle.write(("[\n" + lines + "\n]\n").encode("utf-8"))
         paths.append(str(path))
     out = io.BytesIO()
-    state.write_load_stream(paths, out, snapshot=snapshot, source_label="test")
+    state.write_load_stream(paths, out, snapshot=snapshot, source_label="test",
+                            not_after=not_after)
     return out.getvalue()
 
 
@@ -221,7 +222,7 @@ def test_loading_the_same_dump_again_rewrites_nothing(real_systems, tmp_path):
 def test_newer_record_replaces_the_system_and_its_faction_list(real_systems, tmp_path):
     load(tmp_path, real_systems.values())
     newer = copy.deepcopy(real_systems["Deriv-Dar"])
-    newer["date"] = "2026-12-01 00:00:00+00"
+    newer["date"] = "2026-10-15 00:00:00+00"
     newer["population"] = 5
     removed = newer["factions"].pop()
     newer["controllingFaction"] = {"name": newer["factions"][0]["name"]}
@@ -242,7 +243,7 @@ def test_newer_record_replaces_the_system_and_its_faction_list(real_systems, tmp
 
 def test_older_record_never_overwrites_a_newer_one(real_systems, tmp_path):
     newer = copy.deepcopy(real_systems["Deriv-Dar"])
-    newer["date"] = "2026-12-01 00:00:00+00"
+    newer["date"] = "2026-10-15 00:00:00+00"
     newer["population"] = 5
     newer["factions"] = newer["factions"][:2]
     load(tmp_path, [newer])
@@ -296,7 +297,7 @@ def test_load_that_is_not_a_snapshot_removes_nothing(tmp_path):
 def test_snapshot_keeps_a_system_updated_after_the_dump_was_made(tmp_path):
     systems = [made_up(n) for n in range(10)]
     load(tmp_path, systems, snapshot=True)
-    psql("-c", "UPDATE v3_state.system_state SET system_updated_at = '2027-01-01Z' "
+    psql("-c", "UPDATE v3_state.system_state SET system_updated_at = '2026-10-20Z' "
                "WHERE system_id64 = %d" % systems[9]["id64"])
     load(tmp_path, systems[:9], snapshot=True)
     assert last_log()["removed"] == 0
@@ -400,3 +401,68 @@ def test_applying_the_migration_again_keeps_the_data(real_systems, tmp_path):
     assert scalar("SELECT count(*) FROM v3_state.system_state") == "9"
     load(tmp_path, real_systems.values(), snapshot=True)
     assert last_log()["unchanged"] == 9
+
+
+# -- timestamps dated in the future ---------------------------------------------
+
+FUTURE = "2198-09-24 02:41:44+00"
+
+
+def test_future_dated_station_does_not_set_the_record_time(tmp_path):
+    system = made_up(1, stations=[
+        {"id": 1, "name": "Real", "type": "Outpost", "updateTime": "2026-10-05 00:00:00+00"},
+        {"id": 2, "name": "Broken clock", "type": "Outpost", "updateTime": FUTURE}])
+    load(tmp_path, [system])
+    assert query("SELECT to_char(system_updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), "
+                 "to_char(stations_updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), station_count "
+                 "FROM v3_state.system_state") == [["2026-10-05", "2026-10-05", "2"]]
+    assert scalar("SELECT to_char(newest_record_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') "
+                  "FROM v3_state.load_log") == "2026-10-05"
+
+
+def test_stored_row_dated_in_the_future_is_repaired_by_the_next_load(tmp_path):
+    load(tmp_path, [made_up(1), made_up(2)])
+    psql("-c", "UPDATE v3_state.system_state SET system_updated_at = '%s', population = 1 "
+               "WHERE system_id64 = %d" % (FUTURE, made_up(1)["id64"]))
+    load(tmp_path, [made_up(1), made_up(2)])
+    assert last_log()["written"] == 1
+    assert query("SELECT population, to_char(system_updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') "
+                 "FROM v3_state.system_state WHERE system_id64 = %d" % made_up(1)["id64"]) == [
+                     [str(made_up(1)["population"]), "2026-10-01"]]
+
+
+def test_stored_row_dated_in_the_future_is_removed_when_a_snapshot_lacks_it(tmp_path):
+    systems = [made_up(n) for n in range(10)]
+    load(tmp_path, systems, snapshot=True)
+    psql("-c", "UPDATE v3_state.system_state SET system_updated_at = '%s' "
+               "WHERE system_id64 = %d" % (FUTURE, systems[9]["id64"]))
+    load(tmp_path, systems[:9], snapshot=True)
+    assert last_log()["removed"] == 1
+    assert systems[9]["id64"] not in stored_ids()
+
+
+def test_staged_record_dated_in_the_future_is_refused(tmp_path):
+    load(tmp_path, [made_up(1)])
+    bad = made_up(2, date=FUTURE)
+    stream = stream_for(tmp_path, [bad], snapshot=False, not_after="9999-12-31 23:59:59+00")
+    result = psql(stdin=stream, check=False)
+    assert result.returncode != 0
+    assert b"dated in the future" in result.stderr
+    assert stored_ids() == {made_up(1)["id64"]}
+
+
+def test_newest_station_time_is_stored_and_empty_without_stations(real_systems, tmp_path):
+    load(tmp_path, [real_systems["Sol"], made_up(1)])
+    rows = query("SELECT name, to_char(stations_updated_at AT TIME ZONE 'UTC', "
+                 "'YYYY-MM-DD HH24:MI:SS') FROM v3_state.system_state ORDER BY name")
+    assert rows == [["Made Up 1", ""], ["Sol", "2026-09-08 19:55:40"]]
+
+
+def test_migration_adds_the_station_time_column_to_an_older_install(tmp_path):
+    psql("-c", "ALTER TABLE v3_state.system_state DROP COLUMN stations_updated_at; "
+               "ALTER TABLE v3_state.system_stage DROP COLUMN stations_updated_at")
+    psql("-f", str(MIGRATION))
+    load(tmp_path, [made_up(1, stations=[
+        {"id": 1, "name": "Dock", "type": "Outpost", "updateTime": "2026-10-03 00:00:00+00"}])])
+    assert scalar("SELECT to_char(stations_updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') "
+                  "FROM v3_state.system_state") == "2026-10-03"

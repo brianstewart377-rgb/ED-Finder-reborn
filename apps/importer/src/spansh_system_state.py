@@ -35,7 +35,8 @@ STAGE_COLUMNS: Tuple[str, ...] = (
     "power_state", "power_state_control_progress", "power_state_reinforcement",
     "power_state_undermining", "station_type_counts", "station_count",
     "carrier_count", "construction_site_count", "colonisation_ship_present",
-    "field_timestamps", "system_updated_at", "content_hash", "factions", "powers",
+    "field_timestamps", "system_updated_at", "stations_updated_at", "content_hash",
+    "factions", "powers",
 )
 
 UNKNOWN_STATION_TYPE = "Unknown"
@@ -168,12 +169,22 @@ def _power_rows(system: Dict[str, Any], controlling_power: Optional[str]) -> Lis
     ]
 
 
-def system_row(system: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def future_cutoff(seconds_ahead: int = 86400) -> str:
+    """Latest timestamp a record may carry: now (UTC) plus a day of slack."""
+    return time.strftime("%Y-%m-%d %H:%M:%S+00", time.gmtime(time.time() + seconds_ahead))
+
+
+def system_row(system: Dict[str, Any], not_after: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Build one staging row from a Spansh system record.
 
     Returns None when the system has neither a population nor a non-carrier
     station (nothing worth storing). Raises SkipSystem when the record is
     unusable (no id, name, coordinates or timestamp).
+
+    Spansh's data holds a few timestamps far in the future (one real dump had
+    the year 2198). `not_after` is the latest believable time, in the normal
+    form; anything later is ignored, because a future date would otherwise
+    make a record look newer than every real update that follows it.
     """
     if not isinstance(system, dict):
         raise SkipSystem("record is not an object")
@@ -200,6 +211,18 @@ def system_row(system: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     construction_site_count = 0
     colonisation_ship_present = False
     timestamps: List[str] = []
+    station_timestamps: List[str] = []
+    ignored_future = 0
+
+    def believable(value: Optional[str]) -> bool:
+        nonlocal ignored_future
+        if value is None:
+            return False
+        if not_after is not None and value > not_after:
+            ignored_future += 1
+            return False
+        return True
+
     for station in iter_stations(system):
         if is_fleet_carrier(station):
             carrier_count += 1
@@ -216,8 +239,8 @@ def system_row(system: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 or "colonization ship" in folded_name or "colonization" in folded_type):
             colonisation_ship_present = True
         updated = normalise_timestamp(station.get("updateTime"))
-        if updated is not None:
-            timestamps.append(updated)
+        if believable(updated):
+            station_timestamps.append(updated)  # type: ignore[arg-type]
 
     if population == 0 and station_count == 0:
         return None
@@ -227,12 +250,13 @@ def system_row(system: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if isinstance(raw_timestamps, dict):
         for key in sorted(raw_timestamps):
             normalised = normalise_timestamp(raw_timestamps[key])
-            if normalised is not None and isinstance(key, str):
-                field_timestamps[key] = normalised
-                timestamps.append(normalised)
+            if isinstance(key, str) and believable(normalised):
+                field_timestamps[key] = normalised  # type: ignore[assignment]
+                timestamps.append(normalised)  # type: ignore[arg-type]
     system_date = normalise_timestamp(system.get("date"))
-    if system_date is not None:
-        timestamps.append(system_date)
+    if believable(system_date):
+        timestamps.append(system_date)  # type: ignore[arg-type]
+    timestamps.extend(station_timestamps)
     if not timestamps:
         raise SkipSystem("no usable timestamp")
 
@@ -272,10 +296,14 @@ def system_row(system: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "colonisation_ship_present": colonisation_ship_present,
         "field_timestamps": field_timestamps,
         "system_updated_at": max(timestamps),
+        # Newest time any non-carrier station here was seen. Tells a live
+        # claim from a colonisation ship record nobody has refreshed in months.
+        "stations_updated_at": max(station_timestamps) if station_timestamps else None,
         "factions": _faction_rows(system),
         "powers": _power_rows(system, controlling_power),
     }
     row["content_hash"] = content_hash(row)
+    row["ignored_future_timestamps"] = ignored_future  # not a stage column
     return row
 
 
@@ -385,7 +413,7 @@ class LoadStats:
 
     def start_file(self, path: str) -> Dict[str, Any]:
         entry = {"file": path, "records": 0, "kept": 0, "no_state": 0,
-                 "unusable": 0, "unreadable_lines": 0}
+                 "unusable": 0, "unreadable_lines": 0, "future_timestamps": 0}
         self.files.append(entry)
         self.kept_ids_by_file.append(set())
         self.populated_ids_by_file.append(set())
@@ -399,6 +427,10 @@ class LoadStats:
                 "station), %d unusable records, %d unreadable lines" % (
                     os.path.basename(entry["file"]), entry["records"], entry["kept"],
                     entry["no_state"], entry["unusable"], entry["unreadable_lines"]))
+            if entry["future_timestamps"]:
+                lines.append(
+                    "%s: %d timestamps dated in the future were ignored" % (
+                        os.path.basename(entry["file"]), entry["future_timestamps"]))
             if len(self.files) > 1:
                 others_kept: set = set()
                 for other, ids in enumerate(self.kept_ids_by_file):
@@ -420,8 +452,15 @@ class LoadStats:
 
 def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
                       source_label: str, log: Any = None,
-                      progress_every: int = 25_000) -> LoadStats:
-    """Write the full psql load script for the given dumps to `out`."""
+                      progress_every: int = 25_000,
+                      not_after: Optional[str] = None) -> LoadStats:
+    """Write the full psql load script for the given dumps to `out`.
+
+    Timestamps later than `not_after` are ignored; by default that is one day
+    from now.
+    """
+    if not_after is None:
+        not_after = future_cutoff()
     stats = LoadStats()
     started = time.monotonic()
     seq = 0
@@ -441,7 +480,7 @@ def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
                     continue
                 entry["records"] += 1
                 try:
-                    row = system_row(record)
+                    row = system_row(record, not_after)
                     line = None if row is None else copy_line(seq + 1, row).encode("utf-8")
                 except (SkipSystem, ValueError, TypeError, OverflowError) as error:
                     # One odd record must not sink a whole load; too many do
@@ -457,6 +496,7 @@ def write_load_stream(paths: Sequence[str], out: BinaryIO, *, snapshot: bool,
                     seq += 1
                     out.write(line)
                     entry["kept"] += 1
+                    entry["future_timestamps"] += row["ignored_future_timestamps"]
                     kept_ids.add(row["system_id64"])
                     if row["population"] > 0:
                         populated_ids.add(row["system_id64"])
