@@ -52,8 +52,8 @@ ignore = ["E701", "E702"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+# Any warning fails the run, so warnings get fixed instead of piling up.
+filterwarnings = ["error"]
 markers = [
     "unit: unit-level tests that do not require external services",
     "integration: integration tests that exercise cross-module or service boundaries",

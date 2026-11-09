@@ -7,7 +7,6 @@
 -r ../apps/importer/requirements.txt
 
 pytest==8.3.4
-pytest-asyncio==0.24.0
 httpx==0.28.1
 jsonschema==4.25.1
 ruff==0.15.22
@@ -15,3 +14,7 @@ PyYAML==6.0.3
 
 # Release/checkpoint and importer synchronous PostgreSQL tooling.
 psycopg[binary]==3.3.4
+
+# pytest-asyncio is deliberately absent: no test here is async yet, and the
+# old pin (0.24.0) printed three deprecation warnings per test on Python 3.14.
+# Add a current version back together with the first async test.

@@ -353,6 +353,7 @@ def test_cut_off_download_piped_through_the_real_program_changes_nothing(real_sy
                             stdin=loader.stdout, capture_output=True)
     loader.stdout.close()
     loader_error = loader.stderr.read().decode("utf-8")
+    loader.stderr.close()
     assert loader.wait() == 1
     assert "STOPPED, nothing was loaded" in loader_error
     assert client.returncode in (0, 3)
@@ -371,6 +372,7 @@ def test_the_real_program_loads_a_whole_dump_through_a_pipe(real_systems, tmp_pa
                             stdin=loader.stdout, capture_output=True)
     loader.stdout.close()
     summary = loader.stderr.read().decode("utf-8")
+    loader.stderr.close()
     assert loader.wait() == 0, summary
     assert client.returncode == 0, client.stderr.decode("utf-8")
     assert "galaxy_stations.json.gz: 12 systems read, 9 kept, 3 skipped" in summary

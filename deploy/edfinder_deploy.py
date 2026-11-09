@@ -413,7 +413,8 @@ def http_get(origin: str, path: str, timeout: float = 10) -> Tuple[int, bytes]:
         with opener.open(request, timeout=timeout) as response:
             return response.status, response.read(MAX_BODY + 1)
     except urllib.error.HTTPError as error:
-        return error.code, error.read(MAX_BODY + 1)
+        with error:  # an error answer still holds an open connection
+            return error.code, error.read(MAX_BODY + 1)
     except (OSError, urllib.error.URLError, TimeoutError, ValueError) as error:
         raise DeployError("no answer from %s%s (%s)" % (origin, path, error)) from error
 
