@@ -266,13 +266,10 @@ class SourceCoverageInventory:
                         canonical_normalized_result=canonical_rings.get(ring_name or ""),
                     )
 
-        parent_columns = COPY_COLUMNS["body_parent_evidence"]
-        state_index = parent_columns.index("resolution_state")
-        for row in batch.rows.get("body_parent_evidence", []):
-            state = str(row[state_index]).casefold()
-            self.counts[f"parent_{state}"] += 1
-            if state == "unresolved":
-                self._example("unresolved_parent", system)
+        for state, count in batch.parent_resolution.items():
+            self.counts[f"parent_{state}"] += count
+        if batch.parent_resolution.get("unresolved"):
+            self._example("unresolved_parent", system)
 
         top_level_market_ids: set[int] = set()
         nested_market_ids: set[int] = set()
