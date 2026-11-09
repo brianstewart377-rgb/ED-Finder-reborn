@@ -27,6 +27,7 @@ reference: its history, PRs and research stay there.
 | `shared_contracts` | Shared Python used by the API and importer. |
 | `sql/v3` | Database migrations. |
 | `sql/measure` | Read-only scripts that report on the database. |
+| `deploy` | The compose file and the deploy tool. |
 | `tests` | Python tests for the importer and the database loaders. |
 | `assets` | Asset provenance records. |
 
@@ -51,6 +52,29 @@ python3 apps/importer/src/spansh_system_state.py --snapshot galaxy_stations.json
 
 A load is one transaction. If the file is cut off or anything fails, nothing
 changes. A newer record always wins over an older one.
+
+## Deploying
+
+Every push to `main` builds two images and publishes them to GHCR:
+`ghcr.io/brianstewart377-rgb/ed-finder-reborn/api` and `.../web`, tagged
+`main` and `git-<commit>`.
+
+On the machine that runs the site, `deploy/edfinder_deploy.py` (Python
+standard library only) starts them with `deploy/compose.yml`:
+
+| Command | What it does |
+|---|---|
+| `check` | Shows what is running and whether the machine is ready. Changes nothing. |
+| `try main` | Starts the release on a spare port, tests it, removes it. The live site is not touched. |
+| `live main` | Tests the release on the spare port, then switches the site to it. |
+| `rollback` | Switches back to the release that was live before. |
+| `restore-old` | Stops this app and restarts the containers it first replaced. |
+| `status` | Shows what is live. |
+
+If a release fails its checks after the switch, the previous one is put back
+automatically. Settings (network, ports, the API settings file) have defaults
+for the current server and can be changed in a `deploy.conf` file beside the
+script; see the top of the script.
 
 ## Running the Python tests
 

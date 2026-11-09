@@ -1,0 +1,61 @@
+# The running app: one API container and one web container.
+#
+# Started by deploy/edfinder_deploy.py, which fills in the ${...} values.
+# PostgreSQL (and anything else the API talks to) is not managed here: the
+# API joins an existing Docker network and finds them there.
+name: ${EDFINDER_PROJECT:?set by edfinder_deploy.py}
+
+services:
+  api:
+    image: ${EDFINDER_API_IMAGE:?set by edfinder_deploy.py}
+    container_name: ${EDFINDER_PROJECT}-api
+    restart: ${EDFINDER_RESTART:?set by edfinder_deploy.py}
+    env_file:
+      - ${EDFINDER_API_ENV_FILE:?set by edfinder_deploy.py}
+    environment:
+      # No background writers start with the API; they are switched on
+      # separately when they are wanted.
+      ADMIN_OPERATION_STARTUP_REAP_ENABLED: "false"
+      EDDN_SIMULATION_INGEST_ENABLED: "false"
+    expose:
+      - "8000"
+    networks:
+      - app
+    pids_limit: 512
+    cpus: "2.00"
+    mem_limit: 4096m
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    image: ${EDFINDER_WEB_IMAGE:?set by edfinder_deploy.py}
+    container_name: ${EDFINDER_PROJECT}-web
+    restart: ${EDFINDER_RESTART}
+    environment:
+      EDFINDER_API_UPSTREAM: ${EDFINDER_PROJECT}-api:8000
+    ports:
+      - ${EDFINDER_WEB_BIND:?set by edfinder_deploy.py}:8080
+    depends_on:
+      - api
+    networks:
+      - app
+    pids_limit: 256
+    cpus: "1.00"
+    mem_limit: 1024m
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  app:
+    name: ${EDFINDER_NETWORK:?set by edfinder_deploy.py}
+    external: true
