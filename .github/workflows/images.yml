@@ -143,7 +143,7 @@ jobs:
           docker run --rm "$IMAGE" python -c "import os; assert os.environ['BUILD_SHA'] == '${{ steps.meta.outputs.sha }}'"
           # The nightly galaxy update ships in this image.
           docker run --rm "$IMAGE" python -m spansh_delta.apply --help | grep -q "check,apply"
-          docker run --rm "$IMAGE" python -m spansh_delta.scores --help | grep -q "Read only"
+          docker run --rm "$IMAGE" python -m spansh_delta.scores --help | grep -q "check,apply"
 
       - name: Smoke-test the web image
         if: matrix.name == 'web'
