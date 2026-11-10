@@ -371,7 +371,7 @@ def test_a_system_a_carrier_left_gets_its_find_row_rebuilt_without_a_record(gala
     report = score(galaxy, tmp_path, [arrived])
     assert (report.find_only, report.still_waiting) == (1, 0)
     assert (galaxy.one(count, THAILE)[0], galaxy.one(count, HD_38179)[0]) == (1, 1)
-    assert "only gained or lost a station:" in "\n".join(report.lines())
+    assert "for a station coming or going only:" in "\n".join(report.lines())
 
 
 def test_a_system_that_cannot_be_scored_stays_on_the_waiting_list(galaxy, tmp_path):

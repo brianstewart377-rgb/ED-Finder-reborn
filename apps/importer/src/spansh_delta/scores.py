@@ -637,7 +637,7 @@ class ApplyReport:
             out.append(f"      for example system {system_id}: {reason}")
         out.append(row("Find rows rebuilt:", self.find_rows + self.find_only))
         if self.find_only:
-            out.append(row("  for systems that only gained or lost a station:", self.find_only))
+            out.append(row("  of those, for a station coming or going only:", self.find_only))
         out.append(row("Systems still waiting for new scores:", self.still_waiting))
         minutes, seconds = divmod(int(self.seconds), 60)
         out.append(f"Took {minutes} min {seconds} s.")
