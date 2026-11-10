@@ -933,6 +933,29 @@ def _run_batches(connection: psycopg.Connection[Any], target: Target, path: Path
     return report
 
 
+def connect() -> psycopg.Connection[Any] | None:
+    """Connect the way the launcher arranged, or say plainly that it failed.
+
+    The settings are the PG* environment, or the API's own DATABASE_URL when
+    EDFINDER_GALAXY_USE_DATABASE_URL is 1.
+    """
+    conninfo = ""
+    if os.environ.get("EDFINDER_GALAXY_USE_DATABASE_URL") == "1":
+        conninfo = os.environ.get("DATABASE_URL", "")
+        if not conninfo:
+            say("Could not connect to the database: EDFINDER_GALAXY_USE_DATABASE_URL is 1 "
+                "but DATABASE_URL is not set.")
+            return None
+    try:
+        # The error text of a failed connection can repeat what it was given,
+        # so it is never printed.
+        return psycopg.connect(conninfo, autocommit=True, application_name="edfinder-galaxy-update")
+    except (psycopg.Error, ValueError):
+        say("Could not connect to the database: it did not accept this connection. "
+            "(The connection details are not shown.)")
+        return None
+
+
 def _when(text: str) -> datetime:
     value = datetime.fromisoformat(text)
     if value.tzinfo is None:
@@ -958,21 +981,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.limit is not None and args.limit < 1:
         say("FAILED: --limit must be 1 or more")
         return 1
-    conninfo = ""
-    if os.environ.get("EDFINDER_GALAXY_USE_DATABASE_URL") == "1":
-        conninfo = os.environ.get("DATABASE_URL", "")
-        if not conninfo:
-            say("Could not connect to the database: EDFINDER_GALAXY_USE_DATABASE_URL is 1 "
-                "but DATABASE_URL is not set.")
-            return EXIT_NO_CONNECTION
-    try:
-        # The error text of a failed connection can repeat what it was given,
-        # so it is never printed.
-        connection = psycopg.connect(conninfo, autocommit=True,
-                                     application_name="edfinder-galaxy-update")
-    except (psycopg.Error, ValueError):
-        say("Could not connect to the database: it did not accept this connection. "
-            "(The connection details are not shown.)")
+    connection = connect()
+    if connection is None:
         return EXIT_NO_CONNECTION
     with connection:
         size = args.file.stat().st_size

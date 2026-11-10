@@ -43,7 +43,7 @@ if args[0] == "inspect":
     sys.exit(1)
 if args[0] == "run":
     route = "app" if "--env-file" in args else "local"
-    print("Galaxy update (%%s) by the %%s route" %% (args[args.index("spansh_delta.apply") + 1], route))
+    print("%%s (%%s) by the %%s route" %% (args[args.index("-m") + 1], args[args.index("-m") + 2], route))
     sys.exit(state["run_exit"][route])
 if args[0] == "exec":
     statement = args[-1]
@@ -184,6 +184,46 @@ def test_run_downloads_the_file_and_runs_the_update_from_the_live_image(spansh, 
     assert stat.S_IMODE(chosen.directory.stat().st_mode) == 0o755
     out = capsys.readouterr().out
     assert "Downloading galaxy_1day.json.gz" in out and "Running the update from " + IMAGE in out
+
+
+def test_check_scores_uses_the_file_already_on_disk_and_is_read_only(spansh, docker, tmp_path, capsys):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    # Spansh publishes the next file; the check must still use the one that was applied.
+    spansh.publish(FILE, b"night two!", TUESDAY)
+    capsys.readouterr()
+
+    assert tool.cmd_apply(chosen, "check-scores", None) == 0
+
+    assert spansh.downloads() == [FILE] and chosen.target.read_bytes() == b"night one"
+    check = docker.calls("run")[-1]
+    assert check[check.index("-m"):] == ["-m", "spansh_delta.scores", "check", "/data/" + FILE]
+    assert "container:edfinder-v3-phase4c-full-20260827_r5-postgres" in check
+    out = capsys.readouterr().out
+    assert "Running the check from " + IMAGE in out and "Asking Spansh" not in out
+    # It does not count as applying anything.
+    assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == MONDAY
+
+
+def test_check_scores_fetches_the_file_when_there_is_none_and_passes_a_limit(spansh, docker, tmp_path):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "check-scores", 500) == 0
+    assert spansh.downloads() == [FILE] and not chosen.record.exists()
+    check = docker.calls("run")[-1]
+    assert check[check.index("-m"):] == ["-m", "spansh_delta.scores", "check", "/data/" + FILE,
+                                         "--limit", "500"]
+
+
+def test_a_failed_score_check_says_so(spansh, docker, tmp_path, capsys):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    docker.state["run_exit"]["local"] = 1
+    docker.save()
+    assert tool.cmd_apply(chosen, "check-scores", None) == 1
+    assert "FAILED: the check ended with code 1" in capsys.readouterr().out
 
 
 def test_a_second_run_of_the_same_file_does_nothing_and_a_new_file_runs_again(

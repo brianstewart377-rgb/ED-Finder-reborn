@@ -26,6 +26,8 @@ on:
       - apps/importer/src/data/region_map.json
       - apps/importer/src/v3_spansh/**
       - apps/importer/src/spansh_delta/**
+      - scripts/ratings_v4/**
+      - scripts/v3_system_*.py
       - .github/workflows/images.yml
   workflow_dispatch:
 
@@ -141,6 +143,7 @@ jobs:
           docker run --rm "$IMAGE" python -c "import os; assert os.environ['BUILD_SHA'] == '${{ steps.meta.outputs.sha }}'"
           # The nightly galaxy update ships in this image.
           docker run --rm "$IMAGE" python -m spansh_delta.apply --help | grep -q "check,apply"
+          docker run --rm "$IMAGE" python -m spansh_delta.scores --help | grep -q "Read only"
 
       - name: Smoke-test the web image
         if: matrix.name == 'web'

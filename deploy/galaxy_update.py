@@ -9,6 +9,10 @@ bodies, rings and stations up to date from it (edfinder-galaxy-update.timer).
                                       Read only: the database is not touched.
     python3 galaxy_update.py run      fetch the file, then apply it
     python3 galaxy_update.py status   show the last update and the file on disk
+    python3 galaxy_update.py check-scores
+                                      work scores out again from the file on
+                                      disk and compare them with the stored
+                                      ones. Read only.
 
     --limit N    stop after N systems (for timing a very big file)
 
@@ -214,8 +218,17 @@ def connection_rules(settings: Settings) -> List[str]:
             for row in rows if len(row) == 5]
 
 
-def job_command(settings: Settings, route: str, image: str, mode: str,
+# What each command runs inside the container: the module, and its mode.
+JOBS = {
+    "check": ("spansh_delta.apply", "check"),
+    "run": ("spansh_delta.apply", "apply"),
+    "check-scores": ("spansh_delta.scores", "check"),
+}
+
+
+def job_command(settings: Settings, route: str, image: str, command_name: str,
                 version: Dict[str, Any], limit: Optional[int]) -> List[str]:
+    module, mode = JOBS[command_name]
     command = ["docker", "run", "--rm", "--name", JOB_NAME]
     if route == "local":
         # Share the database container's network and connect as a local client.
@@ -234,9 +247,9 @@ def job_command(settings: Settings, route: str, image: str, mode: str,
         "--env", "PYTHONDONTWRITEBYTECODE=1", "--env", "PYTHONUNBUFFERED=1",
         "--volume", "%s:/data:ro" % settings.directory,
         "--security-opt", "no-new-privileges:true", "--pids-limit", "256",
-        image, "python", "-m", "spansh_delta.apply", mode, "/data/" + settings.target.name,
+        image, "python", "-m", module, mode, "/data/" + settings.target.name,
     ]
-    when = made_at(version)
+    when = made_at(version) if module == "spansh_delta.apply" else None
     if when:
         command += ["--made-at", when]
     if limit is not None:
@@ -244,7 +257,8 @@ def job_command(settings: Settings, route: str, image: str, mode: str,
     return command
 
 
-def run_job(settings: Settings, mode: str, version: Dict[str, Any], limit: Optional[int]) -> int:
+def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
+            limit: Optional[int]) -> int:
     image = live_image(settings)
     routes = ["local", "app"] if settings.connect == "auto" else [settings.connect]
     code = 1
@@ -255,11 +269,12 @@ def run_job(settings: Settings, mode: str, version: Dict[str, Any], limit: Optio
                 "left behind. Look with: docker ps -a --filter name=%s" % (JOB_NAME, JOB_NAME))
         if route == "app" and not os.path.isfile(settings.api_env_file):
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
-        say("Running the update from %s ..." % image if position == 0 else
+        say("Running the %s from %s ..." % (
+            "update" if command_name == "run" else "check", image) if position == 0 else
             "The database did not accept a local client. Trying the app's own connection "
             "settings instead ...")
         try:
-            code = subprocess.run(job_command(settings, route, image, mode, version, limit),
+            code = subprocess.run(job_command(settings, route, image, command_name, version, limit),
                                   stdin=subprocess.DEVNULL).returncode
         except OSError as error:
             raise UpdateError("docker could not be run: %s" % error) from error
@@ -281,9 +296,22 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         except OSError:
             raise UpdateError("another galaxy update is already running") from None
 
+        target = settings.target
+        if mode == "check-scores" and target.is_file():
+            # Scores are checked against the file already here, normally the
+            # one the last update applied, so nothing is fetched.
+            version = fetch.read_record(target.with_name(target.name + ".version"))
+            os.chmod(settings.directory, 0o755)
+            os.chmod(target, 0o644)
+            code = run_job(settings, mode, version, limit)
+            if code == EXIT_NO_CONNECTION:
+                say("FAILED: the check could not connect to the database. Nothing was changed.")
+            elif code != 0:
+                say("FAILED: the check ended with code %d; its own messages are above." % code)
+            return code
+
         say("Asking Spansh what is new ...")
         version = fetch.remote_version(settings.url)
-        target = settings.target
         applied = fetch.read_record(settings.record).get("applied")
         if mode == "run" and limit is None and applied == version and fetch.have_version(target, version):
             say("Spansh has published nothing new since the last update. Nothing to do.")
@@ -303,7 +331,7 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         os.chmod(settings.directory, 0o755)
         os.chmod(target, 0o644)
 
-        code = run_job(settings, "check" if mode == "check" else "apply", version, limit)
+        code = run_job(settings, mode, version, limit)
         if code == EXIT_NO_CONNECTION:
             say("FAILED: the update could not connect to the database. Nothing was changed.")
             return code
@@ -334,7 +362,7 @@ def cmd_status(settings: Settings) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's one-day galaxy file and apply it.")
-    parser.add_argument("command", choices=("check", "run", "status"))
+    parser.add_argument("command", choices=("check", "run", "status", "check-scores"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")
     args = parser.parse_args(argv)

@@ -95,8 +95,15 @@ In order:
       the current server, 10 November: 101,429 systems read, 29,369 changed,
       67,122 new, 4,938 identical, in 6 min 56 s; none refused.
 - [ ] **A nightly re-score** of the systems noted as changed, replacing their
-      score rows and Find rows. Checked against real data first: unchanged
-      systems must come out exactly as stored.
+      score rows and Find rows. A system can only be scored while its record
+      from Spansh's file is in hand, because the score uses each body's
+      sub-type and the galaxy tables do not hold it. So scoring runs on the
+      same file as the galaxy update, straight after it. Systems updated
+      before scoring was live are scored when a later file holds their
+      current record (the catch-up below, or Spansh's one-month file).
+      Checked against real data first, read only
+      (`deploy/galaxy_update.py check-scores`): systems nothing has changed
+      must get exactly their stored scores back.
 - [ ] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
       same code, because no smaller file reaches back to 27 August. Timed on
       the first million systems before the full run.

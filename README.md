@@ -106,6 +106,7 @@ changed in the last day as one file, about 1.2 GB. `deploy/galaxy_update.py`
 | `check` | Downloads the file and says what would change. Read only: the database is not touched. |
 | `run` | Downloads the file and applies it. If Spansh has nothing new it does nothing. |
 | `status` | Shows the last update, how many systems are waiting for new scores, and the file on disk. |
+| `check-scores` | Works scores out again from the file on disk and compares them with the stored ones. Read only. |
 
 How it works:
 
@@ -127,6 +128,15 @@ How it works:
   `RETIRED`, never deleted. Every reader already skips rows that are not
   `ACTIVE`.
 - It is safe to interrupt and safe to run twice.
+
+Scores need one thing the galaxy tables do not hold: each body's sub-type
+("Earth-like world", "Icy body"), which only Spansh's record has. So a system
+can be scored only while its record is in hand. `check-scores`
+(`apps/importer/src/spansh_delta/scores.py`) runs the frozen scoring code
+(`scripts/ratings_v4`, `scripts/v3_system_*`, `shared_contracts`) on the
+systems of the file and reports two things: whether systems nothing has
+changed get exactly their stored scores and Find row back, and whether each
+system waiting for new scores can be scored. It writes nothing.
 
 `deploy/edfinder-galaxy-update.timer` runs it at 04:30 UTC, after Spansh
 publishes the file at about 02:10 UTC, and again at 16:30 UTC in case the file
