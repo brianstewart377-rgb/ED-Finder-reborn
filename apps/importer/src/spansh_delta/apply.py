@@ -120,6 +120,14 @@ VOCABULARY_TABLES = {
 # range) is set aside. Any other database error stops the run at once.
 ROW_ERRORS = (psycopg.errors.IntegrityError, psycopg.errors.DataError,
               psycopg.errors.CardinalityViolation)
+
+
+def vocabulary_code(token: str) -> str:
+    """The public code the full import stores for a vocabulary word
+    (the same rule as ``v3_spansh.pipeline``'s vocabulary seeding)."""
+    return "_".join(token.replace("$", "").replace(";", "").replace("-", " ").split())[:63]
+
+
 # Stop when this many systems were set aside: something is wrong with the
 # file or the database, not with one odd system.
 MAX_SET_ASIDE = 25
@@ -322,20 +330,32 @@ def preflight(connection: psycopg.Connection[Any], *, need_queue: bool = True) -
     for table, name in triggers:
         problems.append(f"table {table} has a trigger ({name}) this tool does not know about")
 
+    # Rows carry vocabulary ids, so an id must mean the same thing in the
+    # database as it does to this version of the importer.
     for domain, table in VOCABULARY_TABLES.items():
-        wanted = {identifier for identifier, _ in VOCABULARY.get(domain, {}).values()}
+        wanted: dict[int, set[str]] = {}
+        for token, (identifier, _) in VOCABULARY.get(domain, {}).items():
+            wanted.setdefault(identifier, set()).add(vocabulary_code(token))
         if not wanted:
             continue
         if connection.execute("SELECT to_regclass(%s)", (f"v3_vocab.{table}",)).fetchone()[0] is None:
             problems.append(f"vocabulary table v3_vocab.{table} is missing")
             continue
-        have_ids = {row[0] for row in connection.execute(
-            sql.SQL("SELECT {} FROM v3_vocab.{}").format(
-                sql.Identifier(f"{table}_id"), sql.Identifier(table)))}
-        missing_ids = sorted(wanted - have_ids)
+        have = dict(connection.execute(
+            sql.SQL("SELECT {}, public_code FROM v3_vocab.{}").format(
+                sql.Identifier(f"{table}_id"), sql.Identifier(table))).fetchall())
+        missing_ids = sorted(set(wanted) - set(have))
         if missing_ids:
             problems.append(f"vocabulary v3_vocab.{table} lacks ids {missing_ids[:10]}"
                             + (" ..." if len(missing_ids) > 10 else ""))
+        different = sorted(identifier for identifier, codes in wanted.items()
+                           if identifier in have and have[identifier] not in codes)
+        if different:
+            first = different[0]
+            problems.append(
+                f"vocabulary v3_vocab.{table} id {first} is '{have[first]}' in the database but "
+                f"'{sorted(wanted[first])[0]}' to this version of the importer"
+                + (f" (and {len(different) - 1} more)" if len(different) > 1 else ""))
 
     if need_queue and connection.execute("SELECT to_regclass(%s)", (QUEUE_TABLE,)).fetchone()[0] is None:
         problems.append(f"{QUEUE_TABLE} does not exist (migration 026 has not been applied)")
@@ -866,15 +886,26 @@ def run_file(connection: psycopg.Connection[Any], path: Path, *, mode: str,
     connection.execute(sql.SQL("SET statement_timeout = {}").format(sql.Literal(STATEMENT_TIMEOUT)))
     connection.execute("SET lock_timeout = '60s'")
     target = preflight(connection, need_queue=mode == "apply")
-    writer: Writer | None = None
-    if mode == "apply":
-        if not connection.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_KEY,)).fetchone()[0]:
-            raise UpdateError("another galaxy update is running; this one did not start")
-        run = register_run(connection, file_facts(path, made_at))
-        writer = Writer(connection, target, run)
-    else:
+    if mode == "check":
         stamp = made_at or datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-        run = Run(0, UUID(int=0), stamp)
+        return _run_batches(connection, target, path, report, Run(0, UUID(int=0), stamp), None,
+                            limit=limit, progress=progress, started=started)
+    if not connection.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_KEY,)).fetchone()[0]:
+        raise UpdateError("another galaxy update is running; this one did not start")
+    try:
+        run = register_run(connection, file_facts(path, made_at))
+        return _run_batches(connection, target, path, report, run, Writer(connection, target, run),
+                            limit=limit, progress=progress, started=started)
+    finally:
+        try:
+            connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_KEY,))
+        except psycopg.Error:
+            pass
+
+
+def _run_batches(connection: psycopg.Connection[Any], target: Target, path: Path, report: Report,
+                 run: Run, writer: Writer | None, *, limit: int | None, progress: bool,
+                 started: float) -> Report:
     try:
         last = started
         for records in _batches(path, report, limit):
@@ -899,12 +930,6 @@ def run_file(connection: psycopg.Connection[Any], path: Path, *, mode: str,
             except psycopg.Error:
                 pass
         raise
-    finally:
-        if writer is not None:
-            try:
-                connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_KEY,))
-            except psycopg.Error:
-                pass
     return report
 
 

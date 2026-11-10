@@ -601,6 +601,14 @@ def test_two_updates_cannot_write_at_once(galaxy, tmp_path):
     assert run(galaxy, tmp_path, [galaxy.records[HD_38179]]).changed == 1
 
 
+def test_a_run_that_cannot_start_leaves_no_lock_behind(galaxy, tmp_path):
+    galaxy.connection.execute("UPDATE v3_source.source SET source_code = 'renamed' WHERE source_code = 'spansh'")
+    with pytest.raises(galaxy_update.Refused, match="no 'spansh' source"):
+        run(galaxy, tmp_path, [galaxy.records[HD_38179]])
+    galaxy.connection.execute("UPDATE v3_source.source SET source_code = 'spansh' WHERE source_code = 'renamed'")
+    assert run(galaxy, tmp_path, [galaxy.records[HD_38179]]).changed == 1
+
+
 # -- a database that is not what the tool expects ---------------------------
 
 
@@ -630,6 +638,9 @@ def test_a_region_filled_in_by_another_job_is_kept_and_is_not_a_difference(galax
     ("DELETE FROM v3_vocab.station_service WHERE station_service_id = "
      "(SELECT max(station_service_id) FROM v3_vocab.station_service)",
      "vocabulary v3_vocab.station_service lacks ids"),
+    ("UPDATE v3_vocab.atmosphere_classification SET public_code = 'renumbered' "
+     "WHERE atmosphere_classification_id = 3",
+     "vocabulary v3_vocab.atmosphere_classification id 3 is 'renumbered' in the database but"),
     ("UPDATE v3_meta.current_canonical_generation SET singleton = singleton; "
      "DROP TABLE v3_state.rescore_queue",
      "v3_state.rescore_queue does not exist (migration 026 has not been applied)"),
@@ -641,6 +652,22 @@ def test_a_database_in_an_unexpected_shape_is_refused_before_anything_is_written
         run(galaxy, tmp_path, [galaxy.records[HD_38179]])
     assert message in str(refusal.value)
     assert galaxy.one("SELECT count(*) FROM v3_source.source_run WHERE acquisition_kind = 'DELTA'")[0] == 0
+
+
+def test_the_importers_vocabulary_is_exactly_what_production_holds(galaxy):
+    """The fixture's vocabulary rows are production's own. Every id the
+    importer can write must exist there under the same code, with none over."""
+    from v3_spansh.adapter import VOCABULARY
+
+    for domain, table in galaxy_update.VOCABULARY_TABLES.items():
+        stored = dict(galaxy.all(f"SELECT {table}_id, public_code FROM v3_vocab.{table}"))
+        known: dict[int, set[str]] = {}
+        for token, (identifier, _) in VOCABULARY[domain].items():
+            known.setdefault(identifier, set()).add(galaxy_update.vocabulary_code(token))
+        assert set(stored) == set(known), domain
+        assert all(stored[identifier] in codes for identifier, codes in known.items()), domain
+    assert set(galaxy_update.VOCABULARY_TABLES) == {
+        domain for domain in VOCABULARY if domain in galaxy_update.VOCABULARY_TABLES}
 
 
 # -- the command ------------------------------------------------------------
