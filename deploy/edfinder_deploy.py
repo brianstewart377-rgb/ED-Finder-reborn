@@ -21,6 +21,9 @@ How "live" stays safe:
   3. If the switched site fails its checks, the previous release (or the
      containers this tool replaced) is put back automatically.
 
+A release is tested by fetching its page, health, API description and sign-in
+state, and by running three Find searches against the real database.
+
 Settings come from the environment, then from a "deploy.conf" file beside this
 script (KEY=VALUE lines), then from the defaults below.
 
@@ -65,6 +68,9 @@ DEFAULTS: Dict[str, str] = {
     "EDFINDER_READY_SECONDS": "120",
     # Public address, checked for information after going live. Empty: skip.
     "EDFINDER_PUBLIC_ORIGIN": "https://ed-finder.app",
+    # Run three Find searches against a started release. Set to 0 only on a
+    # machine whose database has no Finder data yet.
+    "EDFINDER_FIND_CHECK": "1",
 }
 
 REVISION_LABEL = "org.opencontainers.image.revision"
@@ -116,6 +122,9 @@ class Settings:
         self.state_dir = Path(values["EDFINDER_STATE_DIR"])
         self.compose_file = values["EDFINDER_COMPOSE_FILE"]
         self.public_origin = values["EDFINDER_PUBLIC_ORIGIN"].rstrip("/")
+        if values["EDFINDER_FIND_CHECK"] not in ("0", "1"):
+            raise DeployError("EDFINDER_FIND_CHECK must be 0 or 1")
+        self.find_check = values["EDFINDER_FIND_CHECK"] == "1"
         try:
             self.ready_seconds = float(values["EDFINDER_READY_SECONDS"])
         except ValueError as error:
@@ -406,8 +415,15 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def http_get(origin: str, path: str, timeout: float = 10) -> Tuple[int, bytes]:
-    request = urllib.request.Request(origin + path, headers={"User-Agent": "edfinder-deploy/1"})
+def http_get(origin: str, path: str, timeout: float = 10,
+             payload: Optional[Dict[str, Any]] = None) -> Tuple[int, bytes]:
+    """GET, or POST `payload` as JSON when one is given."""
+    headers = {"User-Agent": "edfinder-deploy/1"}
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(origin + path, data=data, headers=headers)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
     try:
         with opener.open(request, timeout=timeout) as response:
@@ -489,6 +505,50 @@ def smoke(origin: str, sha: str) -> None:
         raise DeployError("the web page is not build %s" % sha[:12])
 
 
+# Three real searches, one for each way Find reads the database: the ranking
+# for one colony type, the galaxy-wide list, and nearest-first around Sol,
+# where most systems are inhabited.
+FIND_SEARCHES: Tuple[Tuple[str, str, Optional[Dict[str, Any]], bool], ...] = (
+    ("ranking for one colony type",
+     "/api/archetypes/rankings?archetype=flexible&limit=5", None, True),
+    ("galaxy-wide search",
+     "/api/local/search", {"galaxy_wide": True, "size": 5, "from": 0}, True),
+    ("nearest-first search around Sol",
+     "/api/local/search",
+     {"reference_coords": {"x": 0.0, "y": 0.0, "z": 0.0},
+      "filters": {"distance": {"max": 100}},
+      "sort_by": "distance", "size": 5, "from": 0}, False),
+)
+FIND_TIMEOUT_SECONDS = 30
+FIND_HIDDEN = ("inhabited", "being_claimed")
+
+
+def find_check(origin: str) -> None:
+    """Find must answer real searches, and must not list a system that is
+    inhabited or being claimed. Needs a database with Finder data."""
+    hint = ("\n    If this machine's database has no Finder data yet, set "
+            "EDFINDER_FIND_CHECK=0 in deploy.conf.")
+    for name, path, payload, must_find in FIND_SEARCHES:
+        status, body = http_get(origin, path, timeout=FIND_TIMEOUT_SECONDS, payload=payload)
+        if status != 200:
+            raise DeployError("Find: the %s answered %d%s" % (name, status, hint))
+        try:
+            answer = json.loads(body)
+        except ValueError as error:
+            raise DeployError("Find: the %s did not answer with JSON" % name) from error
+        results = answer.get("results") if isinstance(answer, dict) else None
+        if not isinstance(results, list):
+            raise DeployError("Find: the %s answered without a list of results" % name)
+        if must_find and not results:
+            raise DeployError("Find: the %s found no systems%s" % (name, hint))
+        for result in results:
+            status_of = result.get("claim_status") if isinstance(result, dict) else None
+            if status_of in FIND_HIDDEN:
+                raise DeployError(
+                    "Find: the %s listed %s, which is %s" % (
+                        name, str(result.get("name"))[:60], status_of.replace("_", " ")))
+
+
 # -- state ----------------------------------------------------------------------
 
 class State:
@@ -566,13 +626,16 @@ def trial(settings: Settings, release: Release) -> None:
         compose_up(settings, project, release, settings.trial_bind, "no")
         wait_ready(origin_of(settings.trial_bind), release.sha, settings.ready_seconds)
         smoke(origin_of(settings.trial_bind), release.sha)
+        if settings.find_check:
+            find_check(origin_of(settings.trial_bind))
     except DeployError as error:
         tail = logs_tail(project + "-api")
         raise DeployError("the test start failed: %s\n    Last lines from its API:\n%s" % (
             error, tail or "      (none)")) from error
     finally:
         remove_trial(settings)
-    say("  passed: page, health, API description and sign-in state all correct.")
+    say("  passed: page, health, API description and sign-in state all correct%s." % (
+        ", and Find answered three searches" if settings.find_check else ""))
 
 
 def stop_originals(state: State, containers: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -648,6 +711,8 @@ def switch(settings: Settings, state: State, release: Release, take_over: bool,
         compose_up(settings, settings.project, release, settings.live_bind, "unless-stopped")
         wait_ready(origin_of(settings.live_bind), release.sha, settings.ready_seconds)
         smoke(origin_of(settings.live_bind), release.sha)
+        if settings.find_check:
+            find_check(origin_of(settings.live_bind))
     except DeployError as error:
         tail = logs_tail(settings.project + "-api")
         say("  FAILED: %s" % error)

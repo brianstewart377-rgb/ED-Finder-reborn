@@ -33,8 +33,13 @@ jobs:
           --health-retries 20
     env:
       SYSTEM_STATE_TEST_DSN: postgresql://postgres@localhost:5432/state_test
+      # The Finder tests create and drop their own throwaway databases; this
+      # is the database they connect to first. Its name and host are fixed by
+      # tests/ratings_v4_pg_fixture.py.
+      RATINGS_V4_VALIDATION_DATABASE_URL: postgresql://postgres@localhost:5432/ratings_v4_validation
       # Database and Docker tests must run here; they fail instead of being skipped.
       REQUIRE_DB_TESTS: "1"
+      EDF_DB_TESTS_REQUIRED: "1"
       REQUIRE_DOCKER_TESTS: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,5 +60,7 @@ jobs:
           psql -X -At -d "$SYSTEM_STATE_TEST_DSN" -c "SELECT version()"
           docker version --format '{{.Server.Version}}'
           docker compose version --short
+      - name: Create the database the Finder tests connect to
+        run: psql -X -q -v ON_ERROR_STOP=1 -d "$SYSTEM_STATE_TEST_DSN" -c "CREATE DATABASE ratings_v4_validation"
       - name: Run tests
         run: python -m pytest -q tests

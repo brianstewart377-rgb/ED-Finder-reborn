@@ -252,6 +252,19 @@ class SystemRow(BaseModel):
     contamination_risk:  Optional[float]       = None
     est_total_slots:     Optional[int]         = None
     tags:                list[str]             = Field(default_factory=list)
+    # Find's claim rule (edfinder_api.claim_rule). Ranked results never carry
+    # 'inhabited' or 'being_claimed': those systems are left out.
+    claim_status: Optional[Literal['free', 'claim_ended_unknown', 'inhabited', 'being_claimed']] = Field(
+        None,
+        description=(
+            "'free': no population and no station on record. "
+            "'claim_ended_unknown': no population, and a station was last seen there "
+            'more than 30 days ago, so a claim either finished or lapsed.'
+        ),
+    )
+    claim_station_seen_at: Optional[str] = Field(
+        None, description='When a station in this system was last seen (ISO 8601), if any.',
+    )
     # Body counts surfaced flat for filter pills (the search SQL
     # projects these from the ratings row).
     elw_count:            Optional[int] = None
@@ -973,6 +986,19 @@ class ArchetypeRankingRow(BaseModel):
     landable_count:      Optional[int]    = None
     est_total_slots:     Optional[int]    = None
     tags:                list[str]        = Field(default_factory=list)
+    # Find's claim rule (edfinder_api.claim_rule). Ranked results never carry
+    # 'inhabited' or 'being_claimed': those systems are left out.
+    claim_status: Optional[Literal['free', 'claim_ended_unknown', 'inhabited', 'being_claimed']] = Field(
+        None,
+        description=(
+            "'free': no population and no station on record. "
+            "'claim_ended_unknown': no population, and a station was last seen there "
+            'more than 30 days ago, so a claim either finished or lapsed.'
+        ),
+    )
+    claim_station_seen_at: Optional[str] = Field(
+        None, description='When a station in this system was last seen (ISO 8601), if any.',
+    )
 
 
 # ── Response: GET /api/archetypes/rankings ───────────────────────────

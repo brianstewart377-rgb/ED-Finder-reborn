@@ -832,6 +832,30 @@ describe('selected-archetype rankings facade', () => {
     },
   );
 
+  it('carries the claim note through, and null when the server sends none', () => {
+    const rows = [
+      {
+        ...rankingRow('1', 95, 'S'),
+        claim_status: 'claim_ended_unknown' as const,
+        claim_station_seen_at: '2026-08-12T23:30:00+00:00',
+      },
+      rankingRow('2', 90, 'S'),
+    ];
+    const noted = normalizeRankingsResponse(
+      rankingsEnvelope(rows),
+      flexibleRequest,
+    );
+
+    expect(noted.results[0]).toMatchObject({
+      claim_status: 'claim_ended_unknown',
+      claim_station_seen_at: '2026-08-12T23:30:00+00:00',
+    });
+    expect(noted.results[1]).toMatchObject({
+      claim_status: null,
+      claim_station_seen_at: null,
+    });
+  });
+
   it('leaves rival fields absent when the server omits them', () => {
     const page = normalizeRankingsResponse(
       rankingsEnvelope([rankingRow('1', 95, 'S')]),
@@ -1234,6 +1258,36 @@ describe('facade page size versus clamped wire limit near the 10,000 ceiling', (
       total: 10_000,
       truncation: { source: 'rankings', is_truncated: true },
     });
+  });
+});
+
+describe('Any rows keep the claim note', () => {
+  it('passes claim_status and the station date through unchanged', () => {
+    const page = normalizeAnySearchResponse(
+      {
+        results: [
+          {
+            id64: '7' as unknown as number,
+            name: 'Noted',
+            claim_status: 'claim_ended_unknown' as const,
+            claim_station_seen_at: '2026-08-12T23:30:00+00:00',
+          },
+          {
+            id64: '8' as unknown as number,
+            name: 'Free',
+            claim_status: 'free' as const,
+          },
+        ],
+        total: 2,
+        ranking: provenance,
+      },
+      { galaxy_wide: true, size: 24, from: 0 },
+    );
+    expect(page.results[0]).toMatchObject({
+      claim_status: 'claim_ended_unknown',
+      claim_station_seen_at: '2026-08-12T23:30:00+00:00',
+    });
+    expect(page.results[1]).toMatchObject({ claim_status: 'free' });
   });
 });
 

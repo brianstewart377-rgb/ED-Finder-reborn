@@ -51,6 +51,27 @@
         )
       : null,
   );
+  // Find leaves out inhabited systems and systems being claimed. A system
+  // whose station has not been reported for over 30 days is shown, because
+  // the data cannot tell a finished colony from a lapsed claim.
+  const claimNote = $derived.by(() => {
+    if (system?.claim_status !== 'claim_ended_unknown') return null;
+    const seen = system.claim_station_seen_at
+      ? new Date(system.claim_station_seen_at)
+      : null;
+    const when =
+      seen && !Number.isNaN(seen.getTime())
+        ? seen.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })
+        : null;
+    return when
+      ? `A station was last seen here on ${when}. Someone claimed this system and either finished or gave up. Check in game before you travel.`
+      : 'A station was seen here more than 30 days ago. Someone claimed this system and either finished or gave up. Check in game before you travel.';
+  });
   const number = (value: number) => value.toLocaleString('en-US');
   const known = (value: number | null | undefined): value is number =>
     typeof value === 'number' && Number.isFinite(value);
@@ -114,6 +135,12 @@
     <span id={descriptionId} class="evidence-description"
       >{badge.description}</span
     >
+    {#if claimNote}
+      <span class="claim-note">
+        <span class="claim-badge kit-chip">Claim ended, outcome unknown</span>
+        <span class="claim-detail">{claimNote}</span>
+      </span>
+    {/if}
   </span>
 {/if}
 
@@ -149,8 +176,18 @@
     font-size: 0.85rem;
     color: var(--text-muted);
   }
+  .claim-note {
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .claim-badge {
+    color: var(--warn);
+  }
   .tier-badge,
   .fit-label,
+  .claim-badge,
   .evidence-badge {
     width: fit-content;
     max-width: 100%;

@@ -67,6 +67,57 @@ describe('ranked card facts', () => {
     }
   });
 
+  it('says so when a claim ended and the outcome is unknown', () => {
+    render(FinderResultRanking, {
+      variant: 'row',
+      system: {
+        ...system,
+        claim_status: 'claim_ended_unknown',
+        claim_station_seen_at: '2026-08-12T23:30:00+00:00',
+      },
+      archetype: 'manufacturing_hub',
+    });
+    expect(screen.getByText('Claim ended, outcome unknown')).toBeVisible();
+    expect(
+      screen.getByText(
+        'A station was last seen here on 12 Aug 2026. Someone claimed this system and either finished or gave up. Check in game before you travel.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('still explains the note when the station date is missing or unreadable', () => {
+    for (const seen of [null, 'not a date']) {
+      const view = render(FinderResultRanking, {
+        variant: 'row',
+        system: {
+          ...system,
+          claim_status: 'claim_ended_unknown',
+          claim_station_seen_at: seen,
+        },
+        archetype: 'manufacturing_hub',
+      });
+      expect(
+        screen.getByText(
+          'A station was seen here more than 30 days ago. Someone claimed this system and either finished or gave up. Check in game before you travel.',
+        ),
+      ).toBeVisible();
+      view.unmount();
+    }
+  });
+
+  it('shows no claim note for a free system', () => {
+    for (const status of ['free', null, undefined] as const) {
+      const view = render(FinderResultRanking, {
+        variant: 'row',
+        system: { ...system, claim_status: status },
+        archetype: 'manufacturing_hub',
+      });
+      expect(screen.queryByText('Claim ended, outcome unknown')).toBeNull();
+      expect(screen.queryByText(/Check in game/)).toBeNull();
+      view.unmount();
+    }
+  });
+
   it('renders a supplied headline tier independently of the selected tier', () => {
     render(FinderResultRanking, {
       variant: 'row',
