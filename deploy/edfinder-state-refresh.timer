@@ -1,0 +1,11 @@
+# Spansh publishes its populated-systems file at about 02:10 UTC each night.
+[Unit]
+Description=ED-Finder: refresh system state every night
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+# If the machine was off at 03:30, run once it is back.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

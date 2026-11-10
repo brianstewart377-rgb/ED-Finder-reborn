@@ -1,0 +1,15 @@
+# Fetch Spansh's system state files and load them (deploy/state_refresh.py).
+# Started once a night by edfinder-state-refresh.timer.
+[Unit]
+Description=ED-Finder: refresh system state from Spansh
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edfinder/state_refresh.py run
+# Be gentle with the machine: this is background work.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=3h
