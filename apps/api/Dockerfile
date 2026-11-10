@@ -26,6 +26,9 @@ COPY shared_contracts/ ./shared_contracts/
 # so the job is always the same version as the app that is live.
 COPY apps/importer/src/v3_spansh/ ./v3_spansh/
 COPY apps/importer/src/spansh_delta/ ./spansh_delta/
+# Scores are worked out by the frozen scoring code, which the update calls.
+COPY scripts/ratings_v4/ ./scripts/ratings_v4/
+COPY scripts/v3_system_search.py scripts/v3_system_archetype.py scripts/v3_system_archetype_model.py ./scripts/
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
