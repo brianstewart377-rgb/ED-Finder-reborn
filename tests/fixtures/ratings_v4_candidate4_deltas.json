@@ -1,0 +1,19 @@
+{
+  "historical_scorer": "4.0-candidate-3",
+  "scorer": "4.0.0",
+  "historical_fixture": "ratings_v4_real_systems.json",
+  "reason": "Exact integer hundredths with nearest-even rounding: a lone native opportunity is 82 * 75 / 100 = 61.5, which rounds to 62. Binary float previously rounded 61.49999999999999 to 61. No input facts or coefficients changed.",
+  "potential_changes": {
+    "5076786292249": {
+      "name": "Praea Euq WV-W b2-2",
+      "Military": {"before": 61, "after": 62}
+    },
+    "1457973727914": {
+      "name": "Col 285 Sector BW-U c3-5",
+      "Military": {"before": 61, "after": 62}
+    }
+  },
+  "unchanged_potential_values": 82,
+  "specialisation_changes": 0,
+  "coverage_note": "The historical fixture does not retain per-feature known states or source lineage and uses a synthetic system reserve scalar. It remains a calibration regression, not proof of canonical evidence completeness. Missing lineage now lowers completeness/confidence. Canonical validation is separate."
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "ed-finder/v3-canonical-source-recovery/v1",
+  "recovered_at": "2026-09-08",
+  "source_host": "ed-finder-prod/nb79a3d.mevnode.com",
+  "source_root": "/data/v3/phase4c-correction-gate/repo",
+  "canonical_generation_id": "a7076522-54cd-52f3-a291-4e5406bea230",
+  "canonical_source_run_id": "3a52e525-eb1e-5e96-90af-0da7ce1f4922",
+  "importer_package_sha256": "b5bf4e0c62a75e10bf6e3dfb6dc1934353f09e18afabcddbbb706e8277238d53",
+  "normalizer_sha256": "e9d86fbea1bad3049f2ab9e93e51da9eb1ca681a631ed049dee833d185820f24",
+  "verification": "Package and normalizer hashes match canonical source-run metadata; baseline hash matches live v3_meta.schema_migration.",
+  "execution_authority": "Recovered source evidence only; no production import, canonical publication or baseline reapplication is authorized by this manifest.",
+  "files_sha256": {
+    "apps/importer/src/v3_spansh/__init__.py": "d1b45d3cc8840daadb7417c5480749c932e2b9147790aa79060694f72f3e9723",
+    "apps/importer/src/v3_spansh/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "apps/importer/src/v3_spansh/adapter.py": "e9d86fbea1bad3049f2ab9e93e51da9eb1ca681a631ed049dee833d185820f24",
+    "apps/importer/src/v3_spansh/cli.py": "678a14adca7eb0f5f12d0e1063b5d75601d16e650259478ab8d714243d4a6f98",
+    "apps/importer/src/v3_spansh/contracts.py": "8900d9584e19f7cc132cf071465c91840431c9c903eb3640c211b036694cefb8",
+    "apps/importer/src/v3_spansh/coverage.py": "18ed45e0aac5c0d4606543009f00227d4f43b5cddb1f2312c299bea6ced450f0",
+    "apps/importer/src/v3_spansh/events.py": "d2819aed531185b2c2a875b1a0871059475d6a9b6d05a52b9a9f85ad1651a19a",
+    "apps/importer/src/v3_spansh/lab_events.py": "4b4857a3b07b0c182a21852254e74d51bf2278015a06330424b3c6d1a49a5956",
+    "apps/importer/src/v3_spansh/lab_report.py": "454b69eb743323f55e44afa1fc83c762a91c1a70f1a67f8dbfb50bb0c831ba00",
+    "apps/importer/src/v3_spansh/pipeline.py": "c1a1f4fc59e6cf7257cf11f361daa223d8cf34437af5fca1be078158cdc03a84",
+    "sql/v3/migrations/001_v3_baseline.sql": "ee08c17eb3f87f614468db5a038d2f23273ce2b72906226c9aa1f669e724cd2e"
+  }
+}

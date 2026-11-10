@@ -1,0 +1,21 @@
+{
+  "content_sha256": "ed6a9340db0575b1bf46401e80e3d9ea35930e3691fe5a20ea554660b5b67f79",
+  "counts": {
+    "economy_opportunity": 2520,
+    "economy_rating_contributor": 1041,
+    "mechanics_feature": 3298,
+    "system_economy_rating": 84,
+    "system_input": 12
+  },
+  "disposable_schema": "ratings_v4_validation_b7f7c95fd19245499edc635c5718754d",
+  "freeze_manifest_sha256": "0279b81b72152712a631606b50ba70294719ecf93014621ef1fd473d690fe6a3",
+  "generation_id": "98e93f43-edff-47ab-b68b-399ae5f19f74",
+  "input_sha256": "8373e46979cfdc3f967a6945131ce2f0ded77ef0192bcbd5f6e269b4569a9007",
+  "mechanics_version": "v4-mechanics-2026-09",
+  "metadata_sha256": "f8230a76595575539ea03368f74bc89ab7dfede7daa3559aa379990bb6d2411a",
+  "postgres_version": "18.6",
+  "published": false,
+  "scorer_version": "4.0.0",
+  "status": "READY",
+  "validation": "full readback and deterministic recomputation; all components equal"
+}
