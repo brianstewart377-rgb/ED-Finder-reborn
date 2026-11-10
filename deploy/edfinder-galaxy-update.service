@@ -1,0 +1,15 @@
+# Fetch Spansh's one-day galaxy file and apply it (deploy/galaxy_update.py).
+# Started once a night by edfinder-galaxy-update.timer.
+[Unit]
+Description=ED-Finder: bring the galaxy up to date from Spansh
+After=docker.service network-online.target edfinder-state-refresh.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edfinder/galaxy_update.py run
+# Be gentle with the machine: this is background work.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=6h

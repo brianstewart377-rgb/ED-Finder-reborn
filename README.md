@@ -27,7 +27,7 @@ reference: its history, PRs and research stay there.
 | `shared_contracts` | Shared Python used by the API and importer. |
 | `sql/v3` | Database migrations. |
 | `sql/measure` | Read-only scripts that report on the database. |
-| `deploy` | The compose file and the deploy tool. |
+| `deploy` | The compose file, the deploy tool and the two nightly jobs. |
 | `tests` | Python tests for the importer and the database loaders. |
 | `assets` | Asset provenance records. |
 
@@ -93,6 +93,44 @@ are from the `v3_state` tables, which are only as fresh as their last load.
 
 `deploy/edfinder-state-refresh.timer` runs it every night at 03:30 UTC. It
 needs `spansh_system_state.py` beside it and about 20 GB of free disk space.
+
+## Keeping the galaxy fresh
+
+The galaxy itself (systems, bodies, rings, stations) changes too: commanders
+scan new bodies, fleet carriers move. Spansh publishes every system that
+changed in the last day as one file, about 1.2 GB. `deploy/galaxy_update.py`
+(Python standard library only) fetches it and applies it:
+
+| Command | What it does |
+|---|---|
+| `check` | Downloads the file and says what would change. Read only: the database is not touched. |
+| `run` | Downloads the file and applies it. If Spansh has nothing new it does nothing. |
+| `status` | Shows the last update, how many systems are waiting for new scores, and the file on disk. |
+
+How it works:
+
+- The work is done by `python -m spansh_delta.apply`
+  (`apps/importer/src/spansh_delta/apply.py`), which ships inside the API
+  image. The launcher runs it in a short-lived container made from the image
+  the live API is running, so the update is always the same version as the
+  app. The container shares the database container's network and connects as
+  a local client: no password is stored or passed anywhere. If the database
+  refuses that, the container is started on the app's network with the API's
+  own settings file instead; the launcher hands docker the file's path and
+  never opens it.
+- Each system's rows are worked out by the same adapter the full import used
+  and compared with what we hold. Identical systems are not touched.
+- A system that differs has its rows replaced and is added to
+  `v3_state.rescore_queue`, in the same transaction, so its scores and Find
+  row get rebuilt.
+- A body, ring or station the file no longer lists is kept and marked
+  `RETIRED`, never deleted. Every reader already skips rows that are not
+  `ACTIVE`.
+- It is safe to interrupt and safe to run twice.
+
+`deploy/edfinder-galaxy-update.timer` runs it every night at 04:30 UTC. It
+needs `state_refresh.py` beside it (they share the download code) and
+migration `026` applied.
 
 The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
 

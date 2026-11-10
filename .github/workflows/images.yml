@@ -24,6 +24,8 @@ on:
       - shared_contracts/**
       - assets/**
       - apps/importer/src/data/region_map.json
+      - apps/importer/src/v3_spansh/**
+      - apps/importer/src/spansh_delta/**
       - .github/workflows/images.yml
   workflow_dispatch:
 
@@ -137,6 +139,8 @@ jobs:
           docker run --rm -e CORS_ORIGINS=https://example.test "$IMAGE" \
             python -c "import edfinder_api.main as m; assert m.app is not None; print('API imports cleanly')"
           docker run --rm "$IMAGE" python -c "import os; assert os.environ['BUILD_SHA'] == '${{ steps.meta.outputs.sha }}'"
+          # The nightly galaxy update ships in this image.
+          docker run --rm "$IMAGE" python -m spansh_delta.apply --help | grep -q "check,apply"
 
       - name: Smoke-test the web image
         if: matrix.name == 'web'

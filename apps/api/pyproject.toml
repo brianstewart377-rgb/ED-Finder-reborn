@@ -8,6 +8,8 @@ dependencies = [
   "defusedxml==0.7.1",
   "fastapi==0.141.1",
   "httpx==0.28.1",
+  "ijson==3.5.1",
+  "psycopg[binary]==3.3.4",
   "pydantic-settings==2.15.0",
   "pydantic==2.13.5",
   "pyzmq==27.2.0",
@@ -19,17 +21,15 @@ dependencies = [
 ]
 
 # CI-only dependencies are locked beside the deployable API dependencies so
-# validation cannot accidentally exercise a separately resolved graph. Psycopg
-# 3 supports synchronous release, importer, and repository tooling checks on
-# the same CPython 3.14 authority.
+# validation cannot accidentally exercise a separately resolved graph.
+# (Psycopg 3 and ijson are runtime dependencies: the nightly galaxy update,
+# python -m spansh_delta.apply, runs from the API image.)
 [dependency-groups]
 test = [
   "PyYAML==6.0.3",
   "coverage==7.16.0",
-  "ijson==3.5.1",
   "jsonschema==4.26.0",
   "numpy==2.5.2",
-  "psycopg[binary]==3.3.4",
   "pytest-asyncio==1.4.0",
   "pytest==9.1.1",
   "ruff==0.16.5",

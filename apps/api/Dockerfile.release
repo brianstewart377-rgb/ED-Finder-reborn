@@ -32,6 +32,10 @@ COPY --from=build /app/.venv /app/.venv
 RUN /app/.venv/bin/python -c "import platform, sys; assert platform.python_implementation() == 'CPython'; assert sys.version_info[:2] == (3, 14)"
 COPY apps/api/src/ ./
 COPY shared_contracts/ ./shared_contracts/
+# The nightly galaxy update (python -m spansh_delta.apply) runs from this image,
+# so the job is always the same version as the app that is live.
+COPY apps/importer/src/v3_spansh/ ./v3_spansh/
+COPY apps/importer/src/spansh_delta/ ./spansh_delta/
 
 ENV PATH="/app/.venv/bin:$PATH" \
     APP_VERSION="3.0.1" \
