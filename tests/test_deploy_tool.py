@@ -107,6 +107,9 @@ def test_only_setting_names_are_taken_from_an_env_file(tmp_path):
 
 # -- health and smoke checks against a tiny local server -----------------------------
 
+RANKINGS = "/api/archetypes/rankings?archetype=flexible&limit=5"
+
+
 class FakeSite:
     def __init__(self, **overrides) -> None:
         self.answers = {
@@ -116,18 +119,31 @@ class FakeSite:
             "/openapi.json": (200, json.dumps({"paths": {"/api/health": {},
                                                          "/api/v1/auth/session": {}}})),
             "/api/v1/auth/session": (200, json.dumps({"authenticated": False, "user": None})),
+            RANKINGS: (200, json.dumps({"results": [{"name": "A", "claim_status": "free"}]})),
+            "/api/local/search": (200, json.dumps(
+                {"results": [{"name": "B", "claim_status": "claim_ended_unknown"}]})),
         }
         self.answers.update(overrides)
-        answers = self.answers
+        self.posted: list = []
+        answers, posted = self.answers, self.posted
 
         class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802
+            def answer(self):
                 status, body = answers.get(self.path, (404, "missing"))
                 data = body.encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
+
+            def do_GET(self):  # noqa: N802
+                self.answer()
+
+            def do_POST(self):  # noqa: N802
+                length = int(self.headers.get("Content-Length", "0"))
+                posted.append((self.path, self.headers.get("Content-Type"),
+                               json.loads(self.rfile.read(length))))
+                self.answer()
 
             def log_message(self, *args):
                 pass
@@ -159,6 +175,52 @@ def test_healthy_release_passes_every_check(fake_site):
     site = fake_site()
     tool.wait_ready(site.origin, SHA, 5)
     tool.smoke(site.origin, SHA)
+
+
+def test_find_check_runs_three_real_searches(fake_site):
+    site = fake_site()
+    tool.find_check(site.origin)
+    assert [(path, kind) for path, kind, _ in site.posted] == [
+        ("/api/local/search", "application/json")] * 2
+    galaxy, nearest = (body for _, _, body in site.posted)
+    assert galaxy == {"galaxy_wide": True, "size": 5, "from": 0}
+    assert nearest["sort_by"] == "distance"
+    assert nearest["reference_coords"] == {"x": 0.0, "y": 0.0, "z": 0.0}
+
+
+def test_find_check_accepts_a_build_from_before_the_claim_rule(fake_site):
+    """Rolling back to an older build must still pass: its results carry no
+    claim status at all."""
+    old = (200, json.dumps({"results": [{"name": "Old"}]}))
+    tool.find_check(fake_site(**{RANKINGS: old, "/api/local/search": old}).origin)
+
+
+def results(*rows) -> tuple:
+    return 200, json.dumps({"results": list(rows)})
+
+
+@pytest.mark.parametrize("overrides, message", [
+    ({RANKINGS: (503, "{}")}, "ranking for one colony type answered 503"),
+    ({"/api/local/search": (503, "{}")}, "galaxy-wide search answered 503"),
+    ({RANKINGS: (200, "not json")}, "did not answer with JSON"),
+    ({RANKINGS: (200, json.dumps({"rows": []}))}, "without a list of results"),
+    ({RANKINGS: results()}, "found no systems"),
+    ({RANKINGS: results({"name": "Sol", "claim_status": "inhabited"})},
+     "listed Sol, which is inhabited"),
+    ({"/api/local/search": results({"name": "Depot", "claim_status": "being_claimed"})},
+     "listed Depot, which is being claimed"),
+])
+def test_find_check_fails_when_find_is_broken_or_lists_a_hidden_system(
+        fake_site, overrides, message):
+    with pytest.raises(tool.DeployError, match=message):
+        tool.find_check(fake_site(**overrides).origin)
+
+
+def test_find_check_can_be_switched_off_only_with_0_or_1():
+    assert settings().find_check is True
+    assert settings(EDFINDER_FIND_CHECK="0").find_check is False
+    with pytest.raises(tool.DeployError, match="EDFINDER_FIND_CHECK must be 0 or 1"):
+        settings(EDFINDER_FIND_CHECK="no")
 
 
 def health(**changes) -> tuple:

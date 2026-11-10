@@ -132,6 +132,18 @@ export type ArchetypeRankingRow = {
      * Tags
      */
     tags?: Array<string>;
+    /**
+     * Claim Status
+     *
+     * 'free': no population and no station on record. 'claim_ended_unknown': no population, and a station was last seen there more than 30 days ago, so a claim either finished or lapsed.
+     */
+    claim_status?: 'free' | 'claim_ended_unknown' | 'inhabited' | 'being_claimed' | null;
+    /**
+     * Claim Station Seen At
+     *
+     * When a station in this system was last seen (ISO 8601), if any.
+     */
+    claim_station_seen_at?: string | null;
     [key: string]: unknown;
 };
 
@@ -8712,6 +8724,18 @@ export type SystemRow = {
      * Tags
      */
     tags?: Array<string>;
+    /**
+     * Claim Status
+     *
+     * 'free': no population and no station on record. 'claim_ended_unknown': no population, and a station was last seen there more than 30 days ago, so a claim either finished or lapsed.
+     */
+    claim_status?: 'free' | 'claim_ended_unknown' | 'inhabited' | 'being_claimed' | null;
+    /**
+     * Claim Station Seen At
+     *
+     * When a station in this system was last seen (ISO 8601), if any.
+     */
+    claim_station_seen_at?: string | null;
     /**
      * Elw Count
      */

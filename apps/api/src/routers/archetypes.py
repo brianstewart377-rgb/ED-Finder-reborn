@@ -90,6 +90,7 @@ from edfinder_api.ranking.profile import (
     RANKING_WINDOW_LIMIT,
     ranking_sha256,
 )
+from edfinder_api.claim_rule import apply_claim_notes, claim_notes
 from edfinder_api.ranking.ranking_sql import build_count_query, build_ranked_query
 from edfinder_api.ranking.rerank import (
     PPM,
@@ -323,6 +324,8 @@ async def _archetype_rankings_v3(
         limit=limit,
         offset=offset,
         min_score=min_score,
+        # Find shows only systems that can still be claimed (claim_rule).
+        hide_claimed=True,
     )
     count_sql, count_params = build_count_query(
         PROFILE_SPEC,
@@ -331,6 +334,7 @@ async def _archetype_rankings_v3(
         hard_filters={},
         reference_coords=None,
         min_score=min_score,
+        hide_claimed=True,
     )
 
     try:
@@ -342,6 +346,7 @@ async def _archetype_rankings_v3(
                 generation_row = await _current_derived_generation(conn)
                 rows = await conn.fetch(sql, *params)
                 total = await conn.fetchval(count_sql, *count_params)
+                notes = await claim_notes(conn, [row['system_id64'] for row in rows])
     except HTTPException:
         raise
     except (asyncpg.exceptions.UndefinedTableError,
@@ -359,6 +364,7 @@ async def _archetype_rankings_v3(
 
     query_ms = int((time.monotonic() - t0) * 1000)
     results = [_build_v3_ranking_row(row, archetype) for row in rows]
+    apply_claim_notes(results, notes)
     qualifying = int(total) if total is not None else len(results)
 
     return {

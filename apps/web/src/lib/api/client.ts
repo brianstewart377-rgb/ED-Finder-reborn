@@ -484,6 +484,8 @@ export type ExploreSystem = Readonly<
     | 'geo_signal_total'
     | 'confidence'
     | 'completeness'
+    | 'claim_status'
+    | 'claim_station_seen_at'
   > &
     Pick<ArchetypeRankingRow, 'rival_archetype' | 'rival_score'> & {
       id64: Id64;
@@ -967,6 +969,8 @@ export function normalizeRankingRow(
     landable_count: row.landable_count ?? null,
     confidence: row.confidence ?? null,
     completeness: row.completeness ?? null,
+    claim_status: row.claim_status ?? null,
+    claim_station_seen_at: row.claim_station_seen_at ?? null,
     archetype_score: null,
     archetype_tier: null,
     ranking_score: row.score,

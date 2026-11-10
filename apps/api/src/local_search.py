@@ -41,6 +41,7 @@ from edfinder_api.helpers import (
     safe_coords_from_row,
     status_failure_reason_code_for_exception,
 )
+from edfinder_api.claim_rule import apply_claim_notes, claim_notes
 from edfinder_api.ranking.profile import (
     LOCAL_SEARCH_ANCHORED_RADIUS_REJECTION_REASON,
     LOCAL_SEARCH_FILTERED_ANCHORED_RADIUS_CAP_LY,
@@ -1068,10 +1069,13 @@ def prepare_local_search_v3(
 async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
     """V3-native ranked search for `POST /api/local/search`.
 
-    Generation-pinned, reads only `v3_app.system_search` +
+    Generation-pinned, reads `v3_app.system_search` +
     `v3_app.system_archetype_summary` through
-    `ranking.ranking_sql.build_ranked_query` — no legacy V2 relation and no
-    other schema's relation is ever touched here.
+    `ranking.ranking_sql.build_ranked_query` — no legacy V2 relation is ever
+    touched here. The one other relation is `v3_state.system_state`, for
+    Find's claim rule (`edfinder_api.claim_rule`): inhabited systems and
+    systems being claimed are left out, and each result says whether it is
+    free or a claim that ended with an unknown outcome.
     """
     t0 = time.time()
     ctx, sort_mode, hard_filters, reference_coords = prepare_local_search_v3(body)
@@ -1086,6 +1090,8 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         limit=ctx.size,
         offset=ctx.from_idx,
         sort=sort_mode,
+        # Find shows only systems that can still be claimed (claim_rule).
+        hide_claimed=True,
     )
     count_sql, count_params = build_count_query(
         PROFILE_SPEC,
@@ -1097,6 +1103,7 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         # exactly 10,000 matches remains distinguishable from truncation.
         cap=LOCAL_SEARCH_RESULT_CAP,
         sort=sort_mode,
+        hide_claimed=True,
     )
 
     try:
@@ -1109,6 +1116,7 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
                 generation_row = await _current_derived_generation(conn)
                 rows = await conn.fetch(sql, *params)
                 qualifying = await conn.fetchval(count_sql, *count_params)
+                notes = await claim_notes(conn, [row['system_id64'] for row in rows])
     except HTTPException:
         raise
     except (asyncpg.exceptions.UndefinedTableError,
@@ -1121,6 +1129,7 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         raise HTTPException(503, 'Finder search is unavailable') from exc
 
     results = [_build_v3_system_record(row, reference_coords) for row in rows]
+    apply_claim_notes(results, notes)
     elapsed = round((time.time() - t0) * 1000)
     qualifying = int(qualifying) if qualifying is not None else 0
     total, total_is_capped = _bounded_v3_total(qualifying)

@@ -32,6 +32,7 @@ SHA_OLD = "0" * 40
 SHA_A = "a" * 40
 SHA_B = "b" * 40
 SHA_BAD = "c" * 40
+SHA_FIND = "e" * 40
 
 
 def _docker_reason() -> str:
@@ -88,7 +89,8 @@ def images(tmp_path_factory) -> Images:
     shutil.copy(ROOT / "apps/web/nginx/proxy_params", context / "proxy_params")
     built = []
 
-    def build(kind: str, sha: str, tag: str, database: str = "connected") -> None:
+    def build(kind: str, sha: str, tag: str, database: str = "connected",
+              find_answer: str = "") -> None:
         html = context / "html"
         shutil.rmtree(html, ignore_errors=True)
         html.mkdir()
@@ -97,15 +99,20 @@ def images(tmp_path_factory) -> Images:
         (html / "index.html").write_text(page)
         (html / "200.html").write_text(page)
         reference = "%s:%s" % (names.api if kind == "api" else names.web, tag)
+        extra = ["--build-arg", "FIND_ANSWER=" + find_answer] if find_answer else []
         docker("build", "-q", "-f", str(STUBS / ("%s.Dockerfile" % kind)),
                "--build-arg", "BASE=" + base, "--build-arg", "BUILD_SHA=" + sha,
-               "--build-arg", "DATABASE=" + database, "-t", reference, str(context))
+               "--build-arg", "DATABASE=" + database, *extra, "-t", reference, str(context))
         built.append(reference)
 
     for sha in (SHA_OLD, SHA_A, SHA_B):
         build("api", sha, "git-" + sha)
         build("web", sha, "git-" + sha)
     build("api", SHA_BAD, "git-" + SHA_BAD, database="disconnected")
+    # Healthy, but its Find lists an inhabited system.
+    build("api", SHA_FIND, "git-" + SHA_FIND,
+          find_answer='{"results":[{"name":"Sol","claim_status":"inhabited"}]}')
+    build("web", SHA_FIND, "git-" + SHA_FIND)
     build("web", SHA_BAD, "git-" + SHA_BAD)
     build("api", SHA_B, "main")
     build("web", SHA_B, "main")
@@ -130,7 +137,8 @@ class Site:
         self.old_web = "edft-old-web-%s" % self.suffix
         docker("network", "create", self.network)
 
-    def tool(self, *args: str, ready_seconds: int = 30) -> subprocess.CompletedProcess:
+    def tool(self, *args: str, ready_seconds: int = 30,
+             environ: dict | None = None) -> subprocess.CompletedProcess:
         env = dict(os.environ)
         env.update({
             "EDFINDER_API_REPOSITORY": self.images.api,
@@ -144,6 +152,7 @@ class Site:
             "EDFINDER_READY_SECONDS": str(ready_seconds),
             "EDFINDER_PUBLIC_ORIGIN": "",
         })
+        env.update(environ or {})
         return subprocess.run([sys.executable, str(TOOL), "--no-pull", *args],
                               env=env, capture_output=True, text=True, timeout=300)
 
@@ -284,6 +293,19 @@ def test_broken_release_is_caught_on_the_spare_address_and_the_site_is_untouched
     assert docker("inspect", "--format", "{{.State.StartedAt}}",
                   site.project + "-web") == started
     assert site.state()["current"]["sha"] == SHA_A
+
+
+def test_release_whose_find_lists_an_inhabited_system_never_goes_live(site):
+    assert site.tool("live", tag(SHA_A)).returncode == 0
+    result = site.tool("live", tag(SHA_FIND))
+    assert result.returncode == 1
+    assert "listed Sol, which is inhabited" in result.stdout
+    assert site.serving() == SHA_A and site.state()["current"]["sha"] == SHA_A
+    # With the Find check switched off (a machine with no Finder data yet)
+    # the same release is accepted.
+    result = site.tool("live", tag(SHA_FIND), environ={"EDFINDER_FIND_CHECK": "0"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert site.serving() == SHA_FIND
 
 
 def test_broken_release_that_skips_the_test_is_rolled_back(site):

@@ -21,6 +21,9 @@ are READY and published) with request validation before any database
 access. The legacy `cluster_summary` / `systems` / `ratings` readers are
 gone from this module; a static test walks every string literal here to
 keep it that way.
+
+Find's claim rule (`edfinder_api.claim_rule`) applies to the local and galaxy
+searches: inhabited systems and systems being claimed are left out.
 """
 import hashlib
 import json
@@ -52,12 +55,15 @@ AUTOCOMPLETE_CACHE_VERSION = 'v4'
 # Bumped v4 -> v5 at the F3 V3 cutover: pre-cutover `search:v4:*` entries were
 # written by the legacy code path (different semantics, no generation/ranking
 # identity) and must never be served after the repoint.
-SEARCH_CACHE_VERSION = 'v5'
+# Bumped v5 -> v6 with Find's claim rule: `search:v5:*` pages were computed
+# before inhabited and being-claimed systems were left out.
+SEARCH_CACHE_VERSION = 'v6'
 # Bumped v4 -> v5 at the F3 slice-2b V3 cutover of `/api/search/galaxy`:
 # pre-cutover `galaxy:v4:*` entries were written by the legacy economy-ranked
 # path and must never be served after the repoint. The cluster route carries
 # no cache any more (see `cluster_search`).
-GALAXY_CACHE_VERSION = 'v5'
+# Bumped v5 -> v6 with Find's claim rule, for the same reason as the search key.
+GALAXY_CACHE_VERSION = 'v6'
 
 
 def _search_cache_key(body_dict: dict, generation_row) -> str:

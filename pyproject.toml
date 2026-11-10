@@ -53,7 +53,13 @@ ignore = ["E701", "E702"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 # Any warning fails the run, so warnings get fixed instead of piling up.
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # slowapi (the API's rate limiter) still calls asyncio.iscoroutinefunction,
+    # which Python 3.14 deprecates and 3.16 removes. It is their code, raised
+    # when the API routes are imported; replace or update slowapi before 3.16.
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:slowapi",
+]
 markers = [
     "unit: unit-level tests that do not require external services",
     "integration: integration tests that exercise cross-module or service boundaries",

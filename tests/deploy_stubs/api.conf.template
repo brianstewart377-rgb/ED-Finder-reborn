@@ -11,4 +11,10 @@ server {
     location = /openapi.json {
         return 200 '{"paths":{"/api/health":{},"/api/v1/auth/session":{}}}';
     }
+    location = /api/archetypes/rankings {
+        return 200 '${STUB_FIND_ANSWER}';
+    }
+    location = /api/local/search {
+        return 200 '${STUB_FIND_ANSWER}';
+    }
 }
