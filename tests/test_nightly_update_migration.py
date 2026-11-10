@@ -8,6 +8,7 @@ Needs RATINGS_V4_VALIDATION_DATABASE_URL, like the other Finder tests.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import psycopg
@@ -87,8 +88,9 @@ def test_the_read_only_report_shows_which_guards_were_changed(database):
     report = (ROOT / "sql/measure/nightly_update_guards.sql").read_text(encoding="utf-8")
     statement = " ".join(line for line in report.splitlines() if not line.startswith("--"))
     assert statement.lstrip().startswith("SELECT ") and statement.count(";") == 1
-    assert not any(word in statement.upper()
-                   for word in ("INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "CREATE "))
+    # No writing keyword as a word of its own (the name nightly_update is fine).
+    assert not re.search(r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE\s+\w)\b",
+                         statement, re.IGNORECASE)
     rows = connection.execute(report).fetchall()
     assert len(rows) == 23
     answers = [answer for _, _, answer in rows]
