@@ -13,6 +13,11 @@ bodies, rings and stations up to date from it (edfinder-galaxy-update.timer).
                                       work scores out again from the file on
                                       disk and compare them with the stored
                                       ones. Read only.
+    python3 galaxy_update.py score    write the scores owed to the systems of
+                                      the file on disk
+
+`run` also does the scoring, straight after the update, when
+EDFINDER_GALAXY_SCORES is "on".
 
     --limit N    stop after N systems (for timing a very big file)
 
@@ -80,6 +85,8 @@ DEFAULTS: Dict[str, str] = {
     # edfinder_deploy.py). The file is passed to docker, never read here.
     "EDFINDER_NETWORK": "edfinder-v3-production",
     "EDFINDER_API_ENV_FILE": "/etc/ed-finder/v3-production/api.env",
+    # "on": `run` also writes new scores for the file it applied.
+    "EDFINDER_GALAXY_SCORES": "off",
 }
 
 JOB_NAME = "edfinder-galaxy-update"
@@ -138,6 +145,9 @@ class Settings:
         if self.connect not in ("auto", "local", "app"):
             raise UpdateError("EDFINDER_GALAXY_CONNECT must be auto, local or app")
         self.api_env_file = values["EDFINDER_API_ENV_FILE"]
+        if values["EDFINDER_GALAXY_SCORES"] not in ("on", "off"):
+            raise UpdateError("EDFINDER_GALAXY_SCORES must be on or off")
+        self.scores = values["EDFINDER_GALAXY_SCORES"] == "on"
 
     @property
     def target(self) -> Path:
@@ -223,6 +233,7 @@ JOBS = {
     "check": ("spansh_delta.apply", "check"),
     "run": ("spansh_delta.apply", "apply"),
     "check-scores": ("spansh_delta.scores", "check"),
+    "score": ("spansh_delta.scores", "apply"),
 }
 
 
@@ -270,7 +281,8 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
         if route == "app" and not os.path.isfile(settings.api_env_file):
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
         say("Running the %s from %s ..." % (
-            "update" if command_name == "run" else "check", image) if position == 0 else
+            {"run": "update", "score": "scoring"}.get(command_name, "check"), image)
+            if position == 0 else
             "The database did not accept a local client. Trying the app's own connection "
             "settings instead ...")
         try:
@@ -297,25 +309,30 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
             raise UpdateError("another galaxy update is already running") from None
 
         target = settings.target
-        if mode == "check-scores" and target.is_file():
-            # Scores are checked against the file already here, normally the
+        record = fetch.read_record(settings.record)
+        if mode in ("check-scores", "score") and target.is_file():
+            # Scores are worked out from the file already here, normally the
             # one the last update applied, so nothing is fetched.
             version = fetch.read_record(target.with_name(target.name + ".version"))
             os.chmod(settings.directory, 0o755)
             os.chmod(target, 0o644)
             code = run_job(settings, mode, version, limit)
-            if code == EXIT_NO_CONNECTION:
-                say("FAILED: the check could not connect to the database. Nothing was changed.")
-            elif code != 0:
-                say("FAILED: the check ended with code %d; its own messages are above." % code)
-            return code
+            if code == 0 and mode == "score" and limit is None and record.get("applied") == version:
+                fetch.write_record(settings.record, {**record, "scored": version})
+            return finished(code, "scoring" if mode == "score" else "check")
 
         say("Asking Spansh what is new ...")
         version = fetch.remote_version(settings.url)
-        applied = fetch.read_record(settings.record).get("applied")
-        if mode == "run" and limit is None and applied == version and fetch.have_version(target, version):
-            say("Spansh has published nothing new since the last update. Nothing to do.")
-            return 0
+        if (mode == "run" and limit is None and record.get("applied") == version
+                and fetch.have_version(target, version)):
+            if not settings.scores or record.get("scored") == version:
+                say("Spansh has published nothing new since the last update. Nothing to do.")
+                return 0
+            say("The galaxy is already up to date from this file. Its scores are still owed.")
+            code = run_job(settings, "score", version, None)
+            if code == 0:
+                fetch.write_record(settings.record, {**record, "scored": version})
+            return finished(code, "scoring")
         if not fetch.have_version(target, version):
             needed = version["size"] + fetch.SPARE_BYTES
             free = shutil.disk_usage(settings.directory).free
@@ -332,15 +349,23 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         os.chmod(target, 0o644)
 
         code = run_job(settings, mode, version, limit)
-        if code == EXIT_NO_CONNECTION:
-            say("FAILED: the update could not connect to the database. Nothing was changed.")
-            return code
-        if code != 0:
-            say("FAILED: the update ended with code %d; its own messages are above." % code)
-            return code
-        if mode == "run" and limit is None:
-            fetch.write_record(settings.record, {"applied": version})
+        if code != 0 or mode != "run" or limit is not None:
+            return finished(code, {"run": "update", "score": "scoring"}.get(mode, "check"))
+        fetch.write_record(settings.record, {"applied": version})
+        if settings.scores:
+            code = run_job(settings, "score", version, None)
+            if code == 0:
+                fetch.write_record(settings.record, {"applied": version, "scored": version})
+            return finished(code, "scoring")
     return 0
+
+
+def finished(code: int, what: str) -> int:
+    if code == EXIT_NO_CONNECTION:
+        say("FAILED: the %s could not connect to the database. Nothing was changed." % what)
+    elif code != 0:
+        say("FAILED: the %s ended with code %d; its own messages are above." % (what, code))
+    return code
 
 
 def cmd_status(settings: Settings) -> int:
@@ -362,7 +387,7 @@ def cmd_status(settings: Settings) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's one-day galaxy file and apply it.")
-    parser.add_argument("command", choices=("check", "run", "status", "check-scores"))
+    parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")
     args = parser.parse_args(argv)
