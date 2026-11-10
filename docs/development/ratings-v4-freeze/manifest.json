@@ -1,0 +1,124 @@
+{
+  "coefficients": {
+    "clean_additional_candidate_bonus": 3,
+    "clean_depth_cap": 10,
+    "modifier": 55,
+    "native": 75,
+    "native_and_modifier": 85,
+    "preferred_specialisation_bonus": 5,
+    "rounding": "nearest-even from exact integer hundredths",
+    "specialisation_competition_penalties": [
+      0,
+      8,
+      20,
+      35
+    ],
+    "strong_link_cap_each_sign": 25,
+    "strong_link_step": 10,
+    "system_weight_hundredths": [
+      82,
+      11,
+      5,
+      2
+    ]
+  },
+  "cohort_normalized_sha256": "720f8c3e2efd8d2c498f28588eea4dacc7ca8f237f38cabc7b5929851301defa",
+  "derived_input_sha256": "8373e46979cfdc3f967a6945131ce2f0ded77ef0192bcbd5f6e269b4569a9007",
+  "economies": [
+    "Agriculture",
+    "Refinery",
+    "Industrial",
+    "HighTech",
+    "Military",
+    "Tourism",
+    "Extraction"
+  ],
+  "format_version": "ratings-v4-freeze-1",
+  "frozen_at": "2026-09-08T21:20:00Z",
+  "mechanics_version": "v4-mechanics-2026-09",
+  "publication": {
+    "finder_ranking": false,
+    "production_migration": false,
+    "published": false
+  },
+  "rule_authorities": {
+    "full_executable_rules": "apps/api/src/domain/ratings_v4.py",
+    "inheritance_and_links": "docs/development/ratings-v4-mechanics-evidence.md",
+    "scores_and_specialisation": "docs/development/ratings-v4-scoring-contract.md",
+    "source_and_storage": "docs/development/ratings-v4-data-contract.md"
+  },
+  "scope": "Frozen mechanics/scorer, source adapter and rebuildable data representation; isolated validation only.",
+  "scorer_version": "4.0.0",
+  "source_lineage": {
+    "adapter_version": "v4-canonical-adapter-1",
+    "canonical_artifact_sha256": "b4944ab5d7537d7e3c370d55bf92a887bebf36e6db0ba1159c072c7cdf9e9868",
+    "canonical_effective_at": "2026-08-24T05:32:35+00:00",
+    "canonical_export_normalized_sha256": "5b2f49dacd9c5a631077dcb72591b7c5d026194d3d8094817b74d81955f28921",
+    "canonical_schema": "v3_gen_phase4c_full_20260827_r5",
+    "canonical_source_run_id": "3a52e525-eb1e-5e96-90af-0da7ce1f4922",
+    "ground_policy": "Usable ground is unknown; landability does not establish an opportunity.",
+    "mixed_snapshot_policy": "Only subType is enriched; canonical feature facts retain canonical provenance.",
+    "reserve_policy": "Attached canonical observations only; missing or conflicting values are never broadcast.",
+    "ring_absence_policy": "No per-body ring completeness fact is retained; missing rings are unknown.",
+    "source_metadata_normalized_sha256": "cc3c41d9f221e0ff0f18d926ed22dc0e15be034befd839831107d19f17a82269",
+    "subtype_fields_used": [
+      "subType"
+    ],
+    "subtype_sources_normalized_sha256": {
+      "10477373803": "4293e431da231d93512158dc809d6a6d96e8950473cd4afa06db4d5170dc3850",
+      "1109989017963": "e8bd340e0f55f35f7009746e391500cb30d7fd36ce00fcff38322ef9113bd399",
+      "1457973727914": "5f054120e69f62cc83b75953bbb5ad07919f8fcf0fc32aaf9e647a71d707fb80",
+      "158872029": "caa69628a00a61d960a85f4baf837d7e1ded5d0b8475ee31558ccc0521240c0c",
+      "164098653": "4101633448c76d03bcd96cf70b2e6aaaa47bad582e07ecee4ef0119acafe13f1",
+      "2037701937507": "e85f91e298d68d6c9ba7c30ce10d4ef2bbd14b05889210f55dd8f394e55f5d61",
+      "31639717276": "87dcd1a5b52750c94d396ed6104e3716b61cc5caae3191cfc9952731de5a1b76",
+      "3754967435947": "fd623d2439a2bb9d85c6d2316dae2bdfab3250f42df96e20ba3f2dc39e69070c",
+      "5070611621289": "56c25b97c7b919297e133890f88b963956e045e78b18ed21a59811464806dc02",
+      "5076786292249": "b450d005054825cd08cd462e3097fea88dae763e2639226ab41c6aea116b5d82",
+      "7780836610810": "ba8ab488b01725962d458cde92006d275df50bf55d569dc894311d6f5b079fff",
+      "8216113749": "3116b43f92d18c75d3bb046a6d30eab67aa8ce043007c3a2493af6492bf3d658"
+    }
+  },
+  "status": "FROZEN",
+  "text_files_sha256_lf": {
+    "apps/api/src/domain/ratings_v4.py": "344c620fa29cda725fcecf6aaa18acd7ae68730b9919f22d86a23dea643d29ad",
+    "apps/api/src/domain/ratings_v4_canonical.py": "99882b08aa112c80f8b673b553a374fbc58c4da4db27619042367ba6fdfa6e84",
+    "apps/importer/src/build_ratings.py": "d7056f68789237b2e22c97e43468dc65dbbf97fc2cd650d31bbb56303fe66f6d",
+    "docs/development/ratings-v4-coefficient-calibration.md": "6ec38df3e7ce2bb3dafb3a79d939f2e77724c6937d5bb7201488ea083a78f11c",
+    "docs/development/ratings-v4-data-contract.md": "fd89c221406066f801a1bfd26b1165708e0e4b35eaba647f08e1ca1b89e2f56b",
+    "docs/development/ratings-v4-freeze-comparison.md": "22c1bcc1a907984ccd05f301598ad6a49544b38386c402b906b3175bef58027a",
+    "docs/development/ratings-v4-freeze/README.md": "8ad7c301af2f9318d4fcb4a73fc12ee1364e38861df624354e10aa2fcd1618ae",
+    "docs/development/ratings-v4-mechanics-evidence.md": "2e65f1f623859c2bdeca8d320614fd9e7277556ba09ffc10d2c78f5643e90432",
+    "docs/development/ratings-v4-scoring-contract.md": "8cafe7e4e7303ee0f3f493c384951eafa6d35f7e8b37caab0dcbd28c440cccdf",
+    "docs/development/ratings-v4-validation-fixtures.md": "df9e5ced1d525324e397ddbe6442fcdbfc081e10016d8f98fbce09cbb2d6dbf3",
+    "scripts/ratings_v4/compare_legacy.py": "c72db493dec40af12618af5843dd5041545f017e534536a285204387a3c20193",
+    "scripts/ratings_v4/generation.py": "7b44890996115d91a7c4146b6ee9008a2d69c359ade5f80aef436a242b97cb1f",
+    "scripts/ratings_v4/legacy_v34_reference.py": "4a36c94a17aad8d1889f8fe8e6e6f8766d2bce31b5d524057171d94917d6db42",
+    "scripts/ratings_v4/verify_freeze.py": "479b16028c08e5c2352dcf8d75e831f919e43820ec8b92552ce6bb48bbad32dc",
+    "tests/fixtures/ratings_v4_candidate4_deltas.json": "73f4376626ff2b5f2f9dedb6b3be07392f26dd92a9d600edafd6d8d6d769a989",
+    "tests/fixtures/ratings_v4_legacy_comparison.json": "000c90711641f95e1bdad54a3f28458ea294659afc712e16e469cf928e0dc166",
+    "tests/fixtures/ratings_v4_sources/manifest.json": "2aeda8115b3c99319e3e67f25118d66697794936d12c933246cb3b08813f1770"
+  },
+  "unknown_capable_fields": [
+    "ring_absence",
+    "incomplete_biological_signals",
+    "incomplete_geological_signals",
+    "unobserved_local_reserve",
+    "usable_ground_opportunity",
+    "unobserved_volcanism_or_terraforming_or_tidal_lock"
+  ],
+  "validation_scope": {
+    "canonical_body_records": 389,
+    "cohort_systems": 12,
+    "database_major": 18,
+    "economy_scores": 84,
+    "legacy_major_deltas_explained": 44,
+    "legacy_order_reversals_explained": 73,
+    "legacy_unexplained_flags": 0,
+    "observed_local_reserves": 46,
+    "physical_bodies": 360,
+    "python_runtime": "CPython 3.14",
+    "synthetic_fixture_contract": 18,
+    "unresolved_refinery_systems": 10
+  }
+}

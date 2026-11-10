@@ -1,0 +1,2300 @@
+{
+  "canonical_schema": "v3_gen_phase4c_full_20260827_r5",
+  "canonical_source_metadata": [
+    {
+      "artifact_id": "612f0804-a3d1-5840-9975-ec1bfb197faa",
+      "artifact_kind": "GALAXY_SNAPSHOT",
+      "compression_code": "gzip",
+      "effective_at": "2026-08-24T05:32:35+00:00",
+      "media_type": "application/octet-stream",
+      "retrieved_at": "2026-08-24T21:24:56+00:00",
+      "size_bytes": 116027020549,
+      "source_code": "spansh",
+      "source_id": 40,
+      "source_run_id": "3a52e525-eb1e-5e96-90af-0da7ce1f4922",
+      "storage_locator": "/artifact/galaxy.json.gz"
+    }
+  ],
+  "comparison_script": "scripts/ratings_v4/compare_legacy.py",
+  "format_version": "ratings-v4-reviewed-legacy-comparison-1",
+  "historical_production_scores": false,
+  "legacy_reference_kind": "recomputed_v3_4_from_canonical_plus_exact_api_classifications",
+  "legacy_scorer_hash_normalization": "utf-8-lf",
+  "legacy_scorer_sha256": "d7056f68789237b2e22c97e43468dc65dbbf97fc2cd650d31bbb56303fe66f6d",
+  "reason_definitions": {
+    "ammonia_life_gas_giant_identity": "The legacy substring order classifies ammonia-life gas giants as Ammonia worlds. V4 preserves their actual gas-giant identity.",
+    "independent_raw_scores": "Original v3.4 rank-based attenuation is absent from V4; both old stages are retained.",
+    "links_require_inheritance": "Geological/biological environmental links cannot create HighTech/Tourism without eligible native inheritance.",
+    "local_agriculture_links": "Tidal-lock/icy negatives apply to the eligible local Agriculture opportunity rather than unrelated bodies throughout the system; scoopability is excluded.",
+    "local_quality_and_depth": "V4 scores inherited local opportunity quality and the best four contributions instead of global capped count sums.",
+    "military_stellar_inheritance": "Stellar/ELW Military inheritance replaces generic landable-capacity and indirect prestige bonuses; secondary Brown Dwarfs remain independent evidence.",
+    "refinery_inheritance_and_constraints": "Refinery requires Rocky/Rocky-Ice inheritance. HMC workaround points and generic landability effects are removed from raw potential; usable-ground uncertainty stays in specialisation.",
+    "ring_and_geological_inheritance": "V4 recognises Extraction inheritance from rings (including stellar belts) and geologicals on eligible local bodies; the legacy formula used narrower global buckets.",
+    "scoped_reserve_observations": "V4 uses observed attached-reserve evidence only on the corresponding local body, never a broadcast system maximum or minimum.",
+    "separate_exotic_evidence": "Exotic stellar HighTech/Tourism support and the explicit system Tourism link remain separate from Brown-Dwarf Military and mineral-resource evidence.",
+    "versioned_terraforming_state": "V4 preserves the accepted canonical terraformability states and local strong-link semantics; the historical formula adapter only treated the literal Terraformable enum as candidate=true."
+  },
+  "reference_caveats": [
+    "This is a frozen-input legacy formula reference, not exported production v3.4 ratings.",
+    "Canonical fields and numerical signals are retained; only body subType comes from later API evidence.",
+    "This does not replay the historical importer: its signal parsing differs from canonical signal observations.",
+    "Null inputs remain null in retained bodies; legacy functions then apply their original false/zero defaults.",
+    "Missing attached ring evidence is unknown, then defaults to false in the legacy classifier; belts are excluded.",
+    "Distance is retained unchanged; the seven legacy economy functions do not consume weighted counts.",
+    "Legacy reserve modifiers are absent. No universal overall score is compared.",
+    "Delta and ordering flags require reviewed mechanics explanations; numerical comparison alone never certifies freeze."
+  ],
+  "review_basis": "Source/contributor trace audit against the predeclared 12-system expectations and accepted V4 architecture; no claim of new expert-user acceptance.",
+  "review_counts": {
+    "economy_pairs": 84,
+    "major_deltas": 44,
+    "ordering_reversals": 73,
+    "systems": 12,
+    "unexplained_flags": 0
+  },
+  "review_document": "docs/development/ratings-v4-freeze-comparison.md",
+  "review_outcome": "all_flagged_deltas_and_reversals_explained",
+  "review_threshold_points": 25,
+  "reviewed_scorer_version": "4.0.0",
+  "source_fixture_manifest": "tests/fixtures/ratings_v4_sources/manifest.json",
+  "source_fixture_manifest_sha256": "2aeda8115b3c99319e3e67f25118d66697794936d12c933246cb3b08813f1770",
+  "systems": [
+    {
+      "delta": {
+        "Agriculture": 0,
+        "Extraction": 10,
+        "HighTech": 34,
+        "Industrial": -15,
+        "Military": 16,
+        "Refinery": -25,
+        "Tourism": -20
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 19,
+        "geo_signal_count": 19,
+        "has_rings": 20,
+        "is_landable": 2,
+        "is_terraformable": 2
+      },
+      "major_deltas": [
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 34,
+          "economy": "HighTech",
+          "reason_codes": [
+            "ammonia_life_gas_giant_identity",
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Wregoe ZN-X c28-28",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Refinery",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 15,
+          "v4_gap": -20
+        },
+        {
+          "economies": [
+            "Industrial",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 15,
+          "v4_gap": -10
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Military"
+          ],
+          "reason_codes": [
+            "ammonia_life_gas_giant_identity",
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": -14,
+          "v4_gap": 4
+        }
+      ],
+      "review_section": "R1 \u2014 Wregoe ZN-X c28-28",
+      "role": "mining_refining",
+      "system_id64": 7780836610810,
+      "v3_4_post_attenuation": {
+        "Agriculture": 0,
+        "Extraction": 85,
+        "HighTech": 40,
+        "Industrial": 100,
+        "Military": 54,
+        "Refinery": 100,
+        "Tourism": 20
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 0,
+        "Extraction": 100,
+        "HighTech": 58,
+        "Industrial": 100,
+        "Military": 78,
+        "Refinery": 100,
+        "Tourism": 29
+      },
+      "v4_potential_score": {
+        "Agriculture": 0,
+        "Extraction": 95,
+        "HighTech": 74,
+        "Industrial": 85,
+        "Military": 70,
+        "Refinery": 75,
+        "Tourism": 0
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 63,
+        "Extraction": 13,
+        "HighTech": 39,
+        "Industrial": -15,
+        "Military": 5,
+        "Refinery": 44,
+        "Tourism": 46
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 43,
+        "distance_from_star": 4,
+        "geo_signal_count": 43,
+        "has_rings": 41,
+        "is_landable": 5,
+        "is_terraformable": 5,
+        "is_tidal_lock": 5,
+        "subtype": 4
+      },
+      "major_deltas": [
+        {
+          "delta": 63,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 44,
+          "economy": "Refinery",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 39,
+          "economy": "HighTech",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 46,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Praea Euq WV-W b2-2",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth"
+          ],
+          "status": "explained",
+          "v3_4_gap": -15,
+          "v4_gap": 9
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": -36,
+          "v4_gap": 22
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": -21,
+          "v4_gap": 13
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 18,
+          "v4_gap": -23
+        },
+        {
+          "economies": [
+            "Tourism",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": -32,
+          "v4_gap": 1
+        }
+      ],
+      "review_section": "R2 \u2014 Praea Euq WV-W b2-2",
+      "role": "four_water_world_two_pairs",
+      "system_id64": 5076786292249,
+      "v3_4_post_attenuation": {
+        "Agriculture": 21,
+        "Extraction": 71,
+        "HighTech": 36,
+        "Industrial": 100,
+        "Military": 57,
+        "Refinery": 18,
+        "Tourism": 39
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 31,
+        "Extraction": 71,
+        "HighTech": 52,
+        "Industrial": 100,
+        "Military": 68,
+        "Refinery": 27,
+        "Tourism": 57
+      },
+      "v4_potential_score": {
+        "Agriculture": 84,
+        "Extraction": 84,
+        "HighTech": 75,
+        "Industrial": 85,
+        "Military": 62,
+        "Refinery": 62,
+        "Tourism": 85
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 71,
+        "Extraction": 47,
+        "HighTech": -1,
+        "Industrial": -15,
+        "Military": 4,
+        "Refinery": -25,
+        "Tourism": 44
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 8,
+        "distance_from_star": 1,
+        "geo_signal_count": 8,
+        "has_rings": 37,
+        "is_landable": 2,
+        "is_terraformable": 2,
+        "is_tidal_lock": 2,
+        "subtype": 1
+      },
+      "major_deltas": [
+        {
+          "delta": 71,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 44,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 47,
+          "economy": "Extraction",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Sol",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "Refinery"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -84,
+          "v4_gap": 12
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Industrial"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -84,
+          "v4_gap": 2
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -69,
+          "v4_gap": 3
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -54,
+          "v4_gap": 13
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -19,
+          "v4_gap": 8
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -19,
+          "v4_gap": 5
+        },
+        {
+          "economies": [
+            "Refinery",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 15,
+          "v4_gap": -9
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 65,
+          "v4_gap": -4
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 65,
+          "v4_gap": -7
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 35,
+          "v4_gap": -5
+        },
+        {
+          "economies": [
+            "Military",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 35,
+          "v4_gap": -8
+        }
+      ],
+      "review_section": "R3 \u2014 Sol",
+      "role": "mixed_baseline",
+      "system_id64": 10477373803,
+      "v3_4_post_attenuation": {
+        "Agriculture": 16,
+        "Extraction": 35,
+        "HighTech": 85,
+        "Industrial": 100,
+        "Military": 70,
+        "Refinery": 100,
+        "Tourism": 35
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 23,
+        "Extraction": 51,
+        "HighTech": 100,
+        "Industrial": 100,
+        "Military": 100,
+        "Refinery": 100,
+        "Tourism": 51
+      },
+      "v4_potential_score": {
+        "Agriculture": 87,
+        "Extraction": 82,
+        "HighTech": 84,
+        "Industrial": 85,
+        "Military": 74,
+        "Refinery": 75,
+        "Tourism": 79
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 38,
+        "Extraction": 50,
+        "HighTech": -15,
+        "Industrial": 46,
+        "Military": -25,
+        "Refinery": 38,
+        "Tourism": 41
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 1,
+        "geo_signal_count": 1,
+        "has_rings": 15,
+        "is_landable": 1,
+        "is_terraformable": 1
+      },
+      "major_deltas": [
+        {
+          "delta": 38,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 38,
+          "economy": "Refinery",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 46,
+          "economy": "Industrial",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Military",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 41,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 50,
+          "economy": "Extraction",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Achenar",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -45,
+          "v4_gap": 8
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -45,
+          "v4_gap": 18
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": 11,
+          "v4_gap": -1
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Industrial"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 3,
+          "v4_gap": -5
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 56,
+          "v4_gap": -9
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 58,
+          "v4_gap": -8
+        },
+        {
+          "economies": [
+            "Military",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 56,
+          "v4_gap": -19
+        }
+      ],
+      "review_section": "R4 \u2014 Achenar",
+      "role": "elw_heavy",
+      "system_id64": 164098653,
+      "v3_4_post_attenuation": {
+        "Agriculture": 55,
+        "Extraction": 44,
+        "HighTech": 100,
+        "Industrial": 29,
+        "Military": 100,
+        "Refinery": 32,
+        "Tourism": 42
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 65,
+        "Extraction": 64,
+        "HighTech": 100,
+        "Industrial": 42,
+        "Military": 100,
+        "Refinery": 46,
+        "Tourism": 61
+      },
+      "v4_potential_score": {
+        "Agriculture": 93,
+        "Extraction": 94,
+        "HighTech": 85,
+        "Industrial": 75,
+        "Military": 75,
+        "Refinery": 70,
+        "Tourism": 83
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 56,
+        "Extraction": 61,
+        "HighTech": -15,
+        "Industrial": 44,
+        "Military": -10,
+        "Refinery": -25,
+        "Tourism": 39
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 3,
+        "distance_from_star": 1,
+        "geo_signal_count": 3,
+        "has_rings": 23,
+        "is_landable": 2,
+        "is_terraformable": 2,
+        "is_tidal_lock": 2,
+        "subtype": 1
+      },
+      "major_deltas": [
+        {
+          "delta": 56,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 44,
+          "economy": "Industrial",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 39,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 61,
+          "economy": "Extraction",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Alioth",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "Refinery"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -63,
+          "v4_gap": 18
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -63,
+          "v4_gap": 8
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -48,
+          "v4_gap": 18
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -7,
+          "v4_gap": 10
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 56,
+          "v4_gap": -8
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 80,
+          "v4_gap": -6
+        },
+        {
+          "economies": [
+            "Industrial",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 10,
+          "v4_gap": -7
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 41,
+          "v4_gap": -8
+        },
+        {
+          "economies": [
+            "Military",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 65,
+          "v4_gap": -6
+        }
+      ],
+      "review_section": "R5 \u2014 Alioth",
+      "role": "habitable_depleted_reserves",
+      "system_id64": 1109989017963,
+      "v3_4_post_attenuation": {
+        "Agriculture": 37,
+        "Extraction": 20,
+        "HighTech": 100,
+        "Industrial": 30,
+        "Military": 85,
+        "Refinery": 100,
+        "Tourism": 44
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 53,
+        "Extraction": 29,
+        "HighTech": 100,
+        "Industrial": 44,
+        "Military": 100,
+        "Refinery": 100,
+        "Tourism": 63
+      },
+      "v4_potential_score": {
+        "Agriculture": 93,
+        "Extraction": 81,
+        "HighTech": 85,
+        "Industrial": 74,
+        "Military": 75,
+        "Refinery": 75,
+        "Tourism": 83
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 51,
+        "Extraction": 42,
+        "HighTech": 23,
+        "Industrial": -15,
+        "Military": 0,
+        "Refinery": -25,
+        "Tourism": 32
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 15,
+        "distance_from_star": 6,
+        "geo_signal_count": 15,
+        "has_rings": 52,
+        "is_landable": 15,
+        "is_terraformable": 15,
+        "is_tidal_lock": 15,
+        "subtype": 6
+      },
+      "major_deltas": [
+        {
+          "delta": 51,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 32,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 42,
+          "economy": "Extraction",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Maia",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Refinery",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 47,
+          "v4_gap": -20
+        },
+        {
+          "economies": [
+            "Industrial",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 47,
+          "v4_gap": -10
+        },
+        {
+          "economies": [
+            "Military",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "ring_and_geological_inheritance",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": 22,
+          "v4_gap": -20
+        }
+      ],
+      "review_section": "R6 \u2014 Maia",
+      "role": "exotic_plus_resource",
+      "system_id64": 8216113749,
+      "v3_4_post_attenuation": {
+        "Agriculture": 4,
+        "Extraction": 53,
+        "HighTech": 52,
+        "Industrial": 100,
+        "Military": 75,
+        "Refinery": 100,
+        "Tourism": 38
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 7,
+        "Extraction": 77,
+        "HighTech": 75,
+        "Industrial": 100,
+        "Military": 89,
+        "Refinery": 100,
+        "Tourism": 55
+      },
+      "v4_potential_score": {
+        "Agriculture": 55,
+        "Extraction": 95,
+        "HighTech": 75,
+        "Industrial": 85,
+        "Military": 75,
+        "Refinery": 75,
+        "Tourism": 70
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 0,
+        "Extraction": 56,
+        "HighTech": -3,
+        "Industrial": -15,
+        "Military": 13,
+        "Refinery": -3,
+        "Tourism": -20
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 5,
+        "distance_from_star": 2,
+        "geo_signal_count": 5,
+        "has_rings": 27,
+        "is_landable": 4,
+        "is_terraformable": 4,
+        "is_tidal_lock": 4,
+        "subtype": 2
+      },
+      "major_deltas": [
+        {
+          "delta": 56,
+          "economy": "Extraction",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Borann",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "HighTech",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "ammonia_life_gas_giant_identity",
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 51,
+          "v4_gap": -8
+        },
+        {
+          "economies": [
+            "Military",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 30,
+          "v4_gap": -13
+        }
+      ],
+      "review_section": "R7 \u2014 Borann",
+      "role": "deep_pristine_industrial",
+      "system_id64": 5070611621289,
+      "v3_4_post_attenuation": {
+        "Agriculture": 0,
+        "Extraction": 27,
+        "HighTech": 78,
+        "Industrial": 100,
+        "Military": 57,
+        "Refinery": 3,
+        "Tourism": 20
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 0,
+        "Extraction": 39,
+        "HighTech": 78,
+        "Industrial": 100,
+        "Military": 68,
+        "Refinery": 5,
+        "Tourism": 29
+      },
+      "v4_potential_score": {
+        "Agriculture": 0,
+        "Extraction": 83,
+        "HighTech": 75,
+        "Industrial": 85,
+        "Military": 70,
+        "Refinery": 0,
+        "Tourism": 0
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 0,
+        "Extraction": 0,
+        "HighTech": -14,
+        "Industrial": 50,
+        "Military": 50,
+        "Refinery": -17,
+        "Tourism": -10
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 9,
+        "geo_signal_count": 9,
+        "has_rings": 11,
+        "is_landable": 6,
+        "is_terraformable": 6,
+        "is_tidal_lock": 1
+      },
+      "major_deltas": [
+        {
+          "delta": 50,
+          "economy": "Industrial",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 50,
+          "economy": "Military",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "HD 38179",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Refinery",
+            "Industrial"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 3,
+          "v4_gap": -64
+        }
+      ],
+      "review_section": "R8 \u2014 HD 38179",
+      "role": "extraction_plus_military",
+      "system_id64": 158872029,
+      "v3_4_post_attenuation": {
+        "Agriculture": 0,
+        "Extraction": 100,
+        "HighTech": 14,
+        "Industrial": 14,
+        "Military": 25,
+        "Refinery": 17,
+        "Tourism": 10
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 0,
+        "Extraction": 100,
+        "HighTech": 20,
+        "Industrial": 20,
+        "Military": 25,
+        "Refinery": 20,
+        "Tourism": 15
+      },
+      "v4_potential_score": {
+        "Agriculture": 0,
+        "Extraction": 100,
+        "HighTech": 0,
+        "Industrial": 64,
+        "Military": 75,
+        "Refinery": 0,
+        "Tourism": 0
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 46,
+        "Extraction": 8,
+        "HighTech": 30,
+        "Industrial": -15,
+        "Military": 6,
+        "Refinery": -25,
+        "Tourism": -19
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 26,
+        "distance_from_star": 3,
+        "geo_signal_count": 26,
+        "has_rings": 31,
+        "is_landable": 4,
+        "is_terraformable": 4,
+        "is_tidal_lock": 4,
+        "subtype": 3
+      },
+      "major_deltas": [
+        {
+          "delta": 46,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 30,
+          "economy": "HighTech",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Col 285 Sector BW-U c3-5",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth"
+          ],
+          "status": "explained",
+          "v3_4_gap": -10,
+          "v4_gap": 55
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 15,
+          "v4_gap": -18
+        },
+        {
+          "economies": [
+            "Industrial",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 15,
+          "v4_gap": -8
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": -12,
+          "v4_gap": 12
+        }
+      ],
+      "review_section": "R9 \u2014 Col 285 Sector BW-U c3-5",
+      "role": "industrial_refinery_dual",
+      "system_id64": 1457973727914,
+      "v3_4_post_attenuation": {
+        "Agriculture": 9,
+        "Extraction": 85,
+        "HighTech": 44,
+        "Industrial": 100,
+        "Military": 56,
+        "Refinery": 100,
+        "Tourism": 19
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 13,
+        "Extraction": 100,
+        "HighTech": 63,
+        "Industrial": 100,
+        "Military": 80,
+        "Refinery": 100,
+        "Tourism": 28
+      },
+      "v4_potential_score": {
+        "Agriculture": 55,
+        "Extraction": 93,
+        "HighTech": 74,
+        "Industrial": 85,
+        "Military": 62,
+        "Refinery": 75,
+        "Tourism": 0
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 60,
+        "Extraction": 57,
+        "HighTech": 16,
+        "Industrial": -15,
+        "Military": -10,
+        "Refinery": -25,
+        "Tourism": 36
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 32,
+        "distance_from_star": 5,
+        "geo_signal_count": 32,
+        "has_rings": 29,
+        "is_landable": 8,
+        "is_terraformable": 8,
+        "is_tidal_lock": 5,
+        "subtype": 5
+      },
+      "major_deltas": [
+        {
+          "delta": 60,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 36,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 57,
+          "economy": "Extraction",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Smojoo ZE-R d4-109",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "Refinery"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -77,
+          "v4_gap": 8
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -62,
+          "v4_gap": 8
+        },
+        {
+          "economies": [
+            "Refinery",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 32,
+          "v4_gap": -9
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 51,
+          "v4_gap": -10
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": -17,
+          "v4_gap": 9
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained",
+          "v3_4_gap": 19,
+          "v4_gap": -1
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 36,
+          "v4_gap": -10
+        }
+      ],
+      "review_section": "R10 \u2014 Smojoo ZE-R d4-109",
+      "role": "broad_multirole",
+      "system_id64": 3754967435947,
+      "v3_4_post_attenuation": {
+        "Agriculture": 23,
+        "Extraction": 17,
+        "HighTech": 68,
+        "Industrial": 100,
+        "Military": 85,
+        "Refinery": 100,
+        "Tourism": 49
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 34,
+        "Extraction": 25,
+        "HighTech": 98,
+        "Industrial": 100,
+        "Military": 100,
+        "Refinery": 100,
+        "Tourism": 71
+      },
+      "v4_potential_score": {
+        "Agriculture": 83,
+        "Extraction": 74,
+        "HighTech": 84,
+        "Industrial": 85,
+        "Military": 75,
+        "Refinery": 75,
+        "Tourism": 85
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 69,
+        "Extraction": 16,
+        "HighTech": 26,
+        "Industrial": 59,
+        "Military": -30,
+        "Refinery": -25,
+        "Tourism": 49
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 15,
+        "distance_from_star": 3,
+        "geo_signal_count": 15,
+        "has_rings": 27,
+        "is_landable": 5,
+        "is_terraformable": 5,
+        "is_tidal_lock": 3,
+        "subtype": 3
+      },
+      "major_deltas": [
+        {
+          "delta": 69,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -25,
+          "economy": "Refinery",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 59,
+          "economy": "Industrial",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 26,
+          "economy": "HighTech",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": -30,
+          "economy": "Military",
+          "reason_codes": [
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 49,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Thaile HW-V e2-7",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "Refinery"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -78,
+          "v4_gap": 16
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Industrial"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "scoped_reserve_observations",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -3,
+          "v4_gap": 7
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "separate_exotic_evidence",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -36,
+          "v4_gap": 7
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "separate_exotic_evidence",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -78,
+          "v4_gap": 21
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Industrial"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "scoped_reserve_observations"
+          ],
+          "status": "explained",
+          "v3_4_gap": 75,
+          "v4_gap": -9
+        },
+        {
+          "economies": [
+            "Refinery",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": 42,
+          "v4_gap": -9
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": 54,
+          "v4_gap": -20
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "ring_and_geological_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 23,
+          "v4_gap": -18
+        },
+        {
+          "economies": [
+            "Industrial",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "scoped_reserve_observations",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": -75,
+          "v4_gap": 14
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": -42,
+          "v4_gap": 14
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": 12,
+          "v4_gap": -11
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": 54,
+          "v4_gap": -25
+        },
+        {
+          "economies": [
+            "Military",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "ring_and_geological_inheritance",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": 23,
+          "v4_gap": -23
+        },
+        {
+          "economies": [
+            "Tourism",
+            "Extraction"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "ring_and_geological_inheritance",
+            "separate_exotic_evidence"
+          ],
+          "status": "explained",
+          "v3_4_gap": -31,
+          "v4_gap": 2
+        }
+      ],
+      "review_section": "R11 \u2014 Thaile HW-V e2-7",
+      "role": "exotic_mixed_worlds",
+      "system_id64": 31639717276,
+      "v3_4_post_attenuation": {
+        "Agriculture": 22,
+        "Extraction": 77,
+        "HighTech": 58,
+        "Industrial": 25,
+        "Military": 100,
+        "Refinery": 100,
+        "Tourism": 46
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 32,
+        "Extraction": 91,
+        "HighTech": 83,
+        "Industrial": 36,
+        "Military": 100,
+        "Refinery": 100,
+        "Tourism": 67
+      },
+      "v4_potential_score": {
+        "Agriculture": 91,
+        "Extraction": 93,
+        "HighTech": 84,
+        "Industrial": 84,
+        "Military": 70,
+        "Refinery": 75,
+        "Tourism": 95
+      }
+    },
+    {
+      "delta": {
+        "Agriculture": 40,
+        "Extraction": -6,
+        "HighTech": -16,
+        "Industrial": 45,
+        "Military": 7,
+        "Refinery": -9,
+        "Tourism": 25
+      },
+      "legacy_default_counts": {
+        "bio_signal_count": 9,
+        "distance_from_star": 4,
+        "geo_signal_count": 9,
+        "has_rings": 27,
+        "is_landable": 8,
+        "is_terraformable": 8,
+        "is_tidal_lock": 8,
+        "subtype": 4
+      },
+      "major_deltas": [
+        {
+          "delta": 40,
+          "economy": "Agriculture",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 45,
+          "economy": "Industrial",
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        },
+        {
+          "delta": 25,
+          "economy": "Tourism",
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained"
+        }
+      ],
+      "name": "Deriv-Dar",
+      "ordering_reversals": [
+        {
+          "economies": [
+            "Agriculture",
+            "Refinery"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -31,
+          "v4_gap": 18
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "HighTech"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -47,
+          "v4_gap": 9
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Military"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "military_stellar_inheritance",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -15,
+          "v4_gap": 18
+        },
+        {
+          "economies": [
+            "Agriculture",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_agriculture_links",
+            "local_quality_and_depth",
+            "versioned_terraforming_state"
+          ],
+          "status": "explained",
+          "v3_4_gap": -7,
+          "v4_gap": 8
+        },
+        {
+          "economies": [
+            "Refinery",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "refinery_inheritance_and_constraints"
+          ],
+          "status": "explained",
+          "v3_4_gap": 24,
+          "v4_gap": -10
+        },
+        {
+          "economies": [
+            "HighTech",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth"
+          ],
+          "status": "explained",
+          "v3_4_gap": 40,
+          "v4_gap": -1
+        },
+        {
+          "economies": [
+            "Military",
+            "Tourism"
+          ],
+          "reason_codes": [
+            "independent_raw_scores",
+            "links_require_inheritance",
+            "local_quality_and_depth",
+            "military_stellar_inheritance"
+          ],
+          "status": "explained",
+          "v3_4_gap": 8,
+          "v4_gap": -10
+        }
+      ],
+      "review_section": "R12 \u2014 Deriv-Dar",
+      "role": "intrinsic_vs_accessibility",
+      "system_id64": 2037701937507,
+      "v3_4_post_attenuation": {
+        "Agriculture": 53,
+        "Extraction": 100,
+        "HighTech": 100,
+        "Industrial": 30,
+        "Military": 68,
+        "Refinery": 84,
+        "Tourism": 60
+      },
+      "v3_4_pre_attenuation": {
+        "Agriculture": 77,
+        "Extraction": 100,
+        "HighTech": 100,
+        "Industrial": 44,
+        "Military": 98,
+        "Refinery": 99,
+        "Tourism": 86
+      },
+      "v4_potential_score": {
+        "Agriculture": 93,
+        "Extraction": 94,
+        "HighTech": 84,
+        "Industrial": 75,
+        "Military": 75,
+        "Refinery": 75,
+        "Tourism": 85
+      }
+    }
+  ]
+}

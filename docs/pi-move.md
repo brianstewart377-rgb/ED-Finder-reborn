@@ -36,8 +36,9 @@ request".
 
 ## 2. Things to measure before copying
 
-- [ ] **Scoring speed.** Run `scripts/dev/score_speed_test.py` on the current
-      server and on the Pi and compare the two results. The old server's real
+- [ ] **Scoring speed.** Run `scripts/dev/score_speed_test.py` on the Pi and
+      compare with the current server, which scored 4,013 systems a minute
+      with one worker and 61,555 with all 32 (10 November). The old server's real
       builds did about 36,000 systems a minute per worker. If the Pi is 5 to 10
       times slower, a night's changes (about 116,000 systems in Spansh's
       one-day file on 9 November) take 15 to 30 minutes, and re-scoring all 37
@@ -51,26 +52,45 @@ Already known:
   150 to 250 GB (a guess until the copy script exists), will be limited by how
   fast the Pi can write.
 
-## 3. Code that has to exist first
+## 3. Database work, all on the current server first
+
+Decided 10 November: every change to how the database works is built and
+proved on the current server, which is far faster than the Pi, and runs there
+for a week before the copy. No data is deleted on the current server. The
+cut to 500 ly and the 116 GB table are left out during the copy instead, so
+the old server stays whole as the way back.
+
+Found the same day: the galaxy data (systems and bodies) was imported once, on
+27 to 28 August, and nothing has updated it since. Every score is that old.
+
+In order:
 
 - [x] **Images for the Pi's processor.** The published images cover both
       amd64 (the current server) and arm64 (the Pi).
-- [ ] **A decision on changing scores in place.** The database refuses any
-      change to a published set of scores: its rows are insert-only. That
-      suited whole rebuilds; a nightly update of changed systems needs a
-      reviewed migration that lets the nightly job, and only it, replace the
-      rows of the systems it re-scored.
-- [ ] **The scoring code is not in this repo yet.** It is still in the old
-      repo (`scripts/ratings_v4/` and the Finder table builders). Copy it
-      across with its tests.
-- [ ] **A nightly "only what changed" scoring job.** Today's scoring code only
-      does whole runs. The job re-scores the systems the night's import
-      touched, plus systems that came within 500 ly because a new colony
-      appeared.
+- [x] **The scoring code.** The parts that work out a system's scores and its
+      Find rows are here, unchanged (`scripts/ratings_v4/`,
+      `scripts/v3_system_search.py`, `scripts/v3_system_archetype.py`). The old
+      build's proof-and-receipt steps were left behind.
+- [ ] **A database change that lets the nightly jobs update published data.**
+      Today the database refuses any change to published galaxy data or
+      scores. Agreed 10 November. Fresh backup first.
+- [ ] **A nightly galaxy update** from Spansh's one-day file (1.1 GB, about
+      116,000 systems). For each system whose rows differ from ours, replace
+      its rows and note it as changed. The reading half exists
+      (`apps/importer/src/spansh_delta/`); the writing half does not.
+- [ ] **A nightly re-score** of the systems noted as changed, replacing their
+      score rows and Find rows. Checked against real data first: unchanged
+      systems must come out exactly as stored.
+- [ ] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
+      same code, because no smaller file reaches back to 27 August. Timed on
+      the first million systems before the full run.
+- [ ] **Reach.** How far each system is from inhabited space, kept up to date
+      as colonies appear. Gives Find its 250 ly default and 500 ly limit, and
+      tells the copy which systems to take.
 - [ ] **A copy script** that exports the tables above from the current server,
-      with the scored tables cut down to the 37 million systems in reach. A
-      logical dump (`pg_dump`), not a copy of the data folder: the two
-      machines have different processors.
+      with the scored tables cut down to the systems in reach. A logical dump
+      (`pg_dump`), not a copy of the data folder: the two machines have
+      different processors.
 
 ## 4. The copy
 
