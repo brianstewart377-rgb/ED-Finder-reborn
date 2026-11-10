@@ -121,13 +121,30 @@ def _seed_generation(connection, *, systems: int):
     return generation
 
 
-def build_finder_database(connection, *, systems: int) -> str:
-    """Apply the real migrations and seed one published generation whose two
-    Finder products are published too, so the ``v3_app`` views serve it."""
+def migration_names(*, through: int | None = None) -> list[str]:
+    """Every migration after the baseline, in the order production applied
+    them; up to and including number `through` when one is given."""
     from tests import test_v3_derived_product_publication as fixture
 
-    for name in (*fixture.PRE_015, "015_v3_derived_product_publication.sql",
-                 "024_v3_system_state.sql"):
+    names = sorted(path.name for path in fixture.MIGRATIONS.glob("[0-9][0-9][0-9]_*.sql"))
+    return [name for name in names
+            if int(name[:3]) > 1 and (through is None or int(name[:3]) <= through)]
+
+
+def apply_migration(connection, number: int) -> None:
+    from tests import test_v3_derived_product_publication as fixture
+
+    (path,) = fixture.MIGRATIONS.glob("%03d_*.sql" % number)
+    connection.execute(path.read_text(encoding="utf-8"))
+
+
+def build_finder_database(connection, *, systems: int, through: int | None = None) -> str:
+    """Apply the real migrations, in production's order, and seed one published
+    generation whose two Finder products are published too, so the ``v3_app``
+    views serve it."""
+    from tests import test_v3_derived_product_publication as fixture
+
+    for name in migration_names(through=through):
         connection.execute((fixture.MIGRATIONS / name).read_text(encoding="utf-8"))
     # Imported statistics must not be replaced by autovacuum mid-test.
     for relation in (
