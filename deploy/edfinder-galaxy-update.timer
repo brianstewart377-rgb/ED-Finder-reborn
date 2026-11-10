@@ -1,11 +1,16 @@
-# An hour after the system state refresh (03:30 UTC), so the two do not
-# download at the same time.
+# Spansh publishes the one-day file at about 02:10 UTC. The first run each day
+# is at 04:30 UTC: well after that, and an hour after the system state refresh
+# (03:30 UTC) so the two do not download at the same time.
+#
+# The second run, at 16:30 UTC, is a safety net. If Spansh published late, or
+# the first run failed, it applies the file the same day instead of missing
+# it. When there is nothing new it only asks Spansh for the file's date.
 [Unit]
-Description=ED-Finder: bring the galaxy up to date every night
+Description=ED-Finder: bring the galaxy up to date from Spansh
 
 [Timer]
-OnCalendar=*-*-* 04:30:00 UTC
-# If the machine was off at 04:30, run once it is back.
+OnCalendar=*-*-* 04,16:30:00 UTC
+# If the machine was off at the time, run once it is back.
 Persistent=true
 
 [Install]

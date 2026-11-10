@@ -128,7 +128,9 @@ How it works:
   `ACTIVE`.
 - It is safe to interrupt and safe to run twice.
 
-`deploy/edfinder-galaxy-update.timer` runs it every night at 04:30 UTC. It
+`deploy/edfinder-galaxy-update.timer` runs it at 04:30 UTC, after Spansh
+publishes the file at about 02:10 UTC, and again at 16:30 UTC in case the file
+was late or the first run failed. It
 needs `state_refresh.py` beside it (they share the download code) and
 migration `026` applied.
 
