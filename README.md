@@ -76,6 +76,26 @@ automatically. Settings (network, ports, the API settings file) have defaults
 for the current server and can be changed in a `deploy.conf` file beside the
 script; see the top of the script.
 
+Before a release goes live the tool also runs three real Find searches against
+it. On a machine whose database has no Finder data yet, put
+`EDFINDER_FIND_CHECK=0` in `deploy.conf`.
+
+## Keeping the system state fresh
+
+Find hides inhabited systems and systems being claimed. It knows which those
+are from the `v3_state` tables, which are only as fresh as their last load.
+`deploy/state_refresh.py` (Python standard library only) keeps them fresh:
+
+| Command | What it does |
+|---|---|
+| `run` | Asks Spansh what is new, downloads the changed files (about 9.3 GB for both), and loads them. If nothing is new it does nothing. If anything fails, the database is left as it was. |
+| `status` | Shows the last load and the files on disk. |
+
+`deploy/edfinder-state-refresh.timer` runs it every night at 03:30 UTC. It
+needs `spansh_system_state.py` beside it and about 20 GB of free disk space.
+
+The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
+
 ## Running the Python tests
 
 ```bash
