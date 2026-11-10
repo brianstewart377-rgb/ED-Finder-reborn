@@ -107,6 +107,7 @@ changed in the last day as one file, about 1.2 GB. `deploy/galaxy_update.py`
 | `run` | Downloads the file and applies it. If Spansh has nothing new it does nothing. |
 | `status` | Shows the last update, how many systems are waiting for new scores, and the file on disk. |
 | `check-scores` | Works scores out again from the file on disk and compares them with the stored ones. Read only. |
+| `score` | Writes the scores owed to the systems of the file on disk. |
 
 How it works:
 
@@ -137,6 +138,13 @@ can be scored only while its record is in hand. `check-scores`
 systems of the file and reports two things: whether systems nothing has
 changed get exactly their stored scores and Find row back, and whether each
 system waiting for new scores can be scored. It writes nothing.
+
+`score` writes. A system on the waiting list whose rows match its record gets
+its score tables replaced where they differ and its Find row rebuilt, and
+leaves the list, all in one transaction. A system that only gained or lost a
+station has its Find row rebuilt without a record. A system that cannot be
+scored stays on the list. With `EDFINDER_GALAXY_SCORES=on` in `deploy.conf`,
+`run` does the scoring itself straight after the update.
 
 `deploy/edfinder-galaxy-update.timer` runs it at 04:30 UTC, after Spansh
 publishes the file at about 02:10 UTC, and again at 16:30 UTC in case the file

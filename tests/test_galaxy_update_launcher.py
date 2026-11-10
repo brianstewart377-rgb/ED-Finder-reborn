@@ -43,8 +43,9 @@ if args[0] == "inspect":
     sys.exit(1)
 if args[0] == "run":
     route = "app" if "--env-file" in args else "local"
-    print("%%s (%%s) by the %%s route" %% (args[args.index("-m") + 1], args[args.index("-m") + 2], route))
-    sys.exit(state["run_exit"][route])
+    module = args[args.index("-m") + 1]
+    print("%%s (%%s) by the %%s route" %% (module, args[args.index("-m") + 2], route))
+    sys.exit(state.get("module_exit", {}).get(module, state["run_exit"][route]))
 if args[0] == "exec":
     statement = args[-1]
     for needle, reply in state["psql"].items():
@@ -149,6 +150,7 @@ def test_environment_wins_over_the_conf_file_which_wins_over_defaults():
     ("EDFINDER_PROJECT", "--privileged", "is not a plain name"),
     ("EDFINDER_NETWORK", "host --privileged", "is not a plain name"),
     ("EDFINDER_GALAXY_CONNECT", "magic", "must be auto, local or app"),
+    ("EDFINDER_GALAXY_SCORES", "yes", "must be on or off"),
 ])
 def test_bad_settings_are_refused(key, value, message):
     with pytest.raises(tool.UpdateError, match=message):
@@ -214,6 +216,72 @@ def test_check_scores_fetches_the_file_when_there_is_none_and_passes_a_limit(spa
     check = docker.calls("run")[-1]
     assert check[check.index("-m"):] == ["-m", "spansh_delta.scores", "check", "/data/" + FILE,
                                          "--limit", "500"]
+
+
+def modules(docker) -> list[tuple[str, str]]:
+    return [(call[call.index("-m") + 1], call[call.index("-m") + 2]) for call in docker.calls("run")]
+
+
+def test_scoring_is_off_unless_switched_on(spansh, docker, tmp_path):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert not chosen.scores
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert modules(docker) == [("spansh_delta.apply", "apply")]
+
+
+def test_with_scoring_on_a_run_updates_the_galaxy_then_scores_the_same_file(spansh, docker, tmp_path, capsys):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert modules(docker) == [("spansh_delta.apply", "apply"), ("spansh_delta.scores", "apply")]
+    scoring = docker.calls("run")[-1]
+    assert scoring[scoring.index("-m"):] == ["-m", "spansh_delta.scores", "apply", "/data/" + FILE]
+    noted = tool.fetch.read_record(chosen.record)
+    assert noted["applied"] == noted["scored"] and noted["scored"]["modified"] == MONDAY
+    assert "Running the scoring from " + IMAGE in capsys.readouterr().out
+    # Nothing new from Spansh: neither is run again.
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert len(docker.calls("run")) == 2
+
+
+def test_if_the_update_fails_nothing_is_scored(spansh, docker, tmp_path):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
+    docker.state["module_exit"] = {"spansh_delta.apply": 1}
+    docker.save()
+    assert tool.cmd_apply(chosen, "run", None) == 1
+    assert modules(docker) == [("spansh_delta.apply", "apply")]
+    assert not chosen.record.exists()
+
+
+def test_if_scoring_fails_the_next_run_scores_again_without_updating_again(spansh, docker, tmp_path, capsys):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
+    docker.state["module_exit"] = {"spansh_delta.scores": 1}
+    docker.save()
+    assert tool.cmd_apply(chosen, "run", None) == 1
+    assert "FAILED: the scoring ended with code 1" in capsys.readouterr().out
+    noted = tool.fetch.read_record(chosen.record)
+    assert noted["applied"]["modified"] == MONDAY and "scored" not in noted
+
+    docker.state["module_exit"] = {}
+    docker.save()
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert "Its scores are still owed." in capsys.readouterr().out
+    assert modules(docker)[2:] == [("spansh_delta.scores", "apply")] and spansh.downloads() == [FILE]
+    assert tool.fetch.read_record(chosen.record)["scored"]["modified"] == MONDAY
+
+
+def test_score_by_hand_uses_the_file_on_disk_and_notes_that_it_is_done(spansh, docker, tmp_path):
+    spansh.publish(FILE, b"night one", MONDAY)
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    spansh.publish(FILE, b"night two!", TUESDAY)
+    assert tool.cmd_apply(chosen, "score", None) == 0
+    assert modules(docker)[-1] == ("spansh_delta.scores", "apply")
+    assert spansh.downloads() == [FILE]
+    assert tool.fetch.read_record(chosen.record)["scored"]["modified"] == MONDAY
 
 
 def test_a_failed_score_check_says_so(spansh, docker, tmp_path, capsys):
@@ -323,7 +391,7 @@ def test_when_no_route_connects_the_databases_rules_are_shown(spansh, docker, tm
     assert len(docker.calls("run")) == 2
     assert "the database's rules for who may connect" in out
     assert "host   database=all user=all address=all method=scram-sha-256" in out
-    assert "FAILED: the update could not connect to the database. Nothing was changed." in out
+    assert "FAILED: the check could not connect to the database. Nothing was changed." in out
     assert not chosen.record.exists()
 
 
