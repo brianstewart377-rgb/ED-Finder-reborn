@@ -36,19 +36,30 @@ request".
 
 ## 2. Things to measure before copying
 
-- [ ] **Scoring speed.** Time the scoring of 100,000 systems on the Pi. The old
-      server did about 36,000 systems a minute per worker. If the Pi is 5 to 10
+- [ ] **Scoring speed.** Run `scripts/dev/score_speed_test.py` on the current
+      server and on the Pi and compare the two results. The old server's real
+      builds did about 36,000 systems a minute per worker. If the Pi is 5 to 10
       times slower, a night's changes (about 116,000 systems in Spansh's
       one-day file on 9 November) take 15 to 30 minutes, and re-scoring all 37
       million from scratch takes one to two and a half days.
-- [ ] **Home download speed.** The copy is perhaps 150 to 250 GB over the
-      wire (a guess until the copy script exists). At 100 Mbit/s that is about
-      5 hours; at 30 Mbit/s, about 15.
-- [ ] **Nightly downloads.** About 9.3 GB for the two state files plus about
-      1.3 GB for the galaxy changes, every night.
+
+Already known:
+
+- **The home line is not a limit.** 1 Gbit fibre to the property, no data cap.
+  The nightly downloads (about 9.3 GB for the two state files plus about
+  1.3 GB for the galaxy changes) take a few minutes. The one-off copy, perhaps
+  150 to 250 GB (a guess until the copy script exists), will be limited by how
+  fast the Pi can write.
 
 ## 3. Code that has to exist first
 
+- [x] **Images for the Pi's processor.** The published images cover both
+      amd64 (the current server) and arm64 (the Pi).
+- [ ] **A decision on changing scores in place.** The database refuses any
+      change to a published set of scores: its rows are insert-only. That
+      suited whole rebuilds; a nightly update of changed systems needs a
+      reviewed migration that lets the nightly job, and only it, replace the
+      rows of the systems it re-scored.
 - [ ] **The scoring code is not in this repo yet.** It is still in the old
       repo (`scripts/ratings_v4/` and the Finder table builders). Copy it
       across with its tests.
