@@ -1,0 +1,12 @@
+# An hour after the system state refresh (03:30 UTC), so the two do not
+# download at the same time.
+[Unit]
+Description=ED-Finder: bring the galaxy up to date every night
+
+[Timer]
+OnCalendar=*-*-* 04:30:00 UTC
+# If the machine was off at 04:30, run once it is back.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

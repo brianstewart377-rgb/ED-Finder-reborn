@@ -22,6 +22,10 @@ RUN python -c "import platform, sys; assert platform.python_implementation() == 
 # legacy flat imports are migrated incrementally.
 COPY apps/api/src/ ./
 COPY shared_contracts/ ./shared_contracts/
+# The nightly galaxy update (python -m spansh_delta.apply) runs from this image,
+# so the job is always the same version as the app that is live.
+COPY apps/importer/src/v3_spansh/ ./v3_spansh/
+COPY apps/importer/src/spansh_delta/ ./spansh_delta/
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1

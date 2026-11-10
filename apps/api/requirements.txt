@@ -1,6 +1,10 @@
-# apps/api — runtime dependencies for the FastAPI service only.
-# Importer-only libraries (ijson, Psycopg 3, tqdm) live in
-# apps/importer/requirements.txt and are NOT installed into this image.
+# apps/api — runtime dependencies of the API image.
+# Psycopg 3 and ijson are here because the nightly galaxy update
+# (python -m spansh_delta.apply) runs from this image. The other
+# importer-only libraries (tqdm, numpy) live in apps/importer/requirements.txt
+# and are NOT installed into this image.
+psycopg[binary]==3.3.4
+ijson==3.5.1
 asyncpg==0.31.0
 fastapi==0.141.1
 uvicorn[standard]==0.52.4

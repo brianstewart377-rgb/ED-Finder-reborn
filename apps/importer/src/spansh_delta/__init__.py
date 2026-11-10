@@ -5,7 +5,12 @@ This package is repository tooling for the "nightly delta layer" study
 ``galaxy*.json.gz`` one system at a time, maps each system through the frozen
 V3 canonical adapter (``v3_spansh.adapter.SpanshAdapter`` -- imported, never
 edited), and decides whether anything the V3 canonical schema stores actually
-changed.  It performs no database access and writes nothing.
+changed.  Everything imported here performs no database access and writes
+nothing.
+
+The one module that does write is ``spansh_delta.apply``, the nightly galaxy
+update. It is not imported here, so reading and comparing never need a
+database driver.
 """
 
 from .normalize import (

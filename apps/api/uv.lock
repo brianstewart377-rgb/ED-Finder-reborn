@@ -200,7 +200,9 @@ dependencies = [
     { name = "defusedxml" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "ijson" },
     { name = "pillow" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyzmq" },
@@ -214,10 +216,8 @@ dependencies = [
 [package.dev-dependencies]
 test = [
     { name = "coverage" },
-    { name = "ijson" },
     { name = "jsonschema" },
     { name = "numpy" },
-    { name = "psycopg", extra = ["binary"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pyyaml" },
@@ -231,7 +231,9 @@ requires-dist = [
     { name = "defusedxml", specifier = "==0.7.1" },
     { name = "fastapi", specifier = "==0.141.1" },
     { name = "httpx", specifier = "==0.28.1" },
+    { name = "ijson", specifier = "==3.5.1" },
     { name = "pillow", specifier = "==12.3.0" },
+    { name = "psycopg", extras = ["binary"], specifier = "==3.3.4" },
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "pydantic-settings", specifier = "==2.15.0" },
     { name = "pyzmq", specifier = "==27.2.0" },
@@ -245,10 +247,8 @@ requires-dist = [
 [package.metadata.requires-dev]
 test = [
     { name = "coverage", specifier = "==7.16.0" },
-    { name = "ijson", specifier = "==3.5.1" },
     { name = "jsonschema", specifier = "==4.26.0" },
     { name = "numpy", specifier = "==2.5.2" },
-    { name = "psycopg", extras = ["binary"], specifier = "==3.3.4" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "pyyaml", specifier = "==6.0.3" },

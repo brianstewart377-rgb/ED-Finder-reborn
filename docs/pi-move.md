@@ -71,13 +71,15 @@ In order:
       Find rows are here, unchanged (`scripts/ratings_v4/`,
       `scripts/v3_system_search.py`, `scripts/v3_system_archetype.py`). The old
       build's proof-and-receipt steps were left behind.
-- [ ] **A database change that lets the nightly jobs update published data.**
-      Today the database refuses any change to published galaxy data or
-      scores. Agreed 10 November. Fresh backup first.
-- [ ] **A nightly galaxy update** from Spansh's one-day file (1.1 GB, about
+- [x] **A database change that lets the nightly jobs update published data.**
+      Migration `025`, applied on the current server on 10 November after a
+      fresh backup. The score and Find tables accept changes only from a
+      transaction that announces itself as the nightly update.
+- [ ] **A nightly galaxy update** from Spansh's one-day file (1.2 GB, about
       116,000 systems). For each system whose rows differ from ours, replace
-      its rows and note it as changed. The reading half exists
-      (`apps/importer/src/spansh_delta/`); the writing half does not.
+      its rows and note it as changed. Written and tested
+      (`deploy/galaxy_update.py`, `apps/importer/src/spansh_delta/apply.py`,
+      migration `026`); not yet run on the current server.
 - [ ] **A nightly re-score** of the systems noted as changed, replacing their
       score rows and Find rows. Checked against real data first: unchanged
       systems must come out exactly as stored.
@@ -110,7 +112,7 @@ In order:
 
 ## 6. Nightly jobs on the Pi
 
-- [ ] Galaxy import (Spansh's one-day file).
+- [ ] Galaxy update from Spansh's one-day file (`edfinder-galaxy-update.timer`).
 - [ ] System state refresh (`edfinder-state-refresh.timer`).
 - [ ] Re-score what changed.
 - [ ] Backup to the USB drives, and one restore test before we rely on it.
