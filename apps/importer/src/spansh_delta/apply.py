@@ -240,7 +240,7 @@ class Report:
                    + f"{self.queued:>12,}")
         if self.unknown_words:
             out.append(f"Words this version does not know: {len(self.unknown_words):>12,}"
-                       "   (stored as blank)")
+                       "   (left blank, or left out)")
             for (domain, token), count in self.unknown_words.most_common(8):
                 out.append(f"      {domain}: \"{token}\" in {count:,} systems")
         minutes, seconds = divmod(int(self.seconds), 60)

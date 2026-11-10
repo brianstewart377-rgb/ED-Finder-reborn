@@ -44,7 +44,20 @@ request".
       one-day file on 9 November) take 15 to 30 minutes, and re-scoring all 37
       million from scratch takes one to two and a half days.
 
+- [ ] **Free the space old row versions leave behind.** One night's galaxy
+      update grew the database by about 1 GB (10 November). Roughly 0.15 GB of
+      that is new systems and bodies; the rest is the old versions of rows
+      that were rewritten, which PostgreSQL reuses once its clean-up
+      (autovacuum) has run. With default settings it would not run on tables
+      this large for about a year. On the Pi, set it to run on the galaxy
+      tables after a few million changed rows.
+
 Already known:
+
+- About 67,000 systems a day are new to us (10 November). The galaxy has
+  always grown at about that rate: 198.5 million systems in 12 years is
+  46,000 a day. Most are deep space with few scanned bodies.
+- Spansh publishes the one-day file at about 02:10 UTC.
 
 - **The home line is not a limit.** 1 Gbit fibre to the property, no data cap.
   The nightly downloads (about 9.3 GB for the two state files plus about
@@ -75,11 +88,12 @@ In order:
       Migration `025`, applied on the current server on 10 November after a
       fresh backup. The score and Find tables accept changes only from a
       transaction that announces itself as the nightly update.
-- [ ] **A nightly galaxy update** from Spansh's one-day file (1.2 GB, about
-      116,000 systems). For each system whose rows differ from ours, replace
-      its rows and note it as changed. Written and tested
-      (`deploy/galaxy_update.py`, `apps/importer/src/spansh_delta/apply.py`,
-      migration `026`); not yet run on the current server.
+- [x] **A nightly galaxy update** from Spansh's one-day file (1.1 GB). For
+      each system whose rows differ from ours, replace its rows and note it as
+      changed (`deploy/galaxy_update.py`,
+      `apps/importer/src/spansh_delta/apply.py`, migration `026`). First run on
+      the current server, 10 November: 101,429 systems read, 29,369 changed,
+      67,122 new, 4,938 identical, in 6 min 56 s; none refused.
 - [ ] **A nightly re-score** of the systems noted as changed, replacing their
       score rows and Find rows. Checked against real data first: unchanged
       systems must come out exactly as stored.
@@ -99,6 +113,8 @@ In order:
 - [ ] Fresh backup of the current database first.
 - [ ] PostgreSQL 18 running on the Pi, data on the 2 TB drive.
 - [ ] Run the copy script. Check row counts on both sides, table by table.
+- [ ] Clean-up settings on the galaxy tables (see section 2), then one full
+      clean-up and statistics pass over the restored database.
 - [ ] Load the system state on the Pi (`deploy/state_refresh.py run`).
 
 ## 5. The app on the Pi

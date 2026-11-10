@@ -393,3 +393,20 @@ def test_main_prints_a_plain_failure_and_exits_1(spansh, docker, tmp_path, monke
     assert "FAILED: " in capsys.readouterr().out
     assert tool.main(["run", "--limit", "0"]) == 1
     assert "--limit must be 1 or more" in capsys.readouterr().out
+
+
+# -- the timer and service files --------------------------------------------
+
+
+def test_the_timer_runs_twice_a_day_well_after_spansh_publishes():
+    timer = (ROOT / "deploy" / "edfinder-galaxy-update.timer").read_text(encoding="utf-8")
+    settings_lines = [line for line in timer.splitlines() if line and not line.startswith("#")]
+    assert "OnCalendar=*-*-* 04,16:30:00 UTC" in settings_lines
+    assert "Persistent=true" in settings_lines and "WantedBy=timers.target" in settings_lines
+    assert len([line for line in settings_lines if line.startswith("OnCalendar=")]) == 1
+
+
+def test_the_service_runs_the_launcher_where_it_is_installed():
+    service = (ROOT / "deploy" / "edfinder-galaxy-update.service").read_text(encoding="utf-8")
+    assert "ExecStart=/usr/bin/python3 /opt/edfinder/galaxy_update.py run" in service.splitlines()
+    assert "Type=oneshot" in service.splitlines()
