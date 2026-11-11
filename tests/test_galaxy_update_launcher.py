@@ -126,8 +126,10 @@ def settings(spansh: Spansh, directory: Path, **extra: str):
 
 def test_defaults_point_at_spansh_and_the_production_database():
     chosen = tool.Settings(environ={}, conf={})
-    assert chosen.url == "https://downloads.spansh.co.uk/galaxy_1day.json.gz"
-    assert chosen.target == Path("/var/lib/edfinder-galaxy/galaxy_1day.json.gz")
+    # No fixed file: each run chooses Spansh's 7-day or 32-day file.
+    assert chosen.url is None and chosen.source == "https://downloads.spansh.co.uk/"
+    assert chosen.usual_file == "galaxy_7days.json.gz"
+    assert chosen.path(chosen.usual_file) == Path("/var/lib/edfinder-galaxy/galaxy_7days.json.gz")
     assert chosen.api_container == "edfinder-api"
     assert chosen.psql == [
         "docker", "exec", "-i", "edfinder-v3-phase4c-full-20260827_r5-postgres", "psql", "-X",
@@ -166,7 +168,7 @@ def test_run_downloads_the_file_and_runs_the_update_from_the_live_image(spansh, 
 
     assert tool.cmd_apply(chosen, "run", None) == 0
 
-    assert chosen.target.read_bytes() == b"night one" * 100
+    assert chosen.path(FILE).read_bytes() == b"night one" * 100
     (run,) = docker.calls("run")
     assert run == [
         "run", "--rm", "--name", "edfinder-galaxy-update",
@@ -182,7 +184,7 @@ def test_run_downloads_the_file_and_runs_the_update_from_the_live_image(spansh, 
     # Nothing secret is passed: no password setting of any kind.
     assert not [part for part in run if "PASSWORD" in part.upper() or "postgresql://" in part]
     # The container can read the file whoever it runs as.
-    assert stat.S_IMODE(chosen.target.stat().st_mode) == 0o644
+    assert stat.S_IMODE(chosen.path(FILE).stat().st_mode) == 0o644
     assert stat.S_IMODE(chosen.directory.stat().st_mode) == 0o755
     out = capsys.readouterr().out
     assert "Downloading galaxy_1day.json.gz" in out and "Running the update from " + IMAGE in out
@@ -198,7 +200,7 @@ def test_check_scores_uses_the_file_already_on_disk_and_is_read_only(spansh, doc
 
     assert tool.cmd_apply(chosen, "check-scores", None) == 0
 
-    assert spansh.downloads() == [FILE] and chosen.target.read_bytes() == b"night one"
+    assert spansh.downloads() == [FILE] and chosen.path(FILE).read_bytes() == b"night one"
     check = docker.calls("run")[-1]
     assert check[check.index("-m"):] == ["-m", "spansh_delta.scores", "check", "/data/" + FILE]
     assert "container:edfinder-v3-phase4c-full-20260827_r5-postgres" in check
@@ -457,7 +459,7 @@ def test_cut_off_download_fails_and_nothing_is_run(spansh, docker, tmp_path):
     chosen = settings(spansh, tmp_path / "galaxy")
     with pytest.raises(tool.fetch.RefreshError, match="the download"):
         tool.cmd_apply(chosen, "run", None)
-    assert not chosen.target.exists() and docker.calls("run") == []
+    assert not chosen.path(FILE).exists() and docker.calls("run") == []
 
 
 def test_run_refuses_when_the_disk_is_too_full(spansh, docker, tmp_path, monkeypatch):
@@ -466,6 +468,213 @@ def test_run_refuses_when_the_disk_is_too_full(spansh, docker, tmp_path, monkeyp
     with pytest.raises(tool.UpdateError, match="not enough free disk space"):
         tool.cmd_apply(settings(spansh, tmp_path / "galaxy"), "run", None)
     assert spansh.downloads() == [] and docker.calls("run") == []
+
+
+# -- choosing the file (no fixed file given) ---------------------------------
+
+WEEK = "galaxy_7days.json.gz"
+MONTH = "galaxy_1month.json.gz"
+TONIGHT = "Thu, 12 Nov 2026 03:05:00 GMT"
+COVERED = "max(r.effective_at)"
+
+
+def choosing(spansh: Spansh, directory: Path, **extra: str):
+    """Settings with no fixed file: each run chooses."""
+    return settings(spansh, directory, EDFINDER_GALAXY_URL="",
+                    EDFINDER_GALAXY_SOURCE=spansh.origin + "/", **extra)
+
+
+def database_says(docker, last_update: str | None) -> None:
+    """The last finished update applied Spansh's files of ``last_update``
+    (UTC); None: no update has finished."""
+    docker.state["psql"] = {COVERED: last_update or ""}
+    docker.save()
+
+
+def applied(docker) -> list[str]:
+    return [call[call.index("-m") + 3] for call in docker.calls("run")
+            if call[call.index("-m") + 1] == "spansh_delta.apply"]
+
+
+def test_each_night_takes_the_7_day_file(spansh, docker, tmp_path, capsys):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    spansh.publish(MONTH, b"thirty-two days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-11 03:19:43")
+
+    assert tool.cmd_apply(chosen, "run", None) == 0
+
+    assert spansh.downloads() == [WEEK] and applied(docker) == ["/data/" + WEEK]
+    (run,) = docker.calls("run")
+    assert run[-2:] == ["--made-at", "2026-11-12T03:05:00+00:00"]
+    assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == TONIGHT
+    assert "Downloading galaxy_7days.json.gz" in capsys.readouterr().out
+
+
+def test_a_file_made_up_to_6_days_after_the_last_one_is_still_the_7_day_file(spansh, docker, tmp_path):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    spansh.publish(MONTH, b"thirty-two days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-06 03:05:00")  # exactly 6 days before
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert spansh.downloads() == [WEEK]
+
+
+def test_after_more_than_6_days_away_the_32_day_file_is_taken(spansh, docker, tmp_path, capsys):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    spansh.publish(MONTH, b"thirty-two days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-06 03:04:59")  # one second more than 6 days
+
+    assert tool.cmd_apply(chosen, "run", None) == 0
+
+    assert spansh.downloads() == [MONTH] and applied(docker) == ["/data/" + MONTH]
+    out = capsys.readouterr().out
+    assert ("The last update applied Spansh's files of 06 Nov 2026 03:04 UTC, more than 6 days "
+            "ago. Taking the 32-day file instead of the 7-day one.") in out
+    assert tool.fetch.read_record(chosen.record)["applied"]["url"].endswith("/" + MONTH)
+
+
+def test_up_to_31_days_away_is_the_32_day_file_and_more_stops_without_changing_anything(
+        spansh, docker, tmp_path, capsys):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    spansh.publish(MONTH, b"thirty-two days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-10-12 03:05:00")  # exactly 31 days before
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert applied(docker) == ["/data/" + MONTH]
+
+    database_says(docker, "2026-10-12 03:04:59")
+    with pytest.raises(tool.UpdateError) as refused:
+        tool.cmd_apply(chosen, "run", None)
+    message = str(refused.value)
+    assert "12 Oct 2026 03:04 UTC, more than 31 days ago" in message
+    assert "only the full galaxy file" in message and "EDFINDER_GALAXY_URL" in message
+    assert "Nothing was changed." in message
+    assert applied(docker) == ["/data/" + MONTH]  # no second update was started
+
+
+def test_with_no_finished_update_in_the_database_it_will_not_guess(spansh, docker, tmp_path):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, None)
+    for mode in ("run", "check"):
+        with pytest.raises(tool.UpdateError, match="no galaxy update has finished"):
+            tool.cmd_apply(chosen, mode, None)
+    assert spansh.downloads() == [] and docker.calls("run") == []
+
+
+def test_spansh_not_saying_when_the_file_was_made_stops_the_run(spansh, docker, tmp_path):
+    spansh.publish(WEEK, b"seven days", "")
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-11 03:19:43")
+    with pytest.raises(tool.UpdateError, match="did not say when its 7-day file was made"):
+        tool.cmd_apply(chosen, "run", None)
+    assert spansh.downloads() == [] and docker.calls("run") == []
+
+
+def test_nothing_new_is_judged_from_the_database_and_scoring_still_runs(spansh, docker, tmp_path, capsys):
+    """The 16:30 run, or the first run on another machine after a copy: the
+    database already holds tonight's file, whatever is on this disk."""
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
+    database_says(docker, "2026-11-12 03:05:00")
+
+    assert tool.cmd_apply(chosen, "run", None) == 0
+
+    assert spansh.downloads() == [] and modules(docker) == [("spansh_delta.scores", "apply")]
+    assert "Spansh has published nothing new since the last update." in capsys.readouterr().out
+    # A check still checks, against tonight's file.
+    assert tool.cmd_apply(chosen, "check", None) == 0
+    assert applied(docker) == ["/data/" + WEEK] and modules(docker)[-1] == ("spansh_delta.apply", "check")
+
+
+def test_the_same_file_twice_is_nothing_new_even_if_the_database_dates_it_earlier(
+        spansh, docker, tmp_path, capsys):
+    """The database dates a run by the first time its exact content was
+    applied. If Spansh ever offered the same bytes again later, the record on
+    this disk still knows it has been applied."""
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-11 03:19:43")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    capsys.readouterr()
+    assert tool.cmd_apply(chosen, "run", None) == 0  # the database still says 11 November
+    assert applied(docker) == ["/data/" + WEEK] and spansh.downloads() == [WEEK]
+    assert "nothing new" in capsys.readouterr().out
+
+
+def test_after_a_run_only_the_file_just_applied_is_kept_and_check_scores_uses_it(
+        spansh, docker, tmp_path):
+    directory = tmp_path / "galaxy"
+    # Left by the one-day launcher: its file, and the record of applying it.
+    old = settings(spansh, directory)
+    spansh.publish(FILE, b"one day", MONDAY)
+    assert tool.cmd_apply(old, "run", None) == 0
+    assert old.path(FILE).is_file()
+
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    chosen = choosing(spansh, directory)
+    # Until the first new run, check-scores goes on using the file last applied.
+    assert tool.cmd_apply(chosen, "check-scores", None) == 0
+    assert docker.calls("run")[-1][-1] == "/data/" + FILE
+
+    database_says(docker, "2026-11-11 03:19:43")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert sorted(path.name for path in directory.iterdir()) == [
+        "galaxy_7days.json.gz", "galaxy_7days.json.gz.version", "last-applied.json", "lock"]
+
+    assert tool.cmd_apply(chosen, "check-scores", None) == 0
+    assert docker.calls("run")[-1][-1] == "/data/" + WEEK
+    assert spansh.downloads() == [FILE, WEEK]
+
+
+def test_a_failed_update_keeps_the_old_file_and_is_tried_again(spansh, docker, tmp_path):
+    directory = tmp_path / "galaxy"
+    spansh.publish(FILE, b"one day", MONDAY)
+    assert tool.cmd_apply(settings(spansh, directory), "run", None) == 0
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    chosen = choosing(spansh, directory)
+    database_says(docker, "2026-11-11 03:19:43")
+    docker.state["module_exit"] = {"spansh_delta.apply": 1}
+    docker.save()
+
+    assert tool.cmd_apply(chosen, "run", None) == 1
+    assert chosen.path(FILE).is_file()
+    assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == MONDAY
+
+    docker.state["module_exit"] = {}
+    docker.save()
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert applied(docker)[-2:] == ["/data/" + WEEK, "/data/" + WEEK]
+    assert spansh.downloads() == [FILE, WEEK]  # not downloaded twice
+
+
+def test_check_scores_with_no_file_here_fetches_the_7_day_file_without_asking_the_database(
+        spansh, docker, tmp_path):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, None)
+    assert tool.cmd_apply(chosen, "check-scores", None) == 0
+    assert spansh.downloads() == [WEEK] and not chosen.record.exists()
+    assert docker.calls("run")[-1][-1] == "/data/" + WEEK
+
+
+def test_status_says_how_the_file_is_chosen(spansh, docker, tmp_path, capsys):
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    docker.state["psql"] = {"acquisition_kind = 'DELTA'": "", "rescore_queue": "0"}
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    out = capsys.readouterr().out
+    assert ("Each run takes Spansh's 7-day file, or its 32-day file when the last update "
+            "is more than 6 days old.") in out
+    assert "No Spansh file on disk yet." in out
+
+
+def test_bad_source_folder_is_refused():
+    for value in ("ftp://example.test/", "https://example.test/files"):
+        with pytest.raises(tool.UpdateError, match="EDFINDER_GALAXY_SOURCE"):
+            tool.Settings(environ={"EDFINDER_GALAXY_SOURCE": value}, conf={})
 
 
 # -- status and the command line --------------------------------------------
@@ -488,6 +697,7 @@ def test_status_shows_the_last_update_the_queue_and_the_file(spansh, docker, tmp
     assert "63935 systems are waiting for new scores." in out
     assert "Scoring after each update is switched off (EDFINDER_GALAXY_SCORES in deploy.conf)." in out
     assert "galaxy_1day.json.gz: 0.0 GB, published " + MONDAY in out
+    assert "Each run takes %s/%s (EDFINDER_GALAXY_URL)." % (spansh.origin, FILE) in out
     assert tool.cmd_status(settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")) == 0
     assert "Scoring after each update is switched on." in capsys.readouterr().out
 
@@ -499,7 +709,7 @@ def test_status_before_anything_has_happened(spansh, docker, tmp_path, capsys):
     out = capsys.readouterr().out
     assert "No galaxy update has been recorded yet." in out
     assert "does not exist yet (migration 026)" in out
-    assert "galaxy_1day.json.gz: not downloaded yet" in out
+    assert "No Spansh file on disk yet." in out
 
 
 def test_main_prints_a_plain_failure_and_exits_1(spansh, docker, tmp_path, monkeypatch, capsys):

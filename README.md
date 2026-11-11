@@ -97,17 +97,37 @@ needs `spansh_system_state.py` beside it and about 20 GB of free disk space.
 ## Keeping the galaxy fresh
 
 The galaxy itself (systems, bodies, rings, stations) changes too: commanders
-scan new bodies, fleet carriers move. Spansh publishes every system that
-changed in the last day as one file, about 1.2 GB. `deploy/galaxy_update.py`
-(Python standard library only) fetches it and applies it:
+scan new bodies, fleet carriers move. Every night Spansh publishes every system
+that changed in the last 7 days as one file (`galaxy_7days.json.gz`, about
+3 GB). `deploy/galaxy_update.py` (Python standard library only) fetches it and
+applies it:
 
 | Command | What it does |
 |---|---|
 | `check` | Downloads the file and says what would change. Read only: the database is not touched. |
 | `run` | Downloads the file and applies it. If Spansh has nothing new there is nothing to apply. With scoring switched on, it then gives new scores to the systems on the waiting list, either way. |
-| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, and the file on disk. |
+| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, which file each run takes, and the file on disk. |
 | `check-scores` | Works scores out again for the systems of the file on disk, from Spansh's records and from our own rows, and compares them with the stored ones. Read only. |
 | `score` | Gives new scores to the systems on the waiting list. Needs no file. |
+
+Which file:
+
+- Each night the 7-day file, not Spansh's one-day file. Spansh makes its files
+  at a different time each night (02:10 UTC on 10 November, 03:20 UTC on
+  11 November), so two one-day files can leave a gap between them, and a night
+  the update does not run would lose that day for good. The 7-day file reaches
+  back over the last six nights too. What we already have is left alone, so
+  only what really changed is written and scored.
+- The launcher chooses by how long ago the file of the last finished update
+  was made. The database records that (`v3_source.source_run.effective_at`),
+  so the choice still works after the database is copied to another machine.
+  6 days or less: the 7-day file. 7 to 31 days: the 32-day file
+  (`galaxy_1month.json.gz`, about 6 GB). More: it stops and says so, because
+  only the full galaxy file reaches back that far. A day is kept spare in both,
+  because when exactly a file's days begin is Spansh's to say.
+- `EDFINDER_GALAXY_URL` gives one fixed file instead, for the full galaxy file
+  or for trying something out.
+- After a successful run only the file just applied is kept on disk.
 
 How it works:
 

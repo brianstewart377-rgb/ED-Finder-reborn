@@ -1,4 +1,4 @@
-# Spansh publishes the one-day file between about 02:00 and 03:30 UTC (the time
+# Spansh publishes its files between about 02:00 and 03:30 UTC (the time
 # varies from day to day). The first run each day
 # is at 04:30 UTC: well after that, and an hour after the system state refresh
 # (03:30 UTC) so the two do not download at the same time.
