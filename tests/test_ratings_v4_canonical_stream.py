@@ -38,9 +38,10 @@ def without_provenance(value):
 def test_importer_differs_from_the_august_import_only_where_we_changed_it():
     """The recovery manifest fingerprints the importer that made the galaxy
     import of 27 August 2026. This repo then stopped the importer writing
-    body_parent_evidence, which changed adapter.py and coverage.py. Nothing
-    else in the manifest may drift, and the old check must say so plainly
-    instead of passing."""
+    body_parent_evidence, which changed adapter.py and coverage.py, and made
+    it keep each body's class (migration 027), which changed adapter.py and
+    contracts.py. Nothing else in the manifest may drift, and the old check
+    must say so plainly instead of passing."""
     manifest = json.loads((ROOT / 'docs/development/v3-canonical-source-recovery.json').read_bytes())
     changed = {
         relative for relative, expected in manifest['files_sha256'].items()
@@ -48,6 +49,7 @@ def test_importer_differs_from_the_august_import_only_where_we_changed_it():
     }
     assert changed == {
         'apps/importer/src/v3_spansh/adapter.py',
+        'apps/importer/src/v3_spansh/contracts.py',
         'apps/importer/src/v3_spansh/coverage.py',
     }
     with pytest.raises(ValueError, match='recovered canonical source checksum mismatch'):

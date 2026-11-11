@@ -13,11 +13,14 @@ bodies, rings and stations up to date from it (edfinder-galaxy-update.timer).
                                       work scores out again from the file on
                                       disk and compare them with the stored
                                       ones. Read only.
-    python3 galaxy_update.py score    write the scores owed to the systems of
-                                      the file on disk
+    python3 galaxy_update.py score    give new scores to the systems on the
+                                      waiting list. Needs no file: everything
+                                      the scores use is in the database.
 
-`run` also does the scoring, straight after the update, when
-EDFINDER_GALAXY_SCORES is "on".
+Every system the update changes goes on a waiting list for new scores. When
+EDFINDER_GALAXY_SCORES is "on", `run` also works through that list each time,
+whether or not Spansh had anything new. So a night when the scoring fails is
+made up by the next run.
 
     --limit N    stop after N systems (for timing a very big file)
 
@@ -85,7 +88,7 @@ DEFAULTS: Dict[str, str] = {
     # edfinder_deploy.py). The file is passed to docker, never read here.
     "EDFINDER_NETWORK": "edfinder-v3-production",
     "EDFINDER_API_ENV_FILE": "/etc/ed-finder/v3-production/api.env",
-    # "on": `run` also writes new scores for the file it applied.
+    # "on": `run` also gives new scores to the systems on the waiting list.
     "EDFINDER_GALAXY_SCORES": "off",
 }
 
@@ -228,18 +231,19 @@ def connection_rules(settings: Settings) -> List[str]:
             for row in rows if len(row) == 5]
 
 
-# What each command runs inside the container: the module, and its mode.
+# What each command runs inside the container: the module, its mode, and
+# whether it reads the Spansh file. The scoring works from the database.
 JOBS = {
-    "check": ("spansh_delta.apply", "check"),
-    "run": ("spansh_delta.apply", "apply"),
-    "check-scores": ("spansh_delta.scores", "check"),
-    "score": ("spansh_delta.scores", "apply"),
+    "check": ("spansh_delta.apply", "check", True),
+    "run": ("spansh_delta.apply", "apply", True),
+    "check-scores": ("spansh_delta.scores", "check", True),
+    "score": ("spansh_delta.scores", "apply", False),
 }
 
 
 def job_command(settings: Settings, route: str, image: str, command_name: str,
                 version: Dict[str, Any], limit: Optional[int]) -> List[str]:
-    module, mode = JOBS[command_name]
+    module, mode, reads_file = JOBS[command_name]
     command = ["docker", "run", "--rm", "--name", JOB_NAME]
     if route == "local":
         # Share the database container's network and connect as a local client.
@@ -258,8 +262,10 @@ def job_command(settings: Settings, route: str, image: str, command_name: str,
         "--env", "PYTHONDONTWRITEBYTECODE=1", "--env", "PYTHONUNBUFFERED=1",
         "--volume", "%s:/data:ro" % settings.directory,
         "--security-opt", "no-new-privileges:true", "--pids-limit", "256",
-        image, "python", "-m", module, mode, "/data/" + settings.target.name,
+        image, "python", "-m", module, mode,
     ]
+    if reads_file:
+        command.append("/data/" + settings.target.name)
     when = made_at(version) if module == "spansh_delta.apply" else None
     if when:
         command += ["--made-at", when]
@@ -309,30 +315,29 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
             raise UpdateError("another galaxy update is already running") from None
 
         target = settings.target
-        record = fetch.read_record(settings.record)
-        if mode in ("check-scores", "score") and target.is_file():
-            # Scores are worked out from the file already here, normally the
-            # one the last update applied, so nothing is fetched.
+        if mode == "score":
+            # The waiting list is in the database, and so is everything the
+            # scores are worked out from. No file is needed.
+            return finished(run_job(settings, "score", {}, limit), "scoring")
+        if mode == "check-scores" and target.is_file():
+            # Compared with the file already here, normally the one the last
+            # update applied, so nothing is fetched.
             version = fetch.read_record(target.with_name(target.name + ".version"))
             os.chmod(settings.directory, 0o755)
             os.chmod(target, 0o644)
-            code = run_job(settings, mode, version, limit)
-            if code == 0 and mode == "score" and limit is None and record.get("applied") == version:
-                fetch.write_record(settings.record, {**record, "scored": version})
-            return finished(code, "scoring" if mode == "score" else "check")
+            return finished(run_job(settings, mode, version, limit), "check")
 
         say("Asking Spansh what is new ...")
         version = fetch.remote_version(settings.url)
+        record = fetch.read_record(settings.record)
         if (mode == "run" and limit is None and record.get("applied") == version
                 and fetch.have_version(target, version)):
-            if not settings.scores or record.get("scored") == version:
+            if not settings.scores:
                 say("Spansh has published nothing new since the last update. Nothing to do.")
                 return 0
-            say("The galaxy is already up to date from this file. Its scores are still owed.")
-            code = run_job(settings, "score", version, None)
-            if code == 0:
-                fetch.write_record(settings.record, {**record, "scored": version})
-            return finished(code, "scoring")
+            say("Spansh has published nothing new since the last update. "
+                "Looking at the waiting list for new scores ...")
+            return finished(run_job(settings, "score", version, None), "scoring")
         if not fetch.have_version(target, version):
             needed = version["size"] + fetch.SPARE_BYTES
             free = shutil.disk_usage(settings.directory).free
@@ -350,13 +355,10 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
 
         code = run_job(settings, mode, version, limit)
         if code != 0 or mode != "run" or limit is not None:
-            return finished(code, {"run": "update", "score": "scoring"}.get(mode, "check"))
+            return finished(code, "update" if mode == "run" else "check")
         fetch.write_record(settings.record, {"applied": version})
         if settings.scores:
-            code = run_job(settings, "score", version, None)
-            if code == 0:
-                fetch.write_record(settings.record, {"applied": version, "scored": version})
-            return finished(code, "scoring")
+            return finished(run_job(settings, "score", version, None), "scoring")
     return 0
 
 
@@ -374,6 +376,8 @@ def cmd_status(settings: Settings) -> int:
         say("%s systems are waiting for new scores." % query(settings, WAITING_SQL)[0][0])
     except (UpdateError, IndexError):
         say("The list of systems waiting for new scores does not exist yet (migration 026).")
+    say("Scoring after each update is switched %s." % ("on" if settings.scores else
+        "off (EDFINDER_GALAXY_SCORES in deploy.conf)"))
     target = settings.target
     if target.is_file():
         noted = fetch.read_record(target.with_name(target.name + ".version"))

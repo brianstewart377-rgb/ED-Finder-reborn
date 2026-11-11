@@ -132,25 +132,28 @@ In order:
       67,122 new, 4,938 identical, in 6 min 56 s; none refused. It has run by
       itself every night since.
 - [ ] **A nightly re-score** of the systems noted as changed, replacing their
-      score rows and Find rows. A system can only be scored while its record
-      from Spansh's file is in hand, because the score uses each body's
-      class and the galaxy tables do not hold it. So scoring runs on the
-      same file as the galaxy update, straight after it. Checked against real
-      data first, read only (`deploy/galaxy_update.py check-scores`): systems
-      nothing has changed must get exactly their stored scores back. First
-      run by hand on the current server, 10 November: 96,511 systems given
-      scores, 67,122 of them for the first time, none failed, in 8 min 8 s.
-      The nightly switch is still off.
+      score rows and Find rows. Checked against real data first, read only
+      (`deploy/galaxy_update.py check-scores`): systems nothing has changed
+      must get exactly their stored scores back. First run by hand on the
+      current server, 10 November: 96,511 systems given scores, 67,122 of
+      them for the first time, none failed, in 8 min 8 s. (11 Nov) At first a
+      system could be scored only while its record from Spansh's file was in
+      hand, because the score uses each body's class and the galaxy tables
+      did not hold it. With the class column below, the scoring works from the
+      database alone, through the waiting list, so a night when it fails is
+      made up by the next run. The nightly switch is still off.
 - [ ] (11 Nov) **Each body's class in the galaxy tables.** One new column on
-      the bodies table, holding the class as Spansh writes it. Needed because
-      the Pi keeps scores only within 500 ly: when a new colony brings more
-      systems into range they have to be scored, and their bodies' classes
-      would be nowhere on the Pi. It also means a system on the waiting list
-      can be scored at any time, without Spansh's file, and that a class
-      changing with nothing else is seen as a change. On the current server
-      the column is filled for the rows the nightly update writes; the copy
-      fills every row. Look up reads the class from here, so it shows for
-      systems with no scores.
+      the bodies table (`body_class`, migration `027`), holding the class as
+      the scoring uses it. Needed because the Pi keeps scores only within
+      500 ly: when a new colony brings more systems into range they have to
+      be scored, and their bodies' classes would be nowhere on the Pi. It also
+      means a system on the waiting list can be scored at any time, without
+      Spansh's file, and that a class changing with nothing else is seen as a
+      change. On the current server the column is filled for the rows the
+      nightly update writes; a row from before has its class in its score
+      row, and the copy fills every row. Built 11 November; not yet applied
+      on the current server. Still to do: Look up reads the class from here,
+      so it shows for systems with no scores.
 - [ ] (11 Nov) **Never miss a day.** The one-day file holds only the last 24
       hours, so a night the job does not run is a day of changes lost, and
       two files a day apart may leave a gap between them. The nightly job
@@ -168,7 +171,9 @@ In order:
 - [ ] **A copy script** that exports the tables above from the current server,
       with the scored tables cut down to the systems in reach. A logical dump
       (`pg_dump`), not a copy of the data folder: the two machines have
-      different processors. (11 Nov) It also fills the class of every body,
+      different processors. (11 Nov) It also fills the class of every body
+      (from the body's own row, or else from its score row, so the copy is
+      made when no system is waiting for new scores),
       takes the small tables the app's views and the scoring read (which
       galaxy data and which scores are current), and sets up the database's
       users, which a dump does not carry.
@@ -255,8 +260,8 @@ been made or agreed since, each as a reviewed migration after a fresh backup:
 
 - `025` (10 November): the nightly jobs may change published scores.
 - `026` (10 November): the waiting list of systems that need new scores.
-- Agreed 11 November, not yet built: each body's class, one column on the
-  bodies table.
+- `027` (built 11 November, not yet applied): each body's class, one column
+  on the bodies table.
 
 ## Not part of the move
 

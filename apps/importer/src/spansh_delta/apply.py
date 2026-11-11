@@ -15,6 +15,9 @@ For every system in the file:
      (``v3_spansh.adapter``), so they are exactly what a full import would
      store.
   2. They are compared with the rows we hold. Identical: nothing is written.
+     A body row written before the galaxy tables held each body's class
+     (migration 027) is compared by the class in its score row instead, so
+     such a row is not rewritten just to fill the class in.
   3. Different or new: the system's rows are replaced, and the system is added
      to ``v3_state.rescore_queue`` in the same transaction, so its scores and
      Find row get rebuilt by the re-score job.
@@ -60,7 +63,7 @@ from uuid import UUID, uuid4
 import psycopg
 from psycopg import sql
 
-from v3_spansh.adapter import VOCABULARY, CanonicalBatch, SpanshAdapter
+from v3_spansh.adapter import VOCABULARY, CanonicalBatch, SpanshAdapter, plain_class
 from v3_spansh.contracts import COPY_COLUMNS, NORMALIZER_VERSION
 
 from .normalize import (
@@ -115,6 +118,19 @@ VOCABULARY_TABLES = {
     "station_service": "station_service",
     "economy": "economy",
 }
+
+# The galaxy tables the scores are worked out from. A change in any other
+# table (stations, composition, genera) leaves a system's scores as they are.
+SCORING_TABLES = ("systems", "bodies", "rings", "body_signal_current")
+
+# Kinds of body that are never scored, so have no score row to take a class
+# from. Their class is their plain type.
+UNSCORED_BODY_TYPES = {
+    identifier: plain_class(token)
+    for token, (identifier, _) in VOCABULARY["body_type"].items()
+    if token in ("barycentre", "belt cluster")
+}
+assert len(UNSCORED_BODY_TYPES) == 2 and all(UNSCORED_BODY_TYPES.values())
 
 # A system whose rows the database refuses (a broken rule, a value out of
 # range) is set aside. Any other database error stops the run at once.
@@ -255,6 +271,11 @@ class Report:
 class Target:
     generation_id: str
     schema: str
+    # The published scores, if there are any. A body row written before
+    # migration 027 has its class there (v3_derived.body_mechanics).
+    scored_generation: str | None = None
+    # Whether the waiting list for new scores exists (migration 026).
+    has_queue: bool = False
 
 
 def _table(schema: str, table: str) -> sql.Identifier:
@@ -275,7 +296,9 @@ def preflight(connection: psycopg.Connection[Any], *, need_queue: bool = True) -
     ).fetchall()
     if len(rows) != 1 or not _SCHEMA.fullmatch(rows[0][1] or ""):
         raise Refused("there is not exactly one published galaxy to update")
-    target = Target(rows[0][0], rows[0][1])
+    target = Target(
+        rows[0][0], rows[0][1], _scored_generation(connection),
+        connection.execute("SELECT to_regclass(%s)", (QUEUE_TABLE,)).fetchone()[0] is not None)
     problems: list[str] = []
 
     columns: dict[str, dict[str, bool]] = {table: {} for table in CONTENT_TABLES}
@@ -296,7 +319,9 @@ def preflight(connection: psycopg.Connection[Any], *, need_queue: bool = True) -
             problems.append(f"table {table} is missing")
             continue
         missing = [name for name in COPY_COLUMNS[table] if name not in have]
-        if missing:
+        if (table, missing) == ("bodies", ["body_class"]):
+            problems.append("table bodies has no body_class column (migration 027 has not been applied)")
+        elif missing:
             problems.append(f"table {table} lacks columns {missing}")
         extra = [name for name, required in have.items() if required and name not in COPY_COLUMNS[table]]
         if extra:
@@ -357,13 +382,27 @@ def preflight(connection: psycopg.Connection[Any], *, need_queue: bool = True) -
                 f"'{sorted(wanted[first])[0]}' to this version of the importer"
                 + (f" (and {len(different) - 1} more)" if len(different) > 1 else ""))
 
-    if need_queue and connection.execute("SELECT to_regclass(%s)", (QUEUE_TABLE,)).fetchone()[0] is None:
+    if need_queue and not target.has_queue:
         problems.append(f"{QUEUE_TABLE} does not exist (migration 026 has not been applied)")
 
     if problems:
         raise Refused("this database is not in the shape the galaxy update needs:\n  - "
                       + "\n  - ".join(problems))
     return target
+
+
+def _scored_generation(connection: psycopg.Connection[Any]) -> str | None:
+    if not connection.execute(
+            "SELECT to_regclass('v3_meta.current_derived_generation') IS NOT NULL "
+            "AND to_regclass('v3_derived.body_mechanics') IS NOT NULL").fetchone()[0]:
+        return None
+    rows = connection.execute(
+        """SELECT g.derived_generation_id::text
+             FROM v3_meta.current_derived_generation c
+             JOIN v3_meta.derived_generation g USING (derived_generation_id)
+            WHERE g.lifecycle_state = 'PUBLISHED'"""
+    ).fetchall()
+    return rows[0][0] if len(rows) == 1 else None
 
 
 # -- reading what we hold ---------------------------------------------------
@@ -397,9 +436,64 @@ class Stored:
     all_keys: dict[str, set[int]]
 
 
-def read_stored(connection: psycopg.Connection[Any], schema: str,
+def class_of(body: Mapping[str, Any], scored: Mapping[int, str]) -> str | None:
+    """The class we know a stored body row by, or None if we know none.
+
+    Its own ``body_class`` if it has one. A row written before migration 027
+    has none: its class is then the one in its score row (``scored``, by
+    ``body_pk``; see :func:`scored_classes` for when that can be relied on),
+    which holds the same thing; or, for a kind of body that is never scored,
+    its plain type.
+    """
+    return (body.get("body_class") or scored.get(int(body["body_pk"]))
+            or UNSCORED_BODY_TYPES.get(body.get("body_type_id")))
+
+
+def waiting_for_scores(connection: psycopg.Connection[Any], target: Target,
+                       system_ids: Sequence[int]) -> set[int]:
+    """Which of these systems are on the waiting list for new scores."""
+    if not system_ids or not target.has_queue:
+        return set()
+    return {int(row[0]) for row in connection.execute(
+        sql.SQL("SELECT system_id64 FROM {} WHERE system_id64 = ANY(%s::bigint[]) "
+                "AND changed_tables && %s::text[]").format(sql.SQL(QUEUE_TABLE)),
+        (list(system_ids), list(SCORING_TABLES)))}
+
+
+def scored_classes(connection: psycopg.Connection[Any], target: Target,
+                   bodies: Sequence[Mapping[str, Any]]) -> dict[int, str]:
+    """The class in the score row of each body row that has none of its own.
+
+    Not for a system that is waiting for new scores. Its rows have changed
+    since its score rows were made, so a score row may say what a body used to
+    be. (A galaxy update from before migration 027 could leave a system like
+    that: rows rewritten, no class in them, not yet scored again.)
+    """
+    systems = sorted({int(row["system_id64"]) for row in bodies if row.get("body_class") is None})
+    if not systems or target.scored_generation is None:
+        return {}
+    waiting = waiting_for_scores(connection, target, systems)
+    systems = [system_id for system_id in systems if system_id not in waiting]
+    if not systems:
+        return {}
+    return dict(connection.execute(
+        "SELECT body_pk, body_class FROM v3_derived.body_mechanics "
+        "WHERE derived_generation_id = %s AND system_id64 = ANY(%s::bigint[])",
+        (target.scored_generation, systems)).fetchall())
+
+
+def read_stored(connection: psycopg.Connection[Any], target: Target,
                 system_ids: Sequence[int]) -> dict[int, Stored]:
-    """Rows held for each of ``system_ids`` that we have; absent ids are new."""
+    """Rows held for each of ``system_ids`` that we have; absent ids are new.
+
+    A body row with no class of its own is given the class we know it by (see
+    :func:`class_of`), so that it compares as equal to a record that says the
+    same. One we know no class for stays empty: that is a difference, the
+    system counts as changed, and writing it fills the class in. That is also
+    how a system left waiting, with no classes, by a galaxy update from before
+    migration 027 is put right: the next update that lists it writes it again.
+    """
+    schema = target.schema
     stored: dict[int, Stored] = {}
     for row in _fetch(connection, schema, "systems", "id64", system_ids):
         # The adapter never supplies a region, so one filled in by another job
@@ -430,6 +524,11 @@ def read_stored(connection: psycopg.Connection[Any], schema: str,
         key = PARENT_KEY[parent]
         for row in _fetch(connection, schema, table, key, list(owner[parent])):
             stored[owner[parent][int(row[key])]].tables[table].append(row)
+
+    bodies = [row for system in stored.values() for row in system.tables["bodies"]]
+    scored = scored_classes(connection, target, bodies)
+    for row in bodies:
+        row["body_class"] = class_of(row, scored)
     return stored
 
 
@@ -636,7 +735,7 @@ def plan_systems(connection: psycopg.Connection[Any], target: Target,
     """
     adapter = SpanshAdapter(source_id=run.source_id, source_run_id=run.source_run_id,
                             observed_at=run.observed_at)
-    stored = read_stored(connection, target.schema, [system.id64 for system, _ in systems])
+    stored = read_stored(connection, target, [system.id64 for system, _ in systems])
     items: list[Incoming] = []
     for system, record in systems:
         held = stored.get(system.id64)

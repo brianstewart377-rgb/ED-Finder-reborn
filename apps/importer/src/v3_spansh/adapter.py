@@ -178,6 +178,28 @@ def _text(value: object) -> str | None:
     return result or None
 
 
+def plain_class(body_type: object) -> str | None:
+    """The class of a body Spansh gives no sub-type for: its plain type, as the
+    database's vocabulary spells it (star, planet, barycentre, belt_cluster).
+    None for a type this importer does not know."""
+    token = _text(body_type)
+    if not token or token.casefold() not in VOCABULARY["body_type"]:
+        return None
+    return "_".join(token.casefold().split())
+
+
+def body_class(body_type: object, sub_type: object) -> str:
+    """A body's class, as the scoring works it out: Spansh's sub-type, else the
+    plain type, else "Unknown".
+
+    A sub-type that is blank, or is not text, counts as none. (The scoring code
+    refuses a whole record over such a sub-type. Stored this way, the body is
+    scored as one whose class beyond its plain type is not known.)
+    """
+    text = _text(sub_type) if isinstance(sub_type, str) else None
+    return text or plain_class(body_type) or "Unknown"
+
+
 def _timestamp(value: object, fallback: datetime) -> datetime:
     text = _text(value)
     if not text:
@@ -548,6 +570,7 @@ class SpanshAdapter:
             finite_float(body.get("distanceToArrival")), finite_float(body.get("age")),
             isinstance(body.get("signals"), dict),
             isinstance((body.get("signals") or {}).get("genuses"), list) if isinstance(body.get("signals"), dict) else False,
+            body_class(body_type, body.get("subType")),
             self.source_id, self.source_run_id, observed, self.observed_at, "ACTIVE",
             self.source_run_id, observed, None, None, None, None, None,
         )

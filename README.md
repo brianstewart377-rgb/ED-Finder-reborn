@@ -104,10 +104,10 @@ changed in the last day as one file, about 1.2 GB. `deploy/galaxy_update.py`
 | Command | What it does |
 |---|---|
 | `check` | Downloads the file and says what would change. Read only: the database is not touched. |
-| `run` | Downloads the file and applies it. If Spansh has nothing new it does nothing. |
-| `status` | Shows the last update, how many systems are waiting for new scores, and the file on disk. |
-| `check-scores` | Works scores out again from the file on disk and compares them with the stored ones. Read only. |
-| `score` | Writes the scores owed to the systems of the file on disk. |
+| `run` | Downloads the file and applies it. If Spansh has nothing new there is nothing to apply. With scoring switched on, it then gives new scores to the systems on the waiting list, either way. |
+| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, and the file on disk. |
+| `check-scores` | Works scores out again for the systems of the file on disk, from Spansh's records and from our own rows, and compares them with the stored ones. Read only. |
+| `score` | Gives new scores to the systems on the waiting list. Needs no file. |
 
 How it works:
 
@@ -130,27 +130,54 @@ How it works:
   `ACTIVE`.
 - It is safe to interrupt and safe to run twice.
 
-Scores need one thing the galaxy tables do not hold: each body's sub-type
-("Earth-like world", "Icy body"), which only Spansh's record has. So a system
-can be scored only while its record is in hand. `check-scores`
-(`apps/importer/src/spansh_delta/scores.py`) runs the frozen scoring code
-(`scripts/ratings_v4`, `scripts/v3_system_*`, `shared_contracts`) on the
-systems of the file and reports two things: whether systems nothing has
-changed get exactly their stored scores and Find row back, and whether each
-system waiting for new scores can be scored. It writes nothing.
+Scores are worked out from a system's rows in the galaxy tables, by the frozen
+scoring code (`scripts/ratings_v4`, `scripts/v3_system_*`, `shared_contracts`).
+One thing they use is each body's class ("Earth-like world", "Icy body":
+Spansh's sub-type). The galaxy tables hold it in `bodies.body_class` since
+migration `027`, and the galaxy update writes it with every row it writes. So
+a system the update has changed can be scored from the database alone, at any
+time: no Spansh file has to be at hand.
 
-`score` writes. A system on the waiting list whose rows match its record gets
-its score tables replaced where they differ and its Find row rebuilt, and
-leaves the list, all in one transaction. A system that only gained or lost a
-station has its Find row rebuilt without a record. A system that cannot be
-scored stays on the list. With `EDFINDER_GALAXY_SCORES=on` in `deploy.conf`,
-`run` does the scoring itself straight after the update.
+A body row written before migration `027` has no class of its own: the column
+is empty. Its class is in its score row
+(`v3_derived.body_mechanics.body_class`), which holds the same thing. The
+galaxy update compares by that, so it does not rewrite a system just to fill
+the column in. The copy to the Raspberry Pi fills every row.
+
+`score` (`apps/importer/src/spansh_delta/scores.py`) works through the waiting
+list. A system waiting for new scores gets its score tables replaced where
+they differ and its Find row rebuilt, and leaves the list, all in one
+transaction. A system that only gained or lost a station has its Find row
+rebuilt. A system that cannot be scored stays on the list, and the report says
+why. With `EDFINDER_GALAXY_SCORES=on` in `deploy.conf`, `run` does the scoring
+itself every time, whether or not Spansh had anything new, so a night when the
+scoring fails is made up by the next run.
+
+One reason a system cannot be scored is "the class of one of its bodies is not
+in the database". That is a system which a galaxy update from before migration
+`027` rewrote, so its rows have no classes, and which was not scored before
+the new code arrived. Its old score rows are not used for the classes, because
+a body's class may be the very thing that changed. The next galaxy update that
+lists the system writes its classes, and it is scored then.
+
+`check-scores` writes nothing. For the systems of the file on disk whose
+records say what our rows say, it reports three things: whether systems
+nothing has changed get exactly their stored scores and Find row back; whether
+scoring from our own rows gives the same as scoring from Spansh's records; and
+whether each system waiting for new scores can be scored. Its line "only the
+record's stamp differs" counts systems whose scores are identical and whose
+stamp is not. The stamp says which record the scores were made from (a
+fingerprint of it, and the date of a body's class). It differs whenever the
+stored scores were made from our own rows, or Spansh has re-dated a body. It
+is not a score.
 
 `deploy/edfinder-galaxy-update.timer` runs it at 04:30 UTC, after Spansh
-publishes the file at about 02:10 UTC, and again at 16:30 UTC in case the file
-was late or the first run failed. It
+publishes the file (between 02:00 and 03:30 UTC on the days we have looked),
+and again at 16:30 UTC in case the file was late or the first run failed. It
 needs `state_refresh.py` beside it (they share the download code) and
-migration `026` applied.
+migrations `026` and `027` applied. Apply `027` before deploying a build that
+has it: until the column is there the update refuses to run and says so. The
+app itself does not mind either way.
 
 The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
 

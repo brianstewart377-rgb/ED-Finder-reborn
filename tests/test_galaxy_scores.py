@@ -169,8 +169,12 @@ def test_check_reproduces_stored_scores_for_untouched_systems_and_writes_nothing
     assert (report.systems_read, report.settled, report.out_of_date) == (12, 3, 9)
     assert (report.settled_same, report.find_same) == (3, 3)
     assert report.agrees and not report.cannot_score and report.waiting == 0
+    # The same three, scored from our own rows with no record, come out the same.
+    assert (report.database_same, report.database_different, report.database_unknown) == (3, {}, 0)
     text = "\n".join(report.lines())
     assert "scores worked out again, identical:" in text and "(cannot be scored from it)" in text
+    assert "Same systems, scored from the database alone:" in text
+    assert "identical to scoring from Spansh's records:" in text
 
 
 def test_check_notices_a_stored_score_that_is_not_what_the_code_gives(galaxy, tmp_path):
@@ -190,6 +194,31 @@ def test_check_notices_a_stored_score_that_is_not_what_the_code_gives(galaxy, tm
     assert f"for example system {HD_38179}: station_count" in text
 
 
+def test_check_says_so_when_the_database_would_score_a_system_differently(galaxy, tmp_path, monkeypatch):
+    """The check scores each system twice: from its Spansh record, and from
+    our own rows. Here our rows are made to lose one body's sub-type."""
+    made = scores.Scorer.records
+
+    def losing_a_class(self, exported, scored):
+        records, unknown = made(self, exported, scored)
+        for record in records:
+            planet = next(body for body in record["bodies"] if body.get("type") == "planet" and "subType" in body)
+            del planet["subType"]
+        return records, unknown
+
+    monkeypatch.setattr(scores.Scorer, "records", losing_a_class)
+    report = check(galaxy, tmp_path, [galaxy.records[HD_38179]])
+    # The stored scores are still what the record gives...
+    assert (report.settled_same, report.settled_different) == (1, {})
+    # ...but the database alone would not have given them.
+    assert list(report.database_different) == [HD_38179] and report.database_same == 0
+    assert not report.agrees
+    assert report.verdict.startswith("Scoring from the database did NOT always give what Spansh's records give")
+    text = "\n".join(report.lines())
+    assert f"for example system {HD_38179} (from the record -> from the database):" in text
+    assert "1 systems differ in body_mechanics.body_class" in text
+
+
 def test_a_body_re_stamped_by_spansh_without_any_change_is_not_a_difference(galaxy, tmp_path):
     record = deepcopy(galaxy.records[HD_38179])
     for body in record["bodies"]:
@@ -197,7 +226,7 @@ def test_a_body_re_stamped_by_spansh_without_any_change_is_not_a_difference(gala
     report = check(galaxy, tmp_path, [record])
     assert (report.settled, report.settled_same, report.settled_restamped) == (1, 1, 1)
     assert report.agrees
-    assert "only the record's date moved:" in "\n".join(report.lines())
+    assert "only the record's stamp differs:" in "\n".join(report.lines())
 
 
 def test_after_a_galaxy_update_rewritten_systems_can_be_scored(galaxy, tmp_path):
@@ -262,38 +291,110 @@ def test_one_system_that_cannot_be_scored_does_not_stop_the_others(galaxy, tmp_p
     assert "1 x unregistered source run in canonical row" in "\n".join(report.lines())
 
 
-# -- writing the scores that are owed ----------------------------------------
+# -- scoring the waiting list, from the database alone -----------------------
+#
+# This galaxy is the old server's: no body row has a class of its own (they
+# were all written before migration 027) and every body has a score row.
 
 
-def score(galaxy: Galaxy, tmp_path: Path, records, **options) -> scores.ApplyReport:
-    path = write_galaxy(tmp_path / f"galaxy_{uuid4().hex[:8]}.json.gz", records)
-    return scores.apply_file(galaxy.connection, path, progress=False, **options)
+def waiting(galaxy: Galaxy, **options) -> scores.ApplyReport:
+    return scores.apply_waiting(galaxy.connection, progress=False, **options)
 
 
-def test_untouched_systems_are_left_exactly_as_they_are(galaxy, tmp_path):
-    before, galaxy_before = score_rows(galaxy), snapshot(galaxy)
-    report = score(galaxy, tmp_path, galaxy.records.values())
-    assert score_rows(galaxy) == before and snapshot(galaxy) == galaxy_before
-    # Three match their records and score the same; nine have newer records
-    # than our rows, so they cannot be scored until the galaxy update has run.
-    assert (report.left_alone, report.out_of_date) == (3, 9)
-    assert report.added + report.changed + report.same == 0 and report.find_rows == 0
+def agree(columns, ours, theirs) -> bool:
+    """The same scores; only the stamps of the record they came from may differ."""
+    return scores.differences(columns, ours, theirs) <= scores.RECORD_STAMPS
 
 
-def test_after_a_galaxy_update_every_rewritten_system_gets_its_scores_and_leaves_the_list(galaxy, tmp_path):
+def test_our_own_rows_give_the_scores_that_spansh_records_give(galaxy):
+    # 360 bodies that get scores and 29 barycentres; none has a class of its own.
+    assert galaxy.one("SELECT count(*), count(body_class) FROM {s}.bodies") == (389, 0)
+    scorer = scores.Scorer(galaxy.connection)
+    ids = sorted(galaxy.records)
+    from_records, failed = scorer.score(list(galaxy.records.values()))
+    exported, missing = scorer.export(ids)
+    # None of them is waiting for new scores, so their score rows can be
+    # relied on for the classes.
+    records, unknown = scorer.records(exported, scorer.classes(scorer.stored(ids), ids))
+    from_rows, failed_rows = scorer.score(records, exported)
+    assert not (failed or missing or unknown or failed_rows)
+    assert sorted(record["id64"] for record in records) == ids
+    for system_id in ids:
+        theirs = from_records.tables(system_id)
+        for table, (columns, rows) in from_rows.tables(system_id).items():
+            assert rows and agree(columns, rows, theirs[table][1]), (system_id, table)
+    # What was made from our rows is what the scoring code calls a record.
+    body = records[0]["bodies"][0]
+    assert set(body) <= {"id64", "bodyId", "type", "subType", "updateTime"} and body["type"] in ("star", "planet")
+
+
+def test_an_old_row_is_not_rewritten_just_because_its_class_is_not_recorded(galaxy, tmp_path):
+    """Every night Spansh lists thousands of systems in which nothing we store
+    changed. Their body rows have no class of their own; the class in their
+    score rows says they are unchanged, and they are left alone."""
+    run(galaxy, tmp_path, galaxy.records.values())
+    waiting(galaxy)
+    galaxy.connection.execute(f"UPDATE {galaxy.schema}.bodies SET body_class = NULL")
+    before = snapshot(galaxy)
+
+    report = run(galaxy, tmp_path, galaxy.records.values(), made_at=SEPTEMBER + timedelta(days=1))
+
+    assert (report.changed, report.unchanged) == (0, 12)
+    after = snapshot(galaxy)
+    assert {name for name in after if after[name] != before[name]} <= {"runs", "files"}
+    assert queue(galaxy) == {}
+
+
+def test_a_class_spansh_changed_reaches_the_scores_through_the_waiting_list(galaxy, tmp_path):
+    """What happened to ten systems on 11 November: Spansh filled in a class,
+    nothing else about the system changed, and our galaxy rows could not show
+    it. Now the galaxy update sees it, and the scores follow."""
+    record = deepcopy(galaxy.records[HD_38179])
+    body = next(body for body in record["bodies"] if body.get("type") == "Planet" and body.get("subType"))
+    was = body["subType"]
+    now = "Rocky body" if was != "Rocky body" else "High metal content world"
+    body["subType"] = now
+
+    # Read only: this is our rows being behind the file, not a wrong score.
+    seen = check(galaxy, tmp_path, [record])
+    assert (seen.out_of_date, seen.settled, seen.settled_different) == (1, 0, {})
+
+    run(galaxy, tmp_path, [record])
+    assert "bodies" in queue(galaxy)[HD_38179]
+    assert galaxy.one("SELECT body_class FROM {s}.bodies WHERE body_pk = %s", body["id64"])[0] == now
+
+    report = waiting(galaxy)
+    assert (report.changed, report.cannot_score, report.still_waiting) == (1, {}, 0)
+    assert galaxy.one("SELECT body_class, subtype_present FROM v3_derived.body_mechanics WHERE body_pk = %s",
+                      body["id64"]) == (now, True)
+    after = check(galaxy, tmp_path, [record])
+    assert after.agrees and (after.settled_same, after.database_same) == (1, 1)
+
+
+def test_the_waiting_list_is_scored_with_no_file_at_hand(galaxy, tmp_path):
     run(galaxy, tmp_path, galaxy.records.values())
     assert len(queue(galaxy)) == 12
+    # What Spansh's records give for the rows as they now are.
+    expected, failed = scores.Scorer(galaxy.connection).score(list(galaxy.records.values()))
+    assert not failed
 
-    report = score(galaxy, tmp_path, galaxy.records.values())
+    report = waiting(galaxy)
 
-    assert (report.added, report.cannot_score, report.still_waiting) == (0, {}, 0)
-    assert report.changed + report.same == 12 and report.changed >= 1 and report.find_rows == 12
+    assert (report.systems_read, report.added, report.cannot_score, report.still_waiting) == (12, 0, {}, 0)
+    # Nine were re-scanned and are scored again. The other three only gained
+    # stations or ring signals: their scores stand and their Find rows are rebuilt.
+    assert report.changed + report.same == 9 and report.changed >= 1
+    assert (report.find_rows, report.find_only) == (9, 3)
     assert queue(galaxy) == {}
-    # What is stored now is exactly what the frozen code gives for the new
-    # rows, table by table, and the Find rows are what the frozen query gives.
+    stored = scores.Scorer(galaxy.connection).stored(sorted(galaxy.records))
+    for system_id in galaxy.records:
+        theirs = stored.tables(system_id)
+        for table, (columns, rows) in expected.tables(system_id).items():
+            assert agree(columns, rows, theirs[table][1]), (system_id, table)
+    # The read-only check agrees, and now compares all twelve both ways.
     after = check(galaxy, tmp_path, galaxy.records.values())
-    assert (after.settled, after.settled_same, after.find_same) == (12, 12, 12)
-    assert after.agrees and after.settled_restamped == 0 and after.waiting == 0
+    assert (after.settled, after.settled_same, after.find_same, after.database_same) == (12, 12, 12, 12)
+    assert after.agrees and after.waiting == 0 and after.database_unknown == 0
     # Maia's stations (45 fleet carriers among them) now count in Find.
     assert galaxy.one("SELECT station_count FROM v3_derived.system_search WHERE system_id64 = 8216113749")[0] \
         == galaxy.one("SELECT count(*) FROM {s}.stations WHERE system_id64 = 8216113749 "
@@ -301,11 +402,13 @@ def test_after_a_galaxy_update_every_rewritten_system_gets_its_scores_and_leaves
     # The 200 other systems' rows were not touched, and each chunk is as it was.
     assert galaxy.one("SELECT count(*) FROM v3_derived.system_rating_vector")[0] == 212
     assert galaxy.one("SELECT count(DISTINCT chunk_ordinal) FROM v3_derived.system_rating_vector")[0] == 1
+    text = "\n".join(report.lines())
+    assert "Systems taken from the waiting list:" in text and "Systems given their scores:" in text
 
-    # Running it again changes nothing at all.
+    # With nothing waiting, a second run touches nothing at all.
     before = score_rows(galaxy)
-    again = score(galaxy, tmp_path, galaxy.records.values())
-    assert again.left_alone == 12 and again.find_rows == 0 and score_rows(galaxy) == before
+    again = waiting(galaxy)
+    assert (again.systems_read, again.find_rows) == (0, 0) and score_rows(galaxy) == before
     # And the tables are protected again once the scoring transaction is over.
     with pytest.raises(psycopg.errors.RaiseException, match="immutable in state PUBLISHED"):
         galaxy.connection.execute(
@@ -313,18 +416,27 @@ def test_after_a_galaxy_update_every_rewritten_system_gets_its_scores_and_leaves
             (SOL,))
 
 
+def test_systems_that_are_not_waiting_are_left_exactly_as_they_are(galaxy, tmp_path):
+    run(galaxy, tmp_path, [galaxy.records[HD_38179]])
+    others = "SELECT xmin::text || ' ' || t::text FROM v3_derived.{} t WHERE system_id64 <> %s ORDER BY 1"
+    before = {table: galaxy.all(others.format(table), HD_38179) for table in SCORE_TABLES}
+    report = waiting(galaxy)
+    assert report.systems_read == 1 and report.still_waiting == 0
+    assert {table: galaxy.all(others.format(table), HD_38179) for table in SCORE_TABLES} == before
+
+
 def test_a_system_never_scored_before_gets_scores_an_archetype_and_a_find_row(galaxy, tmp_path):
     new = as_new_system(galaxy.records[HD_38179], 99158872029, "Test Sector AA-A a1")
     run(galaxy, tmp_path, [new])
-    report = score(galaxy, tmp_path, [new])
+    report = waiting(galaxy)
     assert (report.added, report.changed, report.same, report.still_waiting) == (1, 0, 0, 0)
     assert galaxy.one("SELECT name, body_count FROM v3_derived.system_search WHERE system_id64 = %s",
                       new["id64"]) == ("Test Sector AA-A a1", 14)
     assert galaxy.one("SELECT count(*) FROM v3_derived.system_archetype WHERE system_id64 = %s",
                       new["id64"])[0] == 1
-    assert galaxy.one("SELECT count(*) FROM v3_derived.body_mechanics WHERE system_id64 = %s",
-                      new["id64"])[0] == galaxy.one(
-        "SELECT count(*) FROM v3_derived.body_mechanics WHERE system_id64 = %s", HD_38179)[0]
+    classes = ("SELECT array_agg(body_class ORDER BY source_body_id64) FROM v3_derived.body_mechanics "
+               "WHERE system_id64 = %s")
+    assert galaxy.one(classes, new["id64"]) == galaxy.one(classes, HD_38179)
     # Filed under an existing build chunk, as every score row has to be.
     assert galaxy.one(
         """SELECT count(*) FROM v3_derived.system_rating_vector v
@@ -335,30 +447,118 @@ def test_a_system_never_scored_before_gets_scores_an_archetype_and_a_find_row(ga
     assert galaxy.one(same, new["id64"]) == galaxy.one(same, HD_38179)
 
 
-def test_a_sub_type_spansh_changed_is_noticed_and_corrected_without_the_waiting_list(galaxy, tmp_path):
+def test_a_system_whose_classes_are_not_in_the_database_waits_and_says_why(galaxy, tmp_path):
+    new = as_new_system(galaxy.records[HD_38179], 99158872029, "Test Sector AA-A a1")
+    run(galaxy, tmp_path, [new, galaxy.records[SOL]])
+    # As a galaxy update from before migration 027 left a new system: no class
+    # in its rows, and no score row yet to take one from.
+    galaxy.connection.execute(
+        f"UPDATE {galaxy.schema}.bodies SET body_class = NULL WHERE system_id64 = %s", (new["id64"],))
+
+    report = waiting(galaxy)
+
+    assert report.cannot_score == {new["id64"]: scores.UNKNOWN_CLASS}
+    assert (report.changed + report.same, report.still_waiting) == (1, 1)
+    assert set(queue(galaxy)) == {new["id64"]}
+    assert galaxy.one("SELECT count(*) FROM v3_derived.system_rating_vector WHERE system_id64 = %s",
+                      new["id64"])[0] == 0
+    text = "\n".join(report.lines())
+    assert "1 x the class of one of its bodies is not in the database" in text and "(still waiting)" in text
+    assert "The next galaxy update that lists the system fills them in." in text
+    # The read-only check says the same thing in its own words.
+    seen = check(galaxy, tmp_path, [new])
+    assert (seen.out_of_date, seen.waiting) == (1, 0)
+
+    # The next galaxy update that lists the system fills its classes in...
+    again = run(galaxy, tmp_path, [new], made_at=SEPTEMBER + timedelta(days=1))
+    assert (again.changed, dict(again.systems_by_table)) == (1, {"bodies": 1})
+    # ...and then it is scored like any other.
+    report = waiting(galaxy)
+    assert (report.added, report.cannot_score, report.still_waiting) == (1, {}, 0)
+
+
+def test_an_old_score_row_does_not_vouch_for_a_system_that_is_waiting(galaxy, tmp_path):
+    """A galaxy update from before migration 027 rewrote a system without its
+    classes, and the system was not scored again before this code arrived. Its
+    score rows are older than its rows, so they may say what a body used to
+    be. The system waits; it is not given scores made from the old class."""
     record = deepcopy(galaxy.records[HD_38179])
     body = next(body for body in record["bodies"] if body.get("type") == "Planet" and body.get("subType"))
     was = body["subType"]
     now = "Rocky body" if was != "Rocky body" else "High metal content world"
     body["subType"] = now
+    run(galaxy, tmp_path, [record])
+    galaxy.connection.execute(
+        f"UPDATE {galaxy.schema}.bodies SET body_class = NULL WHERE system_id64 = %s", (HD_38179,))
+    assert "bodies" in queue(galaxy)[HD_38179]
+    stored_class = "SELECT body_class FROM v3_derived.body_mechanics WHERE body_pk = %s"
+    assert galaxy.one(stored_class, body["id64"])[0] == was
+    before = score_rows(galaxy)
 
+    report = waiting(galaxy)
+
+    assert report.cannot_score == {HD_38179: scores.UNKNOWN_CLASS} and report.still_waiting == 1
+    assert score_rows(galaxy) == before
+    # Read only: our rows cannot be said to hold what the record says.
     seen = check(galaxy, tmp_path, [record])
-    assert list(seen.settled_different) == [HD_38179] and not seen.agrees
-    text = "\n".join(seen.lines())
-    assert f"for example system {HD_38179} (stored -> now):" in text
-    assert f"body_mechanics.body_class (body {body['id64']}): {was!r} -> {now!r}" in text
+    assert (seen.out_of_date, seen.settled, seen.waiting) == (1, 0, 0)
 
-    report = score(galaxy, tmp_path, [record])
-    assert (report.changed, report.corrected, report.left_alone) == (1, 1, 0)
-    assert "were not on the waiting list:" in "\n".join(report.lines())
-    assert galaxy.one("SELECT body_class FROM v3_derived.body_mechanics WHERE body_pk = %s",
-                      body["id64"])[0] == now
+    # The next update that lists the system writes its classes, though
+    # nothing else about it differs...
+    again = run(galaxy, tmp_path, [record], made_at=SEPTEMBER + timedelta(days=1))
+    assert (again.changed, dict(again.systems_by_table)) == (1, {"bodies": 1})
+    assert galaxy.one("SELECT count(*) FROM {s}.bodies WHERE system_id64 = %s "
+                      "AND lifecycle_state = 'ACTIVE' AND body_class IS NULL", HD_38179)[0] == 0
+    # ...and then its scores follow.
+    report = waiting(galaxy)
+    assert (report.changed, report.cannot_score, report.still_waiting) == (1, {}, 0)
+    assert galaxy.one(stored_class, body["id64"])[0] == now
     assert check(galaxy, tmp_path, [record]).agrees
 
 
-def test_a_system_a_carrier_left_gets_its_find_row_rebuilt_without_a_record(galaxy, tmp_path):
+def test_a_station_coming_or_going_does_not_put_a_systems_classes_in_doubt(galaxy, tmp_path):
+    """A system can be on the waiting list only because a station came or
+    went. Nothing its scores are made from has changed, so its score rows
+    still say what its bodies are, and it is not rewritten for its classes."""
+    run(galaxy, tmp_path, galaxy.records.values())
+    waiting(galaxy)
+    galaxy.connection.execute(f"UPDATE {galaxy.schema}.bodies SET body_class = NULL")
+    galaxy.connection.execute(
+        f"INSERT INTO {galaxy_update.QUEUE_TABLE} (system_id64, changed_tables, source_run_id) "
+        "SELECT %s, '{stations}', source_run_id FROM v3_source.source_run "
+        "WHERE acquisition_kind = 'DELTA' LIMIT 1", (SOL,))
+
+    report = run(galaxy, tmp_path, [galaxy.records[SOL]], made_at=SEPTEMBER + timedelta(days=1))
+    assert (report.changed, report.unchanged) == (0, 1)
+    assert queue(galaxy) == {SOL: ["stations"]}
+
+    # The same system waiting for new scores is another matter.
+    galaxy.connection.execute(
+        f"UPDATE {galaxy_update.QUEUE_TABLE} SET changed_tables = '{{rings,stations}}' WHERE system_id64 = %s",
+        (SOL,))
+    report = run(galaxy, tmp_path, [galaxy.records[SOL]], made_at=SEPTEMBER + timedelta(days=2))
+    assert (report.changed, dict(report.systems_by_table)) == (1, {"bodies": 1})
+    assert queue(galaxy) == {SOL: ["bodies", "rings", "stations"]}
+
+
+def test_a_system_with_a_retired_body_is_scored_without_it(galaxy, tmp_path):
+    run(galaxy, tmp_path, galaxy.records.values())
+    waiting(galaxy)
+    without = deepcopy(galaxy.records[SMOJOO])
+    ringed = next(body for body in without["bodies"] if body.get("rings"))
+    without["bodies"].remove(ringed)
+    run(galaxy, tmp_path, [without], made_at=SEPTEMBER + timedelta(days=1))
+    assert galaxy.one("SELECT lifecycle_state FROM {s}.bodies WHERE body_pk = %s", ringed["id64"])[0] == "RETIRED"
+    report = waiting(galaxy)
+    assert (report.changed, report.cannot_score, report.still_waiting) == (1, {}, 0)
+    assert galaxy.one("SELECT count(*) FROM v3_derived.body_mechanics WHERE body_pk = %s", ringed["id64"])[0] == 0
+    assert galaxy.one("SELECT body_count FROM v3_derived.system_search WHERE system_id64 = %s", SMOJOO)[0] \
+        == len(without["bodies"])
+
+
+def test_a_system_a_carrier_left_gets_its_find_row_rebuilt(galaxy, tmp_path):
     run(galaxy, tmp_path, [galaxy.records[THAILE], galaxy.records[HD_38179]])
-    score(galaxy, tmp_path, [galaxy.records[THAILE], galaxy.records[HD_38179]])
+    waiting(galaxy)
     count = "SELECT station_count FROM v3_derived.system_search WHERE system_id64 = %s"
     assert (galaxy.one(count, THAILE)[0], galaxy.one(count, HD_38179)[0]) == (2, 0)
 
@@ -366,11 +566,22 @@ def test_a_system_a_carrier_left_gets_its_find_row_rebuilt_without_a_record(gala
     arrived = deepcopy(galaxy.records[HD_38179])
     arrived["stations"] = [carrier_from(galaxy.records[THAILE])]
     run(galaxy, tmp_path, [arrived], made_at=SEPTEMBER + timedelta(days=1))
-    assert queue(galaxy)[THAILE] == ["stations"]
+    listed = queue(galaxy)
+    assert listed[THAILE] == ["stations"] and "stations" in listed[HD_38179]
+    assert not set(listed[HD_38179]) & set(scores.SCORING_TABLES)
+    scores_before = [galaxy.all(f"SELECT xmin::text || ' ' || t::text FROM v3_derived.{table} t "
+                                "WHERE system_id64 = ANY(%s) ORDER BY 1", [THAILE, HD_38179])
+                     for table in SCORE_TABLES[:4]]
 
-    report = score(galaxy, tmp_path, [arrived])
-    assert (report.find_only, report.still_waiting) == (1, 0)
+    report = waiting(galaxy)
+
+    # Neither system's scores were touched: only their Find rows.
+    assert (report.find_only, report.find_rows, report.still_waiting) == (2, 0, 0)
+    assert report.added + report.changed + report.same == 0
     assert (galaxy.one(count, THAILE)[0], galaxy.one(count, HD_38179)[0]) == (1, 1)
+    assert [galaxy.all(f"SELECT xmin::text || ' ' || t::text FROM v3_derived.{table} t "
+                       "WHERE system_id64 = ANY(%s) ORDER BY 1", [THAILE, HD_38179])
+            for table in SCORE_TABLES[:4]] == scores_before
     assert "for a station coming or going only:" in "\n".join(report.lines())
 
 
@@ -387,32 +598,85 @@ def test_a_system_that_cannot_be_scored_stays_on_the_waiting_list(galaxy, tmp_pa
         f"UPDATE {galaxy.schema}.bodies SET source_run_id = %s WHERE system_id64 = %s", (stranger, SOL))
     before = galaxy.all("SELECT xmin::text, t::text FROM v3_derived.system_rating_vector t "
                         "WHERE system_id64 = %s", SOL)
-    report = score(galaxy, tmp_path, [galaxy.records[SOL], galaxy.records[HD_38179]])
+    report = waiting(galaxy)
     assert report.cannot_score == {SOL: "unregistered source run in canonical row"}
     assert set(queue(galaxy)) == {SOL} and report.still_waiting == 1
+    # HD 38179, in the same batch, was dealt with all the same.
+    assert report.find_only == 1
     assert galaxy.all("SELECT xmin::text, t::text FROM v3_derived.system_rating_vector t "
                       "WHERE system_id64 = %s", SOL) == before
     assert "(still waiting)" in "\n".join(report.lines())
 
 
+def test_a_score_row_the_database_refuses_keeps_only_its_own_system_waiting(galaxy, tmp_path):
+    run(galaxy, tmp_path, [galaxy.records[SOL], galaxy.records[HD_38179], galaxy.records[THAILE]])
+    assert set(queue(galaxy)) == {SOL, HD_38179, THAILE}
+    # A rule that Sol's new scores break, and nothing else does.
+    galaxy.connection.execute(
+        f"ALTER TABLE v3_derived.system_rating_vector ADD CONSTRAINT not_sol CHECK (system_id64 <> {SOL}) NOT VALID")
+    sol = ("SELECT xmin::text || ' ' || t::text FROM v3_derived.{} t WHERE system_id64 = %s ORDER BY 1")
+    before = {table: galaxy.all(sol.format(table), SOL) for table in SCORE_TABLES}
+
+    report = waiting(galaxy)
+
+    assert list(report.cannot_score) == [SOL] and report.cannot_score[SOL].startswith("not_sol: ")
+    assert set(queue(galaxy)) == {SOL} and report.still_waiting == 1
+    # The other two, in the same batch, were dealt with: counted once each.
+    assert report.find_rows + report.find_only == 2
+    assert report.added + report.changed + report.same == report.find_rows
+    # Sol is exactly as it was, in every score table.
+    assert {table: galaxy.all(sol.format(table), SOL) for table in SCORE_TABLES} == before
+    assert check(galaxy, tmp_path, [galaxy.records[HD_38179], galaxy.records[THAILE]]).agrees
+    assert "1 x not_sol: " in "\n".join(report.lines())
+
+    # Once the rule is gone, Sol is scored on the next run.
+    galaxy.connection.execute("ALTER TABLE v3_derived.system_rating_vector DROP CONSTRAINT not_sol")
+    report = waiting(galaxy)
+    assert (report.systems_read, report.cannot_score, report.still_waiting) == (1, {}, 0)
+
+
+def test_a_waiting_system_that_is_not_in_the_galaxy_does_not_stop_the_others(galaxy, tmp_path):
+    run(galaxy, tmp_path, [galaxy.records[HD_38179]])
+    galaxy.connection.execute(
+        f"INSERT INTO {galaxy_update.QUEUE_TABLE} (system_id64, changed_tables, source_run_id) "
+        "SELECT 424242, '{bodies}', source_run_id FROM v3_source.source_run "
+        "WHERE acquisition_kind = 'DELTA' LIMIT 1")
+    report = waiting(galaxy)
+    assert list(report.cannot_score) == [424242] and report.find_only == 1
+    assert set(queue(galaxy)) == {424242}
+
+
+def test_the_waiting_list_can_be_worked_through_a_part_at_a_time(galaxy, tmp_path):
+    run(galaxy, tmp_path, galaxy.records.values())
+    first = waiting(galaxy, limit=5)
+    assert (first.systems_read, first.stopped_early, first.still_waiting) == (5, True, 7)
+    assert "(stopped at the limit)" in "\n".join(first.lines())
+    rest = waiting(galaxy)
+    assert (rest.systems_read, rest.stopped_early, rest.still_waiting) == (7, False, 0)
+
+
 def test_scoring_and_the_galaxy_update_never_run_at_the_same_time(galaxy, tmp_path):
+    run(galaxy, tmp_path, [galaxy.records[HD_38179]])
     with psycopg.connect(galaxy.conninfo, autocommit=True) as other:
         other.execute("SELECT pg_advisory_lock(%s)", (galaxy_update.LOCK_KEY,))
         with pytest.raises(galaxy_update.UpdateError, match="did not start"):
-            score(galaxy, tmp_path, [galaxy.records[HD_38179]])
-    assert score(galaxy, tmp_path, [galaxy.records[HD_38179]]).left_alone == 1
+            waiting(galaxy)
+    assert waiting(galaxy).systems_read == 1
 
 
-def test_command_scores_and_prints_plain_results(galaxy, tmp_path, monkeypatch, capsys):
+def test_command_scores_the_waiting_list_and_prints_plain_results(galaxy, tmp_path, monkeypatch, capsys):
     _environment(monkeypatch, galaxy.conninfo)
     run(galaxy, tmp_path, galaxy.records.values())
-    path = write_galaxy(tmp_path / "galaxy_1day.json.gz", galaxy.records.values())
-    assert scores.main(["apply", str(path)]) == 0
+    assert scores.main(["apply"]) == 0
     out = capsys.readouterr().out
-    assert "Scoring: galaxy_1day.json.gz" in out and "Systems given their scores:" in out
+    assert "Scoring the systems on the waiting list" in out and "Systems given their scores:" in out
     assert out.rstrip().endswith("DONE") and queue(galaxy) == {}
+    # A launcher from before this change still names a file. It is not needed.
+    assert scores.main(["apply", str(tmp_path / "not-there.json.gz")]) == 0
+    assert "Systems taken from the waiting list:" in capsys.readouterr().out
+    assert scores.main(["apply", "--limit", "0"]) == 1
     galaxy.connection.execute("DROP TABLE v3_state.rescore_queue")
-    assert scores.main(["apply", str(path)]) == 2
+    assert scores.main(["apply"]) == 2
     assert "REFUSED" in capsys.readouterr().out
 
 
@@ -425,7 +689,9 @@ def test_command_prints_a_plain_verdict(galaxy, tmp_path, monkeypatch, capsys):
     assert scores.main(["check", str(path)]) == 0
     out = capsys.readouterr().out
     assert "Score check (read only): galaxy_1day.json.gz" in out
-    assert out.rstrip().endswith("CHECKED: nothing was changed. The stored scores were reproduced exactly.")
+    assert "identical to scoring from Spansh's records:" in out
+    assert out.rstrip().endswith("CHECKED: nothing was changed. The stored scores were reproduced exactly, "
+                                 "and scoring from the database alone gives the same.")
 
     with galaxy.connection.transaction():
         galaxy.connection.execute(ANNOUNCE)
@@ -447,6 +713,8 @@ def test_command_prints_a_plain_verdict(galaxy, tmp_path, monkeypatch, capsys):
     assert out.rstrip().endswith("so the stored scores could not be compared.")
 
     assert scores.main(["check", str(tmp_path / "missing.json.gz")]) == 1
+    assert scores.main(["check"]) == 1
+    assert "check needs a Spansh galaxy file" in capsys.readouterr().out
     monkeypatch.setenv("PGPORT", "1")
     assert scores.main(["check", str(path)]) == galaxy_update.EXIT_NO_CONNECTION
     assert "Could not connect to the database" in capsys.readouterr().out

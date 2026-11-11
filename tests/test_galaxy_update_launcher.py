@@ -230,19 +230,23 @@ def test_scoring_is_off_unless_switched_on(spansh, docker, tmp_path):
     assert modules(docker) == [("spansh_delta.apply", "apply")]
 
 
-def test_with_scoring_on_a_run_updates_the_galaxy_then_scores_the_same_file(spansh, docker, tmp_path, capsys):
+def test_with_scoring_on_a_run_updates_the_galaxy_then_scores_the_waiting_list(spansh, docker, tmp_path, capsys):
     spansh.publish(FILE, b"night one", MONDAY)
     chosen = settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
     assert tool.cmd_apply(chosen, "run", None) == 0
     assert modules(docker) == [("spansh_delta.apply", "apply"), ("spansh_delta.scores", "apply")]
+    # The scoring is given no file: it works from the database.
     scoring = docker.calls("run")[-1]
-    assert scoring[scoring.index("-m"):] == ["-m", "spansh_delta.scores", "apply", "/data/" + FILE]
-    noted = tool.fetch.read_record(chosen.record)
-    assert noted["applied"] == noted["scored"] and noted["scored"]["modified"] == MONDAY
+    assert scoring[scoring.index("-m"):] == ["-m", "spansh_delta.scores", "apply"]
+    assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == MONDAY
     assert "Running the scoring from " + IMAGE in capsys.readouterr().out
-    # Nothing new from Spansh: neither is run again.
+    # Nothing new from Spansh: the galaxy is not updated again, but the
+    # waiting list is looked at every time.
     assert tool.cmd_apply(chosen, "run", None) == 0
-    assert len(docker.calls("run")) == 2
+    assert modules(docker) == [("spansh_delta.apply", "apply"), ("spansh_delta.scores", "apply"),
+                               ("spansh_delta.scores", "apply")]
+    assert "Looking at the waiting list for new scores" in capsys.readouterr().out
+    assert spansh.downloads() == [FILE]
 
 
 def test_if_the_update_fails_nothing_is_scored(spansh, docker, tmp_path):
@@ -255,33 +259,34 @@ def test_if_the_update_fails_nothing_is_scored(spansh, docker, tmp_path):
     assert not chosen.record.exists()
 
 
-def test_if_scoring_fails_the_next_run_scores_again_without_updating_again(spansh, docker, tmp_path, capsys):
+def test_a_night_when_scoring_fails_is_made_up_by_the_next_run_even_after_a_new_file(
+        spansh, docker, tmp_path, capsys):
     spansh.publish(FILE, b"night one", MONDAY)
     chosen = settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
     docker.state["module_exit"] = {"spansh_delta.scores": 1}
     docker.save()
     assert tool.cmd_apply(chosen, "run", None) == 1
     assert "FAILED: the scoring ended with code 1" in capsys.readouterr().out
-    noted = tool.fetch.read_record(chosen.record)
-    assert noted["applied"]["modified"] == MONDAY and "scored" not in noted
+    # The update itself is recorded as done; what it changed is on the waiting list.
+    assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == MONDAY
 
+    # Spansh publishes the next night's file before the scoring has worked.
+    # Nothing is lost: the waiting list is in the database, not in the old file.
+    spansh.publish(FILE, b"night two!", TUESDAY)
     docker.state["module_exit"] = {}
     docker.save()
     assert tool.cmd_apply(chosen, "run", None) == 0
-    assert "Its scores are still owed." in capsys.readouterr().out
-    assert modules(docker)[2:] == [("spansh_delta.scores", "apply")] and spansh.downloads() == [FILE]
-    assert tool.fetch.read_record(chosen.record)["scored"]["modified"] == MONDAY
+    assert modules(docker)[2:] == [("spansh_delta.apply", "apply"), ("spansh_delta.scores", "apply")]
+    assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == TUESDAY
 
 
-def test_score_by_hand_uses_the_file_on_disk_and_notes_that_it_is_done(spansh, docker, tmp_path):
-    spansh.publish(FILE, b"night one", MONDAY)
+def test_score_by_hand_needs_no_file_and_fetches_nothing(spansh, docker, tmp_path):
     chosen = settings(spansh, tmp_path / "galaxy")
-    assert tool.cmd_apply(chosen, "run", None) == 0
-    spansh.publish(FILE, b"night two!", TUESDAY)
-    assert tool.cmd_apply(chosen, "score", None) == 0
-    assert modules(docker)[-1] == ("spansh_delta.scores", "apply")
-    assert spansh.downloads() == [FILE]
-    assert tool.fetch.read_record(chosen.record)["scored"]["modified"] == MONDAY
+    assert tool.cmd_apply(chosen, "score", 500) == 0
+    scoring = docker.calls("run")[-1]
+    assert scoring[scoring.index("-m"):] == ["-m", "spansh_delta.scores", "apply", "--limit", "500"]
+    assert modules(docker) == [("spansh_delta.scores", "apply")]
+    assert spansh.downloads() == [] and not chosen.record.exists()
 
 
 def test_a_failed_score_check_says_so(spansh, docker, tmp_path, capsys):
@@ -481,7 +486,10 @@ def test_status_shows_the_last_update_the_queue_and_the_file(spansh, docker, tmp
     assert ("Last update: 2026-11-10 04:41 UTC, finished (galaxy_1day.json.gz). "
             "115929 systems read, 61234 changed, 2701 new.") in out
     assert "63935 systems are waiting for new scores." in out
+    assert "Scoring after each update is switched off (EDFINDER_GALAXY_SCORES in deploy.conf)." in out
     assert "galaxy_1day.json.gz: 0.0 GB, published " + MONDAY in out
+    assert tool.cmd_status(settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")) == 0
+    assert "Scoring after each update is switched on." in capsys.readouterr().out
 
 
 def test_status_before_anything_has_happened(spansh, docker, tmp_path, capsys):
