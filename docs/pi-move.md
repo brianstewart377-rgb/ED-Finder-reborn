@@ -11,25 +11,27 @@ is marked "(11 Nov)".
 
 | | Size now | On the Pi |
 |---|---|---|
-| Raw galaxy data (every system and body we know of) | 574 GB | All of it, except the 116 GB "body parent evidence" table, which the app never reads and the importer no longer writes. Each body's class is added to it (see section 3) |
-| Scores and Finder tables | 426 GB for all 198.5 million systems | Only the 37 million systems within 500 ly of an inhabited system |
+| Raw galaxy data (every system and body we know of) | 576 GB | All of it, except the 116 GB "body parent evidence" table, which the app never reads and the importer no longer writes. Each body's class is added to it (see section 3) |
+| Scores and Finder tables | 424 GB for all 198.5 million systems | Only the 37 million systems within 500 ly of an inhabited system. With them, whole, 0.2 GB of build records that the score rows are tied to by a rule in the database (11 Nov) |
 | Density map data | 14 GB | All of it |
-| System state (population, factions, claims) | under 1 GB | All of it |
-| Everything users have written: accounts, journal imports, watchlists, notes, synced profiles | small | All of it. Copied twice: with everything else, and again at switch-over (section 7) |
-| Leftovers from old builds (`r1_plan`, `r1_meta`, `v3_gen_phase4b_a`, build-progress tables) | | Nothing |
+| System state (population, factions, claims) | 0.5 GB | All of it |
+| Everything users have written: accounts, sign-ins, journal imports, watchlists | under 0.1 GB | All of it. Copied twice: with everything else, and again at switch-over (section 7) |
+| Bookkeeping: which galaxy data and which scores are current, where each row came from, the lookup lists, records of the old builds' jobs | 0.4 GB | All of it. The scoring and two of the users' tables depend on it (11 Nov) |
+| Leftovers from old builds (`r1_plan`, `r1_meta`, the old test galaxy `v3_gen_phase4b_a`) | under 1 MB | Nothing |
 
 Estimate for the 2 TB drive: 550 to 630 GB, plus about 10 GB for the body
-classes.
+classes. The sizes above are from the server's own list of tables, taken on
+11 November, and the estimate still stands.
 
-This table is by group. The app also keeps user data in older tables outside
-the main groups (`system_notes` and `profile_sync` are two), so before the
-copy script is written every table on the server is listed and marked move,
-cut down or leave (11 Nov).
+This table is by group. Every table on the server is listed at the end of this
+page, each marked move, cut down or leave (11 Nov). There are no tables
+outside these groups. An earlier version of this page said users' notes and
+synced profiles were kept in older tables: those tables do not exist on the
+server, and no screen of the app uses them.
 
-**One band, not two.** Everything out to 500 ly is scored and kept up to date.
-Find shows 250 ly by default and can be widened to 500. Nothing is scored "on
-request". *Recommended on 10 November and not yet confirmed by the owner, who
-agreed 250 ly every night and 500 ly on request the day before (11 Nov).*
+**One band, not two.** Everything out to 500 ly is scored and kept up to date
+every night. Find shows 250 ly by default and can be widened to 500. Nothing
+is scored "on request". Confirmed by the owner on 11 November.
 
 ## Before anything else
 
@@ -166,9 +168,10 @@ In order:
       as colonies appear. Gives Find its 250 ly default and 500 ly limit, and
       tells the copy which systems to take. When a colony brings systems into
       range, they go on the waiting list to be scored.
-- [ ] (11 Nov) **The table list.** Every table on the current server, each
-      marked move, cut down or leave.
-- [ ] **A copy script** that exports the tables above from the current server,
+- [x] (11 Nov) **The table list.** Every table on the current server, each
+      marked move, cut down or leave: 130 tables, 1,015 GB. It is at the end
+      of this page.
+- [ ] **A copy script** that exports the tables as that list marks them,
       with the scored tables cut down to the systems in reach. A logical dump
       (`pg_dump`), not a copy of the data folder: the two machines have
       different processors. (11 Nov) It also fills the class of every body
@@ -263,7 +266,130 @@ been made or agreed since, each as a reviewed migration after a fresh backup:
 - `027` (built 11 November, not yet applied): each body's class, one column
   on the bodies table.
 
+Also decided since: one band of scores out to 500 ly, kept up to date every
+night (owner, 11 November), in place of 250 ly every night and 500 ly on
+request (9 November).
+
 ## Not part of the move
 
 The map (Almanac trial), bridge routes, BGS and the BGS-Tally link come after
 Find and Plan work on the Pi.
+
+## Every table on the current server
+
+From the server's own list, 11 November 2026: 130 tables, 1,015 GB, all of
+them ordinary tables. Sizes include each table's indexes.
+
+**The rule.** Every table moves whole, with four exceptions:
+
+1. The five big score tables move only for systems within 500 ly.
+2. `body_parent_evidence` exists on the Pi but stays empty.
+3. `r1_meta` and `r1_plan` are not moved.
+4. The old test galaxy `v3_gen_phase4b_a` is not moved.
+
+Moved whole: 475 GB. The score tables cut down: 79 GB if systems in reach
+have as many bodies as the average system, and they have more, which is why
+the estimate above runs to 630 GB.
+
+### The galaxy: `v3_gen_phase4c_full_20260827_r5` (14 tables, 576 GB)
+
+| Table | Size | Rows, about | On the Pi |
+|---|---|---|---|
+| `bodies` | 248 GB | 599 million | All. Each body's class is filled in during the copy |
+| `body_composition` | 127 GB | 444 million | All. Nothing in the app reads it today; it moves because the plan keeps the whole raw galaxy. Owner's call if it should be left like the table below |
+| `body_parent_evidence` | 116 GB | 539 million | Empty. The app never reads it and the nightly update does not write it |
+| `systems` | 53 GB | 198.5 million | All |
+| `rings` | 26 GB | 94 million | All |
+| `body_signal_current` | 2.4 GB | 25 million | All |
+| `station_service_current` | 1.5 GB | 12.6 million | All |
+| `body_genus_current` | 0.7 GB | 7.2 million | All |
+| `station_placement`, `ring_signal_current`, `stations`, `station_economy_current` | 1.1 GB together | | All |
+| `body_alias`, `station_alias` | empty | | Empty |
+
+### Scores and Find: `v3_derived` (8 tables, 424 GB)
+
+| Table | Size | Rows, about | On the Pi |
+|---|---|---|---|
+| `economy_opportunity` | 105 GB | 740 million | Systems within 500 ly |
+| `system_search` (the Find table) | 96 GB | 198.5 million | Systems within 500 ly |
+| `body_mechanics` | 85 GB | 578 million | Systems within 500 ly |
+| `system_rating_vector` | 69 GB | 198.5 million | Systems within 500 ly |
+| `system_archetype` | 69 GB | 198.5 million | Systems within 500 ly |
+| `build_chunk`, `search_build_chunk`, `archetype_build_chunk` | 0.2 GB together | | All. Each system's main score row points at its row in `build_chunk`, and the database enforces that, so it cannot be left. The other two point at it and move with it |
+
+### Density map: `v3_spatial` (8 tables, 14 GB)
+
+All of it. `cell_summary` is the 14 GB; `cell_level`, `cluster`,
+`cluster_member`, `cluster_run`, `current_spatial_generation`,
+`spatial_generation` and `spatial_publication_audit` are under 1 MB together.
+
+### System state: `v3_state` (6 tables, 0.5 GB)
+
+All of it: `system_state`, `system_faction`, `system_power`, `system_stage`,
+`load_log`, and `rescore_queue` (the waiting list for new scores). The nightly
+state refresh rebuilds the first four in any case.
+
+### What users have written: `v3_identity` and `v3_private` (26 tables, 63 MB)
+
+All of it, twice (section 7).
+
+- `v3_identity`: `account`, `account_commander_access`, `account_role`,
+  `commander`, `commander_external_identity`, `device_credential`,
+  `external_identity`, `legacy_sync_claim`, `oauth_login_state`,
+  `personal_data_request`, `role`, `security_audit_event`,
+  `service_principal`, `service_principal_credential`, `session`.
+- `v3_private`: `contribution_receipt`, `contribution_withdrawal`,
+  `journal_event`, `journal_file_event`, `journal_import_file`,
+  `private_fact`, `private_import`, `research_consent`,
+  `research_export_batch`, `watchlist`, `watchlist_changelog`.
+
+### Bookkeeping: `v3_vocab`, `v3_meta`, `v3_source`, `v3_async` (44 tables, 0.4 GB)
+
+All of it. Some of it nothing reads from day to day (the old import's
+checkpoints and job records, 0.4 GB, and the record of October's purge), but
+other tables are tied to it by rules in the database, and 0.4 GB is not worth
+a special case.
+
+- `v3_vocab` (13, the lookup lists): `atmosphere_classification`, `body_type`,
+  `economy`, `galaxy_region`, `genus`, `identity_namespace`, `reserve_type`,
+  `ring_type`, `signal_type`, `station_service`, `station_type`,
+  `terraforming_state`, `volcanism_type`.
+- `v3_meta` (16, which galaxy data and which scores are current):
+  `canonical_generation`, `canonical_generation_input`,
+  `canonical_publication_audit`, `current_canonical_generation`,
+  `current_derived_generation`, `derived_generation`,
+  `derived_generation_purge_event`, `derived_generation_purge_request`,
+  `derived_product`, `derived_product_publication_audit`,
+  `derived_publication_audit`, `derived_purge_copy_event`,
+  `derived_purge_copy_request`, `schema_migration`, `search_rebuild_plan`,
+  `search_rebuild_range`.
+- `v3_source` (9, where each row came from; the scoring checks every row
+  against it): `canonical_evidence_group`, `journal_physical_snapshot`,
+  `source`, `source_artifact`, `source_checkpoint`, `source_rejection`,
+  `source_rights_policy`, `source_run`, `unmapped_vocabulary`.
+- `v3_async` (6, records of the old builds' jobs; two of the users' tables
+  point at `job`): `effect_receipt`, `job`, `job_attempt`, `job_chunk`,
+  `job_lease`, `outbox_message`.
+
+### Not moved (24 tables, under 1 MB)
+
+- `r1_meta` (5 tables) and `r1_plan` (5 tables): left from an earlier
+  programme. Nothing in this repo's code mentions them.
+- `v3_gen_phase4b_a` (14 tables, 0.3 MB): an old test galaxy. To check when
+  the copy script is written: if the list of galaxies in
+  `v3_meta.canonical_generation` still names it, bringing its 0.3 MB along is
+  simpler than changing that list.
+
+### Besides tables
+
+The copy also has to carry what is not a table: the views the app reads
+(`v3_app`), the functions and the rules that guard the score tables, the
+counters behind numbered columns, and the `cube` extension. A dump of the
+database's structure carries all of these. It does not carry the database's
+users, which the copy script sets up (section 3).
+
+### Found while checking the list
+
+- The API still has the old addresses for system notes and profile sync. Their
+  tables do not exist on the server, so they answer with an error, and no
+  screen of the app calls them. To be removed in a tidy-up; nothing to move.
