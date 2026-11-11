@@ -1,0 +1,122 @@
+# PostgreSQL for ED-Finder on the Raspberry Pi 5 (16 GB, 4 cores, NVMe).
+#
+# The same PostgreSQL as the current server, 18.6, with the same text settings
+# (UTF8, en_US.utf8, libc). The image is built on Debian 13; the server's on
+# Debian 12. The Debian version only decides details of how text sorts, which
+# differ between the two in rare characters, not in system names. The copy
+# builds every index afresh, so nothing has to match; Debian 13 is supported
+# for longer, and changing it later would mean rebuilding every text index.
+# The Pi's own system is not involved: the image brings its own.
+#
+# The names (container, user, database) are the server's, so every command
+# and tool works unchanged on both machines.
+#
+# Its files live on the 2 TB drive. If that drive is not mounted, the folders
+# below do not exist and the container refuses to start, rather than quietly
+# writing a new, empty database to the boot drive.
+#
+# Prepared once on the Pi (docs/pi-move.md, section 4):
+#   /srv/data/postgres                the database files (empty the first time)
+#   /srv/data/move                    files brought from the current server
+#   /etc/edfinder/postgres-password   the database password: owned by the
+#                                     database's user (999), readable by
+#                                     nobody else, never printed
+#
+# Start, or apply a change to this file:
+#   sudo docker compose -f /opt/edfinder/postgres.yml up -d
+#
+# No port is opened to the network. The app reaches the database over the
+# "edfinder" Docker network; tools reach it with docker exec.
+name: edfinder-db
+
+services:
+  postgres:
+    image: postgres:18.6-trixie
+    container_name: edfinder-v3-phase4c-full-20260827_r5-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: edfinder_v3
+      POSTGRES_DB: edfinder_v3_phase4c_full_20260827_r5
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.utf8 --locale-provider=libc"
+    secrets:
+      - postgres-password
+    volumes:
+      - type: bind
+        source: /srv/data/postgres
+        target: /var/lib/postgresql
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/data/move
+        target: /move
+        read_only: true
+        bind:
+          create_host_path: false
+    # Queries and index builds that use several cores share memory through
+    # /dev/shm; Docker's default of 64 MB is too small for that.
+    shm_size: 1gb
+    stop_grace_period: 2m
+    command:
+      - postgres
+      # Memory: a quarter of the Pi's 16 GB for PostgreSQL's own cache; the
+      # system's file cache does most of the rest.
+      - -c
+      - shared_buffers=4GB
+      - -c
+      - effective_cache_size=10GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=1GB
+      # 10 to 20 users, 2 or 3 at once, plus the nightly jobs.
+      - -c
+      - max_connections=50
+      # Four cores.
+      - -c
+      - max_worker_processes=8
+      - -c
+      - max_parallel_workers=4
+      - -c
+      - max_parallel_workers_per_gather=2
+      - -c
+      - max_parallel_maintenance_workers=2
+      # NVMe: reading out of order costs little more than reading in order.
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      # Fewer, calmer checkpoints during big loads and the nightly update.
+      - -c
+      - max_wal_size=8GB
+      - -c
+      - min_wal_size=1GB
+      - -c
+      - checkpoint_timeout=15min
+      - -c
+      - wal_compression=lz4
+      # Any query slower than 2 seconds is written to the log.
+      - -c
+      - log_min_duration_statement=2000
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "edfinder_v3",
+             "-d", "edfinder_v3_phase4c_full_20260827_r5"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 5m
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "3"
+    networks:
+      - edfinder
+
+secrets:
+  postgres-password:
+    file: /etc/edfinder/postgres-password
+
+networks:
+  edfinder:
+    name: edfinder

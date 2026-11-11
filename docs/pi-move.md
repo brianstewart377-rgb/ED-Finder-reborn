@@ -44,24 +44,37 @@ is scored "on request". Confirmed by the owner on 11 November.
 
 ## 1. The Pi itself (owner)
 
-- [ ] Raspberry Pi OS Lite (64-bit), booting from the 500 GB NVMe.
-- [ ] Docker installed.
-- [ ] When the 2 TB NVMe arrives: fitted, formatted and mounted as the data
-      drive. PostgreSQL's data lives there, nothing else of ours on the boot
+- [x] Raspberry Pi OS Lite (64-bit), booting from the 500 GB NVMe (an SK
+      Hynix; `nvme0n1` on 11 November). User `pi`, name `Raspi`.
+- [x] Docker installed (11 Nov), from Docker's own install script, which
+      takes Docker's Debian packages for the 64-bit Pi.
+- [x] The 2 TB NVMe (a Netac; `nvme1n1` on 11 November) fitted, formatted
+      (ext4, named `edfdata`, 1% held back) and mounted at `/srv/data` by its
+      name at every start-up, with `nofail` so the Pi still starts without
+      it. PostgreSQL's data lives there, nothing else of ours on the boot
       drive.
+- [x] (11 Nov) A key on the Pi (`~/.ssh/edf_move`) that may log in to the
+      current server as root, for fetching data during the move. Its line on
+      the server starts with `restrict`, so it can run commands but forward
+      nothing. Removed again before the server is cancelled (section 8).
 - [ ] (11 Nov) Owner's call: a small battery backup. PostgreSQL survives a
       power cut, but a cut during a write can still damage a drive's file
       system.
 
 ## 2. Things to measure before copying
 
-- [ ] **Scoring speed.** Run `scripts/dev/score_speed_test.py` on the Pi and
+- [x] **Scoring speed.** Run `scripts/dev/score_speed_test.py` on the Pi and
       compare with the current server, which scored 4,013 systems a minute
       with one worker and 61,555 with all 32 (10 November). The old server's real
       builds did about 36,000 systems a minute per worker. If the Pi is 5 to 10
       times slower, a night's changes (about 116,000 systems in Spansh's
       one-day file on 9 November) take 15 to 30 minutes, and re-scoring all 37
       million from scratch takes one to two and a half days.
+      (11 Nov) Measured: 1,424 a minute with one worker and 5,311 with all 4,
+      so about 3 times slower per core and 12 times slower in all; four
+      workers did 3.7 times the work of one. A night's scoring (7.5 minutes
+      on the server on 11 November) should take 20 to 40 minutes on the Pi;
+      re-scoring all 37 million, half a day to a day.
 
 - [ ] **Free the space old row versions leave behind.** One night's galaxy
       update grew the database by about 1 GB (10 November). Roughly 0.15 GB of
@@ -71,9 +84,10 @@ is scored "on request". Confirmed by the owner on 11 November.
       this large for about a year. On the Pi, set it to run on the galaxy
       tables and the score tables after a few million changed rows.
 
-- [ ] (11 Nov) **The Pi images run at all.** They are built for the Pi's
+- [x] (11 Nov) **The Pi images run at all.** They are built for the Pi's
       processor but have never run on one. Fetch the API image on the Pi and
-      run its built-in help; one minute.
+      run its built-in help; one minute. Done 11 November with the API image
+      of build `6cda1dd`. The web image is tried when the app is set up.
 
 - [ ] (11 Nov) **How long a restore takes.** Building indexes on
       600-million-row tables with 16 GB of memory could take a day or more.
@@ -196,7 +210,14 @@ In order:
       (about 4 GB of its own cache; the current server's settings assume
       192 GB), enough shared memory for Docker to allow queries that use
       several processor cores, and the same text encoding and sort order as
-      the current database.
+      the current database. Start-up file: `deploy/pi/postgres.yml`. The
+      current server runs PostgreSQL 18.6 built on Debian 12, UTF8,
+      `en_US.utf8`, libc (11 November). The Pi runs 18.6 with the same text
+      settings, built on Debian 13 (`postgres:18.6-trixie`): the copy builds
+      every index afresh, Debian 13 is supported for longer, and the two
+      differ only in how rare characters sort. Same container, user and
+      database names as the server, so every command works on both. No port
+      is opened; the password is in a file only the database can read.
 - [ ] Run the copy script. Check row counts on both sides, table by table.
 - [ ] Clean-up settings on the galaxy and score tables (see section 2), then
       one full clean-up and statistics pass over the restored database.
@@ -263,6 +284,8 @@ In order:
 - [ ] The old repo's GitHub workflows that reach the old server are switched
       off.
 - [ ] One last full backup, copied to the USB drives.
+- [ ] (11 Nov) Remove the Pi's key from the server: the line ending
+      `pi-move` in `/root/.ssh/authorized_keys`.
 - [ ] Cancel the server.
 
 ## Changes to the plan since 8 November
