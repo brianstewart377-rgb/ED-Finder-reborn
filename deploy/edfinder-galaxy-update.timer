@@ -1,10 +1,12 @@
-# Spansh publishes the one-day file at about 02:10 UTC. The first run each day
+# Spansh publishes the one-day file between about 02:00 and 03:30 UTC (the time
+# varies from day to day). The first run each day
 # is at 04:30 UTC: well after that, and an hour after the system state refresh
 # (03:30 UTC) so the two do not download at the same time.
 #
 # The second run, at 16:30 UTC, is a safety net. If Spansh published late, or
 # the first run failed, it applies the file the same day instead of missing
-# it. When there is nothing new it only asks Spansh for the file's date.
+# it. When there is nothing new it only asks Spansh for the file's date, and,
+# with scoring switched on, looks at the waiting list for new scores.
 [Unit]
 Description=ED-Finder: bring the galaxy up to date from Spansh
 

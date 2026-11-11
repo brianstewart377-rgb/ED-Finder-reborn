@@ -1,6 +1,8 @@
 # Fetch Spansh's one-day galaxy file and apply it (deploy/galaxy_update.py).
-# Started twice a day by edfinder-galaxy-update.timer; does nothing when Spansh
-# has published nothing new.
+# Started twice a day by edfinder-galaxy-update.timer. When Spansh has published
+# nothing new there is nothing to apply. With scoring switched on
+# (EDFINDER_GALAXY_SCORES=on in deploy.conf) each run then gives new scores to
+# the systems on the waiting list, whether or not there was anything to apply.
 [Unit]
 Description=ED-Finder: bring the galaxy up to date from Spansh
 After=docker.service network-online.target edfinder-state-refresh.service

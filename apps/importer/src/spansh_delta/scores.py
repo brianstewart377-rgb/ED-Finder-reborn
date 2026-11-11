@@ -1,35 +1,42 @@
-"""Work out scores and Find rows again, and check them against what is stored.
+"""Give systems their scores and Find rows, and check them against what is stored.
 
+    python -m spansh_delta.scores apply          score the systems on the waiting list
     python -m spansh_delta.scores check FILE     read only
-    python -m spansh_delta.scores apply FILE     write the scores that are owed
 
-A system's scores come from two things: its rows in the galaxy tables, and the
-sub-type of each body ("Earth-like world", "Icy body"), which the galaxy tables
-do not hold. Only Spansh's record has it. So a system can be scored only while
-its record is in hand, and only if that record and our rows describe the same
-bodies. This module takes the systems of FILE for which that is true and runs
-the frozen scoring code on them (``scripts/ratings_v4``, ``scripts/v3_system_*``
-and ``shared_contracts``: copied unchanged, and called, not rewritten).
+A system's scores come from its rows in the galaxy tables. One of the things
+they use is each body's class ("Earth-like world", "Icy body"), which the
+galaxy tables hold since migration 027 (``bodies.body_class``): the galaxy
+update writes it with every row it writes. So a system the update has changed
+can be scored from the database alone, at any time, with no Spansh file at
+hand. The scoring itself is the frozen code (``scripts/ratings_v4``,
+``scripts/v3_system_*`` and ``shared_contracts``: copied unchanged, and
+called, not rewritten). It takes five things about each body from a "record";
+here that record is made from our own rows.
 
-``check`` writes nothing. It answers two questions:
+``apply`` works through the waiting list (``v3_state.rescore_queue``), which
+the galaxy update fills:
+
+  * A system waiting for new scores gets them: each of its score tables is
+    replaced where it differs, its Find row is rebuilt, and it leaves the
+    waiting list. All of that is one transaction.
+  * A system that only gained or lost a station has its Find row rebuilt.
+  * A system that cannot be scored stays on the waiting list, and the report
+    says why. One reason is a body whose class is not in the database: its
+    row was written by a galaxy update from before migration 027, and the
+    system has not been scored since. Its old score row is not used for the
+    class, because the body may be what changed. The next galaxy update that
+    lists the system writes the class.
+
+``check FILE`` writes nothing. For the systems of a Spansh file whose records
+say what our rows say, it answers:
 
   * Systems whose scoring inputs nothing has changed since they were scored:
-    do we get exactly the stored scores and Find row back? If so, this code
-    and the stored data agree, and it is safe to let it write.
-  * Systems the galaxy update has rewritten and that wait for new scores: can
-    each be scored, and if not, why not?
-
-``apply`` is run on the same file straight after the galaxy update:
-
-  * A system waiting for new scores, whose rows match its record, gets them:
-    each of its score tables is replaced where it differs, its Find row is
-    rebuilt, and it leaves the waiting list. All of that is one transaction.
-  * A system that is not waiting is left alone, unless its scores come out
-    different (Spansh changed a body's sub-type and nothing else). Then it is
-    treated the same way.
-  * A system that only gained or lost a station needs no record: its Find row
-    is rebuilt from what is stored, wherever it is on the waiting list.
-  * A system that cannot be scored stays on the waiting list.
+    do we get exactly the stored scores and Find row back?
+  * Do scores worked out from the database alone come out the same as scores
+    worked out from Spansh's records? (A body row from before migration 027
+    has no class of its own. For a system that is not waiting for new scores
+    the class is taken from the body's score row, which holds the same thing.)
+  * Systems that wait for new scores: can each be scored, and if not, why not?
 
 The score tables refuse changes except from a transaction that announces
 itself as the nightly update (migration 025). Every write here does that.
@@ -60,9 +67,7 @@ from shared_contracts import v3_system_archetype_model as model
 from . import apply as galaxy
 from .normalize import NormalizedSystem, classify_material_change, normalize_system
 
-# The galaxy tables the scores are worked out from. A change in any other
-# table (stations, composition, genera) leaves a system's scores as they are.
-SCORING_TABLES = ("systems", "bodies", "rings", "body_signal_current")
+SCORING_TABLES = galaxy.SCORING_TABLES
 
 # The columns of a Find row, in the order the frozen builder writes them
 # (scripts/v3_system_search.py, _insert_chunk). A test holds the two together.
@@ -80,10 +85,12 @@ ARCHETYPE_COLUMNS = ("derived_generation_id", "system_id64", *archetype_build.ST
 
 # Columns that say which build wrote a row, not what the row says.
 _NOT_CONTENT = {"derived_generation_id", "chunk_ordinal"}
-# Columns that describe the Spansh record a score was made from (a fingerprint
-# of it, and when a body's sub-type was seen). They move when Spansh re-stamps
-# a body, without any score changing.
+# Columns that describe the record a score was made from (a fingerprint of it,
+# and when a body's sub-type was seen). They move when Spansh re-stamps a
+# body, and they differ between a record of Spansh's and the same facts read
+# from our own rows, without any score changing.
 RECORD_STAMPS = {"subtype_projection_sha256", "subtype_observed_at"}
+UNKNOWN_CLASS = "the class of one of its bodies is not in the database"
 _CHUNK_PREDICATE = "AND v.chunk_ordinal=%(chunk_ordinal)s"
 _SYSTEMS_PREDICATE = "AND v.system_id64=ANY(%(system_ids)s::bigint[])"
 
@@ -160,8 +167,22 @@ def differences(columns: Sequence[str], ours: Sequence[tuple], stored: Sequence[
     return found
 
 
+def _narrow(exported: Mapping[str, Any], keep: set[int]) -> Mapping[str, Any]:
+    """``exported`` cut down to the systems in ``keep``."""
+    if {row["id64"] for row in exported["systems"]} == keep:
+        return exported
+    bodies = [row for row in exported["bodies"] if row["system_id64"] in keep]
+    live = {row["body_pk"] for row in bodies}
+    extras = [
+        {**extra, "rows": [row for row in extra["rows"] if row["body_pk"] in live]}
+        if extra.get("relation") in ("rings", "body_signal_current") else extra
+        for extra in exported["extras"]]
+    return {**exported, "systems": [row for row in exported["systems"] if row["id64"] in keep],
+            "bodies": bodies, "extras": extras}
+
+
 class Scorer:
-    """Runs the frozen scoring code for systems whose records are in hand."""
+    """Runs the frozen scoring code, from Spansh records or from our own rows."""
 
     def __init__(self, connection: psycopg.Connection[Any]):
         self.connection = connection
@@ -176,6 +197,11 @@ class Scorer:
             raise galaxy.Refused("there is not exactly one published set of scores")
         self.generation_id: str = rows[0][0]
         self.metadata = self._manifest()
+        # Body type id -> the plain type, as the scoring code spells it.
+        self._body_types = {
+            row["body_type_id"]: row["public_code"]
+            for vocabulary in self.snapshot.vocabularies if vocabulary["relation"] == "body_type"
+            for row in vocabulary["rows"]}
         self._find_rows = find_rows_sql(self.snapshot.schema)
         self._new_chunk: int | None = None
         connection.execute("SET jit = off")  # as the frozen builder does for this query
@@ -230,11 +256,81 @@ class Scorer:
             extras.append(extra)
         return {**exported, "bodies": bodies, "extras": extras}
 
-    def score(self, records: Sequence[Mapping[str, Any]]) -> tuple[Scores, dict[int, str]]:
-        """Scores for ``records``, and for each system that could not be scored, why."""
-        scores, failed = Scores(), {}
+    def export(self, system_ids: Sequence[int]) -> tuple[dict[str, Any], dict[int, str]]:
+        """Our rows for ``system_ids``, and why not for any we could not read."""
+        nothing: dict[str, Any] = {"systems": [], "bodies": [], "extras": []}
+        if not system_ids:
+            return nothing, {}
         try:
-            self._score_into(scores, records)
+            return self._export(system_ids), {}
+        except ValueError:
+            pass
+        # One of them is not in the galaxy. Find it; read the rest.
+        missing: dict[int, str] = {}
+        for system_id in system_ids:
+            try:
+                self._export([system_id])
+            except ValueError as error:
+                missing[system_id] = galaxy._reason(error)
+        found = [system_id for system_id in system_ids if system_id not in missing]
+        return (self._export(found) if found else nothing), missing
+
+    @staticmethod
+    def classes(stored: Scores, system_ids: Sequence[int]) -> dict[int, str]:
+        """Each body's class as its score row has it, for these systems."""
+        index = build.BODY_COLUMNS.index("body_class")
+        return {row[2]: row[index] for system_id in system_ids
+                for row in stored.bodies.get(system_id, ())}
+
+    def records(self, exported: Mapping[str, Any], scored: Mapping[int, str],
+                ) -> tuple[list[dict[str, Any]], dict[int, str]]:
+        """What the scoring code takes from a Spansh record, made from our own rows.
+
+        For each body that is its Spansh id, its number in the system, its
+        plain type, its sub-type and when it was last seen: five things, all
+        in ``exported``. A body row from before migration 027 has no class of
+        its own; ``scored`` gives the class in its score row, for the systems
+        whose score rows can be relied on (none that is waiting for new
+        scores: see ``spansh_delta.apply.scored_classes``). Also returns the
+        systems this cannot be done for, with the reason: a body whose class
+        we do not know.
+        """
+        bodies: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        unknown: dict[int, str] = {}
+        for row in exported["bodies"]:
+            system_id = row["system_id64"]
+            body_class = galaxy.class_of(row, scored)
+            if body_class is None:
+                unknown[system_id] = UNKNOWN_CLASS
+                continue
+            plain = self._body_types.get(row.get("body_type_id"))
+            body: dict[str, Any] = {"id64": row.get("source_body_id64"), "bodyId": row.get("frontier_body_id")}
+            if plain is not None:
+                body["type"] = plain
+            # The class is the sub-type where Spansh gave one, else the plain
+            # type (or "Unknown"): see v3_spansh.adapter.body_class.
+            if body_class != (plain or "Unknown"):
+                body["subType"] = body_class
+            if row.get("source_updated_at") is not None:
+                body["updateTime"] = row["source_updated_at"]
+            bodies[system_id].append(body)
+        return ([{"id64": row["id64"], "bodies": bodies.get(row["id64"], [])}
+                 for row in exported["systems"] if row["id64"] not in unknown], unknown)
+
+    def score(self, records: Sequence[Mapping[str, Any]],
+              exported: Mapping[str, Any] | None = None) -> tuple[Scores, dict[int, str]]:
+        """Scores for ``records``, and for each system that could not be scored, why.
+
+        ``exported`` is our rows for those systems if they have been read
+        already; otherwise they are read here.
+        """
+        scores, failed = Scores(), {}
+        if not records:
+            return scores, failed
+        try:
+            if exported is None:
+                exported = self._export([int(record["id64"]) for record in records])
+            self._score_into(scores, records, exported)
             return scores, failed
         except (ValueError, KeyError, TypeError):
             pass
@@ -242,15 +338,15 @@ class Scorer:
         scores = Scores()
         for record in records:
             try:
-                self._score_into(scores, [record])
+                rows = exported if exported is not None else self._export([int(record["id64"])])
+                self._score_into(scores, [record], rows)
             except (ValueError, KeyError, TypeError) as error:
                 failed[int(record["id64"])] = galaxy._reason(error)
         return scores, failed
 
-    def _score_into(self, scores: Scores, records: Sequence[Mapping[str, Any]]) -> None:
-        if not records:
-            return
-        exported = self._export([int(record["id64"]) for record in records])
+    def _score_into(self, scores: Scores, records: Sequence[Mapping[str, Any]],
+                    exported: Mapping[str, Any]) -> None:
+        exported = _narrow(exported, {int(record["id64"]) for record in records})
         result, _ = build.encode_chunk(self.generation_id, 0, exported, self.metadata, records)
         groups: dict[int, dict[int, list[int]]] = defaultdict(lambda: defaultdict(lambda: [0, 0]))
         for row in result["opportunities"]:
@@ -405,21 +501,35 @@ class ScoreReport:
     waiting_would_change: int = 0
     cannot_score: dict[int, str] = field(default_factory=dict)
     cannot_reasons: Counter = field(default_factory=Counter)
+    # The same systems scored from our own rows instead of Spansh's records.
+    database_same: int = 0
+    database_different: dict[int, list[str]] = field(default_factory=dict)
+    database_examples: dict[int, list[str]] = field(default_factory=dict)
+    database_columns: Counter = field(default_factory=Counter)
+    database_unknown: int = 0
+    database_failed: Counter = field(default_factory=Counter)
     seconds: float = 0.0
     stopped_early: bool = False
 
     @property
     def agrees(self) -> bool:
-        return not self.settled_different and not self.find_different
+        return not self.settled_different and not self.find_different and not self.database_different
 
     @property
     def verdict(self) -> str:
-        if not self.agrees:
+        if self.settled_different or self.find_different:
             return "The stored scores were NOT all reproduced: see above."
+        if self.database_different:
+            return ("Scoring from the database did NOT always give what Spansh's records give: "
+                    "see above.")
         if not self.settled_same:
             return ("This file had no system whose scores should be unchanged, "
                     "so the stored scores could not be compared.")
-        return "The stored scores were reproduced exactly."
+        if not self.database_same:
+            return ("The stored scores were reproduced exactly. No system could be scored from "
+                    "the database alone, so that was not compared.")
+        return ("The stored scores were reproduced exactly, and scoring from the database "
+                "alone gives the same.")
 
     def lines(self) -> list[str]:
         def row(label: str, number: int, note: str = "") -> str:
@@ -436,7 +546,11 @@ class ScoreReport:
         out.append(row("Systems whose scores should be unchanged:", self.settled))
         out.append(row("  scores worked out again, identical:", self.settled_same))
         if self.settled_restamped:
-            out.append(row("    of those, only the record's date moved:", self.settled_restamped))
+            # The stamp says which record a score was made from (a fingerprint
+            # of it, and the date of a body's class). It differs when Spansh
+            # has re-dated a body, and whenever the stored scores were made
+            # from our own rows instead of from Spansh's record.
+            out.append(row("    of those, only the record's stamp differs:", self.settled_restamped))
         out.append(row("  scores worked out again, DIFFERENT:", len(self.settled_different)))
         for name, count in self.differing_columns.most_common(12):
             out.append(f"      {count:,} systems differ in {name}")
@@ -459,6 +573,19 @@ class ScoreReport:
             out.append(f"      {count:,} x {reason}")
         for system_id, reason in list(self.cannot_score.items())[:5]:
             out.append(f"      for example system {system_id}: {reason}")
+        compared = self.database_same + len(self.database_different)
+        out.append(row("Same systems, scored from the database alone:", compared))
+        out.append(row("  identical to scoring from Spansh's records:", self.database_same))
+        out.append(row("  DIFFERENT:", len(self.database_different)))
+        for name, count in self.database_columns.most_common(12):
+            out.append(f"      {count:,} systems differ in {name}")
+        for system_id, examples in list(self.database_examples.items())[:5]:
+            out.append(f"      for example system {system_id} (from the record -> from the database):")
+            out += [f"          {example}" for example in examples]
+        if self.database_unknown:
+            out.append(row("  not compared, a class is not in the database:", self.database_unknown))
+        for reason, count in self.database_failed.most_common(4):
+            out.append(f"  not compared, {count:,} x {reason}")
         minutes, seconds = divmod(int(self.seconds), 60)
         out.append(f"Took {minutes} min {seconds} s.")
         return out
@@ -484,7 +611,7 @@ def _matching(connection: psycopg.Connection[Any], target: galaxy.Target,
             systems.append((normalize_system(record), record))
         except (ValueError, TypeError, KeyError):
             report.not_usable += 1
-    held = galaxy.read_stored(connection, target.schema, [system.id64 for system, _ in systems])
+    held = galaxy.read_stored(connection, target, [system.id64 for system, _ in systems])
     queue = _queued(connection, [system.id64 for system, _ in systems])
     matching: list[Mapping[str, Any]] = []
     for system, record in systems:
@@ -503,25 +630,24 @@ def _matching(connection: psycopg.Connection[Any], target: galaxy.Target,
 def check_batch(connection: psycopg.Connection[Any], target: galaxy.Target, scorer: Scorer,
                 records: Sequence[Mapping[str, Any]], report: ScoreReport) -> None:
     matching, queue = _matching(connection, target, records, report)
-    settled: list[Mapping[str, Any]] = []
-    waiting: list[Mapping[str, Any]] = []
+    ids = [int(record["id64"]) for record in matching]
+    scores, failed = scorer.score(matching)
+    stored = scorer.stored(ids)
+    settled: list[int] = []
+    waiting: list[int] = []
     untouched: set[int] = set()
-    for record in matching:
-        system_id = int(record["id64"])
+    for system_id in ids:
         if set(queue.get(system_id, ())) & set(SCORING_TABLES):
-            waiting.append(record)
+            waiting.append(system_id)
         else:
-            settled.append(record)
+            settled.append(system_id)
             if system_id not in queue:
                 untouched.add(system_id)
 
     # 1. Scores that should come out exactly as stored.
     report.settled += len(settled)
-    scores, failed = scorer.score(settled)
-    ids = [int(record["id64"]) for record in settled]
-    stored = scorer.stored(ids)
-    find_now, find_stored = scorer.find_rows(ids), scorer.stored_find_rows(ids)
-    for system_id in ids:
+    find_now, find_stored = scorer.find_rows(settled), scorer.stored_find_rows(settled)
+    for system_id in settled:
         if system_id in failed:
             report.cannot_score[system_id] = failed[system_id]
             report.cannot_reasons[failed[system_id]] += 1
@@ -563,10 +689,7 @@ def check_batch(connection: psycopg.Connection[Any], target: galaxy.Target, scor
 
     # 2. Systems waiting for new scores: can each be scored?
     report.waiting += len(waiting)
-    scores, failed = scorer.score(waiting)
-    ids = [int(record["id64"]) for record in waiting]
-    stored = scorer.stored(ids)
-    for system_id in ids:
+    for system_id in waiting:
         if system_id in failed:
             report.cannot_score[system_id] = failed[system_id]
             report.cannot_reasons[failed[system_id]] += 1
@@ -577,22 +700,44 @@ def check_batch(connection: psycopg.Connection[Any], target: galaxy.Target, scor
                for table, (columns, rows) in mine.items()):
             report.waiting_would_change += 1
 
+    # 3. The same systems scored from our own rows, with no record: the result
+    #    must be the one the record gives.
+    usable = [system_id for system_id in ids if system_id not in failed]
+    exported, missing = scorer.export(usable)
+    own_records, unknown = scorer.records(exported, scorer.classes(stored, settled))
+    own, own_failed = scorer.score(own_records, exported)
+    for system_id in usable:
+        if system_id in unknown:
+            report.database_unknown += 1
+            continue
+        if system_id in missing or system_id in own_failed:
+            report.database_failed[missing.get(system_id) or own_failed[system_id]] += 1
+            continue
+        names, examples = [], []
+        mine, theirs = own.tables(system_id), scores.tables(system_id)
+        for table, (columns, rows) in mine.items():
+            found = differences(columns, rows, theirs[table][1]) - RECORD_STAMPS
+            names += [f"{table}.{name}" for name in sorted(found)]
+            if found and len(examples) < 4:
+                examples += describe(table, columns, rows, theirs[table][1])
+        if names:
+            report.database_different[system_id] = names
+            if len(report.database_examples) < 5:
+                report.database_examples[system_id] = examples[:4]
+            report.database_columns.update(names)
+        else:
+            report.database_same += 1
 
-# -- writing the scores that are owed ----------------------------------------
+
+# -- scoring the waiting list -------------------------------------------------
 
 
 @dataclass
 class ApplyReport:
-    file_name: str = ""
     systems_read: int = 0
-    not_usable: int = 0
-    not_held: int = 0
-    out_of_date: int = 0
-    left_alone: int = 0
     added: int = 0
     changed: int = 0
     same: int = 0
-    corrected: int = 0
     cannot_score: dict[int, str] = field(default_factory=dict)
     cannot_reasons: Counter = field(default_factory=Counter)
     find_rows: int = 0
@@ -603,9 +748,8 @@ class ApplyReport:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "file": self.file_name, "systems_read": self.systems_read, "out_of_date": self.out_of_date,
-            "added": self.added, "changed": self.changed, "same": self.same,
-            "corrected": self.corrected, "cannot_score": len(self.cannot_score),
+            "systems_read": self.systems_read, "added": self.added, "changed": self.changed,
+            "same": self.same, "cannot_score": len(self.cannot_score),
             "find_rows": self.find_rows + self.find_only, "still_waiting": self.still_waiting,
             "seconds": round(self.seconds, 1), "stopped_early": self.stopped_early,
         }
@@ -614,27 +758,20 @@ class ApplyReport:
         def row(label: str, number: int, note: str = "") -> str:
             return f"{label:<48}{number:>10,}" + (f"   {note}" if note else "")
 
-        out = [row("Systems in the file:", self.systems_read,
-                   "(stopped at the limit)" if self.stopped_early else "")]
-        if self.not_usable:
-            out.append(row("  not usable:", self.not_usable))
-        if self.not_held:
-            out.append(row("  not in our galaxy yet:", self.not_held))
-        if self.out_of_date:
-            out.append(row("  our rows differ from the file:", self.out_of_date, "(not scored)"))
-        out.append(row("  not waiting and scores unchanged:", self.left_alone, "(left alone)"))
-        out.append(row("Systems given their scores:", self.added + self.changed + self.same))
-        out.append(row("  never scored before:", self.added))
-        out.append(row("  scores changed:", self.changed))
-        out.append(row("  scores the same as before:", self.same))
-        if self.corrected:
-            out.append(row("  of all those, were not on the waiting list:", self.corrected,
-                           "(Spansh changed a sub-type)"))
-        out.append(row("  could not be scored:", len(self.cannot_score), "(still waiting)"))
+        out = [row("Systems taken from the waiting list:", self.systems_read,
+                   "(stopped at the limit)" if self.stopped_early else ""),
+               row("Systems given their scores:", self.added + self.changed + self.same),
+               row("  never scored before:", self.added),
+               row("  scores changed:", self.changed),
+               row("  scores the same as before:", self.same),
+               row("  could not be scored:", len(self.cannot_score), "(still waiting)")]
         for reason, count in self.cannot_reasons.most_common(8):
             out.append(f"      {count:,} x {reason}")
         for system_id, reason in list(self.cannot_score.items())[:5]:
             out.append(f"      for example system {system_id}: {reason}")
+        if UNKNOWN_CLASS in self.cannot_reasons:
+            out.append("      (Its rows were last written before migration 027, when classes began to be "
+                       "kept.\n       The next galaxy update that lists the system fills them in.)")
         out.append(row("Find rows rebuilt:", self.find_rows + self.find_only))
         if self.find_only:
             out.append(row("  of those, for a station coming or going only:", self.find_only))
@@ -644,89 +781,111 @@ class ApplyReport:
         return out
 
 
-def apply_batch(connection: psycopg.Connection[Any], target: galaxy.Target, scorer: Scorer,
-                records: Sequence[Mapping[str, Any]], report: ApplyReport) -> None:
-    matching, queue = _matching(connection, target, records, report)
-    scores, failed = scorer.score(matching)
-    for system_id, reason in failed.items():
-        report.cannot_score[system_id] = reason
-        report.cannot_reasons[reason] += 1
-    ids = [int(record["id64"]) for record in matching if int(record["id64"]) not in failed]
-    stored = scorer.stored(ids)
+def waiting_batch(scorer: Scorer, queue: Mapping[int, Sequence[str]], report: ApplyReport) -> None:
+    """Deal with one batch of systems from the waiting list, from our own rows.
+
+    ``queue`` gives, for each, the galaxy tables that changed. One transaction;
+    if the database refuses a row, one transaction per system instead, so that
+    only the system at fault stays on the waiting list.
+    """
+    report.systems_read += len(queue)
+    scoring = [system_id for system_id, tables in queue.items() if set(tables) & set(SCORING_TABLES)]
+    stored = scorer.stored(list(queue))
+    exported, cannot = scorer.export(scoring)
+    # Each body's class has to be in its own row. These systems' rows changed
+    # after their score rows were made, so a score row cannot vouch for one.
+    records, unknown = scorer.records(exported, {})
+    scores, failed = scorer.score(records, exported)
+    cannot = {**cannot, **unknown, **failed}
+
     replace: dict[str, list[int]] = defaultdict(list)
-    find_rows: list[int] = []
-    done: list[int] = []
-    for system_id in ids:
+    # What happens to each system that is written: "find_only", "added",
+    # "changed" or "same". Counted once its transaction has gone through.
+    outcome: dict[int, str] = {}
+    for system_id in queue:
+        if system_id in cannot:
+            continue
+        if system_id not in scoring:
+            # Only a station came or went. The scores stand; the Find row,
+            # which counts stations, is rebuilt. A system with no scores at
+            # all has no Find row to rebuild and stays where it is.
+            if system_id in stored.vectors:
+                outcome[system_id] = "find_only"
+            continue
         mine, theirs = scores.tables(system_id), stored.tables(system_id)
         found = {table: differences(columns, rows, theirs[table][1])
                  for table, (columns, rows) in mine.items()}
-        never_scored = system_id not in stored.vectors
-        differs = any(names - RECORD_STAMPS for names in found.values())
-        if system_id not in queue and not differs and not never_scored:
-            report.left_alone += 1
-            continue
         for table, names in found.items():
             if names:
                 replace[table].append(system_id)
-        find_rows.append(system_id)
-        if system_id in queue:
-            done.append(system_id)
+        if system_id not in stored.vectors:
+            outcome[system_id] = "added"
+        elif any(names - RECORD_STAMPS for names in found.values()):
+            outcome[system_id] = "changed"
         else:
-            report.corrected += 1
-        if never_scored:
-            report.added += 1
-        elif differs:
-            report.changed += 1
+            outcome[system_id] = "same"
+
+    written = list(outcome)
+    if written:
+        try:
+            scorer.write(scores, replace, written, written)
+        except galaxy.ROW_ERRORS:
+            # The database refused a row. Go again one system at a time.
+            written = []
+            for system_id in outcome:
+                try:
+                    scorer.write(scores, {table: [system_id] for table, ids in replace.items()
+                                          if system_id in ids}, [system_id], [system_id])
+                    written.append(system_id)
+                except galaxy.ROW_ERRORS as error:
+                    cannot[system_id] = galaxy._database_reason(error)
+    for system_id in written:
+        if outcome[system_id] == "find_only":
+            report.find_only += 1
         else:
-            report.same += 1
-    if find_rows:
-        scorer.write(scores, replace, find_rows, done)
-        report.find_rows += len(find_rows)
+            report.find_rows += 1
+            setattr(report, outcome[system_id], getattr(report, outcome[system_id]) + 1)
+    for system_id, reason in cannot.items():
+        report.cannot_score[system_id] = reason
+        report.cannot_reasons[reason] += 1
 
 
-def find_only_pass(connection: psycopg.Connection[Any], scorer: Scorer, report: ApplyReport) -> None:
-    """Systems on the waiting list for a reason that does not touch their scores
-    (a fleet carrier came or went): rebuild the Find row, which needs no record."""
-    last = -1
-    while True:
-        ids = [row[0] for row in connection.execute(
-            sql.SQL("SELECT system_id64 FROM {} WHERE NOT (changed_tables && %s::text[]) "
-                    "AND system_id64 > %s ORDER BY system_id64 LIMIT 500").format(sql.SQL(galaxy.QUEUE_TABLE)),
-            (list(SCORING_TABLES), last))]
-        if not ids:
-            return
-        last = ids[-1]
-        scored = [row[0] for row in scorer._read("system_rating_vector", ("system_id64",), ids)]
-        if scored:
-            scorer.write(Scores(), {}, scored, scored)
-            report.find_only += len(scored)
+def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = None,
+                  progress: bool = True) -> ApplyReport:
+    """Score the systems on the waiting list from the database alone.
 
-
-def apply_file(connection: psycopg.Connection[Any], path: Path, *, limit: int | None = None,
-               progress: bool = True) -> ApplyReport:
-    """Write the scores owed to the systems of ``path``. ``connection`` must be autocommit."""
+    ``connection`` must be autocommit. Systems are taken in batches, one
+    transaction each, so this can be stopped and started again at any point.
+    """
     if not connection.autocommit:
         raise ValueError("the connection must be in autocommit mode")
-    report = ApplyReport(path.name)
+    report = ApplyReport()
     started = time.monotonic()
     connection.execute(sql.SQL("SET statement_timeout = {}").format(sql.Literal(galaxy.STATEMENT_TIMEOUT)))
     connection.execute("SET lock_timeout = '60s'")
-    target = galaxy.preflight(connection, need_queue=True)
+    galaxy.preflight(connection, need_queue=True)
     if not connection.execute("SELECT pg_try_advisory_lock(%s)", (galaxy.LOCK_KEY,)).fetchone()[0]:
         raise galaxy.UpdateError("a galaxy update or another scoring run is going on; this one did not start")
     try:
         scorer = Scorer(connection)
-        reading = galaxy.Report("apply", path.name)
-        last = started
-        for records in galaxy._batches(path, reading, limit):
-            apply_batch(connection, target, scorer, records, report)
+        take = sql.SQL("SELECT system_id64, changed_tables FROM {} WHERE system_id64 > %s "
+                       "ORDER BY system_id64 LIMIT %s").format(sql.SQL(galaxy.QUEUE_TABLE))
+        last, after = started, -1
+        while True:
+            size = galaxy.BATCH_SYSTEMS if limit is None else min(galaxy.BATCH_SYSTEMS, limit - report.systems_read)
+            if size <= 0:
+                report.stopped_early = True
+                break
+            rows = connection.execute(take, (after, size)).fetchall()
+            if not rows:
+                break
+            after = rows[-1][0]
+            waiting_batch(scorer, {int(system_id): list(tables) for system_id, tables in rows}, report)
             if progress and time.monotonic() - last >= galaxy.PROGRESS_SECONDS:
                 last = time.monotonic()
-                galaxy.say(f"  ... {report.systems_read:,} systems read, "
+                galaxy.say(f"  ... {report.systems_read:,} systems taken from the waiting list, "
                            f"{report.added + report.changed + report.same:,} given scores, "
                            f"{int(last - started) // 60} min")
-        report.stopped_early = reading.stopped_early
-        find_only_pass(connection, scorer, report)
         report.still_waiting = connection.execute(
             sql.SQL("SELECT count(*) FROM {}").format(sql.SQL(galaxy.QUEUE_TABLE))).fetchone()[0]
     finally:
@@ -764,25 +923,33 @@ def check_file(connection: psycopg.Connection[Any], path: Path, *, limit: int | 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m spansh_delta.scores",
-        description="Work out scores from a Spansh galaxy file. check is read only; "
-                    "apply writes the scores that are owed.")
+        description="apply: give new scores to the systems on the waiting list. "
+                    "check: work scores out again from a Spansh galaxy file and compare; read only.")
     parser.add_argument("mode", choices=("check", "apply"),
-                        help="check: read only. apply: write the scores that are owed.")
-    parser.add_argument("file", type=Path, help="a Spansh galaxy*.json.gz file")
+                        help="check: read only, needs a file. apply: score the waiting list.")
+    parser.add_argument("file", type=Path, nargs="?", default=None,
+                        help="a Spansh galaxy*.json.gz file, for check. apply does not use one "
+                             "(one is accepted, and ignored, so older launchers still work).")
     parser.add_argument("--limit", type=int, default=None, help="stop after this many systems")
     args = parser.parse_args(argv)
-    if not args.file.is_file():
+    if args.mode == "check" and args.file is None:
+        galaxy.say("FAILED: check needs a Spansh galaxy file to compare with")
+        return 1
+    if args.mode == "check" and not args.file.is_file():
         galaxy.say(f"FAILED: there is no file {args.file}")
+        return 1
+    if args.limit is not None and args.limit < 1:
+        galaxy.say("FAILED: --limit must be 1 or more")
         return 1
     connection = galaxy.connect()
     if connection is None:
         return galaxy.EXIT_NO_CONNECTION
     with connection:
         galaxy.say(f"Score check (read only): {args.file.name}" if args.mode == "check"
-                   else f"Scoring: {args.file.name}")
+                   else "Scoring the systems on the waiting list")
         try:
             if args.mode == "apply":
-                written = apply_file(connection, args.file, limit=args.limit)
+                written = apply_waiting(connection, limit=args.limit)
                 for line in written.lines():
                     galaxy.say(line)
                 if os.environ.get("EDFINDER_GALAXY_JSON") == "1":
@@ -802,7 +969,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         galaxy.say("JSON " + json.dumps({
             "settled": report.settled, "identical": report.settled_same,
             "different": len(report.settled_different), "waiting": report.waiting,
-            "cannot_score": len(report.cannot_score)}, sort_keys=True))
+            "cannot_score": len(report.cannot_score),
+            "database_same": report.database_same,
+            "database_different": len(report.database_different),
+            "database_unknown": report.database_unknown}, sort_keys=True))
     galaxy.say("CHECKED: nothing was changed. " + report.verdict)
     return 0
 

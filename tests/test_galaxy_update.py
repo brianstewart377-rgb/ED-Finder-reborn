@@ -29,10 +29,10 @@ sys.path.insert(0, str(ROOT / "apps" / "importer" / "src"))
 
 from spansh_delta import apply as galaxy_update  # noqa: E402
 from spansh_delta.normalize import CONTENT_TABLES  # noqa: E402
-from tests.helpers.finder_seed import migration_names  # noqa: E402
+from tests.helpers.finder_seed import apply_migration, migration_names  # noqa: E402
 from tests.ratings_v4_pg_fixture import canonical_database  # noqa: E402
 from tests.test_spansh_delta import write_galaxy  # noqa: E402
-from v3_spansh.adapter import SpanshAdapter  # noqa: E402
+from v3_spansh.adapter import SpanshAdapter, body_class  # noqa: E402
 
 HD_38179, SOL, MAIA, THAILE, BORANN = 158872029, 10477373803, 8216113749, 31639717276, 5070611621289
 SMOJOO = 3754967435947
@@ -55,15 +55,31 @@ class Galaxy:
         return self.connection.execute(query.replace("{s}", self.schema), params).fetchall()
 
 
+def fill_classes(connection, schema: str, records) -> None:
+    """Give every stored body the class its record states, as a galaxy holds
+    them once its rows have been written since migration 027."""
+    statement = sql.SQL("UPDATE {}.bodies SET body_class = %s WHERE body_pk = %s").format(
+        sql.Identifier(schema))
+    for record in records:
+        for body in record["bodies"]:
+            connection.execute(statement, (body_class(body.get("type"), body.get("subType")), body["id64"]))
+
+
 @pytest.fixture(scope="module")
 def template():
-    """One migrated galaxy, built once; each test gets its own copy of it."""
+    """One migrated galaxy, built once; each test gets its own copy of it.
+
+    Its bodies have their classes. A galaxy whose rows were all written
+    before migration 027 has none of its own and takes them from its score
+    rows: ``tests/test_galaxy_scores.py`` has that galaxy.
+    """
     migrations = ROOT / "sql" / "v3" / "migrations"
     with canonical_database() as (connection, canonical, _, payloads):
         for name in migration_names():
             connection.execute((migrations / name).read_text(encoding="utf-8"))
         database = connection.info.dbname
         records = {payload["system"]["id64"]: payload["system"] for payload in payloads}
+        fill_classes(connection, canonical["canonical_schema"], records.values())
         connection.close()
         yield database, canonical["canonical_schema"], records
 
@@ -200,6 +216,139 @@ def test_the_queue_lists_a_system_once_and_must_say_what_changed(galaxy):
             (uuid4(),))
 
 
+# -- migration 027: each body's class ---------------------------------------
+
+
+COLUMNS = "SELECT table_schema, table_name, column_name FROM information_schema.columns"
+CREATES_A_GALAXY = "SELECT pg_get_functiondef('v3_meta.create_canonical_generation_relations(uuid)'::regprocedure)"
+
+
+def test_migration_027_adds_one_column_rewrites_no_row_and_new_galaxies_get_it():
+    migrations = ROOT / "sql" / "v3" / "migrations"
+    with canonical_database() as (connection, canonical, _, _payloads):
+        schema = canonical["canonical_schema"]
+        for name in migration_names(through=26):
+            connection.execute((migrations / name).read_text(encoding="utf-8"))
+        columns = set(connection.execute(COLUMNS).fetchall())
+        versions = connection.execute(
+            f"SELECT xmin::text, body_pk FROM {schema}.bodies ORDER BY body_pk").fetchall()
+
+        apply_migration(connection, 27)
+
+        after = set(connection.execute(COLUMNS).fetchall())
+        assert after - columns == {(schema, "bodies", "body_class")} and not columns - after
+        # Adding the column touched no row, and every row starts without a class.
+        assert connection.execute(
+            f"SELECT xmin::text, body_pk FROM {schema}.bodies ORDER BY body_pk").fetchall() == versions
+        assert connection.execute(
+            f"SELECT count(*), count(body_class) FROM {schema}.bodies").fetchone() == (len(versions), 0)
+        # A class is never blank, and never longer than the score tables allow.
+        for refused in (" ", "x" * 129):
+            with pytest.raises(psycopg.errors.CheckViolation):
+                connection.execute(f"UPDATE {schema}.bodies SET body_class = %s", (refused,))
+
+        # Running it again changes nothing.
+        function = connection.execute(CREATES_A_GALAXY).fetchone()[0]
+        assert function.count("body_class text,") == 1
+        apply_migration(connection, 27)
+        assert set(connection.execute(COLUMNS).fetchall()) == after
+        assert connection.execute(CREATES_A_GALAXY).fetchone()[0] == function
+
+        # A galaxy created from now on has the column and its rule.
+        generation = uuid4()
+        connection.execute(
+            """INSERT INTO v3_meta.canonical_generation(
+                   generation_id, generation_key, relation_schema, manifest_sha256, build_source_run_id)
+               SELECT %s, 'made_later', 'v3_gen_made_later', %s, build_source_run_id
+                 FROM v3_meta.canonical_generation LIMIT 1""", (generation, bytes(32)))
+        connection.execute("SELECT v3_meta.create_canonical_generation_relations(%s)", (generation,))
+        assert ("v3_gen_made_later", "bodies", "body_class") in set(connection.execute(COLUMNS).fetchall())
+        assert connection.execute(
+            "SELECT count(*) FROM pg_constraint WHERE conname = 'bodies_body_class_valid'").fetchone()[0] == 2
+
+
+def test_every_body_written_gets_its_class(galaxy, tmp_path):
+    record = deepcopy(galaxy.records[HD_38179])
+    star = next(body for body in record["bodies"] if body.get("type") == "Star" and body.get("subType"))
+    planet = next(body for body in record["bodies"] if body.get("type") == "Planet" and body.get("subType"))
+    bare = next(body for body in record["bodies"]
+                if body.get("type") == "Planet" and body is not planet)
+    bare.pop("subType", None)
+    new = as_new_system(record, 99158872029, "Test Sector AA-A a1")
+    run(galaxy, tmp_path, [new])
+    classes = dict(galaxy.all("SELECT source_body_id64, body_class FROM {s}.bodies WHERE system_id64 = %s",
+                              new["id64"]))
+    # Spansh's sub-type where it gives one; otherwise the plain type.
+    assert classes[star["id64"] + 7] == star["subType"]
+    assert classes[planet["id64"] + 7] == planet["subType"]
+    assert classes[bare["id64"] + 7] == "planet"
+    assert None not in classes.values() and len(classes) == len(record["bodies"])
+    assert body_class("Barycentre", None) == "barycentre" and body_class("Belt Cluster", "") == "belt_cluster"
+    assert body_class("Something new", None) == "Unknown" and body_class(None, " Icy body ") == "Icy body"
+    # A sub-type that is blank, or is not text, counts as none.
+    assert body_class("Planet", "  ") == "planet" and body_class("Planet", 5) == "planet"
+
+
+def test_a_class_spansh_changed_with_nothing_else_is_a_change(galaxy, tmp_path):
+    run(galaxy, tmp_path, galaxy.records.values())
+    galaxy.connection.execute(f"DELETE FROM {QUEUE}")
+    record = deepcopy(galaxy.records[HD_38179])
+    body = next(body for body in record["bodies"] if body.get("type") == "Planet" and body.get("subType"))
+    now = "Rocky body" if body["subType"] != "Rocky body" else "High metal content world"
+    body["subType"] = now
+
+    report = run(galaxy, tmp_path, [record, galaxy.records[SOL]], made_at=SEPTEMBER + timedelta(days=1))
+
+    assert (report.changed, report.unchanged) == (1, 1)
+    assert dict(report.systems_by_table) == {"bodies": 1}
+    # The scores are worked out from the class, so the system waits for new ones.
+    assert queue(galaxy) == {HD_38179: ["bodies"]}
+    assert galaxy.one("SELECT body_class FROM {s}.bodies WHERE body_pk = %s", body["id64"])[0] == now
+
+
+def test_a_stored_body_with_no_class_known_makes_its_system_count_as_changed_once(galaxy, tmp_path):
+    """This galaxy has no scores, so a body row without a class of its own has
+    no score row to take one from either. Writing the system fills it in."""
+    run(galaxy, tmp_path, galaxy.records.values())
+    galaxy.connection.execute(f"DELETE FROM {QUEUE}")
+    galaxy.connection.execute(
+        f"UPDATE {galaxy.schema}.bodies SET body_class = NULL WHERE system_id64 = %s", (HD_38179,))
+
+    report = run(galaxy, tmp_path, galaxy.records.values(), made_at=SEPTEMBER + timedelta(days=1))
+
+    assert (report.changed, report.unchanged) == (1, 11)
+    assert queue(galaxy) == {HD_38179: ["bodies"]}
+    assert galaxy.one("SELECT count(*) FROM {s}.bodies WHERE system_id64 = %s AND body_class IS NULL "
+                      "AND lifecycle_state = 'ACTIVE'", HD_38179)[0] == 0
+    again = run(galaxy, tmp_path, galaxy.records.values(), made_at=SEPTEMBER + timedelta(days=2))
+    assert (again.changed, again.unchanged) == (0, 12)
+
+
+def test_a_kind_of_body_that_is_never_scored_is_known_by_its_type_alone(galaxy, tmp_path):
+    """A barycentre has no score row and Spansh gives it no sub-type: its
+    class is its type, recorded or not. An empty one is not a difference."""
+    with_barycentre = deepcopy(galaxy.records[HD_38179])
+    with_barycentre["bodies"].append({
+        "id64": with_barycentre["bodies"][0]["id64"] + (99 << 55), "bodyId": 99,
+        "name": with_barycentre["name"] + " Barycentre", "type": "Barycentre",
+        "updateTime": "2026-09-01 00:00:00+00"})
+    run(galaxy, tmp_path, [with_barycentre])
+    galaxy.connection.execute(f"DELETE FROM {QUEUE}")
+    cleared = galaxy.all(
+        "UPDATE {s}.bodies SET body_class = NULL WHERE system_id64 = %s AND body_class = 'barycentre' "
+        "RETURNING body_pk", HD_38179)
+    assert len(cleared) == 1
+    before = snapshot(galaxy)
+
+    report = run(galaxy, tmp_path, [with_barycentre], made_at=SEPTEMBER + timedelta(days=1))
+
+    assert (report.changed, report.unchanged) == (0, 1)
+    after = snapshot(galaxy)
+    # Only the record of the run itself moved: no galaxy row was written.
+    assert {name for name in after if after[name] != before[name]} == {"runs"}
+    assert queue(galaxy) == {}
+
+
 # -- the usual night --------------------------------------------------------
 
 
@@ -223,6 +372,10 @@ def test_check_needs_no_queue_table_but_apply_does(template, tmp_path):
         for name in migration_names(through=25):
             connection.execute((migrations / name).read_text(encoding="utf-8"))
         path = write_galaxy(tmp_path / "galaxy.json.gz", [payload["system"] for payload in payloads])
+        # Without the class column nothing runs, not even a check.
+        with pytest.raises(galaxy_update.Refused, match="migration 027"):
+            galaxy_update.run_file(connection, path, mode="check", made_at=SEPTEMBER, progress=False)
+        apply_migration(connection, 27)
         report = galaxy_update.run_file(connection, path, mode="check", made_at=SEPTEMBER, progress=False)
         assert report.changed == 12
         with pytest.raises(galaxy_update.Refused, match="migration 026"):
@@ -490,6 +643,17 @@ def test_a_system_the_database_refuses_is_set_aside_alone(galaxy, tmp_path):
     # The refused system is exactly as it was.
     assert galaxy.one("SELECT count(*) FROM {s}.bodies b JOIN v3_source.source_run r USING (source_run_id) "
                       "WHERE b.system_id64 = %s AND r.acquisition_kind = 'DELTA'", HD_38179)[0] == 0
+
+
+def test_a_class_too_long_to_be_scored_sets_only_that_system_aside(galaxy, tmp_path):
+    """The score tables take a class of up to 128 characters, and the galaxy
+    tables keep the same limit, so nothing gets in that could never be scored."""
+    bad = deepcopy(galaxy.records[HD_38179])
+    next(body for body in bad["bodies"] if body.get("subType"))["subType"] = "x" * 129
+    report = run(galaxy, tmp_path, [galaxy.records[SOL], bad])
+    assert list(report.set_aside) == [HD_38179]
+    assert "bodies_body_class_valid" in report.set_aside[HD_38179]
+    assert report.changed == 1 and set(queue(galaxy)) == {SOL}
 
 
 def test_too_many_failures_stop_the_run_and_say_so(galaxy, tmp_path, monkeypatch):

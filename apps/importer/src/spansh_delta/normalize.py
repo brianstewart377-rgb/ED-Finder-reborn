@@ -75,6 +75,14 @@ JSON_COLUMNS = frozenset({
     ("station_placement", "evidence_detail"),
 })
 
+# Columns the galaxy tables gained after the first import (migration 027).
+# Rows exported before then do not have them, so such a base cannot be compared
+# on them. A row read from the database always has them; there an empty value
+# is compared like any other.
+LATER_COLUMNS = frozenset({
+    ("bodies", "body_class"),
+})
+
 IDENTITY_COLUMNS: Mapping[str, tuple[str, ...]] = {
     "systems": ("id64",),
     "bodies": ("body_pk",),
@@ -498,6 +506,15 @@ def classify_material_change(
     if len(base["systems"]) != 1:
         raise ValueError(f"base holds {len(base['systems'])} rows for system {system.id64}")
 
+    absent = sorted((table, column) for table, column in LATER_COLUMNS
+                    if table in compared and any(column not in row for row in base[table]))
+    new_tables: Mapping[str, Iterable[Row]] = system.tables
+    for table, column in absent:
+        # The base predates this column: leave it out of the comparison.
+        index = CONTENT_COLUMNS[table].index(column)
+        base = {**base, table: [{**row, column: None} for row in base[table]]}
+        new_tables = {**new_tables, table: tuple(
+            (*row[:index], None, *row[index + 1:]) for row in new_tables[table])}
     base_tables = {table: [_content_row(table, row) for row in base[table]] for table in compared}
     base_carriers = frozenset(
         int(row["station_pk"]) for row in base["stations"] if row.get("is_fleet_carrier") is True
@@ -505,7 +522,7 @@ def classify_material_change(
     # Each snapshot is filtered by its own carrier membership, as
     # content_digests does: a station that became (or stopped being) a fleet
     # carrier is a change to the carrier-free view.
-    new_projection = _projected(system.tables, policy=policy, include_carriers=include_carriers,
+    new_projection = _projected(new_tables, policy=policy, include_carriers=include_carriers,
                                 carriers=system.fleet_carrier_station_pks, only=compared)
     base_projection = _projected(base_tables, policy=policy, include_carriers=include_carriers,
                                  carriers=base_carriers, only=compared)
