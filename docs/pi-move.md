@@ -92,7 +92,10 @@ is scored "on request". Confirmed by the owner on 11 November.
 - [ ] (11 Nov) **How long a restore takes.** Building indexes on
       600-million-row tables with 16 GB of memory could take a day or more.
       Time one large table with its indexes first, and build only the indexes
-      the app and the nightly jobs use.
+      the app and the nightly jobs use. (11 Nov) `scripts/pi/time_table_copy.sh`
+      does that for one galaxy table, starting with `systems` (53 GB, 198.5
+      million rows): it fetches the table from the server with the Pi's key,
+      loads it, builds its indexes, and logs the time of each step.
 
 - [ ] (11 Nov) **Everything else the Pi does every day.** Only scoring is
       measured above. Find matters most: the app gives up on any database
