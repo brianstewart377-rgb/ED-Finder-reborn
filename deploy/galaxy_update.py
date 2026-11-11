@@ -1,9 +1,29 @@
 #!/usr/bin/env python3
-"""Keep the galaxy tables fresh: fetch Spansh's one-day file and apply it.
+"""Keep the galaxy tables fresh: fetch Spansh's 7-day file and apply it.
 
-Spansh publishes, every night, every system that changed in the last day
-(galaxy_1day.json.gz, about 1.2 GB). This fetches it and brings our systems,
+Spansh publishes, once a night, every system that changed in the last 7 days
+(galaxy_7days.json.gz, about 3 GB). This fetches it and brings our systems,
 bodies, rings and stations up to date from it (edfinder-galaxy-update.timer).
+What we already have is left alone, so each night only what really changed is
+written.
+
+Why 7 days and not Spansh's one-day file: Spansh makes its files at a
+different time each night (02:10 UTC on 10 November, 03:20 UTC on 11
+November), so two one-day files can leave a gap between them, and a night the
+update does not run would lose that day for good. Each 7-day file reaches back
+over the last six nights as well, so neither can happen.
+
+The file is chosen by how long ago the last update's file was made (the
+database records that, so the choice still works after a copy to another
+machine):
+
+  * 6 days or less: the 7-day file.
+  * 7 to 31 days: Spansh's 32-day file (galaxy_1month.json.gz, about 6 GB).
+  * More: the update stops and says so. Only the full galaxy file reaches back
+    that far; give it by hand with EDFINDER_GALAXY_URL.
+
+A day is kept spare in both, because when exactly a file's days begin is
+Spansh's to say.
 
     python3 galaxy_update.py check    fetch the file, then say what would change.
                                       Read only: the database is not touched.
@@ -52,6 +72,7 @@ from __future__ import annotations
 
 import argparse
 import email.utils
+from datetime import datetime, timedelta, timezone
 import fcntl
 import os
 import re
@@ -59,7 +80,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -69,8 +90,11 @@ import state_refresh as fetch  # noqa: E402  (shared download code)
 DEFAULTS: Dict[str, str] = {
     # Where the downloaded file is kept between runs.
     "EDFINDER_GALAXY_DIR": "/var/lib/edfinder-galaxy",
-    # The file to apply.
-    "EDFINDER_GALAXY_URL": "https://downloads.spansh.co.uk/galaxy_1day.json.gz",
+    # Where Spansh keeps its files.
+    "EDFINDER_GALAXY_SOURCE": "https://downloads.spansh.co.uk/",
+    # One fixed file to apply, instead of the choice above: for the full galaxy
+    # file, or for trying something out. Empty means choose.
+    "EDFINDER_GALAXY_URL": "",
     # The database: its container, and the user and database name inside it.
     # No password belongs here.
     "EDFINDER_DB_CONTAINER": "edfinder-v3-phase4c-full-20260827_r5-postgres",
@@ -93,6 +117,14 @@ DEFAULTS: Dict[str, str] = {
 }
 
 JOB_NAME = "edfinder-galaxy-update"
+
+# Spansh's files of recent changes, and how far back each is trusted to reach
+# (its own span, less a day).
+DAY_FILE = "galaxy_1day.json.gz"
+WEEK_FILE = "galaxy_7days.json.gz"
+MONTH_FILE = "galaxy_1month.json.gz"
+WEEK_REACH = timedelta(days=6)
+MONTH_REACH = timedelta(days=31)
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 # The update's own exit code for "could not connect to the database".
@@ -105,6 +137,12 @@ LAST_RUN_SQL = (
     "coalesce(r.scope_contract->>'changed', ''), coalesce(r.scope_contract->>'new', '') "
     "FROM v3_source.source_run r WHERE r.acquisition_kind = 'DELTA' "
     "ORDER BY r.started_at DESC LIMIT 1"
+)
+# When the file of the last finished update was made: everything Spansh had
+# changed up to then is in the database.
+COVERED_SQL = (
+    "SELECT coalesce(to_char(max(r.effective_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'), '') "
+    "FROM v3_source.source_run r WHERE r.acquisition_kind = 'DELTA' AND r.run_state = 'SUCCEEDED'"
 )
 WAITING_SQL = "SELECT count(*) FROM v3_state.rescore_queue"
 # What the database accepts from a local client. Names and methods only.
@@ -129,8 +167,14 @@ class Settings:
         values = {key: environ.get(key, conf.get(key, default))
                   for key, default in DEFAULTS.items()}
         self.directory = Path(values["EDFINDER_GALAXY_DIR"])
-        self.url = values["EDFINDER_GALAXY_URL"].strip()
-        if not self.url.startswith(("https://", "http://")) or not fetch.file_name(self.url):
+        self.source = values["EDFINDER_GALAXY_SOURCE"].strip()
+        if not self.source.startswith(("https://", "http://")) or not self.source.endswith("/"):
+            raise UpdateError("EDFINDER_GALAXY_SOURCE: %r is not a folder address ending in /"
+                              % self.source)
+        # A fixed file, or None to choose (see the top of this file).
+        self.url: Optional[str] = values["EDFINDER_GALAXY_URL"].strip() or None
+        if self.url is not None and (not self.url.startswith(("https://", "http://"))
+                                     or not fetch.file_name(self.url)):
             raise UpdateError("EDFINDER_GALAXY_URL: %r is not a file address" % self.url)
         self.db_container = values["EDFINDER_DB_CONTAINER"]
         self.db_user = values["EDFINDER_DB_USER"]
@@ -152,9 +196,13 @@ class Settings:
             raise UpdateError("EDFINDER_GALAXY_SCORES must be on or off")
         self.scores = values["EDFINDER_GALAXY_SCORES"] == "on"
 
+    def path(self, name: str) -> Path:
+        return self.directory / name
+
     @property
-    def target(self) -> Path:
-        return self.directory / fetch.file_name(self.url)
+    def usual_file(self) -> str:
+        """The file a run takes when nothing is unusual."""
+        return fetch.file_name(self.url) if self.url else WEEK_FILE
 
     @property
     def record(self) -> Path:
@@ -189,15 +237,25 @@ def live_image(settings: Settings) -> str:
     return image
 
 
-def made_at(version: Dict[str, Any]) -> Optional[str]:
-    """Spansh's Last-Modified time for the file, as an ISO time with a zone."""
+def published(version: Dict[str, Any]) -> Optional[datetime]:
+    """When Spansh made the file (its Last-Modified time), or None."""
     try:
         when = email.utils.parsedate_to_datetime(version.get("modified") or "")
     except (TypeError, ValueError):
         return None
     if when is None or when.tzinfo is None:
         return None
-    return when.isoformat()
+    return when
+
+
+def made_at(version: Dict[str, Any]) -> Optional[str]:
+    """Spansh's Last-Modified time for the file, as an ISO time with a zone."""
+    when = published(version)
+    return when.isoformat() if when else None
+
+
+def when_text(when: datetime) -> str:
+    return when.astimezone(timezone.utc).strftime("%d %b %Y %H:%M UTC")
 
 
 def query(settings: Settings, statement: str) -> List[List[str]]:
@@ -221,6 +279,88 @@ def describe(rows: List[List[str]]) -> str:
         when, outcome, name or "file unknown", read or "?", changed or "?", new or "?")
 
 
+def covered_until(settings: Settings) -> Optional[datetime]:
+    """When the file of the last finished update was made, or None if none has finished."""
+    rows = query(settings, COVERED_SQL)
+    text = rows[0][0] if rows and rows[0] else ""
+    if not text:
+        return None
+    try:
+        return datetime.strptime(text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise UpdateError("the database gave an unexpected time for the last update: %r" % text) from None
+
+
+def applied_here(settings: Settings, version: Dict[str, Any]) -> bool:
+    """True when the last update on this machine applied exactly this file."""
+    return (fetch.read_record(settings.record).get("applied") == version
+            and fetch.have_version(settings.path(fetch.file_name(version["url"])), version))
+
+
+def choose(settings: Settings) -> Tuple[str, Dict[str, Any], bool]:
+    """Which Spansh file to take: its address, its version, and whether it has
+    already been applied (so there is nothing new)."""
+    if settings.url:
+        version = fetch.remote_version(settings.url)
+        return settings.url, version, applied_here(settings, version)
+    week_url = settings.source + WEEK_FILE
+    week = fetch.remote_version(week_url)
+    if applied_here(settings, week):
+        return week_url, week, True
+    made = published(week)
+    if made is None:
+        raise UpdateError("Spansh did not say when its 7-day file was made, so there is no "
+                          "telling whether it reaches back far enough. Nothing was changed.")
+    last = covered_until(settings)
+    if last is None:
+        raise UpdateError(
+            "no galaxy update has finished in this database yet, so there is no telling how "
+            "far back the first one has to reach. Apply a first file by hand with "
+            "EDFINDER_GALAXY_URL (see the top of galaxy_update.py). Nothing was changed.")
+    if made <= last:
+        return week_url, week, True
+    if made - last <= WEEK_REACH:
+        return week_url, week, False
+    month_url = settings.source + MONTH_FILE
+    month = fetch.remote_version(month_url)
+    made = published(month)
+    if made is not None and made - last <= MONTH_REACH:
+        say("The last update applied Spansh's files of %s, more than 6 days ago. "
+            "Taking the 32-day file instead of the 7-day one." % when_text(last))
+        return month_url, month, False
+    raise UpdateError(
+        "the last update applied Spansh's files of %s, more than 31 days ago. Spansh's "
+        "32-day file no longer reaches back that far; only the full galaxy file "
+        "(galaxy.json.gz, about 120 GB) does. Apply it by hand with EDFINDER_GALAXY_URL. "
+        "Nothing was changed." % when_text(last))
+
+
+def file_on_disk(settings: Settings) -> Optional[str]:
+    """The Spansh file here that the last update applied, else the usual one, if present."""
+    names = []
+    applied = fetch.read_record(settings.record).get("applied")
+    if isinstance(applied, dict) and isinstance(applied.get("url"), str):
+        names.append(fetch.file_name(applied["url"]))
+    names.append(settings.usual_file)
+    for name in names:
+        if name and NAME.match(name) and settings.path(name).is_file():
+            return name
+    return None
+
+
+def tidy(settings: Settings, keep: str) -> None:
+    """Remove the other files of recent changes: only the one just applied is kept."""
+    for name in (DAY_FILE, WEEK_FILE, MONTH_FILE):
+        if name == keep:
+            continue
+        for path in (settings.path(name), settings.path(name + ".version"),
+                     settings.path(name + ".part")):
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def connection_rules(settings: Settings) -> List[str]:
     """How the database lets local clients in, for a failed connection."""
     try:
@@ -242,7 +382,7 @@ JOBS = {
 
 
 def job_command(settings: Settings, route: str, image: str, command_name: str,
-                version: Dict[str, Any], limit: Optional[int]) -> List[str]:
+                version: Dict[str, Any], limit: Optional[int], name: Optional[str]) -> List[str]:
     module, mode, reads_file = JOBS[command_name]
     command = ["docker", "run", "--rm", "--name", JOB_NAME]
     if route == "local":
@@ -265,7 +405,9 @@ def job_command(settings: Settings, route: str, image: str, command_name: str,
         image, "python", "-m", module, mode,
     ]
     if reads_file:
-        command.append("/data/" + settings.target.name)
+        if not name:
+            raise UpdateError("no Spansh file was given for the %s" % command_name)
+        command.append("/data/" + name)
     when = made_at(version) if module == "spansh_delta.apply" else None
     if when:
         command += ["--made-at", when]
@@ -275,7 +417,7 @@ def job_command(settings: Settings, route: str, image: str, command_name: str,
 
 
 def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
-            limit: Optional[int]) -> int:
+            limit: Optional[int], name: Optional[str] = None) -> int:
     image = live_image(settings)
     routes = ["local", "app"] if settings.connect == "auto" else [settings.connect]
     code = 1
@@ -292,8 +434,9 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
             "The database did not accept a local client. Trying the app's own connection "
             "settings instead ...")
         try:
-            code = subprocess.run(job_command(settings, route, image, command_name, version, limit),
-                                  stdin=subprocess.DEVNULL).returncode
+            code = subprocess.run(
+                job_command(settings, route, image, command_name, version, limit, name),
+                stdin=subprocess.DEVNULL).returncode
         except OSError as error:
             raise UpdateError("docker could not be run: %s" % error) from error
         if code != EXIT_NO_CONNECTION:
@@ -306,6 +449,12 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
     return code
 
 
+def make_readable(settings: Settings, name: str) -> None:
+    # The update's container must be able to read the file whoever it runs as.
+    os.chmod(settings.directory, 0o755)
+    os.chmod(settings.path(name), 0o644)
+
+
 def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
     settings.directory.mkdir(parents=True, exist_ok=True)
     with open(settings.directory / "lock", "w") as lock:
@@ -314,30 +463,34 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         except OSError:
             raise UpdateError("another galaxy update is already running") from None
 
-        target = settings.target
         if mode == "score":
             # The waiting list is in the database, and so is everything the
             # scores are worked out from. No file is needed.
             return finished(run_job(settings, "score", {}, limit), "scoring")
-        if mode == "check-scores" and target.is_file():
+        if mode == "check-scores":
             # Compared with the file already here, normally the one the last
             # update applied, so nothing is fetched.
-            version = fetch.read_record(target.with_name(target.name + ".version"))
-            os.chmod(settings.directory, 0o755)
-            os.chmod(target, 0o644)
-            return finished(run_job(settings, mode, version, limit), "check")
+            name = file_on_disk(settings)
+            if name:
+                version = fetch.read_record(settings.path(name + ".version"))
+                make_readable(settings, name)
+                return finished(run_job(settings, mode, version, limit, name), "check")
+            say("Asking Spansh what is new ...")
+            url = settings.url or settings.source + WEEK_FILE
+            version, applied = fetch.remote_version(url), False
+        else:
+            say("Asking Spansh what is new ...")
+            url, version, applied = choose(settings)
+            if mode == "run" and limit is None and applied:
+                if not settings.scores:
+                    say("Spansh has published nothing new since the last update. Nothing to do.")
+                    return 0
+                say("Spansh has published nothing new since the last update. "
+                    "Looking at the waiting list for new scores ...")
+                return finished(run_job(settings, "score", version, None), "scoring")
 
-        say("Asking Spansh what is new ...")
-        version = fetch.remote_version(settings.url)
-        record = fetch.read_record(settings.record)
-        if (mode == "run" and limit is None and record.get("applied") == version
-                and fetch.have_version(target, version)):
-            if not settings.scores:
-                say("Spansh has published nothing new since the last update. Nothing to do.")
-                return 0
-            say("Spansh has published nothing new since the last update. "
-                "Looking at the waiting list for new scores ...")
-            return finished(run_job(settings, "score", version, None), "scoring")
+        name = fetch.file_name(url)
+        target = settings.path(name)
         if not fetch.have_version(target, version):
             needed = version["size"] + fetch.SPARE_BYTES
             free = shutil.disk_usage(settings.directory).free
@@ -345,18 +498,18 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
                 raise UpdateError(
                     "not enough free disk space in %s: %.1f GB free, %.1f GB needed" % (
                         settings.directory, free / 1e9, needed / 1e9))
-            say("Downloading %s (%.1f GB) ..." % (target.name, version["size"] / 1e9))
+            say("Downloading %s (%.1f GB) ..." % (name, version["size"] / 1e9))
             fetch.download(version, target)
             if not fetch.have_version(target, version):
-                raise UpdateError("%s is not the version Spansh offered" % target.name)
-        # The update's container must be able to read the file whoever it runs as.
-        os.chmod(settings.directory, 0o755)
-        os.chmod(target, 0o644)
+                raise UpdateError("%s is not the version Spansh offered" % name)
+        make_readable(settings, name)
 
-        code = run_job(settings, mode, version, limit)
+        code = run_job(settings, mode, version, limit, name)
         if code != 0 or mode != "run" or limit is not None:
             return finished(code, "update" if mode == "run" else "check")
         fetch.write_record(settings.record, {"applied": version})
+        if not settings.url:
+            tidy(settings, name)
         if settings.scores:
             return finished(run_job(settings, "score", version, None), "scoring")
     return 0
@@ -378,19 +531,24 @@ def cmd_status(settings: Settings) -> int:
         say("The list of systems waiting for new scores does not exist yet (migration 026).")
     say("Scoring after each update is switched %s." % ("on" if settings.scores else
         "off (EDFINDER_GALAXY_SCORES in deploy.conf)"))
-    target = settings.target
-    if target.is_file():
-        noted = fetch.read_record(target.with_name(target.name + ".version"))
-        say("%s: %.1f GB, published %s" % (
-            target.name, target.stat().st_size / 1e9, noted.get("modified") or "unknown"))
+    if settings.url:
+        say("Each run takes %s (EDFINDER_GALAXY_URL)." % settings.url)
     else:
-        say("%s: not downloaded yet" % target.name)
+        say("Each run takes Spansh's 7-day file, or its 32-day file when the last update "
+            "is more than 6 days old.")
+    name = file_on_disk(settings)
+    if name:
+        noted = fetch.read_record(settings.path(name + ".version"))
+        say("%s: %.1f GB, published %s" % (
+            name, settings.path(name).stat().st_size / 1e9, noted.get("modified") or "unknown"))
+    else:
+        say("No Spansh file on disk yet.")
     return 0
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Fetch Spansh's one-day galaxy file and apply it.")
+        description="Fetch Spansh's file of recent changes to the galaxy and apply it.")
     parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")

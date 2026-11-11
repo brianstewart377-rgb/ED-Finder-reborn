@@ -99,7 +99,7 @@ Already known:
 
 - **The home line is not a limit.** 1 Gbit fibre to the property, no data cap.
   The nightly downloads (about 9.3 GB for the two state files plus about
-  1.3 GB for the galaxy changes) take a few minutes. The one-off copy, perhaps
+  3 GB for the galaxy changes) take a few minutes. The one-off copy, perhaps
   150 to 250 GB (a guess until the copy script exists), will be limited by how
   fast the Pi can write.
 
@@ -132,7 +132,8 @@ In order:
       `apps/importer/src/spansh_delta/apply.py`, migration `026`). First run on
       the current server, 10 November: 101,429 systems read, 29,369 changed,
       67,122 new, 4,938 identical, in 6 min 56 s; none refused. It has run by
-      itself every night since.
+      itself every night since. (11 Nov) Moving to the 7-day file: see "Never
+      miss a day".
 - [ ] **A nightly re-score** of the systems noted as changed, replacing their
       score rows and Find rows. Checked against real data first, read only
       (`deploy/galaxy_update.py check-scores`): systems nothing has changed
@@ -158,9 +159,15 @@ In order:
       so it shows for systems with no scores.
 - [ ] (11 Nov) **Never miss a day.** The one-day file holds only the last 24
       hours, so a night the job does not run is a day of changes lost, and
-      two files a day apart may leave a gap between them. The nightly job
-      chooses the file by how long ago it last ran (one-day, 7-day or
-      32-day), and runs the 7-day file once a week as a sweep.
+      two files a day apart can leave a gap between them: Spansh made its
+      files at 02:10 UTC on 10 November and 03:20 UTC on 11 November, so 70
+      minutes of changes fell between those two. Built 11 November, simpler
+      than first planned: every night takes the 7-day file, which also reaches
+      back over the last six nights; after more than 6 days away, the 32-day
+      file; after more than 31 days it stops and says so. No weekly sweep is
+      needed. Chosen from the database's record of the last update, so it
+      also works on the Pi after the copy. Not yet installed on the current
+      server.
 - [ ] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
       same code, because no smaller file reaches back to 27 August. Timed on
       the first million systems before the full run.
@@ -194,8 +201,10 @@ In order:
 - [ ] Clean-up settings on the galaxy and score tables (see section 2), then
       one full clean-up and statistics pass over the restored database.
 - [ ] Load the system state on the Pi (`deploy/state_refresh.py run`).
-- [ ] (11 Nov) Apply Spansh's 32-day file once, to bring in what changed
-      between taking the copy and the Pi's first nightly run.
+- [ ] (11 Nov) Bring in what changed between taking the copy and the Pi's
+      first nightly run. The nightly job does this by itself: it takes the
+      7-day or 32-day file by how old the copy's last update is. The Pi's
+      first run has to be within 31 days of the current server's last update.
 
 ## 5. The app on the Pi
 
