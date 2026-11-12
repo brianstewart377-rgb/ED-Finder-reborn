@@ -46,9 +46,11 @@ COPY apps/web/nginx/default.conf.template /etc/nginx/templates/default.conf.temp
 COPY apps/web/nginx/proxy_params /etc/nginx/proxy_params
 COPY --from=build /workspace/apps/web/build/ /usr/share/nginx/html/
 
-# Only substitute the reviewed API upstream. nginx variables such as $host,
-# $uri and $request_id must survive template rendering unchanged.
-ENV NGINX_ENVSUBST_FILTER="^EDFINDER_API_UPSTREAM$" \
+# Only substitute the reviewed settings. nginx variables such as $host,
+# $uri and $request_id must survive template rendering unchanged. Where the
+# visitor's address comes from: see nginx/default.conf.template.
+ENV NGINX_ENVSUBST_FILTER="^EDFINDER_(API_UPSTREAM|CLIENT_ADDRESS_FROM)$" \
+    EDFINDER_CLIENT_ADDRESS_FROM="x_real_ip" \
     BUILD_SHA="$BUILD_SHA"
 LABEL org.opencontainers.image.revision="$BUILD_SHA"
 

@@ -6,6 +6,22 @@ map $http_x_forwarded_proto $forwarded_proto {
     default $http_x_forwarded_proto;
 }
 
+# The visitor's own address, passed to the API as X-Real-IP: the API limits
+# each visitor's searches by it. EDFINDER_CLIENT_ADDRESS_FROM says which
+# incoming header holds it:
+#   x_real_ip         a web server in front of this container sets X-Real-IP
+#                     (the current server's public edge, which trusts
+#                     Cloudflare's header only from Cloudflare). Passed on as
+#                     it came.
+#   cf_connecting_ip  Cloudflare's own header, which Cloudflare always sets.
+#                     For a machine reached only through a Cloudflare Tunnel
+#                     (the Pi). An X-Real-IP sent by the visitor is replaced.
+# An absent header leaves X-Real-IP out, and the API then counts the request
+# against this container's own address.
+map $http_${EDFINDER_CLIENT_ADDRESS_FROM} $edfinder_client_address {
+    default $http_${EDFINDER_CLIENT_ADDRESS_FROM};
+}
+
 server {
     listen 8080;
     server_name _;

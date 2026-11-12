@@ -270,6 +270,27 @@ def test_first_release_goes_live_on_a_free_address(site):
     assert "LIVE git-" + SHA_A in (site.state_dir / "deploy.log").read_text()
 
 
+def test_the_api_gets_each_visitors_address_from_the_header_the_machine_names(site):
+    def address_seen(**headers: str) -> str:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        request = urllib.request.Request(
+            "http://127.0.0.1:%d/api/stub/visitor-address" % site.live_port,
+            headers={name.replace("_", "-"): value for name, value in headers.items()})
+        with opener.open(request, timeout=5) as response:
+            return json.loads(response.read())["x_real_ip"]
+
+    # The Pi: reached only through a Cloudflare Tunnel, so Cloudflare's own
+    # header holds the visitor, and an X-Real-IP the visitor sends is not believed.
+    result = site.tool("live", tag(SHA_A), environ={"EDFINDER_CLIENT_ADDRESS_FROM": "cf_connecting_ip"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert address_seen(CF_Connecting_IP="198.51.100.7", X_Real_IP="203.0.113.9") == "198.51.100.7"
+    assert address_seen(X_Real_IP="203.0.113.9") == ""
+    # The current server: its own web server in front sets X-Real-IP, passed on as it came.
+    result = site.tool("live", tag(SHA_B))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert address_seen(CF_Connecting_IP="198.51.100.7", X_Real_IP="203.0.113.9") == "203.0.113.9"
+
+
 def test_newer_release_replaces_the_live_one_and_rollback_returns(site):
     assert site.tool("live", tag(SHA_A)).returncode == 0
     result = site.tool("live", tag(SHA_B))

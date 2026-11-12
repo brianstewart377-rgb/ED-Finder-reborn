@@ -71,7 +71,14 @@ DEFAULTS: Dict[str, str] = {
     # Run three Find searches against a started release. Set to 0 only on a
     # machine whose database has no Finder data yet.
     "EDFINDER_FIND_CHECK": "1",
+    # Which incoming header the web container takes each visitor's address
+    # from: "x_real_ip" behind a web server that sets X-Real-IP (the current
+    # server), "cf_connecting_ip" when only a Cloudflare Tunnel reaches it (the
+    # Pi). The API limits each visitor's searches by that address.
+    "EDFINDER_CLIENT_ADDRESS_FROM": "x_real_ip",
 }
+
+CLIENT_ADDRESS_HEADERS = ("x_real_ip", "cf_connecting_ip")
 
 REVISION_LABEL = "org.opencontainers.image.revision"
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -124,6 +131,10 @@ class Settings:
         self.public_origin = values["EDFINDER_PUBLIC_ORIGIN"].rstrip("/")
         if values["EDFINDER_FIND_CHECK"] not in ("0", "1"):
             raise DeployError("EDFINDER_FIND_CHECK must be 0 or 1")
+        self.client_address_from = values["EDFINDER_CLIENT_ADDRESS_FROM"]
+        if self.client_address_from not in CLIENT_ADDRESS_HEADERS:
+            raise DeployError("EDFINDER_CLIENT_ADDRESS_FROM must be one of: %s"
+                              % ", ".join(CLIENT_ADDRESS_HEADERS))
         self.find_check = values["EDFINDER_FIND_CHECK"] == "1"
         try:
             self.ready_seconds = float(values["EDFINDER_READY_SECONDS"])
@@ -390,6 +401,7 @@ def compose_env(settings: Settings, project: str, api: str, web: str, bind: str,
         "EDFINDER_WEB_BIND": bind,
         "EDFINDER_NETWORK": settings.network,
         "EDFINDER_RESTART": restart,
+        "EDFINDER_CLIENT_ADDRESS_FROM": settings.client_address_from,
     })
     return env
 
