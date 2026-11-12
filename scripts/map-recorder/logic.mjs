@@ -124,6 +124,11 @@ export function validateTour(tour) {
   if (ready !== null && (typeof ready.selector !== 'string' || ready.selector === '')) {
     throw new Error('The tour\'s "ready" needs a "selector".');
   }
+  // "drawnWith" names an attribute, on the same thing, that says which
+  // drawing method the map chose (ours says WEBGPU or WEBGL2).
+  if (ready !== null && ready.drawnWith !== undefined && (typeof ready.drawnWith !== 'string' || ready.drawnWith === '')) {
+    throw new Error('The tour\'s "ready" has a "drawnWith" that is not the name of an attribute.');
+  }
   const probe = tour.probe ?? null;
   if (probe !== null) {
     if (typeof probe.selector !== 'string' || !Array.isArray(probe.attributes)
@@ -183,7 +188,9 @@ export function validateTour(tour) {
   return {
     about: typeof tour.about === 'string' ? tour.about : '',
     path,
-    ready: ready === null ? null : { selector: ready.selector, timeoutSeconds: ready.timeoutSeconds ?? 90 },
+    ready: ready === null ? null : {
+      selector: ready.selector, timeoutSeconds: ready.timeoutSeconds ?? 90, drawnWith: ready.drawnWith ?? null,
+    },
     probe,
     steps,
   };
@@ -225,6 +232,41 @@ export function drawnBySoftware(renderer) {
   return /swiftshader|llvmpipe|software|softpipe|basic render/i.test(renderer ?? '');
 }
 
+/**
+ * Whether a request ended because the page itself dropped it before an answer
+ * came. The map does this all the time, on purpose: once the view has moved
+ * on it stops asking for the stars of the old view, and the search box drops
+ * its question for "So" when "Sol" is typed. That is not a failure, and
+ * counting it as one buries the real ones. Chrome and Edge call it
+ * net::ERR_ABORTED; Firefox calls it NS_BINDING_ABORTED.
+ */
+export function droppedByThePage(errorText) {
+  return /ERR_ABORTED|NS_BINDING_ABORTED/i.test(errorText ?? '');
+}
+
+/** The lines printed when a recording ends: what to know before opening it. */
+export function summaryLines(report) {
+  const lines = [];
+  if (report.graphics.mapDrawnWith) lines.push(`The map drew with: ${report.graphics.mapDrawnWith}.`);
+  const moving = report.steps.filter((step) => step.stats.frames > 0);
+  if (moving.length > 0) {
+    const slowest = moving.reduce((worst, step) => (step.stats.framesPerSecond < worst.stats.framesPerSecond ? step : worst));
+    lines.push(`Slowest step: ${slowest.name}, ${slowest.stats.framesPerSecond} frames a second.`);
+    const longest = moving.reduce((worst, step) => (step.stats.slowestMs > worst.stats.slowestMs ? step : worst));
+    lines.push(`Longest single frame: ${longest.stats.slowestMs} ms, in ${longest.name}.`);
+    const stalled = moving.filter((step) => step.stats.stalls > 0).map((step) => step.name);
+    lines.push(stalled.length === 0
+      ? 'No step had a stall (a frame over 100 ms).'
+      : `Steps with a stall (a frame over 100 ms): ${stalled.join(', ')}.`);
+  }
+  const didNotWork = report.steps.filter((step) => step.failed).map((step) => step.name);
+  if (didNotWork.length > 0) lines.push(`Steps that did not work: ${didNotWork.join(', ')}.`);
+  lines.push(`Errors on the page: ${report.pageErrors.length}. In the console: ${report.consoleErrors.length}. Requests that failed: ${report.failedRequests.length}.`);
+  const dropped = (report.droppedRequests ?? []).length;
+  if (dropped > 0) lines.push(`Requests the page dropped itself before an answer came: ${dropped}. That is normal while the map moves.`);
+  return lines;
+}
+
 export function folderName(when, name) {
   const two = (n) => String(n).padStart(2, '0');
   return `${when.getFullYear()}-${two(when.getMonth() + 1)}-${two(when.getDate())}_`
@@ -252,6 +294,10 @@ export function reportHtml(report) {
   const list = (title, items) => (items.length === 0 ? '' : `<h3>${e(title)} (${items.length})</h3><ul>${items.slice(0, 50).map((item) => `<li><code>${e(item)}</code></li>`).join('')}</ul>`);
   const troubles = list('Errors on the page', report.pageErrors) + list('Errors in the browser\'s console', report.consoleErrors)
     + list('Requests that failed', report.failedRequests);
+  const dropped = report.droppedRequests ?? [];
+  const droppedNote = dropped.length === 0 ? '' : `<h3>Requests the page dropped itself (${dropped.length})</h3>`
+    + '<p>Not failures. The page stopped these before an answer came, as the map does when the view moves on and the search box does when another letter is typed.</p>'
+    + `<details><summary>Show them</summary><ul>${dropped.slice(0, 200).map((item) => `<li><code>${e(item)}</code></li>`).join('')}</ul></details>`;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Map recording: ${e(report.name)}</title>
 <style>
@@ -268,6 +314,7 @@ ${warnings.map((text) => `<p class="warn">${e(text)}</p>`).join('\n')}
 <dt>Tour</dt><dd>${e(report.tour)}${report.about ? `: ${e(report.about)}` : ''}</dd>
 <dt>Browser</dt><dd>${e(report.browser)} ${e(report.browserVersion)}</dd>
 <dt>Graphics</dt><dd>${e(report.graphics.renderer || 'not reported')}${report.graphics.vendor ? ` (${e(report.graphics.vendor)})` : ''}</dd>
+<dt>The map drew with</dt><dd>${e(report.graphics.mapDrawnWith || 'not reported')}</dd>
 <dt>Window</dt><dd>${e(report.width)} x ${e(report.height)}, display scaling ${e(report.scale)}</dd>
 </dl>
 <h2>How smoothly it ran</h2>
@@ -276,6 +323,7 @@ ${warnings.map((text) => `<p class="warn">${e(text)}</p>`).join('\n')}
 ${rows}
 </table>
 ${troubles ? `<h2>What went wrong</h2>${troubles}` : '<h2>What went wrong</h2><p>Nothing: no errors on the page, none in the console, no failed requests.</p>'}
+${droppedNote}
 <h2>The video</h2>
 ${report.video ? `<video src="${e(report.video)}" controls></video>` : '<p>No video was saved.</p>'}
 <h2>The pictures</h2>

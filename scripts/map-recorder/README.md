@@ -26,9 +26,18 @@ One command opens the map in a window and flies the steps of a tour file
 | `report.json` | The same numbers, for a program to read. |
 
 The report says which graphics card drew the map, and warns in red if the
-browser drew it in software. For each step it gives frames a second, the
-slowest frame, and how often the picture hung. It lists every error the page
-or the browser's console gave, and every request that failed.
+browser drew it in software. It also says which drawing method the map itself
+chose (ours says `WEBGPU` or `WEBGL2`): they are two different paths through
+the map's code, so a recording of one says nothing about the other.
+
+For each step it gives frames a second, the slowest frame, and how often the
+picture hung. It lists every error the page or the browser's console gave,
+and every request that failed, each with the step it happened in.
+
+Requests the page dropped itself are listed apart and are not failures. The
+map drops its request for the stars of a view once the view has moved on, and
+the search box drops its question for "So" when "Sol" is typed. A tour of 30
+steps gives about 30 of these.
 
 ## Setting it up, once
 
@@ -57,7 +66,9 @@ Record the live site's Explore map in Chrome:
 node record.mjs --name our-map
 ```
 
-It ends by printing where the recording went and which file to open.
+It ends by printing how the map drew, the slowest step, the longest single
+frame, which steps had a stall, what went wrong, where the recording went and
+which file to open.
 
 Other things it can do:
 
@@ -108,10 +119,11 @@ A step that does not work is marked in the report and the tour carries on.
 
 ## Trying the recorder itself
 
-The recorder's own logic has tests that need no browser:
+The recorder's own logic has tests that need no browser. On any machine with
+Node, in this folder (`scripts/map-recorder`):
 
 ```bash
-node --test scripts/map-recorder
+node --test
 ```
 
 `--headless` runs with no window. That is for trying the recorder only: the

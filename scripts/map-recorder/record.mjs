@@ -21,7 +21,8 @@ import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
 import {
-  UsageError, describeStep, drawnBySoftware, folderName, frameStats, parseArgs, reportHtml, usage, validateTour,
+  UsageError, describeStep, drawnBySoftware, droppedByThePage, folderName, frameStats, parseArgs, reportHtml,
+  summaryLines, usage, validateTour,
 } from './logic.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -202,14 +203,20 @@ async function main() {
     width: size.width,
     height: size.height,
     scale: options.scale,
-    graphics: { renderer: '', vendor: '', webgl: '' },
+    // "renderer" is the graphics card, asked of the browser. "mapDrawnWith"
+    // is the drawing method the map itself chose, read from the page.
+    graphics: { renderer: '', vendor: '', webgl: '', mapDrawnWith: '' },
     ready: { ok: true, selector: tour.ready?.selector ?? '', waitedSeconds: 0 },
     steps: [],
     pageErrors: [],
     consoleErrors: [],
     failedRequests: [],
+    // Requests the page stopped itself before an answer came: not failures.
+    droppedRequests: [],
     video: null,
   };
+  // Which step was running when something went wrong.
+  let during = 'opening the page';
 
   await context.addInitScript(frameSampler);
   const page = context.pages()[0] ?? await context.newPage();
@@ -218,10 +225,12 @@ async function main() {
     if (message.type() === 'error') report.consoleErrors.push(message.text().slice(0, 500));
   });
   page.on('requestfailed', (request) => {
-    report.failedRequests.push(`${request.method()} ${request.url().slice(0, 300)} (${request.failure()?.errorText ?? 'failed'})`);
+    const why = request.failure()?.errorText ?? 'failed';
+    const line = `${during}: ${request.method()} ${request.url().slice(0, 300)} (${why})`;
+    (droppedByThePage(why) ? report.droppedRequests : report.failedRequests).push(line);
   });
   page.on('response', (response) => {
-    if (response.status() >= 400) report.failedRequests.push(`${response.request().method()} ${response.url().slice(0, 300)} (answered ${response.status()})`);
+    if (response.status() >= 400) report.failedRequests.push(`${during}: ${response.request().method()} ${response.url().slice(0, 300)} (answered ${response.status()})`);
   });
 
   let exitCode = 0;
@@ -244,9 +253,14 @@ async function main() {
       report.ready.waitedSeconds = Math.round((Date.now() - began) / 1000);
     }
     const { userAgent, ...graphics } = await page.evaluate(graphicsInfo).catch(() => ({ ...report.graphics, userAgent: '' }));
-    report.graphics = graphics;
+    report.graphics = { ...report.graphics, ...graphics };
     report.browserVersion = userAgent;
     console.log(`Graphics: ${report.graphics.renderer || 'not reported'}`);
+    if (report.ready.ok && tour.ready?.drawnWith) {
+      report.graphics.mapDrawnWith = await page.locator(tour.ready.selector).first()
+        .getAttribute(tour.ready.drawnWith, { timeout: 5000 }).catch(() => null) ?? '';
+      console.log(`The map drew with: ${report.graphics.mapDrawnWith || 'not reported'}`);
+    }
 
     if (!report.ready.ok) {
       console.log('The map never said it was ready. Taking one picture and stopping.');
@@ -258,6 +272,7 @@ async function main() {
         const number = String(index + 1).padStart(2, '0');
         const did = describeStep(step);
         console.log(`  ${number} ${step.name}: ${did}`);
+        during = step.name;
         await page.evaluate(() => window.__mapRecorderFrames?.());
         // A step that does not work is noted, and the tour carries on: the
         // steps after it may still be worth having.
@@ -302,12 +317,7 @@ async function main() {
   if (!options.headless && drawnBySoftware(report.graphics.renderer)) {
     console.log('WARNING: the browser drew the map in software, not on the graphics card.');
   }
-  const moving = report.steps.filter((step) => step.stats.frames > 0);
-  if (moving.length > 0) {
-    const slowest = moving.reduce((worst, step) => (step.stats.framesPerSecond < worst.stats.framesPerSecond ? step : worst));
-    console.log(`Slowest step: ${slowest.name}, ${slowest.stats.framesPerSecond} frames a second.`);
-  }
-  console.log(`Errors on the page: ${report.pageErrors.length}. In the console: ${report.consoleErrors.length}. Failed requests: ${report.failedRequests.length}.`);
+  for (const line of summaryLines(report)) console.log(line);
   console.log(`Saved to: ${folder}`);
   console.log(`Open this to see it: ${path.join(folder, 'index.html')}`);
   return exitCode;

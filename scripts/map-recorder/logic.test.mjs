@@ -7,7 +7,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  DEFAULTS, UsageError, describeStep, drawnBySoftware, folderName, frameStats, parseArgs, reportHtml, usage, validateTour,
+  DEFAULTS, UsageError, describeStep, drawnBySoftware, droppedByThePage, folderName, frameStats, parseArgs, reportHtml,
+  summaryLines, usage, validateTour,
 } from './logic.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +96,17 @@ test('a tour with a mistake is refused, naming the step', () => {
   refused(step({ do: 'shot', name: 'first' }), 'the name "first" is used twice');
   refused({ ready: {}, steps: [{ do: 'shot', name: 'a' }] }, '"ready" needs a "selector"');
   refused({ probe: { selector: '.map' }, steps: [{ do: 'shot', name: 'a' }] }, '"probe" needs');
+  refused({ ready: { selector: '.map', drawnWith: 7 }, steps: [{ do: 'shot', name: 'a' }] }, '"drawnWith" that is not the name of an attribute');
+});
+
+test('a tour can say where the map tells which drawing method it chose', async () => {
+  const steps = [{ do: 'shot', name: 'a' }];
+  assert.equal(validateTour({ ready: { selector: '.map' }, steps }).ready.drawnWith, null);
+  assert.equal(validateTour({ ready: { selector: '.map', drawnWith: 'data-backend' }, steps }).ready.drawnWith, 'data-backend');
+  // Our own map's tour asks: WebGPU and WebGL2 are two different drawing
+  // paths, and a recording has to say which one it is a recording of.
+  const explore = validateTour(JSON.parse(await readFile(path.join(HERE, 'tours', 'explore.json'), 'utf8')));
+  assert.equal(explore.ready.drawnWith, 'data-renderer-backend');
 });
 
 // -- frame times -------------------------------------------------------------------
@@ -131,19 +143,36 @@ test('software drawing is told apart from a graphics card', () => {
   assert.equal(drawnBySoftware(''), false);
 });
 
+// -- requests ----------------------------------------------------------------------
+
+test('a request the page dropped itself is told apart from one that failed', () => {
+  // What Chrome and Edge say, and what Firefox says, when the page stops a
+  // request before an answer came.
+  assert.equal(droppedByThePage('net::ERR_ABORTED'), true);
+  assert.equal(droppedByThePage('NS_BINDING_ABORTED'), true);
+  // Real failures.
+  assert.equal(droppedByThePage('net::ERR_CONNECTION_REFUSED'), false);
+  assert.equal(droppedByThePage('net::ERR_NAME_NOT_RESOLVED'), false);
+  assert.equal(droppedByThePage('net::ERR_TIMED_OUT'), false);
+  assert.equal(droppedByThePage('failed'), false);
+  assert.equal(droppedByThePage(undefined), false);
+});
+
 // -- the report ------------------------------------------------------------------------
 
 const REPORT = {
   name: 'try', when: 'Thu Nov 12 2026 22:00:00', page: 'https://ed-finder.app/explore', tour: 'explore.json',
   about: 'A tour <of> the map', browser: 'chrome', browserVersion: 'Chrome/153', headless: false,
   width: 1760, height: 988, scale: 1,
-  graphics: { renderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)', vendor: 'Google Inc. (NVIDIA)', webgl: 'WebGL 2.0' },
+  graphics: {
+    renderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)', vendor: 'Google Inc. (NVIDIA)', webgl: 'WebGL 2.0', mapDrawnWith: 'WEBGPU',
+  },
   ready: { ok: true, selector: '[data-renderer-state="ready"]', waitedSeconds: 2 },
   steps: [
     { name: 'whole-galaxy', did: 'waited 4 s', picture: 'shots/01-whole-galaxy.png', stats: frameStats([16.7, 16.7]), probe: { 'data-camera-revision': '2' } },
     { name: 'keyboard', did: 'put the keyboard on .map', picture: null, stats: frameStats([16.7]), probe: null },
   ],
-  pageErrors: [], consoleErrors: [], failedRequests: [], video: 'video.webm',
+  pageErrors: [], consoleErrors: [], failedRequests: [], droppedRequests: [], video: 'video.webm',
 };
 
 test('the report shows each step, each picture and the video, and says when nothing went wrong', () => {
@@ -155,6 +184,8 @@ test('the report shows each step, each picture and the video, and says when noth
   assert.match(html, /<video src="video\.webm" controls>/);
   assert.match(html, /Nothing: no errors on the page/);
   assert.doesNotMatch(html, /class="warn"/);
+  assert.match(html, /<dt>The map drew with<\/dt><dd>WEBGPU<\/dd>/);
+  assert.match(reportHtml({ ...REPORT, graphics: { ...REPORT.graphics, mapDrawnWith: '' } }), /<dt>The map drew with<\/dt><dd>not reported<\/dd>/);
   // Text from outside is shown as text, never as part of the page.
   assert.match(html, /A tour &lt;of&gt; the map/);
 });
@@ -182,6 +213,60 @@ test('the report lists what went wrong', () => {
   assert.match(html, /Errors in the browser&#39;s console \(2\)/);
   assert.match(html, /Requests that failed \(1\)/);
   assert.doesNotMatch(html, /Nothing: no errors/);
+});
+
+test('requests the page dropped itself are shown apart, and are not called failures', () => {
+  const dropped = ['fly-to-sol-start: GET /api/map/systems?min_x=0 (net::ERR_ABORTED)', 'type-sol: GET /api/local/autocomplete?q=So (net::ERR_ABORTED)'];
+  const html = reportHtml({ ...REPORT, droppedRequests: dropped });
+  assert.match(html, /Nothing: no errors on the page, none in the console, no failed requests\./);
+  assert.match(html, /Requests the page dropped itself \(2\)/);
+  assert.match(html, /Not failures\./);
+  assert.match(html, /fly-to-sol-start: GET \/api\/map\/systems\?min_x=0 \(net::ERR_ABORTED\)/);
+  assert.doesNotMatch(html, /Requests that failed/);
+  // With none dropped, the report does not mention them.
+  assert.doesNotMatch(reportHtml(REPORT), /dropped itself/);
+  // A report saved before this was added has no list of them: still readable.
+  const { droppedRequests: _gone, ...older } = REPORT;
+  assert.doesNotMatch(reportHtml(older), /dropped itself/);
+});
+
+// -- the lines printed at the end ------------------------------------------------------
+
+test('the closing lines name the slowest step, the longest frame, stalls, and real failures only', () => {
+  const steps = [
+    { name: 'whole-galaxy', did: 'waited 4 s', failed: null, picture: null, stats: frameStats(Array(60).fill(16.7)), probe: null },
+    { name: 'fly-to-sol-start', did: 'pressed Enter', failed: null, picture: null, stats: frameStats([16.7, 16.7, 240, 16.7]), probe: null },
+    { name: 'zoom-in', did: 'turned the wheel', failed: null, picture: null, stats: frameStats(Array(30).fill(33.3)), probe: null },
+    { name: 'keyboard', did: 'put the keyboard on .map', failed: null, picture: null, stats: frameStats([]), probe: null },
+  ];
+  const lines = summaryLines({
+    ...REPORT, steps, failedRequests: ['zoom-in: GET /api/x (answered 503)'], droppedRequests: ['a', 'b', 'c'],
+  });
+  assert.deepEqual(lines, [
+    'The map drew with: WEBGPU.',
+    'Slowest step: fly-to-sol-start, 13.8 frames a second.',
+    'Longest single frame: 240 ms, in fly-to-sol-start.',
+    'Steps with a stall (a frame over 100 ms): fly-to-sol-start.',
+    'Errors on the page: 0. In the console: 0. Requests that failed: 1.',
+    'Requests the page dropped itself before an answer came: 3. That is normal while the map moves.',
+  ]);
+});
+
+test('the closing lines say so when nothing stalled, and name steps that did not work', () => {
+  const steady = { name: 'whole-galaxy', did: 'waited 4 s', failed: null, picture: null, stats: frameStats(Array(60).fill(16.7)), probe: null };
+  const broken = { name: 'pick', did: 'clicked .gone', failed: 'locator.click: Timeout 10000ms exceeded.', picture: null, stats: frameStats([16.7]), probe: null };
+  const lines = summaryLines({ ...REPORT, graphics: { ...REPORT.graphics, mapDrawnWith: '' }, steps: [steady, broken] });
+  assert.deepEqual(lines, [
+    'Slowest step: whole-galaxy, 59.9 frames a second.',
+    'Longest single frame: 16.7 ms, in whole-galaxy.',
+    'No step had a stall (a frame over 100 ms).',
+    'Steps that did not work: pick.',
+    'Errors on the page: 0. In the console: 0. Requests that failed: 0.',
+  ]);
+  // A tour that never ran (the map was not ready) still gets the error counts.
+  assert.deepEqual(summaryLines({ ...REPORT, graphics: { ...REPORT.graphics, mapDrawnWith: '' }, steps: [] }), [
+    'Errors on the page: 0. In the console: 0. Requests that failed: 0.',
+  ]);
 });
 
 test('a recording\'s folder is named by when it was made and what it was called', () => {
