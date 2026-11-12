@@ -64,3 +64,41 @@ jobs:
         run: psql -X -q -v ON_ERROR_STOP=1 -d "$SYSTEM_STATE_TEST_DSN" -c "CREATE DATABASE ratings_v4_validation"
       - name: Run tests
         run: python -m pytest -q tests
+
+  web:
+    name: Web app checks, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Enable pnpm 11.25.0
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+      - name: Install the locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check the shared packages
+        run: pnpm run shared:check
+      - name: Lint the shared packages
+        run: pnpm run shared:lint
+      - name: Test the shared packages
+        run: pnpm run shared:test
+      - name: Build the shared packages
+        run: pnpm run shared:build
+      - name: Type-check the web app
+        run: pnpm check
+      - name: Lint the web app
+        run: pnpm lint
+      - name: Check the web app's formatting
+        run: pnpm format:check
+      - name: Run the web app's unit and component tests (Vitest)
+        run: pnpm test
+      - name: Build the web app
+        run: pnpm build
