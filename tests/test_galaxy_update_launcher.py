@@ -291,6 +291,20 @@ def test_score_by_hand_needs_no_file_and_fetches_nothing(spansh, docker, tmp_pat
     assert spansh.downloads() == [] and not chosen.record.exists()
 
 
+def test_reach_by_hand_needs_no_file_and_works_it_out_in_the_container(spansh, docker, tmp_path, capsys):
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "reach", None) == 0
+    worked = docker.calls("run")[-1]
+    assert worked[worked.index("-m"):] == ["-m", "spansh_delta.reach", "rebuild"]
+    assert modules(docker) == [("spansh_delta.reach", "rebuild")]
+    assert spansh.downloads() == [] and not chosen.record.exists()
+    assert "Running the work on reach from " + IMAGE in capsys.readouterr().out
+    docker.state["run_exit"]["local"] = 2
+    docker.save()
+    assert tool.cmd_apply(chosen, "reach", None) == 2
+    assert "FAILED: the work on reach ended with code 2" in capsys.readouterr().out
+
+
 def test_a_failed_score_check_says_so(spansh, docker, tmp_path, capsys):
     spansh.publish(FILE, b"night one", MONDAY)
     chosen = settings(spansh, tmp_path / "galaxy")
@@ -703,13 +717,28 @@ def test_status_shows_the_last_update_the_queue_and_the_file(spansh, docker, tmp
 
 
 def test_status_before_anything_has_happened(spansh, docker, tmp_path, capsys):
-    docker.state["psql"] = {"acquisition_kind = 'DELTA'": "", "rescore_queue": None}
+    docker.state["psql"] = {"acquisition_kind = 'DELTA'": "", "rescore_queue": None, "reach_log": None}
     docker.save()
     assert tool.cmd_status(settings(spansh, tmp_path / "galaxy")) == 0
     out = capsys.readouterr().out
     assert "No galaxy update has been recorded yet." in out
     assert "does not exist yet (migration 026)" in out
+    assert "Reach is not kept in this database (migration 028 has not been applied)." in out
     assert "No Spansh file on disk yet." in out
+
+
+def test_status_says_when_reach_was_worked_out(spansh, docker, tmp_path, capsys):
+    chosen = settings(spansh, tmp_path / "galaxy")
+    docker.state["psql"] = {"acquisition_kind = 'DELTA'": "", "rescore_queue": "0", "reach_log": ""}
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Reach has not been worked out yet. The scoring will not run until it has: "
+            "python3 galaxy_update.py reach") in capsys.readouterr().out
+    docker.state["psql"]["reach_log"] = "2026-11-13 04:41|157009|39176623|15102345"
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Reach last worked out afresh 2026-11-13 04:41 UTC, from 157,009 inhabited systems: "
+            "39,176,623 systems within 500 ly, 15,102,345 of them within 250 ly.") in capsys.readouterr().out
 
 
 def test_main_prints_a_plain_failure_and_exits_1(spansh, docker, tmp_path, monkeypatch, capsys):

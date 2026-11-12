@@ -36,6 +36,11 @@ Spansh's to say.
     python3 galaxy_update.py score    give new scores to the systems on the
                                       waiting list. Needs no file: everything
                                       the scores use is in the database.
+    python3 galaxy_update.py reach    work out afresh which systems are within
+                                      500 ly and 250 ly of an inhabited system
+                                      (the Pi; migration 028). Needed once
+                                      before the scoring can run there; after
+                                      that the scoring does it each week.
 
 Every system the update changes goes on a waiting list for new scores. When
 EDFINDER_GALAXY_SCORES is "on", `run` also works through that list each time,
@@ -145,6 +150,11 @@ COVERED_SQL = (
     "FROM v3_source.source_run r WHERE r.acquisition_kind = 'DELTA' AND r.run_state = 'SUCCEEDED'"
 )
 WAITING_SQL = "SELECT count(*) FROM v3_state.rescore_queue"
+# When reach was last worked out afresh (migration 028; the Pi).
+REACH_SQL = (
+    "SELECT to_char(worked_out_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), anchors, systems, within_250 "
+    "FROM v3_state.reach_log ORDER BY reach_id DESC LIMIT 1"
+)
 # What the database accepts from a local client. Names and methods only.
 RULES_SQL = (
     "SELECT type, array_to_string(database, ','), array_to_string(user_name, ','), "
@@ -269,6 +279,10 @@ def query(settings: Settings, statement: str) -> List[List[str]]:
     return [line.split("|") for line in done.stdout.strip().splitlines() if line]
 
 
+def thousands(text: str) -> str:
+    return "{:,}".format(int(text)) if text.isdigit() else text
+
+
 def describe(rows: List[List[str]]) -> str:
     if not rows or len(rows[0]) != 6:
         return "No galaxy update has been recorded yet."
@@ -378,6 +392,7 @@ JOBS = {
     "run": ("spansh_delta.apply", "apply", True),
     "check-scores": ("spansh_delta.scores", "check", True),
     "score": ("spansh_delta.scores", "apply", False),
+    "reach": ("spansh_delta.reach", "rebuild", False),
 }
 
 
@@ -429,7 +444,7 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
         if route == "app" and not os.path.isfile(settings.api_env_file):
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
         say("Running the %s from %s ..." % (
-            {"run": "update", "score": "scoring"}.get(command_name, "check"), image)
+            {"run": "update", "score": "scoring", "reach": "work on reach"}.get(command_name, "check"), image)
             if position == 0 else
             "The database did not accept a local client. Trying the app's own connection "
             "settings instead ...")
@@ -467,6 +482,9 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
             # The waiting list is in the database, and so is everything the
             # scores are worked out from. No file is needed.
             return finished(run_job(settings, "score", {}, limit), "scoring")
+        if mode == "reach":
+            # Everything reach is worked out from is in the database too.
+            return finished(run_job(settings, "reach", {}, None), "work on reach")
         if mode == "check-scores":
             # Compared with the file already here, normally the one the last
             # update applied, so nothing is fetched.
@@ -531,6 +549,20 @@ def cmd_status(settings: Settings) -> int:
         say("The list of systems waiting for new scores does not exist yet (migration 026).")
     say("Scoring after each update is switched %s." % ("on" if settings.scores else
         "off (EDFINDER_GALAXY_SCORES in deploy.conf)"))
+    try:
+        reach = query(settings, REACH_SQL)
+    except UpdateError:
+        reach = None
+    if reach is None:
+        say("Reach is not kept in this database (migration 028 has not been applied).")
+    elif not reach or len(reach[0]) != 4:
+        say("Reach has not been worked out yet. The scoring will not run until it has: "
+            "python3 galaxy_update.py reach")
+    else:
+        when, anchors, systems, near = reach[0]
+        say("Reach last worked out afresh %s UTC, from %s inhabited systems: %s systems within "
+            "500 ly, %s of them within 250 ly." % (when, thousands(anchors), thousands(systems),
+                                                     thousands(near)))
     if settings.url:
         say("Each run takes %s (EDFINDER_GALAXY_URL)." % settings.url)
     else:
@@ -549,7 +581,7 @@ def cmd_status(settings: Settings) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's file of recent changes to the galaxy and apply it.")
-    parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score"))
+    parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score", "reach"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")
     args = parser.parse_args(argv)

@@ -109,6 +109,7 @@ applies it:
 | `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, which file each run takes, and the file on disk. |
 | `check-scores` | Works scores out again for the systems of the file on disk, from Spansh's records and from our own rows, and compares them with the stored ones. Read only. |
 | `score` | Gives new scores to the systems on the waiting list. Needs no file. |
+| `reach` | Works out afresh which systems are within 500 ly and 250 ly of an inhabited system. Needs migration `028` (the Pi). |
 
 Which file:
 
@@ -179,6 +180,27 @@ in the database". That is a system which a galaxy update from before migration
 the new code arrived. Its old score rows are not used for the classes, because
 a body's class may be the very thing that changed. The next galaxy update that
 lists the system writes its classes, and it is scored then.
+
+On the Raspberry Pi the scores are kept only for systems within 500 ly of an
+inhabited system ("reach"; migration `028`, `apps/importer/src/spansh_delta/reach.py`).
+`v3_state.system_reach` lists those systems and says which are within 250 ly
+too. Where that table exists, the scoring:
+
+- brings reach up to date first, and will not start until it has been worked
+  out once (`galaxy_update.py reach`; on the Pi it takes a while);
+- works it out afresh once a week, from the systems inhabited at the time
+  (`v3_state.system_state`), and in between measures the systems the galaxy
+  update has just found against the same inhabited systems;
+- takes systems further than 500 ly off the waiting list unscored;
+- after the waiting list, scores any system in reach that has no scores yet.
+
+So a new colony counts within a week. The systems it brings within 500 ly lie
+250 to 500 ly from it, far from where anyone colonises next. Working reach out
+afresh stops, changing nothing, if the inhabited systems or the systems in
+reach have dropped by more than a tenth since last time: colonies do not
+vanish, so that would mean the system state is damaged. Without migration
+`028` (the current server) the scoring takes every system on the waiting
+list, as before.
 
 `check-scores` writes nothing. For the systems of the file on disk whose
 records say what our rows say, it reports three things: whether systems

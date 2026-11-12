@@ -161,7 +161,7 @@ In order:
       67,122 new, 4,938 identical, in 6 min 56 s; none refused. It has run by
       itself every night since. (11 Nov) Moving to the 7-day file: see "Never
       miss a day".
-- [ ] **A nightly re-score** of the systems noted as changed, replacing their
+- [x] **A nightly re-score** of the systems noted as changed, replacing their
       score rows and Find rows. Checked against real data first, read only
       (`deploy/galaxy_update.py check-scores`): systems nothing has changed
       must get exactly their stored scores back. First run by hand on the
@@ -171,8 +171,10 @@ In order:
       hand, because the score uses each body's class and the galaxy tables
       did not hold it. With the class column below, the scoring works from the
       database alone, through the waiting list, so a night when it fails is
-      made up by the next run. The nightly switch is still off.
-- [ ] (11 Nov) **Each body's class in the galaxy tables.** One new column on
+      made up by the next run. (12 Nov) Switched on on the current server on
+      11 November. Its first night by itself, 12 November: 81,659 systems given
+      scores (57,765 of them for the first time), none failed, 4 min 38 s.
+- [x] (11 Nov) **Each body's class in the galaxy tables.** One new column on
       the bodies table (`body_class`, migration `027`), holding the class as
       the scoring uses it. Needed because the Pi keeps scores only within
       500 ly: when a new colony brings more systems into range they have to
@@ -181,9 +183,9 @@ In order:
       Spansh's file, and that a class changing with nothing else is seen as a
       change. On the current server the column is filled for the rows the
       nightly update writes; a row from before has its class in its score
-      row, and the copy fills every row. Built 11 November; not yet applied
-      on the current server. Still to do: Look up reads the class from here,
-      so it shows for systems with no scores.
+      row, and the copy fills every row. Built 11 November; applied on the
+      current server the same day. Still to do: Look up reads the class from
+      here, so it shows for systems with no scores.
 - [ ] (11 Nov) **Never miss a day.** The one-day file holds only the last 24
       hours, so a night the job does not run is a day of changes lost, and
       two files a day apart can leave a gap between them: Spansh made its
@@ -210,6 +212,24 @@ In order:
       to date, and Find's 250 ly default, are built on the Pi after the switch.
       Until then the Pi's nightly scoring stays switched off, so that it does
       not score systems far outside the 500 ly.
+      (12 Nov) Keeping reach up to date is built (migration `028`,
+      `apps/importer/src/spansh_delta/reach.py`), simpler than first planned:
+      * Reach is worked out afresh for the whole galaxy, from the systems
+        inhabited at the time, once a week: by hand the first time
+        (`python3 galaxy_update.py reach`), then by the nightly scoring when
+        the last time is a week old. Only the rows that differ change.
+      * Each night, the systems the galaxy update has just found are measured
+        against the same inhabited systems.
+      * The nightly scoring scores only the systems within 500 ly, takes the
+        rest off the waiting list unscored, and gives scores to any system in
+        reach that has none. It will not start before reach has been worked
+        out once, where migration `028` has been applied.
+      So a new colony counts within a week, not the same night: the systems
+      it brings within 500 ly (or 250) are 250 to 500 ly from it, far from
+      where anyone colonises next. It stops, changing nothing, if the
+      inhabited systems or the systems in reach drop by more than a tenth
+      since last time, which would mean a damaged system state.
+      Still to do: Find's 250 ly default and its 500 ly choice.
 - [x] (11 Nov) **The table list.** Every table on the current server, each
       marked move, cut down or leave: 130 tables, 1,015 GB. It is at the end
       of this page.
@@ -314,7 +334,10 @@ In order:
 - [ ] Galaxy update (`edfinder-galaxy-update.timer`), choosing its file as in
       section 3.
 - [ ] System state refresh (`edfinder-state-refresh.timer`).
-- [ ] Re-score what is on the waiting list.
+- [ ] Re-score what is on the waiting list. (12 Nov) In order: apply
+      migration `028` (after a fresh backup), work reach out once
+      (`python3 galaxy_update.py reach`), then add `EDFINDER_GALAXY_SCORES=on`
+      to `deploy.conf`.
 - [ ] (11 Nov) **Backups, sized for the Pi.** The plan says a full dump every
       night and an automatic restore test every week; for about 600 GB on a
       Pi that is hours every night and a day or more every week. Suggested
@@ -354,17 +377,19 @@ In order:
 
 ## Changes to the plan since 8 November
 
-The plan says the database stays exactly as it is. Three small additions have
+The plan says the database stays exactly as it is. Four small additions have
 been made or agreed since, each as a reviewed migration after a fresh backup:
 
 - `025` (10 November): the nightly jobs may change published scores.
 - `026` (10 November): the waiting list of systems that need new scores.
-- `027` (built 11 November, not yet applied): each body's class, one column
-  on the bodies table.
+- `027` (11 November): each body's class, one column on the bodies table.
+- `028` (built 12 November, for the Pi only, not yet applied): which systems
+  are within 500 ly and 250 ly of an inhabited system (three new tables).
 
 Also decided since: one band of scores out to 500 ly, kept up to date every
 night (owner, 11 November), in place of 250 ly every night and 500 ly on
-request (9 November).
+request (9 November). (12 Nov) The systems a new colony brings within that
+band are scored within a week rather than the same night: see "Reach".
 
 (12 Nov) The catch-up over Spansh's full galaxy file moves to the Pi, after
 the switch: nobody uses the site yet, and it would have held up the copy.

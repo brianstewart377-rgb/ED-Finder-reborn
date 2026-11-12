@@ -27,6 +27,15 @@ the galaxy update fills:
     class, because the body may be what changed. The next galaxy update that
     lists the system writes the class.
 
+Where the database keeps reach (migration 028, the Raspberry Pi), only systems
+within 500 ly of an inhabited system are scored (``spansh_delta.reach``):
+
+  * Reach is brought up to date first. The scoring refuses to start if it has
+    never been worked out.
+  * Systems further away are taken off the waiting list unscored.
+  * After the waiting list, every system in reach that has no scores yet gets
+    them: systems that came within reach, mostly.
+
 ``check FILE`` writes nothing. For the systems of a Spansh file whose records
 say what our rows say, it answers:
 
@@ -65,6 +74,7 @@ from scripts.ratings_v4.canonical_stream import CanonicalSnapshot
 from shared_contracts import v3_system_archetype_model as model
 
 from . import apply as galaxy
+from . import reach
 from .normalize import NormalizedSystem, classify_material_change, normalize_system
 
 SCORING_TABLES = galaxy.SCORING_TABLES
@@ -745,22 +755,38 @@ class ApplyReport:
     still_waiting: int = 0
     seconds: float = 0.0
     stopped_early: bool = False
+    # Where the database keeps reach: how it was brought up to date, how many
+    # waiting systems were further than 500 ly, and how many systems in reach
+    # had no scores yet.
+    reach_report: reach.ReachReport | None = None
+    outside_reach: int = 0
+    unscored_in_reach: int = 0
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        found = {
             "systems_read": self.systems_read, "added": self.added, "changed": self.changed,
             "same": self.same, "cannot_score": len(self.cannot_score),
             "find_rows": self.find_rows + self.find_only, "still_waiting": self.still_waiting,
             "seconds": round(self.seconds, 1), "stopped_early": self.stopped_early,
         }
+        if self.reach_report is not None:
+            found.update(reach=self.reach_report.as_dict(), outside_reach=self.outside_reach,
+                         unscored_in_reach=self.unscored_in_reach)
+        return found
 
     def lines(self) -> list[str]:
         def row(label: str, number: int, note: str = "") -> str:
             return f"{label:<48}{number:>10,}" + (f"   {note}" if note else "")
 
-        out = [row("Systems taken from the waiting list:", self.systems_read,
-                   "(stopped at the limit)" if self.stopped_early else ""),
-               row("Systems given their scores:", self.added + self.changed + self.same),
+        out = list(self.reach_report.lines()) if self.reach_report is not None else []
+        if self.reach_report is not None:
+            out.append(row(f"Taken off the waiting list, further than {reach.REACH_LY} ly:",
+                           self.outside_reach, "(not scored)"))
+        out += [row("Systems taken from the waiting list:", self.systems_read,
+                    "(stopped at the limit)" if self.stopped_early else "")]
+        if self.reach_report is not None:
+            out.append(row(f"Systems within {reach.REACH_LY} ly that had no scores:", self.unscored_in_reach))
+        out += [row("Systems given their scores:", self.added + self.changed + self.same),
                row("  never scored before:", self.added),
                row("  scores changed:", self.changed),
                row("  scores the same as before:", self.same),
@@ -781,14 +807,17 @@ class ApplyReport:
         return out
 
 
-def waiting_batch(scorer: Scorer, queue: Mapping[int, Sequence[str]], report: ApplyReport) -> None:
+def waiting_batch(scorer: Scorer, queue: Mapping[int, Sequence[str]], report: ApplyReport, *,
+                  from_the_list: bool = True) -> None:
     """Deal with one batch of systems from the waiting list, from our own rows.
 
     ``queue`` gives, for each, the galaxy tables that changed. One transaction;
     if the database refuses a row, one transaction per system instead, so that
-    only the system at fault stays on the waiting list.
+    only the system at fault stays on the waiting list. ``from_the_list`` is
+    False for systems in reach that have no scores, which are not on it.
     """
-    report.systems_read += len(queue)
+    if from_the_list:
+        report.systems_read += len(queue)
     scoring = [system_id for system_id, tables in queue.items() if set(tables) & set(SCORING_TABLES)]
     stored = scorer.stored(list(queue))
     exported, cannot = scorer.export(scoring)
@@ -863,11 +892,14 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
     started = time.monotonic()
     connection.execute(sql.SQL("SET statement_timeout = {}").format(sql.Literal(galaxy.STATEMENT_TIMEOUT)))
     connection.execute("SET lock_timeout = '60s'")
-    galaxy.preflight(connection, need_queue=True)
+    target = galaxy.preflight(connection, need_queue=True)
     if not connection.execute("SELECT pg_try_advisory_lock(%s)", (galaxy.LOCK_KEY,)).fetchone()[0]:
         raise galaxy.UpdateError("a galaxy update or another scoring run is going on; this one did not start")
     try:
         scorer = Scorer(connection)
+        if reach.available(connection):
+            report.reach_report = reach.update(connection, target, progress=progress)
+            report.outside_reach = reach.drop_outside(connection)
         take = sql.SQL("SELECT system_id64, changed_tables FROM {} WHERE system_id64 > %s "
                        "ORDER BY system_id64 LIMIT %s").format(sql.SQL(galaxy.QUEUE_TABLE))
         last, after = started, -1
@@ -886,6 +918,26 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
                 galaxy.say(f"  ... {report.systems_read:,} systems taken from the waiting list, "
                            f"{report.added + report.changed + report.same:,} given scores, "
                            f"{int(last - started) // 60} min")
+        if report.reach_report is not None and not report.stopped_early:
+            # Systems in reach with no scores: ones that came within reach.
+            unscored = reach.without_scores(connection, scorer.generation_id)
+            report.unscored_in_reach = len(unscored)
+            position = 0
+            while position < len(unscored):
+                # A limit counts these systems too.
+                size = galaxy.BATCH_SYSTEMS if limit is None else min(
+                    galaxy.BATCH_SYSTEMS, limit - report.systems_read - position)
+                if size <= 0:
+                    report.stopped_early = True
+                    break
+                batch = unscored[position:position + size]
+                waiting_batch(scorer, {system_id: list(SCORING_TABLES) for system_id in batch},
+                              report, from_the_list=False)
+                position += len(batch)
+                if progress and time.monotonic() - last >= galaxy.PROGRESS_SECONDS:
+                    last = time.monotonic()
+                    galaxy.say(f"  ... {position:,} of {len(unscored):,} systems in reach "
+                               f"without scores done, {int(last - started) // 60} min")
         report.still_waiting = connection.execute(
             sql.SQL("SELECT count(*) FROM {}").format(sql.SQL(galaxy.QUEUE_TABLE))).fetchone()[0]
     finally:

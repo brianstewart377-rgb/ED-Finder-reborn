@@ -99,6 +99,11 @@ def galaxy(template):
         try:
             conninfo = make_conninfo(dsn, dbname=name)
             with psycopg.connect(conninfo, autocommit=True) as connection:
+                # The old server's database, which does not keep reach (migration
+                # 028 is for the Pi): there the scoring takes every waiting system.
+                # The Pi's way is tested in test_reach.py.
+                connection.execute("DROP TABLE v3_state.system_reach, v3_state.reach_anchor, "
+                                   "v3_state.reach_log")
                 found = Galaxy(connection, schema, deepcopy(records), conninfo)
                 found.generation = generation
                 yield found
