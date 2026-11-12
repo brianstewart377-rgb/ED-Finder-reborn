@@ -1,0 +1,37 @@
+# Cloudflare Tunnel on the Raspberry Pi: how visitors reach the site.
+#
+# The Pi opens its own connection out to Cloudflare, so no port is opened on
+# the home router. Cloudflare passes each visit down that connection to the
+# web container, which listens on the Pi's own address 127.0.0.1:58080 only
+# (the deploy tool's live address): nothing else can reach it, so the web
+# container may believe Cloudflare's header for the visitor's address
+# (deploy.conf: EDFINDER_CLIENT_ADDRESS_FROM=cf_connecting_ip).
+#
+# The tunnel itself, and which web address goes to 127.0.0.1:58080, are set up
+# in Cloudflare's dashboard (docs/pi-move.md, section 7). The dashboard gives a
+# token. It goes in /etc/edfinder/tunnel.env, one line:
+#   TUNNEL_TOKEN=<the token>
+# owned by root and readable by root only. Never put it in this file.
+#
+# Start, or apply a change to this file:
+#   sudo docker compose -f /opt/edfinder/tunnel.yml up -d
+name: edfinder-tunnel
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.7
+    container_name: edfinder-tunnel
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    env_file:
+      - /etc/edfinder/tunnel.env
+    # The host's own network, to reach the web container at 127.0.0.1:58080.
+    network_mode: host
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true

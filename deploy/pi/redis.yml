@@ -1,0 +1,55 @@
+# Redis for ED-Finder on the Raspberry Pi: the API's cache, nothing else.
+#
+# The API keeps search results and system pages here for a while, so the same
+# question is not worked out again. Nothing in it needs keeping: it is never
+# saved to disk, and a restart only empties the cache. The API runs without
+# it too, just slower.
+#
+# The API finds it by name over the "edfinder" Docker network, which the
+# database's start-up file (postgres.yml) makes, so start the database first.
+# The API's settings file names it: REDIS_URL=redis://edfinder-redis:6379/0
+# (scripts/pi/make_api_env.py writes that).
+#
+# Start, or apply a change to this file:
+#   sudo docker compose -f /opt/edfinder/redis.yml up -d
+#
+# No port is opened to the network.
+name: edfinder-cache
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: edfinder-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      # A cache only: never written to disk.
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      # When full, the least recently used entries make way.
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+    networks:
+      - edfinder
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  edfinder:
+    name: edfinder
+    external: true

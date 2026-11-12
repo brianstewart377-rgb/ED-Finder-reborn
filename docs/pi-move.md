@@ -276,13 +276,24 @@ In order:
 - [ ] (11 Nov) The API's settings file, written by hand on the Pi: the
       database address, the Frontier client id and secret, the site's
       address, the owner token. Nothing in it protects stored data, so new
-      values lose nothing.
+      values lose nothing. (12 Nov) Simpler than by hand:
+      `scripts/pi/make_api_env.py` takes the server's file down the Pi's key
+      and writes `/etc/edfinder/api.env` (root only) with the Pi's own
+      database and cache addresses; the read-only database address is left
+      out (the Pi has no such login). Nothing is shown on the screen.
+- [ ] (12 Nov) Redis for the API's cache: `deploy/pi/redis.yml`. A cache only,
+      never saved to disk.
 - [ ] `deploy.conf` beside the deploy tool with the Pi's own settings: network
       name, API settings file, and the psql command for the state refresh.
       (11 Nov) Also the galaxy update's: the database container's name, where
-      downloads go, and scoring switched on.
+      downloads go, and scoring switched on. (12 Nov) `deploy/pi/deploy.conf`:
+      the network, the settings file, Cloudflare's header for the visitor's
+      address, downloads on the 2 TB drive, and no public check until the
+      switch. Everything else is the same name as on the server, so the
+      defaults fit. Scoring stays off until reach is kept up to date
+      (section 3).
 - [ ] `EDFINDER_FIND_CHECK=0` until the Finder data is in place, then remove
-      that line.
+      that line. (12 Nov) Not needed: the copy brings the Finder data.
 - [ ] `python3 edfinder_deploy.py live main` and try Find, Look up and Plan on
       the Pi's own address.
 - [x] (11 Nov) **The web container works out each visitor's address itself.**
@@ -320,7 +331,10 @@ In order:
 - [ ] (11 Nov) **Copy what users have written a second time.** Days or weeks
       pass between the copy and this step. Stop the old site, copy the small
       user tables again, then switch.
-- [ ] Cloudflare Tunnel from the Pi; point `ed-finder.app` at it.
+- [ ] Cloudflare Tunnel from the Pi; point `ed-finder.app` at it. (12 Nov)
+      `deploy/pi/tunnel.yml`; the tunnel's token goes in
+      `/etc/edfinder/tunnel.env` (root only). Try it first on a second web
+      address that goes to the Pi, before moving `ed-finder.app` itself.
 - [ ] (11 Nov) The uptime check from Contabo, the error-tracking address in
       the API's settings, and the health page (disk, memory, temperature,
       database size), all from the plan.
