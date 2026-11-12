@@ -1,7 +1,7 @@
 {
   "about": "The Explore galaxy map as it is today. Type Sol and fly to it; pick a result; zoom, pan, turn and tilt; type Colonia and fly right across the map; back out to the whole galaxy.",
   "path": "/explore",
-  "ready": { "selector": "[data-renderer-state=\"ready\"]", "timeoutSeconds": 90 },
+  "ready": { "selector": "[data-renderer-state=\"ready\"]", "timeoutSeconds": 90, "drawnWith": "data-renderer-backend" },
   "probe": {
     "selector": ".spatial-canvas",
     "attributes": [

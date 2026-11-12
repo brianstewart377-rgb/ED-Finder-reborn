@@ -433,10 +433,38 @@ get compared, and it is the same whichever map is used:
       the map in a real browser on the real graphics card and saves a video,
       screenshots and frame timings (the plan's Playwright job).
       (12 Nov) Built: `scripts/map-recorder` (its README has the commands).
-      Tried only with no window and no graphics card so far. Still to do: the
-      first recording on the gaming PC, then adjust the tour from what it
-      shows.
-- [ ] A small real slice of the database for tests, taken from the Pi.
+      The first recording on the gaming PC ran that night: all 30 steps of
+      the tour, on the graphics card, against the live site. It showed two
+      things the recorder got wrong, both fixed: it lumped requests the page
+      drops on purpose in with failures, so its "31 failed requests" said
+      nothing, and it did not say whether the map drew with WebGPU or WebGL2.
+      Still to do: adjust the tour from the pictures.
+- [ ] Three small hooks in the map, for the tests to use: set the view
+      exactly, say where a given system or area is on the screen, and say
+      what is drawn and whether it has finished loading. The same three
+      whichever map is used.
+- [ ] A small real slice of the database for tests, taken from the Pi. It
+      comes straight after the first checks: heatmap results cannot be
+      trusted without known numbers behind them.
+
+(12 Nov) How a map check earns trust. The owner's brief: do not overcomplicate
+it, but it must test everything fully and give results he can have confidence
+in, heatmaps above all. These four rules are how, and they are the same for
+stars, markers, routes and heatmaps:
+
+1. Known data goes in: the small real slice, where the numbers are known.
+2. Known view: the test sets the camera exactly and waits for the map to say
+   it has settled and loaded. No timed waits.
+3. The screen is checked against the data. For a heatmap: the densest area
+   in the data is the hottest on screen, an empty area is dark, and the
+   order of the colours follows the order of the numbers.
+4. Every check is seen to fail once, by breaking what it tests on purpose,
+   before it is trusted.
+
+Whole pictures are not compared dot for dot against saved "correct" ones:
+that goes red for a different graphics card or driver, and teaches everyone
+to ignore red. Pictures side by side are for the owner's eyes; pass and fail
+come from the checks above.
 
 ## Every table on the current server
 
