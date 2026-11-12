@@ -184,8 +184,9 @@ In order:
       change. On the current server the column is filled for the rows the
       nightly update writes; a row from before has its class in its score
       row, and the copy fills every row. Built 11 November; applied on the
-      current server the same day. Still to do: Look up reads the class from
-      here, so it shows for systems with no scores.
+      current server the same day. (12 Nov) Look up reads the class from
+      here, so it shows for systems with no scores; a row from before the
+      column still gets it from its score row.
 - [ ] (11 Nov) **Never miss a day.** The one-day file holds only the last 24
       hours, so a night the job does not run is a day of changes lost, and
       two files a day apart can leave a gap between them: Spansh made its

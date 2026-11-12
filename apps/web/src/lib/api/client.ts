@@ -575,8 +575,13 @@ export type SystemDetailBody = Readonly<{
   name: string;
   /** V3 public body-type code: `star`, `planet`, `barycentre`, `belt_cluster`. */
   bodyType: string | null;
-  /** Raw catalogued class from the published derived generation; display verbatim. */
+  /**
+   * Raw catalogued class; display verbatim. It is the galaxy tables' own
+   * where the body's row holds one, otherwise the published derived
+   * generation's.
+   */
   bodyClass: string | null;
+  /** Named only when the class came from the derived generation. */
   bodyClassSource: 'ratings-v4-derived' | null;
   isMainStar: boolean | null;
   spectralClass: string | null;

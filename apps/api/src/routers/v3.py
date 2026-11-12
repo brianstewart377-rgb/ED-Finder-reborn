@@ -196,10 +196,19 @@ async def system(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_
 async def bodies(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_pool)) -> list[BodyV1]:
     numeric_id = _numeric_system_id(system_id)
     schema, generation = await current_canonical_generation(pool)
-    # Subtype enrichment is optional: an absent published derived generation or
-    # mechanics row must never make the canonical body inventory unavailable.
-    # Match canonical lineage because body_pk is local to its generation, and
-    # require subtype_present so broad fallback values are not reported as facts.
+    # A body's class comes from its own row in the galaxy tables
+    # (bodies.body_class, migration 027), so it shows whether or not the system
+    # has scores: on the Raspberry Pi only systems within 500 ly of an
+    # inhabited system have them. That column holds Spansh's sub-type where it
+    # gave one, and otherwise the plain type (or "Unknown"); only a sub-type is
+    # reported, so a broad fallback value is never shown as a fact.
+    #
+    # A row last written before migration 027 has no class of its own. For it
+    # alone the class is read from the published score row, as before. That is
+    # optional: an absent published derived generation or mechanics row must
+    # never make the canonical body inventory unavailable. Match canonical
+    # lineage because body_pk is local to its generation, and require
+    # subtype_present, again so that fallback values are not reported.
     # Finder product publication is unrelated to these published mechanics.
     rows = await _bounded(pool.fetch(
         f"""SELECT body.body_pk,body.source_body_id64,body.frontier_body_id,
@@ -207,7 +216,9 @@ async def bodies(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_
                    body.is_main_star,body.spectral_class,body.luminosity_class,body.is_landable,
                    body.radius_km,body.planet_mass_earth,body.stellar_mass_solar,
                    body.surface_pressure_atm,body.semi_major_axis_km,body.distance_from_arrival_ls,
-                   body.lifecycle_state,mechanics.body_class
+                   body.lifecycle_state,
+                   nullif(body.body_class,coalesce(body_type.public_code,'Unknown')) AS own_class,
+                   mechanics.body_class AS scored_class
               FROM {schema}.bodies body
               LEFT JOIN v3_vocab.body_type body_type USING(body_type_id)
               LEFT JOIN LATERAL (
@@ -215,7 +226,8 @@ async def bodies(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_
                     FROM v3_meta.current_derived_generation current
                     JOIN v3_meta.derived_generation derived USING(derived_generation_id)
                     JOIN v3_derived.body_mechanics mechanics USING(derived_generation_id)
-                   WHERE current.singleton AND derived.lifecycle_state='PUBLISHED'
+                   WHERE body.body_class IS NULL
+                     AND current.singleton AND derived.lifecycle_state='PUBLISHED'
                      AND derived.canonical_generation_id=$2::uuid
                      AND mechanics.system_id64=body.system_id64
                      AND mechanics.body_pk=body.body_pk AND mechanics.subtype_present
@@ -244,8 +256,10 @@ async def bodies(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_
         frontier_body_id=str(row["frontier_body_id"]) if row["frontier_body_id"] is not None else None,
         direct_parent_body_id=str(row["direct_parent_body_pk"]) if row["direct_parent_body_pk"] is not None else None,
         name=row["name"], body_type=row["body_type"],
-        body_class=row["body_class"],
-        body_class_source="ratings-v4-derived" if row["body_class"] is not None else None,
+        body_class=row["own_class"] if row["own_class"] is not None else row["scored_class"],
+        # Named only when the class was read from the score row.
+        body_class_source=("ratings-v4-derived"
+                           if row["own_class"] is None and row["scored_class"] is not None else None),
         is_main_star=row["is_main_star"], spectral_class=row["spectral_class"],
         luminosity_class=row["luminosity_class"], is_landable=row["is_landable"],
         radius_km=row["radius_km"],
