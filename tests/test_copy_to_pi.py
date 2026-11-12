@@ -235,6 +235,7 @@ def machines(server_template, tools, tmp_path):
     with psycopg.connect(DSN, autocommit=True) as admin:
         admin.execute(sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(
             sql.Identifier(server), sql.Identifier(server_template)))
+    (tmp_path / "key").write_text("stands in for the Pi's key; the stand-in ssh never reads it\n")
     try:
         yield Machines(server, pi, tmp_path, tools)
     finally:
@@ -486,3 +487,11 @@ def test_an_extension_the_pis_postgresql_lacks_stops_the_copy_before_it_starts()
     problems = copy_to_pi.Copier.both_problems({"extensions": {"cube", "plpgsql"}}, Facts())
     assert problems == ["The Pi's PostgreSQL lacks extensions the server's database uses: postgis."]
     assert copy_to_pi.Copier.both_problems({"extensions": {"cube", "plpgsql", "postgis"}}, Facts()) == []
+
+
+def test_without_the_pis_key_it_says_where_it_looked(machines):
+    result = machines.run("check", EDFINDER_COPY_KEY=str(machines.folder / "missing"))
+    assert result.returncode == 1
+    assert "The Pi's key for the move is not at %s." % (machines.folder / "missing") in result.stdout
+    if os.geteuid() == 0:
+        assert "type exit to get back to the user pi" in result.stdout

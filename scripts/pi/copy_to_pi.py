@@ -646,6 +646,12 @@ class Copier:
         """What stops a copy on the server, and the server's facts."""
         s, machines = self.settings, self.machines
         problems: List[str] = []
+        if not os.path.isfile(s.key):
+            # Most likely run as root, whose home is /root rather than /home/pi.
+            hint = (" This is running as root: type exit to get back to the user pi, then run it again."
+                    if hasattr(os, "geteuid") and os.geteuid() == 0 else "")
+            problems.append("The Pi's key for the move is not at %s.%s" % (s.key, hint))
+            return problems, None
         result = machines.run(machines.ssh(["true"]), timeout=120)
         if result.returncode != 0:
             problems.append("The server cannot be reached with the Pi's key (%s): %s"
