@@ -27,7 +27,7 @@ reference: its history, PRs and research stay there.
 | `shared_contracts` | Shared Python used by the API and importer. |
 | `sql/v3` | Database migrations. |
 | `sql/measure` | Read-only scripts that report on the database. |
-| `deploy` | The compose file, the deploy tool and the two nightly jobs. |
+| `deploy` | The compose file, the deploy tool, the two nightly jobs and how they report a failure. |
 | `tests` | Python tests for the importer and the database loaders. |
 | `assets` | Asset provenance records. |
 
@@ -222,6 +222,65 @@ has it: until the column is there the update refuses to run and says so. The
 app itself does not mind either way.
 
 The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
+
+## Hearing when a nightly job fails
+
+A nightly job that fails, or does not run at all, would otherwise tell nobody.
+`deploy/report_in.py` (Python standard library only) tells
+[healthchecks.io](https://healthchecks.io) how each run ended, and
+healthchecks.io emails the owner:
+
+- when a job says it failed. The last lines the job printed are sent with
+  that, so the reason is kept with the failure on healthchecks.io;
+- when a job has said nothing for longer than its check allows: the machine
+  is off, has no internet, or the job is stuck.
+
+systemd runs it when a job ends, whichever way the job ended (the
+`ExecStopPost=` line in `edfinder-galaxy-update.service` and
+`edfinder-state-refresh.service`). It cannot make the job itself fail. It
+belongs beside the other scripts, as `/opt/edfinder/report_in.py`; if it is
+not there, the jobs run as before and nothing is reported.
+
+Each job has its own check on healthchecks.io, and each check has its own web
+address. The address is a secret, because anyone who has it can report "all is
+well". It is kept in a file that only root can read, and is never printed:
+
+| Job | The file with its address | The check's period and grace time |
+|---|---|---|
+| Galaxy update (04:30 and 16:30 UTC) | `/etc/edfinder/report/galaxy-update.url` | 12 hours, then 6 hours |
+| System state refresh (03:30 UTC) | `/etc/edfinder/report/state-refresh.url` | 1 day, then 3 hours |
+
+A job reports when it ends, not when it starts, so the grace time has to
+cover the longest a run normally takes. Until a job's file exists, nothing is
+reported and the job's log says so.
+
+To set one up:
+
+1. On healthchecks.io, add a check for the job with the period and grace time
+   above, and copy its address (it starts `https://hc-ping.com/`).
+2. On the machine, make the folder, then save the address in the job's file.
+   The second command waits for you to paste the address; press Enter, then
+   Ctrl+D. Done this way the address is not left in the shell's history.
+
+   ```bash
+   sudo install -d -m 700 /etc/edfinder/report
+   sudo sh -c 'umask 077; cat > /etc/edfinder/report/galaxy-update.url'
+   ```
+
+3. Try it. This sends one "it worked" and says whether healthchecks.io took it:
+
+   ```bash
+   sudo python3 /opt/edfinder/report_in.py galaxy-update --test
+   ```
+
+Two things to know:
+
+- Only runs started by systemd report (the timers, or
+  `sudo systemctl start edfinder-galaxy-update.service`). A run started by
+  hand with `python3 galaxy_update.py run` does not.
+- A timed run that finds a run by hand still going stops with "another galaxy
+  update is already running", and that is reported as a failure. Switch the
+  timers off for the length of a long run by hand, such as the catch-up.
 
 ## Running the Python tests
 
