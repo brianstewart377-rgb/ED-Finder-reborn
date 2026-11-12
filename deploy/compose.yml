@@ -38,6 +38,9 @@ services:
     restart: ${EDFINDER_RESTART}
     environment:
       EDFINDER_API_UPSTREAM: ${EDFINDER_PROJECT}-api:8000
+      # Which incoming header holds the visitor's address (see the web
+      # image's nginx/default.conf.template).
+      EDFINDER_CLIENT_ADDRESS_FROM: ${EDFINDER_CLIENT_ADDRESS_FROM:?set by edfinder_deploy.py}
     ports:
       - ${EDFINDER_WEB_BIND:?set by edfinder_deploy.py}:8080
     depends_on:

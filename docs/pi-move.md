@@ -285,12 +285,18 @@ In order:
       that line.
 - [ ] `python3 edfinder_deploy.py live main` and try Find, Look up and Plan on
       the Pi's own address.
-- [ ] (11 Nov) **The web container works out each visitor's address itself.**
+- [x] (11 Nov) **The web container works out each visitor's address itself.**
       On the current server a front web server does that from what Cloudflare
       sends. The Pi has no front web server, so without this change the app
       sees the whole group as one visitor and they share one rate limit (30
       searches a minute between everyone). A change to the web image, made
-      and tested before the switch.
+      and tested before the switch. (12 Nov) Done: on the Pi, `deploy.conf`
+      says `EDFINDER_CLIENT_ADDRESS_FROM=cf_connecting_ip`, and the web
+      container passes Cloudflare's own header on to the API as the visitor's
+      address, replacing any the visitor sent. The current server keeps
+      `x_real_ip` (the default): its front web server sets that header. Only
+      the tunnel may reach the Pi's web container, so it listens on
+      127.0.0.1 only (the deploy tool's default).
 
 ## 6. Nightly jobs on the Pi
 

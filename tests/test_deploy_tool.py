@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -48,6 +49,18 @@ def test_conf_file_is_key_value_lines_with_comments(tmp_path):
 
 def test_public_check_can_be_switched_off():
     assert settings(EDFINDER_PUBLIC_ORIGIN="").public_origin == ""
+
+
+def test_the_visitors_address_comes_from_x_real_ip_unless_the_machine_says_cloudflare():
+    assert settings().client_address_from == "x_real_ip"
+    pi = settings(EDFINDER_CLIENT_ADDRESS_FROM="cf_connecting_ip")
+    assert pi.client_address_from == "cf_connecting_ip"
+    env = tool.compose_env(pi, "edfinder", "api-image", "web-image", pi.live_bind, "unless-stopped")
+    assert env["EDFINDER_CLIENT_ADDRESS_FROM"] == "cf_connecting_ip"
+    # Only the two known headers: anything else could change the web server's settings.
+    for wrong in ("X-Real-IP", "cf_connecting_ip; return 200", "remote_addr"):
+        with pytest.raises(tool.DeployError):
+            settings(EDFINDER_CLIENT_ADDRESS_FROM=wrong)
 
 
 @pytest.mark.parametrize("environ", [
@@ -300,3 +313,17 @@ def test_tags_that_are_not_image_tags_are_refused():
     for bad in ("", "has space", "semi;colon", "../etc", "a" * 200):
         with pytest.raises(tool.DeployError, match="not a valid image tag"):
             tool.resolve_release(settings(), bad, pull=False)
+
+
+def test_the_stand_in_web_image_renders_the_web_servers_settings_as_the_real_one_does():
+    """The Docker tests run the real nginx settings in a stand-in image; it must
+    fill in the same settings, with the same default, or they test something else."""
+    def settings_of(dockerfile: Path) -> tuple:
+        text = dockerfile.read_text()
+        found = tuple(re.search(r'%s="([^"]*)"' % name, text).group(1)
+                      for name in ("NGINX_ENVSUBST_FILTER", "EDFINDER_CLIENT_ADDRESS_FROM"))
+        return found
+
+    real = settings_of(ROOT / "apps" / "web" / "Dockerfile")
+    assert real == ("^EDFINDER_(API_UPSTREAM|CLIENT_ADDRESS_FROM)$", "x_real_ip")
+    assert settings_of(ROOT / "tests" / "deploy_stubs" / "web.Dockerfile") == real

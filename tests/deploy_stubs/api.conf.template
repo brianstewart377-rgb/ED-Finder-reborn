@@ -17,4 +17,8 @@ server {
     location = /api/local/search {
         return 200 '${STUB_FIND_ANSWER}';
     }
+    # The visitor's address as the web container passed it on.
+    location = /api/stub/visitor-address {
+        return 200 '{"x_real_ip":"$http_x_real_ip"}';
+    }
 }
