@@ -432,6 +432,10 @@ get compared, and it is the same whichever map is used:
 - [ ] A recorder for the owner's gaming PC: one command flies a fixed tour of
       the map in a real browser on the real graphics card and saves a video,
       screenshots and frame timings (the plan's Playwright job).
+      (12 Nov) Built: `scripts/map-recorder` (its README has the commands).
+      Tried only with no window and no graphics card so far. Still to do: the
+      first recording on the gaming PC, then adjust the tour from what it
+      shows.
 - [ ] A small real slice of the database for tests, taken from the Pi.
 
 ## Every table on the current server

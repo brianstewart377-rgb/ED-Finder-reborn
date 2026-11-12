@@ -102,3 +102,6 @@ jobs:
         run: pnpm test
       - name: Build the web app
         run: pnpm build
+      - name: Test the map recorder's own logic (no browser needed)
+        working-directory: scripts/map-recorder
+        run: node --test

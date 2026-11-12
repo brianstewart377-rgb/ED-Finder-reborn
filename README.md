@@ -305,3 +305,8 @@ pnpm build
 
 Every pull request runs them too, with the lint and formatting checks and the
 shared packages' own checks (the `web` job in `.github/workflows/tests.yml`).
+
+None of that can say how the map looks or how smoothly it moves: CI has no
+graphics card. `scripts/map-recorder` records a fixed tour of the map in a
+real browser on a real graphics card (the owner's gaming PC) and saves a
+video, pictures and frame timings. Its own README has the commands.
