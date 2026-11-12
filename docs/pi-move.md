@@ -284,7 +284,11 @@ In order:
         tables already copied, as long as the server's data has not changed.
 - [ ] Switch the server's galaxy update and state refresh on again.
 - [ ] Clean-up settings on the galaxy and score tables (see section 2). The
-      copy gathers the planner's statistics itself.
+      copy gathers the planner's statistics itself. (12 Nov)
+      `deploy/pi/cleanup-settings.sql`: on the eleven tables with more than
+      ten million rows, the clean-up starts after a million changed rows (the
+      statistics after two million) instead of after a fifth of the table.
+      Settings only; run once, after `copy_to_pi.py validate` has finished.
 - [ ] Load the system state on the Pi (`deploy/state_refresh.py run`).
 - [ ] (11 Nov) Bring in what changed between taking the copy and the Pi's
       first nightly run. The nightly job does this by itself: it takes the
