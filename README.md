@@ -302,3 +302,6 @@ pnpm check
 pnpm test
 pnpm build
 ```
+
+Every pull request runs them too, with the lint and formatting checks and the
+shared packages' own checks (the `web` job in `.github/workflows/tests.yml`).

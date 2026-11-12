@@ -398,6 +398,10 @@ been made or agreed since, each as a reviewed migration after a fresh backup:
 - `028` (built 12 November, for the Pi only, not yet applied): which systems
   are within 500 ly and 250 ly of an inhabited system (three new tables).
 
+(12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
+System Map staying on Babylon, where the plan left the choice open and had
+Babylon going too. See "Not part of the move".
+
 Also decided since: one band of scores out to 500 ly, kept up to date every
 night (owner, 11 November), in place of 250 ly every night and 500 ly on
 request (9 November). (12 Nov) The systems a new colony brings within that
@@ -412,6 +416,23 @@ then the catch-up, all before the group is invited.
 
 The map (Almanac trial), bridge routes, BGS and the BGS-Tally link come after
 Find and Plan work on the Pi.
+
+(12 Nov) The owner's choice for the map: the galaxy map moves to the Almanac
+map, and the System Map stays on Babylon. The plan had this open, to be
+decided after a one-day trial, with Babylon going too if Almanac won. The
+trial still comes first, now to confirm that Almanac works with our own
+colonies and candidates on it.
+
+The map's test set-up comes before the trial, because it is how the two maps
+get compared, and it is the same whichever map is used:
+
+- [x] (12 Nov) The web app's own checks and tests run on every pull request
+      (the `web` job in `.github/workflows/tests.yml`). Until now only the
+      Python tests ran.
+- [ ] A recorder for the owner's gaming PC: one command flies a fixed tour of
+      the map in a real browser on the real graphics card and saves a video,
+      screenshots and frame timings (the plan's Playwright job).
+- [ ] A small real slice of the database for tests, taken from the Pi.
 
 ## Every table on the current server
 
