@@ -17,7 +17,8 @@ is marked "(11 Nov)".
 | System state (population, factions, claims) | 0.5 GB | All of it |
 | Everything users have written: accounts, sign-ins, journal imports, watchlists | under 0.1 GB | All of it. Copied twice: with everything else, and again at switch-over (section 7) |
 | Bookkeeping: which galaxy data and which scores are current, where each row came from, the lookup lists, records of the old builds' jobs | 0.4 GB | All of it. The scoring and two of the users' tables depend on it (11 Nov) |
-| Leftovers from old builds (`r1_plan`, `r1_meta`, the old test galaxy `v3_gen_phase4b_a`) | under 1 MB | Nothing |
+| Leftovers from old builds (`r1_plan`, `r1_meta`) | under 1 MB | Nothing |
+| The old test galaxy `v3_gen_phase4b_a` | 0.3 MB | All of it: the list of galaxies still names it (12 Nov) |
 
 Estimate for the 2 TB drive: 550 to 630 GB, plus about 10 GB for the body
 classes. The sizes above are from the server's own list of tables, taken on
@@ -41,6 +42,10 @@ is scored "on request". Confirmed by the owner on 11 November.
       catch-up, reach, a week of running, the copy, a quiet week) ends about
       then with nothing to spare. Expect to pay for one month more, or drop
       the quiet week.
+- [ ] (12 Nov) Nobody uses the site yet, so the catch-up moves to the Pi,
+      after the switch (section 3), and the copy comes next. Aim to switch over
+      around 20 November and avoid the December payment. Check how much notice
+      MevSpace needs to cancel.
 
 ## 1. The Pi itself (owner)
 
@@ -89,13 +94,18 @@ is scored "on request". Confirmed by the owner on 11 November.
       run its built-in help; one minute. Done 11 November with the API image
       of build `6cda1dd`. The web image is tried when the app is set up.
 
-- [ ] (11 Nov) **How long a restore takes.** Building indexes on
+- [x] (11 Nov) **How long a restore takes.** Building indexes on
       600-million-row tables with 16 GB of memory could take a day or more.
       Time one large table with its indexes first, and build only the indexes
       the app and the nightly jobs use. (11 Nov) `scripts/pi/time_table_copy.sh`
       does that for one galaxy table, starting with `systems` (53 GB, 198.5
       million rows): it fetches the table from the server with the Pi's key,
       loads it, builds its indexes, and logs the time of each step.
+      (12 Nov) Measured on `systems`: fetched in 27 minutes (16 GB, one
+      stream), rows loaded in 18 minutes (35 GB), its three indexes built in
+      10 minutes (17 GB). For the whole copy that suggests half a day, a day at
+      most; the copy script fetches several tables at once and leaves the
+      checks of the rows to the end, which should bring it under that.
 
 - [ ] (11 Nov) **Everything else the Pi does every day.** Only scoring is
       measured above. Find matters most: the app gives up on any database
@@ -187,15 +197,23 @@ In order:
       server.
 - [ ] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
       same code, because no smaller file reaches back to 27 August. Timed on
-      the first million systems before the full run.
+      the first million systems before the full run. (12 Nov) Moved to the Pi,
+      after the switch and before the group is invited: nobody uses the site
+      yet, so the gap from 24 August (the date of the file the galaxy was
+      built from) to 10 November (the first nightly update) harms no one, and
+      doing it here first would hold up the copy by days.
 - [ ] **Reach.** How far each system is from inhabited space, kept up to date
       as colonies appear. Gives Find its 250 ly default and 500 ly limit, and
       tells the copy which systems to take. When a colony brings systems into
-      range, they go on the waiting list to be scored.
+      range, they go on the waiting list to be scored. (12 Nov) The copy works
+      out its own list of the systems within 500 ly (below); keeping reach up
+      to date, and Find's 250 ly default, are built on the Pi after the switch.
+      Until then the Pi's nightly scoring stays switched off, so that it does
+      not score systems far outside the 500 ly.
 - [x] (11 Nov) **The table list.** Every table on the current server, each
       marked move, cut down or leave: 130 tables, 1,015 GB. It is at the end
       of this page.
-- [ ] **A copy script** that exports the tables as that list marks them,
+- [x] **A copy script** that exports the tables as that list marks them,
       with the scored tables cut down to the systems in reach. A logical dump
       (`pg_dump`), not a copy of the data folder: the two machines have
       different processors. (11 Nov) It also fills the class of every body
@@ -203,11 +221,13 @@ In order:
       made when no system is waiting for new scores),
       takes the small tables the app's views and the scoring read (which
       galaxy data and which scores are current), and sets up the database's
-      users, which a dump does not carry.
+      users, which a dump does not carry. (12 Nov) Built:
+      `scripts/pi/copy_to_pi.py`, run on the Pi. See section 4.
 
 ## 4. The copy
 
-- [ ] Fresh backup of the current database first.
+- [ ] Fresh backup of the current database first. (12 Nov) Last night's backup
+      is enough: the copy only reads the server's data (see below).
 - [ ] PostgreSQL 18 running on the Pi, data on the 2 TB drive. (11 Nov) With
       its own start-up file in this repo and settings for a 16 GB machine
       (about 4 GB of its own cache; the current server's settings assume
@@ -221,9 +241,30 @@ In order:
       differ only in how rare characters sort. Same container, user and
       database names as the server, so every command works on both. No port
       is opened; the password is in a file only the database can read.
-- [ ] Run the copy script. Check row counts on both sides, table by table.
-- [ ] Clean-up settings on the galaxy and score tables (see section 2), then
-      one full clean-up and statistics pass over the restored database.
+- [ ] (12 Nov) On the server, switch the galaxy update and the state refresh
+      off for the length of the copy (the copy will not start otherwise), and
+      make sure no system is waiting for new scores.
+- [ ] Run the copy script on the Pi: `python3 copy_to_pi.py check`, then
+      `python3 copy_to_pi.py copy`. (12 Nov) How it works:
+      * On the server it makes one table of its own, the list of systems
+        within 500 ly of an inhabited system (schema `edfinder_copy`), and
+        removes it at the end. Nothing else on the server changes.
+      * Every table is read through one snapshot, so they all match.
+      * The Pi's database is made afresh from the server's structure. Tables
+        are copied four at a time, straight into the Pi's database, compressed
+        by ssh. A table is kept only if all of it arrived, and its rows are
+        counted on both machines.
+      * Indexes, keys and triggers are built after the rows are in. The links
+        between tables and the rules on columns go back on unchecked: checking
+        them as the rows went in would cost hours on the Pi (one table's rules
+        alone, `body_composition`'s, measured at 23 microseconds a row, 444
+        million rows). `python3 copy_to_pi.py validate` checks them afterwards
+        and can run with the app in use.
+      * A copy that stops part-way carries on when run again, keeping the
+        tables already copied, as long as the server's data has not changed.
+- [ ] Switch the server's galaxy update and state refresh on again.
+- [ ] Clean-up settings on the galaxy and score tables (see section 2). The
+      copy gathers the planner's statistics itself.
 - [ ] Load the system state on the Pi (`deploy/state_refresh.py run`).
 - [ ] (11 Nov) Bring in what changed between taking the copy and the Pi's
       first nightly run. The nightly job does this by itself: it takes the
@@ -305,6 +346,11 @@ Also decided since: one band of scores out to 500 ly, kept up to date every
 night (owner, 11 November), in place of 250 ly every night and 500 ly on
 request (9 November).
 
+(12 Nov) The catch-up over Spansh's full galaxy file moves to the Pi, after
+the switch: nobody uses the site yet, and it would have held up the copy.
+The copy comes first, then keeping reach up to date and Find's 250 ly default,
+then the catch-up, all before the group is invited.
+
 ## Not part of the move
 
 The map (Almanac trial), bridge routes, BGS and the BGS-Tally link come after
@@ -320,7 +366,9 @@ them ordinary tables. Sizes include each table's indexes.
 1. The five big score tables move only for systems within 500 ly.
 2. `body_parent_evidence` exists on the Pi but stays empty.
 3. `r1_meta` and `r1_plan` are not moved.
-4. The old test galaxy `v3_gen_phase4b_a` is not moved.
+
+(12 Nov) The old test galaxy `v3_gen_phase4b_a` moves after all: the list of
+galaxies still names it, so leaving it would leave that list wrong.
 
 Moved whole: 475 GB. The score tables cut down: 79 GB if systems in reach
 have as many bodies as the average system, and they have more, which is why
@@ -406,14 +454,14 @@ a special case.
   point at `job`): `effect_receipt`, `job`, `job_attempt`, `job_chunk`,
   `job_lease`, `outbox_message`.
 
-### Not moved (24 tables, under 1 MB)
+### Not moved (10 tables, under 1 MB)
 
 - `r1_meta` (5 tables) and `r1_plan` (5 tables): left from an earlier
   programme. Nothing in this repo's code mentions them.
-- `v3_gen_phase4b_a` (14 tables, 0.3 MB): an old test galaxy. To check when
-  the copy script is written: if the list of galaxies in
-  `v3_meta.canonical_generation` still names it, bringing its 0.3 MB along is
-  simpler than changing that list.
+
+`v3_gen_phase4b_a` (14 tables, 0.3 MB), an old test galaxy, was listed here
+until 12 November. The list of galaxies in `v3_meta.canonical_generation`
+still names it (migration 027 counted two galaxies), so it moves whole.
 
 ### Besides tables
 
