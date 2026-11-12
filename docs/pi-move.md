@@ -353,6 +353,13 @@ In order:
 - [ ] (11 Nov) **Hearing about failures.** Today a nightly job that fails
       tells nobody. Each night's jobs report in when they finish, and
       something off the Pi notices when they have not.
+      (12 Nov) Built: `deploy/report_in.py`. systemd runs it when the galaxy
+      update or the state refresh ends, and it tells healthchecks.io, which
+      the old servers used and which emails the owner (his choice, 12 Nov)
+      about a failure or a night with no word. Still to do on the Pi: fetch
+      the script with the units, add the two checks on healthchecks.io and
+      save their addresses (README, "Hearing when a nightly job fails").
+      Backups report the same way once they are built.
 
 ## 7. Switch over
 
