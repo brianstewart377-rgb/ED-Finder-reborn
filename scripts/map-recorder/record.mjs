@@ -180,8 +180,10 @@ async function main() {
       args: options.browser === 'firefox' ? [] : ['--ignore-gpu-blocklist', '--enable-gpu-rasterization'],
     });
   } catch (error) {
-    console.error(`Could not open ${options.browser}: ${String(error.message).split('\n')[0]}`);
-    if (options.browser === 'firefox') console.error('Firefox needs one download first. In this folder, run:  npx playwright install firefox');
+    const reason = String(error.message).split('\n')[0];
+    console.error(`Could not open ${options.browser}: ${reason}`);
+    if (/ffmpeg/i.test(reason)) console.error('The small program that saves the video is missing. In this folder, run:  npx playwright install ffmpeg');
+    else if (options.browser === 'firefox') console.error('Firefox needs one download first. In this folder, run:  npx playwright install firefox');
     else console.error(`Is ${options.browser === 'msedge' ? 'Microsoft Edge' : 'Google Chrome'} installed? Try --browser msedge or --browser chrome.`);
     return 1;
   }
