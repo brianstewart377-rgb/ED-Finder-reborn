@@ -208,3 +208,7 @@ artifacts/review-lab-fail/
 !scripts/operator/lib/
 !scripts/operator/lib/v3_purge_state.py
 !scripts/operator/lib/v3-purge-state.sh
+
+# The map recorder's own output and its browser profile (scripts/map-recorder)
+scripts/map-recorder/recordings/
+scripts/map-recorder/.profile/

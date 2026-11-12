@@ -1,0 +1,53 @@
+{
+  "about": "The Explore galaxy map as it is today. Type Sol and fly to it; pick a result; zoom, pan, turn and tilt; type Colonia and fly right across the map; back out to the whole galaxy.",
+  "path": "/explore",
+  "ready": { "selector": "[data-renderer-state=\"ready\"]", "timeoutSeconds": 90 },
+  "probe": {
+    "selector": ".spatial-canvas",
+    "attributes": [
+      "data-camera-transition-active",
+      "data-last-settled-focus-id64",
+      "data-scene-target-count",
+      "data-rendered-layer-ids",
+      "data-camera-revision",
+      "data-camera-pitch"
+    ]
+  },
+  "steps": [
+    { "do": "wait", "name": "whole-galaxy", "seconds": 5 },
+
+    { "do": "type", "name": "type-sol", "selector": "#system-search", "text": "Sol", "shot": false, "settleSeconds": 0.2 },
+    { "do": "waitFor", "name": "suggestions-for-sol", "selector": "[role=\"listbox\"] [role=\"option\"]", "timeoutSeconds": 15, "settleSeconds": 0.5 },
+    { "do": "keys", "name": "choose-sol", "key": "ArrowDown", "times": 1, "seconds": 0.3, "shot": false, "settleSeconds": 0.1 },
+    { "do": "keys", "name": "fly-to-sol-start", "key": "Enter", "times": 1, "seconds": 0.2, "settleSeconds": 0.2 },
+    { "do": "wait", "name": "fly-to-sol-middle", "seconds": 0.8, "settleSeconds": 0 },
+    { "do": "wait", "name": "fly-to-sol-arrived", "seconds": 4, "settleSeconds": 0 },
+
+    { "do": "waitFor", "name": "results-near-sol", "selector": "[data-system-result]", "timeoutSeconds": 30, "settleSeconds": 2 },
+    { "do": "click", "name": "fly-to-a-result-start", "selector": "[data-result-select]", "settleSeconds": 0.3 },
+    { "do": "wait", "name": "fly-to-a-result-arrived", "seconds": 4, "settleSeconds": 0 },
+
+    { "do": "focus", "name": "keyboard-on-the-map", "selector": ".spatial-canvas", "shot": false },
+    { "do": "wheel", "name": "zoom-in-1", "deltaY": -200, "ticks": 6, "seconds": 3, "at": [0.62, 0.56] },
+    { "do": "wheel", "name": "zoom-in-2", "deltaY": -200, "ticks": 6, "seconds": 3, "at": [0.62, 0.56] },
+    { "do": "keys", "name": "pan-right", "key": "ArrowRight", "times": 20, "seconds": 3 },
+    { "do": "keys", "name": "pan-up", "key": "ArrowUp", "times": 20, "seconds": 3 },
+    { "do": "keys", "name": "turn", "key": "q", "times": 12, "seconds": 3 },
+    { "do": "drag", "name": "tilt-with-right-button", "from": [0.62, 0.5], "to": [0.7, 0.38], "seconds": 2, "button": "right" },
+    { "do": "drag", "name": "drag-with-left-button", "from": [0.7, 0.5], "to": [0.55, 0.6], "seconds": 2 },
+    { "do": "move", "name": "hover-the-middle", "at": [0.62, 0.56], "settleSeconds": 2 },
+
+    { "do": "type", "name": "type-colonia", "selector": "#system-search", "text": "Colonia", "shot": false, "settleSeconds": 0.2 },
+    { "do": "waitFor", "name": "suggestions-for-colonia", "selector": "[role=\"listbox\"] [role=\"option\"]", "timeoutSeconds": 15, "settleSeconds": 0.5 },
+    { "do": "keys", "name": "choose-colonia", "key": "ArrowDown", "times": 1, "seconds": 0.3, "shot": false, "settleSeconds": 0.1 },
+    { "do": "keys", "name": "fly-to-colonia-start", "key": "Enter", "times": 1, "seconds": 0.2, "settleSeconds": 0.2 },
+    { "do": "wait", "name": "fly-to-colonia-middle-1", "seconds": 0.7, "settleSeconds": 0 },
+    { "do": "wait", "name": "fly-to-colonia-middle-2", "seconds": 0.7, "settleSeconds": 0 },
+    { "do": "wait", "name": "fly-to-colonia-arrived", "seconds": 5, "settleSeconds": 0 },
+
+    { "do": "focus", "name": "keyboard-back-on-the-map", "selector": ".spatial-canvas", "shot": false },
+    { "do": "wheel", "name": "zoom-out-1", "deltaY": 200, "ticks": 15, "seconds": 4, "at": [0.62, 0.56] },
+    { "do": "wheel", "name": "zoom-out-2", "deltaY": 200, "ticks": 25, "seconds": 5, "at": [0.62, 0.56] },
+    { "do": "keys", "name": "home", "key": "Home", "times": 1, "seconds": 0.5, "settleSeconds": 4 }
+  ]
+}

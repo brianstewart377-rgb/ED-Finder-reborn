@@ -1,0 +1,16 @@
+{
+  "name": "edfinder-map-recorder",
+  "private": true,
+  "type": "module",
+  "description": "Records a tour of the ED-Finder map in a real browser on a real graphics card.",
+  "scripts": {
+    "record": "node record.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright": "1.65.0"
+  }
+}
