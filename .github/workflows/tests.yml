@@ -105,3 +105,6 @@ jobs:
       - name: Test the map recorder's own logic (no browser needed)
         working-directory: scripts/map-recorder
         run: node --test
+      - name: Test the Almanac trial page's own logic (no browser needed)
+        working-directory: scripts/almanac-trial
+        run: node --test

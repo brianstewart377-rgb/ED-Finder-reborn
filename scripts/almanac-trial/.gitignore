@@ -1,0 +1,4 @@
+# The built page (made by "npm run build") and the data it shows (made by
+# "npm run data"). Both are made again from what is kept here.
+site/
+public/data/

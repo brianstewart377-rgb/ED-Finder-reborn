@@ -1,0 +1,21 @@
+{
+  "name": "edfinder-almanac-trial",
+  "private": true,
+  "type": "module",
+  "description": "A trial page: Almanac's galaxy map with ED-Finder's own candidates on it.",
+  "scripts": {
+    "data": "node fetch-data.mjs",
+    "build": "vite build",
+    "serve": "node serve.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@elite-dangerous-almanac/galaxy-map": "0.7.1"
+  },
+  "devDependencies": {
+    "vite": "8.2.2"
+  }
+}

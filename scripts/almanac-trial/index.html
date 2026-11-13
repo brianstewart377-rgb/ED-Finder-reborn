@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ED-Finder: Almanac map trial</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; color: #e8e8e8; font: 14px/1.4 system-ui, sans-serif; }
+      #stage { position: fixed; inset: 0; }
+      #map { display: block; width: 100%; height: 100%; }
+      /* Only seen when something goes wrong. Bottom centre: the map's own
+         panels open on the left and right edges. */
+      #problem { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 50; margin: 0;
+                 max-width: min(560px, calc(100vw - 24px)); padding: 8px 12px; white-space: pre-wrap;
+                 color: #ffb4a6; background: rgba(10, 14, 20, 0.92); border: 1px solid #a8483a; border-radius: 6px; }
+      #problem:empty { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="map"></canvas></div>
+    <p id="problem" role="alert"></p>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
