@@ -1,0 +1,764 @@
+{
+ "what": "The live site's answer to GET https://ed-finder.app/api/map/systems?min_x=-15&max_x=15&min_y=-15&max_y=15&min_z=-15&max_z=15&limit=5000 on 13 Nov 2026: every system in the 30 ly box around Sol. Nothing is changed.",
+ "response": {
+  "systems": [
+   {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "main_star_class": "G2",
+    "populated": false
+   },
+   {
+    "id64": 121569805492,
+    "name": "Sirius",
+    "x": 6.25,
+    "y": -1.28125,
+    "z": -5.75,
+    "main_star_class": "A0",
+    "populated": false
+   },
+   {
+    "id64": 147916327275,
+    "name": "Luyten 145-141",
+    "x": 13.4375,
+    "y": -0.8125,
+    "z": 6.65625,
+    "main_star_class": "D5",
+    "populated": false
+   },
+   {
+    "id64": 306253399220,
+    "name": "Altair",
+    "x": -12.3125,
+    "y": -2.75,
+    "z": 11.0,
+    "main_star_class": "A7",
+    "populated": false
+   },
+   {
+    "id64": 633608344274,
+    "name": "Delta Pavonis",
+    "x": 8.375,
+    "y": -10.84375,
+    "z": 14.46875,
+    "main_star_class": "G8",
+    "populated": false
+   },
+   {
+    "id64": 670685996457,
+    "name": "van Maanen's Star",
+    "x": -6.3125,
+    "y": -11.6875,
+    "z": -4.125,
+    "main_star_class": "D5",
+    "populated": false
+   },
+   {
+    "id64": 670954431913,
+    "name": "CD-37 15492",
+    "x": 0.96875,
+    "y": -13.78125,
+    "z": 3.15625,
+    "main_star_class": "M2",
+    "populated": false
+   },
+   {
+    "id64": 670954497449,
+    "name": "Ross 128",
+    "x": 5.53125,
+    "y": 9.4375,
+    "z": 0.125,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 800751356267,
+    "name": "Procyon",
+    "x": 6.21875,
+    "y": 2.65625,
+    "z": -9.1875,
+    "main_star_class": "F5",
+    "populated": false
+   },
+   {
+    "id64": 908486251218,
+    "name": "Epsilon Indi",
+    "x": 3.125,
+    "y": -8.875,
+    "z": 7.125,
+    "main_star_class": "K5",
+    "populated": false
+   },
+   {
+    "id64": 1178708478315,
+    "name": "Alpha Centauri",
+    "x": 3.03125,
+    "y": -0.09375,
+    "z": 3.15625,
+    "main_star_class": "G2",
+    "populated": false
+   },
+   {
+    "id64": 2869709252009,
+    "name": "LP 816-60",
+    "x": -7.8125,
+    "y": -10.65625,
+    "z": 13.15625,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 2869977687457,
+    "name": "LHS 1827",
+    "x": 13.40625,
+    "y": -5.8125,
+    "z": -11.78125,
+    "main_star_class": "M0",
+    "populated": false
+   },
+   {
+    "id64": 2869977687465,
+    "name": "YZ Ceti",
+    "x": -1.1875,
+    "y": -11.8125,
+    "z": -2.15625,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 2869977753001,
+    "name": "Wolf 1481",
+    "x": 5.1875,
+    "y": 13.375,
+    "z": 13.5625,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 3107509506770,
+    "name": "Tau Ceti",
+    "x": -0.375,
+    "y": -11.40625,
+    "z": -3.5,
+    "main_star_class": "G8",
+    "populated": false
+   },
+   {
+    "id64": 3657265320658,
+    "name": "Epsilon Eridani",
+    "x": 1.9375,
+    "y": -7.75,
+    "z": -6.84375,
+    "main_star_class": "K2",
+    "populated": false
+   },
+   {
+    "id64": 3932143227602,
+    "name": "Omicron-2 Eridani",
+    "x": 4.59375,
+    "y": -9.90625,
+    "z": -12.0625,
+    "main_star_class": "K0",
+    "populated": false
+   },
+   {
+    "id64": 4207021134546,
+    "name": "Lalande 18115",
+    "x": -3.84375,
+    "y": 14.0,
+    "z": -14.40625,
+    "main_star_class": "K7",
+    "populated": false
+   },
+   {
+    "id64": 4339804408171,
+    "name": "Duamta",
+    "x": 2.1875,
+    "y": 6.625,
+    "z": -7.0,
+    "main_star_class": "F9",
+    "populated": false
+   },
+   {
+    "id64": 4374164146539,
+    "name": "Yin Sector CL-Y d127",
+    "x": 1.0625,
+    "y": 3.875,
+    "z": -9.0,
+    "main_star_class": "K0",
+    "populated": false
+   },
+   {
+    "id64": 4477243361643,
+    "name": "Kokary",
+    "x": 3.5,
+    "y": -10.3125,
+    "z": -11.4375,
+    "main_star_class": "G8",
+    "populated": false
+   },
+   {
+    "id64": 4481899041490,
+    "name": "Groombridge 1618",
+    "x": -2.34375,
+    "y": 12.625,
+    "z": -9.34375,
+    "main_star_class": "K8",
+    "populated": false
+   },
+   {
+    "id64": 4511603100011,
+    "name": "Lung",
+    "x": 3.71875,
+    "y": -6.53125,
+    "z": -13.53125,
+    "main_star_class": "K0",
+    "populated": false
+   },
+   {
+    "id64": 4649042053483,
+    "name": "Avik",
+    "x": 13.96875,
+    "y": -4.59375,
+    "z": -6.0,
+    "main_star_class": "K0",
+    "populated": false
+   },
+   {
+    "id64": 4683401791851,
+    "name": "Mildeptu",
+    "x": 14.125,
+    "y": 1.3125,
+    "z": -3.28125,
+    "main_star_class": "G2",
+    "populated": false
+   },
+   {
+    "id64": 4717761530219,
+    "name": "Gendalla",
+    "x": 12.0,
+    "y": 9.96875,
+    "z": -5.53125,
+    "main_star_class": "F9",
+    "populated": false
+   },
+   {
+    "id64": 5031654855378,
+    "name": "Rigga",
+    "x": 8.40625,
+    "y": -3.40625,
+    "z": 13.25,
+    "main_star_class": "K0",
+    "populated": false
+   },
+   {
+    "id64": 5068732573089,
+    "name": "LHS 2459",
+    "x": -11.0,
+    "y": 10.78125,
+    "z": -8.21875,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 5069000943017,
+    "name": "Kapteyn's Star",
+    "x": 9.75,
+    "y": -7.46875,
+    "z": -3.46875,
+    "main_star_class": "M1",
+    "populated": false
+   },
+   {
+    "id64": 5069001008553,
+    "name": "LHS 449",
+    "x": 4.1875,
+    "y": -1.90625,
+    "z": 14.0625,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 5306532762322,
+    "name": "70 Ophiuchi",
+    "x": -8.21875,
+    "y": 3.09375,
+    "z": 14.0625,
+    "main_star_class": "K0",
+    "populated": false
+   },
+   {
+    "id64": 5366024915784,
+    "name": "WISE 0146+4234",
+    "x": -14.0,
+    "y": -6.75,
+    "z": -13.40625,
+    "main_star_class": "Y0",
+    "populated": false
+   },
+   {
+    "id64": 5366025046864,
+    "name": "Ross 248",
+    "x": -9.3125,
+    "y": -3.03125,
+    "z": -3.40625,
+    "main_star_class": "M6",
+    "populated": false
+   },
+   {
+    "id64": 5366025177936,
+    "name": "WISE 1506+7027",
+    "x": -7.375,
+    "y": 7.09375,
+    "z": -2.4375,
+    "main_star_class": "T6",
+    "populated": false
+   },
+   {
+    "id64": 5366025177944,
+    "name": "WISE 1741+2553",
+    "x": -12.40625,
+    "y": 7.90625,
+    "z": 10.34375,
+    "main_star_class": "T9",
+    "populated": false
+   },
+   {
+    "id64": 5367098657608,
+    "name": "Teegarden's star",
+    "x": -3.375,
+    "y": -7.46875,
+    "z": -9.34375,
+    "main_star_class": "M6",
+    "populated": false
+   },
+   {
+    "id64": 5368172399432,
+    "name": "LP 944-020",
+    "x": 8.0625,
+    "y": -13.03125,
+    "z": -5.3125,
+    "main_star_class": "M9",
+    "populated": false
+   },
+   {
+    "id64": 5368172399440,
+    "name": "WISE 0350-5658",
+    "x": 8.28125,
+    "y": -8.8125,
+    "z": -0.15625,
+    "main_star_class": "Y1",
+    "populated": false
+   },
+   {
+    "id64": 5368172530504,
+    "name": "UGPS 0722-05",
+    "x": 8.875,
+    "y": 0.03125,
+    "z": -10.03125,
+    "main_star_class": "T9",
+    "populated": false
+   },
+   {
+    "id64": 5368172530520,
+    "name": "WISE 1639-6847",
+    "x": 9.875,
+    "y": -4.09375,
+    "z": 12.28125,
+    "main_star_class": "Y0",
+    "populated": false
+   },
+   {
+    "id64": 5368172661576,
+    "name": "AD Leonis",
+    "x": 5.5,
+    "y": 13.03125,
+    "z": -7.46875,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 5856288576210,
+    "name": "61 Cygni",
+    "x": -11.21875,
+    "y": -1.1875,
+    "z": 1.40625,
+    "main_star_class": "K5",
+    "populated": false
+   },
+   {
+    "id64": 7267755828641,
+    "name": "Groombridge 34",
+    "x": -9.90625,
+    "y": -3.6875,
+    "z": -5.09375,
+    "main_star_class": "M2",
+    "populated": false
+   },
+   {
+    "id64": 7268024198569,
+    "name": "Lacaille 8760",
+    "x": -0.6875,
+    "y": -9.09375,
+    "z": 9.09375,
+    "main_star_class": "M0",
+    "populated": false
+   },
+   {
+    "id64": 7268024264097,
+    "name": "Luyten's Star",
+    "x": 6.5625,
+    "y": 2.34375,
+    "z": -10.25,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 7268024264105,
+    "name": "Ross 154",
+    "x": -1.9375,
+    "y": -1.84375,
+    "z": 9.3125,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 7780433924818,
+    "name": "Test",
+    "x": -1.0,
+    "y": 0.0,
+    "z": 0.0,
+    "main_star_class": null,
+    "populated": false
+   },
+   {
+    "id64": 9466779084201,
+    "name": "Midgcut",
+    "x": -14.625,
+    "y": 10.34375,
+    "z": 13.15625,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 9467047454121,
+    "name": "La Rochelle",
+    "x": 2.03125,
+    "y": -11.8125,
+    "z": 10.8125,
+    "main_star_class": "M2",
+    "populated": false
+   },
+   {
+    "id64": 9467047519657,
+    "name": "Lalande 21185",
+    "x": 0.3125,
+    "y": 7.5625,
+    "z": -3.375,
+    "main_star_class": "M2",
+    "populated": false
+   },
+   {
+    "id64": 11665802274217,
+    "name": "Ross 780",
+    "x": -6.125,
+    "y": -13.28125,
+    "z": 4.5625,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 11665802339753,
+    "name": "LHS 450",
+    "x": -12.40625,
+    "y": 7.8125,
+    "z": -1.875,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 11666070709673,
+    "name": "Lacaille 9352",
+    "x": -0.40625,
+    "y": -9.8125,
+    "z": 4.21875,
+    "main_star_class": "M2",
+    "populated": false
+   },
+   {
+    "id64": 13864825529761,
+    "name": "TZ Arietis",
+    "x": -5.375,
+    "y": -10.59375,
+    "z": -8.5,
+    "main_star_class": "M8",
+    "populated": false
+   },
+   {
+    "id64": 13864825595305,
+    "name": "Struve 2398",
+    "x": -10.625,
+    "y": 4.75,
+    "z": 0.09375,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 13865094030753,
+    "name": "Ross 614",
+    "x": 7.3125,
+    "y": -1.34375,
+    "z": -11.1875,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 13865094030761,
+    "name": "LHS 380",
+    "x": 5.28125,
+    "y": 6.75,
+    "z": 10.875,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 16064117286305,
+    "name": "WX Ursae Majoris",
+    "x": -1.40625,
+    "y": 14.15625,
+    "z": -6.875,
+    "main_star_class": "M1",
+    "populated": false
+   },
+   {
+    "id64": 16064117286313,
+    "name": "Wolf 1061",
+    "x": -0.84375,
+    "y": 5.46875,
+    "z": 12.84375,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 18262872106401,
+    "name": "Struve 1321",
+    "x": -14.46875,
+    "y": -3.09375,
+    "z": -13.65625,
+    "main_star_class": "K7",
+    "populated": false
+   },
+   {
+    "id64": 18263140476329,
+    "name": "UV Ceti",
+    "x": -0.1875,
+    "y": -8.3125,
+    "z": -2.125,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 18263140541865,
+    "name": "Barnard's Star",
+    "x": -3.03125,
+    "y": 1.375,
+    "z": 4.9375,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 20462163797417,
+    "name": "Luyten 143-23",
+    "x": 13.125,
+    "y": -0.75,
+    "z": 6.40625,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 22660918617513,
+    "name": "Kruger 60",
+    "x": -12.625,
+    "y": 0.0,
+    "z": -3.40625,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 22661186987433,
+    "name": "EZ Aquarii",
+    "x": -4.4375,
+    "y": -9.3125,
+    "z": 4.09375,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 22661187052961,
+    "name": "SPF-LF 1",
+    "x": 2.90625,
+    "y": 6.3125,
+    "z": -9.5625,
+    "main_star_class": "M6",
+    "populated": false
+   },
+   {
+    "id64": 22661187052969,
+    "name": "LHS 292",
+    "x": 10.9375,
+    "y": 9.71875,
+    "z": -1.75,
+    "main_star_class": "M6",
+    "populated": false
+   },
+   {
+    "id64": 22958211091280,
+    "name": "V1581 Cygni",
+    "x": -14.9375,
+    "y": 2.25,
+    "z": 2.9375,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 22958211222352,
+    "name": "WISE 1405+5534",
+    "x": -8.03125,
+    "y": 13.4375,
+    "z": -1.84375,
+    "main_star_class": "Y0",
+    "populated": false
+   },
+   {
+    "id64": 22959284702024,
+    "name": "WISE 0410+1502",
+    "x": -0.46875,
+    "y": -6.125,
+    "z": -12.59375,
+    "main_star_class": "Y0",
+    "populated": false
+   },
+   {
+    "id64": 22960358443856,
+    "name": "WISE 0359-5401",
+    "x": 13.125,
+    "y": -13.9375,
+    "z": -1.34375,
+    "main_star_class": "Y0",
+    "populated": false
+   },
+   {
+    "id64": 22960358574928,
+    "name": "Luhman 16",
+    "x": 6.3125,
+    "y": 0.59375,
+    "z": 1.71875,
+    "main_star_class": "L7",
+    "populated": false
+   },
+   {
+    "id64": 24859941807529,
+    "name": "LHS 2",
+    "x": -5.8125,
+    "y": -14.1875,
+    "z": -0.25,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 24860210308513,
+    "name": "G 41-14",
+    "x": 7.9375,
+    "y": 7.71875,
+    "z": -9.4375,
+    "main_star_class": "M3",
+    "populated": false
+   },
+   {
+    "id64": 24860210308521,
+    "name": "Wolf 359",
+    "x": 3.875,
+    "y": 6.46875,
+    "z": -1.90625,
+    "main_star_class": "M6",
+    "populated": false
+   },
+   {
+    "id64": 27059233564073,
+    "name": "Wolf 424",
+    "x": 4.21875,
+    "y": 13.28125,
+    "z": 1.4375,
+    "main_star_class": "M7",
+    "populated": false
+   },
+   {
+    "id64": 29258256754089,
+    "name": "Talta",
+    "x": 5.59375,
+    "y": -5.125,
+    "z": 10.34375,
+    "main_star_class": "M8",
+    "populated": false
+   },
+   {
+    "id64": 31457280075169,
+    "name": "EI Cancri",
+    "x": 6.3125,
+    "y": 10.125,
+    "z": -12.15625,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 35855326520745,
+    "name": "Toolfa",
+    "x": 8.0,
+    "y": -11.1875,
+    "z": -2.65625,
+    "main_star_class": "M4",
+    "populated": false
+   },
+   {
+    "id64": 38054081340841,
+    "name": "IL Aquarii",
+    "x": -6.15625,
+    "y": -13.34375,
+    "z": 4.78125,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 40552544619344,
+    "name": "DEN 1048-3956",
+    "x": 12.375,
+    "y": 3.84375,
+    "z": 1.875,
+    "main_star_class": "M9",
+    "populated": false
+   },
+   {
+    "id64": 44651151173033,
+    "name": "Bidmere",
+    "x": -7.4375,
+    "y": 13.21875,
+    "z": 1.90625,
+    "main_star_class": "M5",
+    "populated": false
+   },
+   {
+    "id64": 58144730663760,
+    "name": "WISE 0855-0714",
+    "x": 6.53125,
+    "y": -2.15625,
+    "z": 2.03125,
+    "main_star_class": "Y5",
+    "populated": false
+   }
+  ],
+  "truncated": false
+ }
+}
