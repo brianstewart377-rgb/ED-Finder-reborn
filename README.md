@@ -222,8 +222,10 @@ is not a score.
 publishes the file (between 02:00 and 03:30 UTC on the days we have looked),
 and again at 16:30 UTC in case the file was late or the first run failed. It
 needs `state_refresh.py` beside it (they share the download code) and
-migrations `026` and `027` applied. Apply `027` before deploying a build that
+migrations `026`, `027` and `029` applied. Apply `027` before deploying a build that
 has it: until the column is there the update refuses to run and says so. The
+same goes for `029`, which adds a signal type (a planet's mining locations) to
+the database's list: apply it first, then deploy the build that knows the word. The
 app itself does not mind either way.
 
 The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).

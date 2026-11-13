@@ -84,6 +84,10 @@ VOCABULARY: dict[str, dict[str, tuple[int, str]]] = {
         "$saa_signaltype_guardian;": (5, "Guardian"),
         "$saa_signaltype_other;": (6, "Other"),
         "$saa_signaltype_planetanomaly;": (7, "Planet Anomaly"),
+        # Places to mine on a planet's surface, counted for each body like
+        # the signals above. In Spansh's files since the game's mining update
+        # of September 2026; migration 029 adds it to v3_vocab.signal_type.
+        "$planetarymininglocation_name;": (8, "Planetary Mining Location"),
         # The current Spansh artifact uses these Frontier mining commodity
         # tokens as ring-signal types.  They are the governed, supported
         # hotspot vocabulary.  Rare non-hotspot tokens remain unmapped and

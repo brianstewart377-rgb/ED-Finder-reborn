@@ -12,6 +12,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
 import os
 from pathlib import Path
 import sys
@@ -32,7 +33,7 @@ from spansh_delta.normalize import CONTENT_TABLES  # noqa: E402
 from tests.helpers.finder_seed import apply_migration, migration_names  # noqa: E402
 from tests.ratings_v4_pg_fixture import canonical_database  # noqa: E402
 from tests.test_spansh_delta import write_galaxy  # noqa: E402
-from v3_spansh.adapter import SpanshAdapter, body_class  # noqa: E402
+from v3_spansh.adapter import VOCABULARY, SpanshAdapter, body_class  # noqa: E402
 
 HD_38179, SOL, MAIA, THAILE, BORANN = 158872029, 10477373803, 8216113749, 31639717276, 5070611621289
 SMOJOO = 3754967435947
@@ -376,6 +377,11 @@ def test_check_needs_no_queue_table_but_apply_does(template, tmp_path):
         with pytest.raises(galaxy_update.Refused, match="migration 027"):
             galaxy_update.run_file(connection, path, mode="check", made_at=SEPTEMBER, progress=False)
         apply_migration(connection, 27)
+        # Nor does it run while the importer knows a signal the database's list
+        # does not: these real records list mining locations (migration 029).
+        with pytest.raises(galaxy_update.Refused, match=r"v3_vocab\.signal_type lacks ids \[8\]"):
+            galaxy_update.run_file(connection, path, mode="check", made_at=SEPTEMBER, progress=False)
+        apply_migration(connection, 29)
         report = galaxy_update.run_file(connection, path, mode="check", made_at=SEPTEMBER, progress=False)
         assert report.changed == 12
         with pytest.raises(galaxy_update.Refused, match="migration 026"):
@@ -920,3 +926,92 @@ def test_made_at_needs_a_time_zone(tmp_path, capsys):
     with pytest.raises(SystemExit):
         galaxy_update.main(["check", str(tmp_path / "x.json.gz"), "--made-at", "2026-09-08T16:00:00"])
     assert "time zone" in capsys.readouterr().err
+
+
+# -- a planet's mining locations (migration 029) -----------------------------------
+
+# Spansh's own record of this system, from galaxy_1day.json.gz as published on
+# 13 November 2026. Its one planet has four places to mine.
+MINING_SYSTEM = ROOT / "tests" / "fixtures" / "spansh_mining_location" / "drojau_kr-w_e1-0.json"
+MIGRATION_029 = ROOT / "sql" / "v3" / "migrations" / "029_v3_mining_location_signal.sql"
+MINING_SIGNAL = ("SELECT signal_type_id, public_code, display_name, active "
+                 "FROM v3_vocab.signal_type WHERE signal_type_id = 8")
+
+
+def test_a_planets_mining_locations_are_kept(galaxy: Galaxy, tmp_path):
+    """Until migration 029 the update did not know this signal and left it
+    out: it was in 99,693 systems of the 7-day file of 13 Nov 2026."""
+    record = json.loads(MINING_SYSTEM.read_text(encoding="utf-8"))
+    star, planet = record["bodies"]
+    assert planet["signals"]["signals"] == {"$PlanetaryMiningLocation_Name;": 4}
+
+    report = run(galaxy, tmp_path, [record],
+                 made_at=datetime(2026, 11, 13, 3, 13, tzinfo=timezone.utc))
+
+    assert (report.new, report.changed, dict(report.set_aside)) == (1, 0, {})
+    assert not report.unknown_words
+    assert galaxy.all(
+        "SELECT held.body_pk, kind.public_code, kind.display_name, held.signal_count "
+        "FROM {s}.body_signal_current held "
+        "JOIN {s}.bodies body USING (body_pk) "
+        "JOIN v3_vocab.signal_type kind USING (signal_type_id) "
+        "WHERE body.system_id64 = %s", record["id64"],
+    ) == [(planet["id64"], "planetarymininglocation_name", "Planetary Mining Location", 4)]
+    assert galaxy.all(
+        "SELECT raw_token FROM v3_source.unmapped_vocabulary WHERE raw_token ILIKE %s",
+        "%mining%") == []
+
+    # The same record again is already up to date: nothing is written twice.
+    again = run(galaxy, tmp_path, [record],
+                made_at=datetime(2026, 11, 14, 3, 13, tzinfo=timezone.utc))
+    assert (again.new, again.changed, again.unchanged) == (0, 0, 1)
+
+
+def test_migration_029_adds_the_signal_type_as_the_importer_knows_it(galaxy: Galaxy):
+    """The test galaxy's lists are filled from the importer's own, so the row
+    is there already. Take it out, and the migration has to put the same back."""
+    migration = MIGRATION_029.read_text(encoding="utf-8")
+    galaxy.connection.execute("DELETE FROM v3_vocab.signal_type WHERE signal_type_id = 8")
+    assert galaxy.connection.execute(MINING_SIGNAL).fetchone() is None
+
+    galaxy.connection.execute(migration)
+
+    (token, (number, name)), = [item for item in VOCABULARY["signal_type"].items() if item[1][0] == 8]
+    assert token == "$PlanetaryMiningLocation_Name;".casefold()
+    added = galaxy.connection.execute(MINING_SIGNAL).fetchone()
+    assert added == (number, galaxy_update.vocabulary_code(token), name, True)
+
+    # Safe to run more than once.
+    galaxy.connection.execute(migration)
+    assert galaxy.connection.execute(MINING_SIGNAL).fetchone() == added
+    assert galaxy.one("SELECT count(*) FROM v3_vocab.signal_type WHERE public_code = %s", added[1])[0] == 1
+
+
+@pytest.mark.parametrize("already_there, complaint", [
+    ("UPDATE v3_vocab.signal_type SET public_code = 'something_else' WHERE signal_type_id = 8",
+     'signal type 8 is already "something_else"'),
+    ("UPDATE v3_vocab.signal_type SET signal_type_id = 99 WHERE signal_type_id = 8",
+     '"planetarymininglocation_name" is already signal type 99'),
+], ids=["the number is taken", "the code has another number"])
+def test_migration_029_stops_and_changes_nothing_when_its_row_is_taken(
+        galaxy: Galaxy, already_there, complaint):
+    galaxy.connection.execute(already_there)
+    before = galaxy.all("SELECT * FROM v3_vocab.signal_type ORDER BY 1")
+
+    with pytest.raises(psycopg.errors.RaiseException, match=complaint):
+        galaxy.connection.execute(MIGRATION_029.read_text(encoding="utf-8"))
+    galaxy.connection.execute("ROLLBACK")
+
+    assert galaxy.all("SELECT * FROM v3_vocab.signal_type ORDER BY 1") == before
+
+
+def test_without_migration_029_the_update_refuses_and_says_what_is_missing(galaxy: Galaxy, tmp_path):
+    """Why 029 is applied before a build that knows the word is deployed."""
+    galaxy.connection.execute("DELETE FROM v3_vocab.signal_type WHERE signal_type_id = 8")
+    before = snapshot(galaxy)
+
+    with pytest.raises(galaxy_update.Refused, match=r"v3_vocab\.signal_type lacks ids \[8\]"):
+        run(galaxy, tmp_path, [json.loads(MINING_SYSTEM.read_text(encoding="utf-8"))])
+
+    assert snapshot(galaxy) == before
+

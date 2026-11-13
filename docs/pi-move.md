@@ -354,12 +354,28 @@ In order:
       run on the Pi, started through systemd: 28 minutes, 160,911 systems
       read, 16,585 changed. Find goes on reading while it loads. The timer
       was switched on at 15:19: 03:30 UTC.
-- [ ] (13 Nov) To decide: the galaxy update met four signal types it does
-      not know and left them out: `$PlanetaryMiningLocation_Name;` in 99,693
-      systems of the 7-day file, and `Cobalt`, `LiquidOxygen` and
-      `Lepidolite` in one each. They look like the game's new surface mining.
-      Keeping them means adding them to the list of known signal types, a
-      reviewed change to the database.
+- [ ] (13 Nov) The galaxy update met four signal types it does not know and
+      left them out: `$PlanetaryMiningLocation_Name;` in 99,693 systems of
+      the 7-day file, and `Cobalt`, `LiquidOxygen` and `Lepidolite` in one
+      each. The owner's choice: keep them.
+      The first is real and wide: a count, on a planet, of the places that
+      can be mined on its surface (a real record: Drojau KR-W e1-0, four
+      places). Spansh's files have listed it since the game's mining update
+      of September 2026; our own test records of Alioth, from 8 September,
+      list it on seven bodies.
+      Migration `029` adds it to the list of known signal types and the
+      importer now writes it. On the Pi, in this order: back up the word
+      lists, apply `029`, then deploy the build. Deployed first, the galaxy
+      update refuses to run until `029` is there. Systems already on the Pi
+      get the signal when a file lists them again: within a week for those
+      in the 7-day files, the rest at the catch-up.
+      The other three are not new. `Cobalt` is a hotspot on one ring, in a
+      record from 2019, beside two ordinary hotspots. The importer's own
+      rule is to leave rare odd words out; they are written down in
+      `v3_source.unmapped_vocabulary`. Left out until someone can say what
+      they are.
+      Still to do: Inspect shows the new signal by its code,
+      "planetarymininglocation name"; it wants a plain label.
 - [ ] Re-score what is on the waiting list. (12 Nov) In order: apply
       migration `028` (after a fresh backup), work reach out once
       (`python3 galaxy_update.py reach`), then add `EDFINDER_GALAXY_SCORES=on`
