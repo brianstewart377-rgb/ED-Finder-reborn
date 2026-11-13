@@ -597,6 +597,25 @@ These are what the Almanac trial is compared against.
 - Any change of ours would live in a fork. Its licence allows that for
   non-commercial use. None is needed to start the trial.
 
+(13 Nov) The trial page, `scripts/almanac-trial`: Almanac as published
+(0.7.1), with the first 10,000 candidates Find lists within 500 ly of Sol and
+of Colonia. What building it showed, before anyone looked at it on a real
+graphics card:
+
+- Almanac already has most of what a page around it needs: a chooser between
+  sets of systems, search by name, groups with counts that switch on and off,
+  and a panel about one system that takes our own values and buttons. The
+  trial page has no controls of its own.
+- All 10,000 candidates near Sol have the same score (100), tier (S) and best
+  use (flexible); 9,999 of the 10,000 near Colonia too. Colour by score or
+  tier would show one colour. The trial groups by second use instead. Find's
+  ranking near Sol is a separate matter to look at.
+- Our data goes in as it comes from Find: all 10,001 records of a set were
+  taken, none turned down.
+- The published package needs a bundler, and its build needs one fix: a
+  background worker asks for a picture the bundler does not copy. The trial's
+  build copies it.
+
 (12 Nov) How a map check earns trust. The owner's brief: do not overcomplicate
 it, but it must test everything fully and give results he can have confidence
 in, heatmaps above all. These four rules are how, and they are the same for

@@ -317,3 +317,7 @@ None of that can say how the map looks or how smoothly it moves: CI has no
 graphics card. `scripts/map-recorder` records a fixed tour of the map in a
 real browser on a real graphics card (the owner's gaming PC) and saves a
 video, pictures and frame timings. Its own README has the commands.
+
+`scripts/almanac-trial` is a trial page: Almanac's galaxy map, unchanged,
+with Find's own candidates on it. It is not part of the site. Its own README
+has the commands.
