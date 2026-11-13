@@ -6,7 +6,10 @@
 # the systems on the waiting list, whether or not there was anything to apply.
 [Unit]
 Description=ED-Finder: bring the galaxy up to date from Spansh
-After=docker.service network-online.target edfinder-state-refresh.service
+# After the weekly full backup, if one is still running: this job needs a
+# table to itself for a moment, and the backup holds them all (see
+# edfinder-backup-full.service).
+After=docker.service network-online.target edfinder-state-refresh.service edfinder-backup-full.service
 Wants=network-online.target
 
 [Service]

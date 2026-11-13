@@ -2,7 +2,10 @@
 # Started once a night by edfinder-state-refresh.timer.
 [Unit]
 Description=ED-Finder: refresh system state from Spansh
-After=docker.service network-online.target
+# After the weekly full backup, if one is still running: this job needs a
+# table to itself for a moment, and the backup holds them all (see
+# edfinder-backup-full.service).
+After=docker.service network-online.target edfinder-backup-full.service
 Wants=network-online.target
 
 [Service]
