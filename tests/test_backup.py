@@ -227,12 +227,13 @@ def test_a_full_backup_brings_every_row_back(kit, capsys):
     backup = kit.directory / "full" / dumps[0]
     assert stat.S_IMODE(backup.stat().st_mode) == 0o600
     about = json.loads((kit.directory / "full" / (dumps[0] + ".json")).read_text())
-    assert about["kind"] == "full" and about["bytes"] == backup.stat().st_size and about["tables"] == 106
-    assert "DONE:" in said and "106 tables" in said
+    assert about["kind"] == "full" and about["bytes"] == backup.stat().st_size and about["tables"] == 108
+    assert "DONE:" in said and "108 tables" in said
 
     # Bring it back into an empty database, and count.
     live = row_counts(kit.galaxy.conninfo)
-    assert len(live) == 106
+    # 106 until migration 030 added the two tables of station sightings.
+    assert len(live) == 108
     # Among them every body of the twelve real systems.
     bodies = sum(len(record["bodies"]) for record in kit.galaxy.records.values())
     assert live[kit.galaxy.schema + ".bodies"] == bodies == 389

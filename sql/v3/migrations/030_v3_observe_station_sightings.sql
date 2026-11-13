@@ -1,8 +1,17 @@
--- Proposed additive migration 017. UNREGISTERED: it is not in
--- sql/v3/migration-manifest.txt and nothing applies it. Registration as
--- migration 017 (manifest, schema transition, schema identity), the role
--- membership on the production application login and the worker's first run
--- are post-go-live steps that need the owner's explicit go.
+-- 030: a place for station sightings from the EDDN live feed.
+--
+-- Written in October 2026 as "proposed migration 017" and never applied
+-- anywhere. Its SQL is unchanged; only this heading is new.
+--
+-- What it adds: a new schema, v3_observe, with a table that keeps one row
+-- each time a station's state changes (its system, name, type, economies,
+-- services and landing pads), and a role, v3_station_observer, that can add
+-- sightings and do nothing else. The listener (apps/eddn_v3) writes there.
+-- It also adds two rows to the list of sources (v3_source).
+--
+-- Apply it once, after a fresh backup, before the listener is started.
+-- It is one transaction: if anything is not as expected it stops and changes
+-- nothing. A second run stops the same way, because the schema is there.
 --
 -- Public-source, non-canonical station observations (EDDN Docked, Spansh
 -- galaxy_stations). Evidence only, never canonical truth: nothing here reads

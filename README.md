@@ -230,6 +230,35 @@ app itself does not mind either way.
 
 The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
 
+## The EDDN listener (station sightings)
+
+EDDN is the public live feed that players' tools send their game events to.
+The listener (`apps/eddn_v3`) keeps one row each time a station's state
+changes: its system, name, type, economies, services and landing pads. Fleet
+carriers are left out, and who sent a message is never stored. Nothing on the
+site reads the sightings yet. They are gathered now because they can only be
+gathered as they happen.
+
+It is separate from the site: its own image, its own container
+(`deploy/pi/eddn.yml`), its own settings file, and it writes to its own part
+of the database (`v3_observe`) as a role that can add sightings and nothing
+else. Stopping it harms nothing else.
+
+Switching it on, on the Pi, once:
+
+1. A fresh backup, then migration `030`
+   (`sql/v3/migrations/030_v3_observe_station_sightings.sql`), at a quiet
+   moment: no nightly job running. It is one transaction and changes nothing
+   if anything is not as it expects.
+2. `sudo python3 /opt/edfinder/make_eddn_env.py` writes its settings file,
+   `/etc/edfinder/eddn.env` (root only, never shown).
+3. `sudo docker compose -f /opt/edfinder/eddn.yml up -d` starts it.
+
+To see how it is doing: `sudo python3 /opt/edfinder/pi_report.py` lists it
+with the other containers and says so if it is unhealthy. It counts as
+unhealthy when a write has failed or the feed has been silent for five
+minutes, and restarts itself after five failed writes in a row.
+
 ## Backups
 
 `deploy/backup.py` (Python standard library only) backs the database up on
