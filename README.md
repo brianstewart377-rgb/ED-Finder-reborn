@@ -356,6 +356,28 @@ Two things to know:
   update is already running", and that is reported as a failure. Switch the
   timers off for the length of a long run by hand, such as the catch-up.
 
+## How the machine is doing
+
+`deploy/pi_report.py` writes one page of facts about the machine that runs
+the site: memory, heat, whether the Pi has slowed itself down, the drives and
+the speed of the link to each, whether the containers' memory limits are
+being kept, what each container is using, the database's settings and how it
+is doing, and how long the health check and a Find search take. At the end it
+lists what stands out.
+
+It only reads. It changes no setting, writes no file and restarts nothing.
+It shows no password and no contents of a settings file, and it counts and
+times the database's slow statements without showing them.
+
+On the Pi:
+
+```bash
+sudo python3 /opt/edfinder/pi_report.py
+```
+
+It is the first thing to run before changing any setting for speed, and
+again after, to see what the change did.
+
 ## Running the Python tests
 
 ```bash
