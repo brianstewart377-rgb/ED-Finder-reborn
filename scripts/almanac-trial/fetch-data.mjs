@@ -4,13 +4,19 @@
 // and the first few results Find lists near it, each with every real star
 // within 15 ly.
 //
+// If the file my-systems.local.json is here, the player's own systems in it
+// are looked up by name and fetched the same way, for the "My systems" view.
+// my-systems.example.json shows the form.
+//
 //     node fetch-data.mjs
 //
-// About 25 questions to the site, a little over a second apart.
-import { mkdir, writeFile } from 'node:fs/promises';
+// About 25 questions to the site, and two more for each of the player's
+// systems, a little over a second apart.
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
-  ANCHORS, RANGE_LY, RESULTS_OFFERED, anchorInBox, boxAround, showing, trimRow,
+  ANCHORS, RANGE_LY, RESULTS_OFFERED, anchorInBox, boxAround, pickByName, readMine, showing,
+  showingMine, systemInBox, trimRow,
 } from './src/logic.mjs';
 
 const SITE = process.env.EDFINDER_SITE ?? 'https://ed-finder.app';
@@ -48,7 +54,36 @@ async function boxOf(centre, name) {
   return box.systems;
 }
 
+/** The player's own list, or none when the file is not there. */
+async function mineFromFile() {
+  let text;
+  try {
+    text = await readFile(new URL('./my-systems.local.json', import.meta.url), 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+  return readMine(JSON.parse(text));
+}
+
+/** The site's own record of a system, found by its exact name. */
+async function byName(name) {
+  const query = new URLSearchParams({ q: name, limit: '10' });
+  const response = await fetch(`${SITE}/api/local/autocomplete?${query}`, { signal: AbortSignal.timeout(90_000) });
+  const found = pickByName((await answer(response, `the name ${name}`)).results, name);
+  if (!found) throw new Error(`The site holds no system named exactly "${name}"`);
+  return found;
+}
+
 const showings = [];
+for (const mine of await mineFromFile()) {
+  const found = await byName(mine.name);
+  await pause();
+  const box = await boxOf(found, found.name);
+  showings.push(showingMine(systemInBox(box, found), box, mine));
+  console.log(`Yours, ${found.name}: ${showings.at(-1).stars.length} stars in range`);
+  await pause();
+}
 for (const anchor of Object.values(ANCHORS)) {
   const anchorBox = await boxOf(anchor, anchor.name);
   const chosen = anchorInBox(anchorBox, anchor);

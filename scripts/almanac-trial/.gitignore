@@ -2,3 +2,7 @@
 # "npm run data"). Both are made again from what is kept here.
 site/
 public/data/
+
+# A player's own list of systems for the "My systems" view. It is theirs, so
+# it stays on their machine. my-systems.example.json shows the form.
+my-systems.local.json

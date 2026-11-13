@@ -6,9 +6,15 @@
 // centre) stands in for the button: each entry is one system chosen in Find.
 // Choosing one flies to it, selects it, shows the real stars within 15 ly
 // and draws that range.
+//
+// When the data holds systems of the player's own, the list opens on all of
+// them at once, and each has a SHOW ON MAP button of its own.
 import { createGalaxyMap } from '@elite-dangerous-almanac/galaxy-map';
 import { nebulae } from '@elite-dangerous-almanac/galaxy-map/nebulae';
-import { contentOf, datasetEntry, detailsOf, inspectAddress, rangeSphere } from './logic.mjs';
+import {
+  MINE_ID, contentOf, datasetEntry, detailsOf, inspectAddress, mineAmong, mineContent, mineEntry,
+  rangeSphere,
+} from './logic.mjs';
 
 const problem = document.querySelector('#problem');
 
@@ -23,44 +29,58 @@ async function start() {
   const data = await response.json();
   /** Each "show me on map", by the id of its chosen system. */
   const showings = new Map(data.showings.map((shown) => [shown.chosen.id64, shown]));
+  const mine = mineAmong(data.showings);
   const wanted = new URLSearchParams(location.search).get('system');
-  const current = () => showings.get(map.getLoadedDataset()?.id) ?? null;
+  const loaded = () => map.getLoadedDataset()?.id ?? null;
+  const opensOn = () => {
+    if (showings.has(wanted)) return wanted;
+    return mine.length > 0 ? MINE_ID : data.showings[0].chosen.id64;
+  };
+  const inspect = (id64) => ({
+    label: 'OPEN IN INSPECT',
+    onSelect: () => window.open(inspectAddress(id64), '_blank', 'noopener'),
+  });
 
   const map = createGalaxyMap(document.querySelector('#map'), {
     grid: true,
     systemNames: true,
     // The library's own nebulae, the way its public demo draws them.
     nebulae,
-    datasets: data.showings.map((shown) => ({ ...datasetEntry(shown), load: () => contentOf(shown) })),
-    dataset: showings.has(wanted) ? wanted : data.showings[0].chosen.id64,
+    datasets: [
+      ...(mine.length > 0 ? [{ ...mineEntry(mine), load: () => mineContent(mine) }] : []),
+      ...data.showings.map((shown) => ({ ...datasetEntry(shown), load: () => contentOf(shown) })),
+    ],
+    dataset: opensOn(),
     hud: {
       title: 'SHOW ON MAP',
       details: (system) => {
-        const shown = current();
+        // In the view of all the player's systems, each one speaks for itself.
+        const overview = loaded() === MINE_ID;
+        const shown = showings.get(overview ? system.id64 : loaded());
         const details = shown ? detailsOf(shown, system.id64) : null;
         if (!details) return null;
-        return {
-          ...details,
-          actions: [{
-            label: 'OPEN IN INSPECT',
-            onSelect: () => window.open(inspectAddress(system.id64), '_blank', 'noopener'),
-          }],
-        };
+        const showOnMap = { label: 'SHOW ON MAP', onSelect: () => map.loadDataset(system.id64).catch(fail) };
+        return { ...details, actions: overview ? [showOnMap, inspect(system.id64)] : [inspect(system.id64)] };
       },
     },
   });
 
-  // A new set arrives with no shapes and nothing selected: draw the chosen
-  // system's range and select it, as the button would.
+  // A new set arrives with no shapes and nothing selected. For one system:
+  // draw its range and select it, as the button would. For all the player's
+  // systems: draw the range of each.
   map.onDatasetChange(() => {
-    const shown = current();
+    if (loaded() === MINE_ID) {
+      map.addSpheres(mine.map(rangeSphere));
+      return;
+    }
+    const shown = showings.get(loaded());
     if (!shown) return;
     map.addSpheres([rangeSphere(shown)]);
     map.setSelection(shown.chosen.id64);
   });
 
   // For looking in from the browser's console, and for timing.
-  window.trial = { map, showings, fetchedOn: data.fetchedOn };
+  window.trial = { map, showings, mine, fetchedOn: data.fetchedOn };
   await map.ready;
 }
 

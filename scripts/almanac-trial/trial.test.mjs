@@ -2,8 +2,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  ANCHORS, OPENING_DISTANCE_LY, RANGE_LY, RESULTS_OFFERED, anchorInBox, boxAround, contentOf, datasetEntry,
-  detailsOf, inspectAddress, rangeSphere, showing, starCategories, starGroup, starsInRange, trimRow,
+  ANCHORS, MINE_ID, OPENING_DISTANCE_LY, RANGE_LY, RESULTS_OFFERED, STATUSES, anchorInBox, boxAround, contentOf,
+  datasetEntry, detailsOf, inspectAddress, mineAmong, mineContent, mineEntry, pickByName, rangeSphere, readMine,
+  showing, showingMine, starCategories, starGroup, starsInRange, systemInBox, trimRow,
 } from './src/logic.mjs';
 import { TYPES, fileFor, typeOf } from './serve-files.mjs';
 import { LICENCE_FILES, addLicences, noticesMissingFrom, requiredNotices } from './licence-files.mjs';
@@ -227,6 +228,99 @@ test('the panel says what Find said of a system chosen in Find', () => {
 test('the trial offers the first ten of Find\'s results near each anchor', () => {
   assert.equal(RESULTS_OFFERED, 10);
   assert.equal(FIRST_60.map(trimRow).filter(Boolean).slice(0, RESULTS_OFFERED).at(-1).name, 'Swoiwns GO-H b2-0');
+});
+
+// The live site's real answer to a name search for "Sol" (see the file's own note).
+const NAMED_SOL = JSON.parse(readFileSync(new URL('./fixtures/autocomplete-sol.json', import.meta.url), 'utf8')).response.results;
+
+// A player's list for the tests. The systems are real ones from the fixtures;
+// which is built and which planned is made up here, as a player would type it.
+const A_LIST = [
+  { name: 'Sol', status: 'built' },
+  { name: 'Wregoe SJ-I d9-89', status: 'building', progress: 86 },
+  { name: 'HIP 101979', status: 'planned' },
+];
+
+function someOfMine() {
+  const sol = systemInBox(SOL_BOX, pickByName(NAMED_SOL, 'Sol'));
+  const rows = FIRST_60.map(trimRow);
+  const asChosen = (row) => ({ id64: row.id64, name: row.name, x: row.x, y: row.y, z: row.z, star: row.star });
+  const list = readMine(A_LIST);
+  return [
+    showingMine(sol, SOL_BOX, list[0]),
+    showingMine(asChosen(rows[0]), [], list[1]),
+    showingMine(asChosen(rows[1]), [], list[2]),
+  ];
+}
+
+test('a player\'s list is read as written, and a mistake in it is named plainly', () => {
+  assert.deepEqual(readMine(A_LIST), A_LIST);
+  assert.deepEqual(readMine([{ name: '  Sol ', status: 'built', progress: null }]), [{ name: 'Sol', status: 'built' }]);
+  assert.throws(() => readMine({ name: 'Sol' }), /must be a list/u);
+  assert.throws(() => readMine([{ status: 'built' }]), /Entry 1 of your systems has no name/u);
+  assert.throws(() => readMine([{ name: 'Sol', status: 'done' }]), /Entry 1 of your systems \(Sol\) needs a status: built, building or planned/u);
+  assert.throws(() => readMine([A_LIST[0], { name: 'X', status: 'building', progress: 140 }]), /Entry 2 of your systems \(X\) has a progress/u);
+});
+
+test('a system is found by its exact name among the site\'s answers, whatever the capitals', () => {
+  // The site answered "Sol" with Sol, Solati, Solibamba, Solitude and Sollaro.
+  assert.deepEqual(NAMED_SOL.map((found) => found.name), ['Sol', 'Solati', 'Solibamba', 'Solitude', 'Sollaro']);
+  assert.deepEqual(pickByName(NAMED_SOL, 'sol '), { id64: '10477373803', name: 'Sol', x: 0, y: 0, z: 0 });
+  assert.equal(pickByName(NAMED_SOL, 'Solitude').name, 'Solitude');
+  assert.equal(pickByName(NAMED_SOL, 'So'), null, 'the start of a name is not the name');
+  assert.equal(pickByName([], 'Sol'), null);
+});
+
+test('a system takes its star class from the site\'s record of it in its own box', () => {
+  assert.equal(systemInBox(SOL_BOX, pickByName(NAMED_SOL, 'Sol')).star, 'G2');
+  assert.equal(systemInBox([], pickByName(NAMED_SOL, 'Sol')).star, null);
+});
+
+test('one of the player\'s systems is shown on the map like any other, and says its status first', () => {
+  const [sol, wregoe] = someOfMine();
+  assert.equal(sol.stars.length, 50);
+  assert.equal(datasetEntry(sol).collection, 'My systems');
+  assert.deepEqual(detailsOf(sol, sol.chosen.id64), {
+    description: 'One of your systems. The shaded ball is 15 ly around it.',
+    values: [
+      { label: 'STATUS', value: 'built' },
+      { label: 'STARS IN RANGE', value: '50' },
+      { label: 'ID', value: '10477373803', copy: '10477373803' },
+    ],
+  });
+  assert.deepEqual(detailsOf(wregoe, wregoe.chosen.id64).values.slice(0, 2), [
+    { label: 'STATUS', value: 'being built' },
+    { label: 'PROGRESS', value: '86 %' },
+  ]);
+});
+
+test('all the player\'s systems are one set, framed together, with a group for each status in use', () => {
+  const showings = [...someOfMine(), solShown()];
+  const mine = mineAmong(showings);
+  assert.equal(mine.length, 3, 'the anchor is not the player\'s');
+  const entry = mineEntry(mine);
+  assert.equal(entry.id, MINE_ID);
+  assert.equal(entry.label, 'All my systems');
+  assert.equal(entry.systemCount, 3);
+  assert.deepEqual(entry.view, { fit: 'systems', pitch: 35 });
+
+  const content = mineContent(mine);
+  assert.deepEqual(content.categories, [
+    { name: 'Built', color: STATUSES.built.color, markerStyle: 'disc' },
+    { name: 'Being built', color: STATUSES.building.color, markerStyle: 'disc' },
+    { name: 'Planned', color: STATUSES.planned.color, markerStyle: 'disc' },
+  ]);
+  assert.deepEqual(content.systems.map((system) => [system.name, system.categories]), [
+    ['Sol', ['Built']], ['Wregoe SJ-I d9-89', ['Being built']], ['HIP 101979', ['Planned']],
+  ]);
+  assert.deepEqual(content.systems[0], {
+    name: 'Sol', id64: '10477373803', coords: { x: 0, y: 0, z: 0 }, categories: ['Built'], primaryStar: 'G2',
+  });
+  // Each has one group only: its status. So switching "Planned" off hides the planned ones.
+  assert.ok(content.systems.every((system) => system.categories.length === 1));
+  // A status nobody has gets no group.
+  assert.deepEqual(mineContent(mine.slice(0, 1)).categories.map((category) => category.name), ['Built']);
+  assert.deepEqual(mine.map(rangeSphere).map((sphere) => sphere.radius), [15, 15, 15]);
 });
 
 test('the server only hands out files inside its folder', () => {

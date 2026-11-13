@@ -1,0 +1,93 @@
+{
+ "what": "The live site's answer to GET https://ed-finder.app/api/local/autocomplete?q=Sol&limit=10 on 13 Nov 2026. Nothing is changed.",
+ "response": {
+  "results": [
+   {
+    "id64": 10477373803,
+    "name": "Sol",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "population": null,
+    "primaryEconomy": null,
+    "galaxy_region_id": null,
+    "record": {
+     "id64": 10477373803,
+     "name": "Sol",
+     "x": 0.0,
+     "y": 0.0,
+     "z": 0.0
+    }
+   },
+   {
+    "id64": 1458376315610,
+    "name": "Solati",
+    "x": 66.53125,
+    "y": 29.1875,
+    "z": 34.6875,
+    "population": null,
+    "primaryEconomy": null,
+    "galaxy_region_id": null,
+    "record": {
+     "id64": 1458376315610,
+     "name": "Solati",
+     "x": 66.53125,
+     "y": 29.1875,
+     "z": 34.6875
+    }
+   },
+   {
+    "id64": 5267550898539,
+    "name": "Solibamba",
+    "x": 99.5625,
+    "y": 40.125,
+    "z": 26.8125,
+    "population": null,
+    "primaryEconomy": null,
+    "galaxy_region_id": null,
+    "record": {
+     "id64": 5267550898539,
+     "name": "Solibamba",
+     "x": 99.5625,
+     "y": 40.125,
+     "z": 26.8125
+    }
+   },
+   {
+    "id64": 5059379007779,
+    "name": "Solitude",
+    "x": -9497.65625,
+    "y": -911.0,
+    "z": 19807.625,
+    "population": null,
+    "primaryEconomy": null,
+    "galaxy_region_id": null,
+    "record": {
+     "id64": 5059379007779,
+     "name": "Solitude",
+     "x": -9497.65625,
+     "y": -911.0,
+     "z": 19807.625
+    }
+   },
+   {
+    "id64": 11538024121505,
+    "name": "Sollaro",
+    "x": -9528.625,
+    "y": -885.59375,
+    "z": 19815.4375,
+    "population": null,
+    "primaryEconomy": null,
+    "galaxy_region_id": null,
+    "record": {
+     "id64": 11538024121505,
+     "name": "Sollaro",
+     "x": -9528.625,
+     "y": -885.59375,
+     "z": 19815.4375
+    }
+   }
+  ],
+  "source": "local_db"
+ }
+}

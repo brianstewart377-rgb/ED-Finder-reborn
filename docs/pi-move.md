@@ -493,10 +493,11 @@ The map's roadmap, in this order:
    (13 Nov, later) The trial page does this now, for Sol, Colonia and the
    first ten results Find lists near each: between 8 and 153 real stars in
    range of each of those 22 systems.
-   **Not settled: 15 or 16 ly.** The owner and the players' forum posts say
-   15 ly. Our own code says 16 (`COLONISATION_CLAIM_RANGE_LY = 16.0` in
+   **15 ly, with one loose end.** The owner, asked: "15 ly as far as I'm
+   aware". The players' forum posts say the same, raised from 10. Our own
+   code says 16 (`COLONISATION_CLAIM_RANGE_LY = 16.0` in
    `apps/api/src/regional/regional_analysis.py`), with no note of why. The
-   trial draws 15. One of the two is wrong, and the owner is asked.
+   map draws 15. Still to do: see what that 16 feeds before changing it.
 2. **A player's colonies.** The builder keeps the list of a player's
    colonies, as Raven Colonial's "nexus" does (the owner's model), and the map
    reads it from there. Today the builder keeps plans in the browser and has
@@ -513,6 +514,17 @@ The map's roadmap, in this order:
    carriers and commanders be linked to it, and has its own "Show on map"
    button. So it holds systems that are planned as well as built. The
    carriers and cargo belong with step 3.
+   The owner agrees our list should hold planned systems as well as built
+   ones, "maybe as a toggle".
+   (13 Nov, later) The trial page has a first cut: "All my systems" shows
+   every system of the player's list with its 15 ly around it, and each has
+   a SHOW ON MAP button. Built, being built and planned are three groups, so
+   Almanac's own switches are the toggle. In that view a marker's colour is
+   its status, not its star class, because on Almanac a marker takes the
+   colour of its group; the owner has not been asked whether that suits him.
+   The trial reads the list from a file kept out of the repo. Three systems
+   of the owner's own were used to try it; they are his, so they are not
+   named here.
 3. **Build materials.** Show on the map the nearby systems that supply what
    a build needs, as Raven does. The owner is content for this to wait until
    after the move "as long as it's roadmapped". It is its own piece of work,
