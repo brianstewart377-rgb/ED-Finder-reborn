@@ -490,11 +490,29 @@ The map's roadmap, in this order:
    Almanac's limit and one bright ball from any distance. 250 ly stays what
    it was, the distance Find searches.
    First in the trial page, then on the site.
+   (13 Nov, later) The trial page does this now, for Sol, Colonia and the
+   first ten results Find lists near each: between 8 and 153 real stars in
+   range of each of those 22 systems.
+   **Not settled: 15 or 16 ly.** The owner and the players' forum posts say
+   15 ly. Our own code says 16 (`COLONISATION_CLAIM_RANGE_LY = 16.0` in
+   `apps/api/src/regional/regional_analysis.py`), with no note of why. The
+   trial draws 15. One of the two is wrong, and the owner is asked.
 2. **A player's colonies.** The builder keeps the list of a player's
    colonies, as Raven Colonial's "nexus" does (the owner's model), and the map
    reads it from there. Today the builder keeps plans in the browser and has
    no such list, so the list is builder work and comes first; the map's part
    is then small.
+   The owner, the same evening: "I'd love a player to be able to see where
+   all his colonies are located on the map also". So the map shows all of
+   them at once from far out, and flies in to one when it is picked.
+   What Raven's nexus is, from its own About page and the sample the owner
+   showed: "a plan for many systems", a chain or simply some systems to build
+   in, made from the plans and build projects already saved for each system.
+   It lists the systems in order with the distance of each hop, marks each
+   as complete or part built, totals the cargo still to haul, lets fleet
+   carriers and commanders be linked to it, and has its own "Show on map"
+   button. So it holds systems that are planned as well as built. The
+   carriers and cargo belong with step 3.
 3. **Build materials.** Show on the map the nearby systems that supply what
    a build needs, as Raven does. The owner is content for this to wait until
    after the move "as long as it's roadmapped". It is its own piece of work,

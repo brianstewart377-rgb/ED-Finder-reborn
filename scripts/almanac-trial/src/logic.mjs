@@ -1,47 +1,36 @@
 // The trial page's own rules, kept apart from the map so they can be tested
-// without a browser: how a candidate from Find becomes a marker, and what is
-// said about it.
+// without a browser.
 //
-// The page marks Find's first page of results, and can show the other
-// candidates around them as plain stars. That is one guess at what the map
-// could carry: what it should show in the end is the owner's call.
+// What the page is for (owner, 13 Nov 2026): a system chosen in Find has a
+// "show me on map" button. The map flies to it and shows every real star
+// within 15 ly of it, with the 15 ly range drawn. 15 ly is the distance a
+// colony can be claimed from.
 //
 // A star's colour is its star class, by the same rule our own map uses. The
 // rule is read straight from the web app, not copied, so the two cannot drift.
 import { stellarPresentation } from '../../../apps/web/src/lib/spatial/stellar-presentation.ts';
 
-/** Where a search starts: the two places the trial shows candidates around. */
+/** How far around the chosen system the real stars are shown: the claim distance. */
+export const RANGE_LY = 15;
+
+/** How far out the camera opens on a chosen system: its whole range in view. */
+export const OPENING_DISTANCE_LY = 70;
+
+/** How many of Find's results near each anchor the trial offers to show. */
+export const RESULTS_OFFERED = 10;
+
+/** Where Find's searches for the trial start. Each anchor can be shown too. */
 export const ANCHORS = {
   sol: { name: 'Sol', x: 0, y: 0, z: 0 },
   colonia: { name: 'Colonia', x: -9530.5, y: -910.28125, z: 19808.125 },
 };
 
-/** How many results Find shows at a time in our own app (its page size). */
-export const FIND_PAGE = 50;
-
-/** The group of Find's results: one calm colour and a plain disc, apart from the stars. */
-export const RESULT_GROUP = 'Find results';
-const RESULT_CATEGORY = {
-  name: RESULT_GROUP,
-  color: [70, 225, 215],
-  markerStyle: 'disc',
-  description: "The first page of Find's answer",
-};
-
-/** The group of the marker that shows where a search starts. */
-export const ANCHOR_GROUP = 'Search anchor';
-const ANCHOR_CATEGORY = {
-  name: ANCHOR_GROUP,
-  color: [255, 255, 255],
-  markerStyle: 'disc',
-  description: 'Where the search starts',
-};
-
 /**
- * The group and colour of a star, from Find's name for its class ("M (Red
- * dwarf) Star"). Both come from our own map's rule: the group is its name for
- * the family ("M class star") and the colour is the one it draws that family
- * in. A black hole's own colour is black, so it takes the colour of its ring.
+ * The group and colour of a star, from its class as Find names it ("M (Red
+ * dwarf) Star") or as the galaxy data does ("M3"). Both come from our own
+ * map's rule: the group is its name for the family ("M class star") and the
+ * colour is the one it draws that family in. A black hole's own colour is
+ * black, so it takes the colour of its ring.
  */
 export function starGroup(star) {
   const look = stellarPresentation({ type: star });
@@ -49,23 +38,11 @@ export function starGroup(star) {
   return { name: look.label, color: rgb.map((part) => Math.round(part * 255)) };
 }
 
-/**
- * Stars are drawn only when the view is this close or closer. From further
- * out, ten thousand of them are one bright ball that hides Find's results;
- * close up they are a star field. Our own map does the same with its stars.
- */
-export const STARS_SHOW_WITHIN_LY = 400;
-
-/** Whether the stars draw at a zoom distance. */
-export function starsShownAt(distanceLy) {
-  return distanceLy <= STARS_SHOW_WITHIN_LY;
-}
-
-/** The star groups among some candidates, the commonest first. */
-export function starCategories(rows) {
+/** The star groups among some systems, the commonest first. */
+export function starCategories(systems) {
   const groups = new Map();
-  for (const row of rows) {
-    const group = starGroup(row.star);
+  for (const system of systems) {
+    const group = starGroup(system.star);
     const held = groups.get(group.name) ?? { ...group, count: 0 };
     held.count += 1;
     groups.set(group.name, held);
@@ -102,91 +79,129 @@ export function trimRow(found) {
   };
 }
 
-/** The file the page reads, from the rows Find gave. */
-export function dataFile(anchor, results, fetchedOn) {
-  const seen = new Set();
-  const rows = [];
-  for (const found of results) {
-    const row = trimRow(found);
-    if (row && !seen.has(row.id64)) {
-      seen.add(row.id64);
-      rows.push(row);
-    }
-  }
-  return { anchor, fetchedOn, rows };
+/**
+ * The box of space to ask the site for (`GET /api/map/systems`): the range
+ * around a point, widened to whole light years, which is how the site files
+ * its answers.
+ */
+export function boxAround(centre, rangeLy = RANGE_LY) {
+  return {
+    min_x: Math.floor(centre.x - rangeLy), max_x: Math.ceil(centre.x + rangeLy),
+    min_y: Math.floor(centre.y - rangeLy), max_y: Math.ceil(centre.y + rangeLy),
+    min_z: Math.floor(centre.z - rangeLy), max_z: Math.ceil(centre.z + rangeLy),
+  };
 }
 
-/** A candidate as the map takes it: in its star's group unless another is named. */
-export function toRecord(row, group = starGroup(row.star).name) {
-  const record = {
-    name: row.name,
-    id64: row.id64,
-    coords: { x: row.x, y: row.y, z: row.z },
-    categories: [group],
+function apart(one, other) {
+  return Math.hypot(one.x - other.x, one.y - other.y, one.z - other.z);
+}
+
+/**
+ * The real stars in range of a chosen system, nearest first, from the site's
+ * answer for the box around it. The box has corners the ball does not, so
+ * each star is measured. The chosen system itself is left out.
+ */
+export function starsInRange(boxSystems, centre, rangeLy = RANGE_LY) {
+  const stars = [];
+  for (const found of boxSystems) {
+    if (found?.id64 == null || !found.name) continue;
+    if (![found.x, found.y, found.z].every(Number.isFinite)) continue;
+    if (typeof found.id64 === 'number' && !Number.isSafeInteger(found.id64)) continue;
+    const id64 = String(found.id64);
+    if (id64 === centre.id64) continue;
+    const distance = apart(found, centre);
+    if (distance > rangeLy) continue;
+    stars.push({
+      id64, name: String(found.name), x: found.x, y: found.y, z: found.z,
+      star: found.main_star_class ?? null, distance,
+    });
+  }
+  return stars.sort((one, other) => one.distance - other.distance || one.name.localeCompare(other.name));
+}
+
+/**
+ * The site's own record of an anchor (Sol, Colonia) in the box around it:
+ * the system of that name, as the chosen system of a showing.
+ */
+export function anchorInBox(boxSystems, anchor) {
+  const found = boxSystems.find((system) => system.name === anchor.name);
+  if (!found) return null;
+  return {
+    id64: String(found.id64), name: found.name, x: found.x, y: found.y, z: found.z,
+    star: found.main_star_class ?? null,
   };
-  if (row.star) record.primaryStar = row.star;
-  if (row.bodies != null) record.bodyCount = row.bodies;
+}
+
+/**
+ * One "show me on map": the chosen system and the real stars in range of it.
+ * `find` is Find's row for the chosen system, or null for an anchor.
+ */
+export function showing(chosen, boxSystems, near, find = null) {
+  return { chosen, near, find, stars: starsInRange(boxSystems, chosen) };
+}
+
+/** The chosen system, in its own star's group like every other star. The ball around it marks it. */
+function chosenRecord(shown) {
+  const { chosen } = shown;
+  const record = {
+    name: chosen.name,
+    id64: chosen.id64,
+    coords: { x: chosen.x, y: chosen.y, z: chosen.z },
+    categories: [starGroup(chosen.star).name],
+  };
+  if (chosen.star) record.primaryStar = chosen.star;
+  if (shown.find?.bodies != null) record.bodyCount = shown.find.bodies;
   return record;
 }
 
-/** The anchor of a search, as a marker of its own. */
-export function anchorRecord(anchor) {
-  return {
-    name: anchor.name,
-    coords: { x: anchor.x, y: anchor.y, z: anchor.z },
-    categories: [ANCHOR_GROUP],
+function starRecord(star) {
+  const record = {
+    name: star.name,
+    id64: star.id64,
+    coords: { x: star.x, y: star.y, z: star.z },
+    categories: [starGroup(star.star).name],
   };
-}
-
-/** How far out the camera opens on a set: the whole 500 ly ball in view. */
-export const OPENING_DISTANCE_LY = 1600;
-
-/**
- * The sets the map's top bar offers. For each anchor: Find's results alone,
- * and the same results among the other candidates drawn as stars.
- */
-export const SETS = [
-  { id: 'sol', anchor: 'sol', others: false },
-  { id: 'sol-stars', anchor: 'sol', others: true },
-  { id: 'colonia', anchor: 'colonia', others: false },
-  { id: 'colonia-stars', anchor: 'colonia', others: true },
-];
-
-/**
- * One set as an entry of the map's own list, without its loader. The map's
- * top bar names the set and its dialog lists them all.
- */
-export function datasetEntry(set) {
-  const anchor = ANCHORS[set.anchor];
-  const results = `the first ${FIND_PAGE} results Find lists within 500 light years of ${anchor.name}`;
-  return {
-    id: set.id,
-    label: set.others ? `Results near ${anchor.name}, among stars` : `Results near ${anchor.name}`,
-    collection: 'ED-Finder',
-    region: `Within 500 ly of ${anchor.name}`,
-    description: set.others
-      ? `${results[0].toUpperCase()}${results.slice(1)}, with the rest of Find's first 10,000 candidates `
-        + `around them as stars, each in the colour of its star class. The stars show when you zoom in to `
-        + `${STARS_SHOW_WITHIN_LY} light years or closer.`
-      : `${results[0].toUpperCase()}${results.slice(1)}: one page, as our own app shows it.`,
-    view: { cursor: [anchor.x, anchor.y, anchor.z], distance: OPENING_DISTANCE_LY, pitch: 35 },
-  };
+  if (star.star) record.primaryStar = star.star;
+  return record;
 }
 
 /**
- * What a set's loader hands the map: the groups, the anchor, Find's first
- * page of results, and (when the set asks) the other candidates as stars.
+ * A showing as an entry of the map's own list of sets, without its loader.
+ * In the trial the list stands in for the "show me on map" button of Find.
  */
-export function contentOf(data, others) {
-  const results = data.rows.slice(0, FIND_PAGE);
-  const stars = others ? data.rows.slice(FIND_PAGE) : [];
+export function datasetEntry(shown) {
+  const { chosen, stars } = shown;
   return {
-    categories: [RESULT_CATEGORY, ...starCategories(stars), ANCHOR_CATEGORY],
-    systems: [
-      anchorRecord(data.anchor),
-      ...results.map((row) => toRecord(row, RESULT_GROUP)),
-      ...stars.map((row) => toRecord(row)),
-    ],
+    id: chosen.id64,
+    label: chosen.name,
+    collection: shown.find ? `Chosen in Find, near ${shown.near}` : 'Where the searches start',
+    region: `Within ${RANGE_LY} ly of ${chosen.name}`,
+    description: `${chosen.name} and the ${stars.length.toLocaleString('en-GB')} real stars within `
+      + `${RANGE_LY} light years of it, each in the colour of its star class. ${RANGE_LY} light years is `
+      + 'how far a colony can be claimed from.',
+    systemCount: stars.length + 1,
+    view: { cursor: [chosen.x, chosen.y, chosen.z], distance: OPENING_DISTANCE_LY, pitch: 35 },
+  };
+}
+
+/** What a showing's loader hands the map: the star groups, the chosen system and the stars. */
+export function contentOf(shown) {
+  return {
+    categories: starCategories([shown.chosen, ...shown.stars]),
+    systems: [chosenRecord(shown), ...shown.stars.map(starRecord)],
+  };
+}
+
+/** The claim range of the chosen system, as a sphere for the map to draw. */
+export function rangeSphere(shown) {
+  const { chosen } = shown;
+  return {
+    name: `${RANGE_LY} ly around ${chosen.name}`,
+    position: [chosen.x, chosen.y, chosen.z],
+    radius: RANGE_LY,
+    color: [255, 170, 80],
+    // Fainter than the map's usual 0.18, so the stars inside keep their colours.
+    opacity: 0.1,
   };
 }
 
@@ -200,42 +215,36 @@ export function inspectAddress(id64) {
 }
 
 /**
- * What the map's information panel says about a candidate, after the map's
- * own fields (position, distance from Sol, region, star, bodies). The
- * distance from the anchor is left out for Sol: the map already shows it.
+ * What the map's information panel says about a system of a showing, after
+ * the map's own fields (position, distance from Sol, region, star). The
+ * chosen system gets what Find said of it; a star gets how far it is from
+ * the chosen system.
  */
-export function detailsOf(row, anchorName) {
-  const values = [];
-  if (row.score != null) values.push({ label: 'SCORE', value: String(Math.round(row.score)) });
-  if (row.tier) values.push({ label: 'TIER', value: row.tier });
-  if (row.archetype) values.push({ label: 'BEST AS', value: words(row.archetype) });
-  if (row.second) values.push({ label: 'ALSO SUITS', value: words(row.second) });
-  if (row.distance != null && anchorName !== 'Sol') {
-    values.push({ label: `FROM ${anchorName.toUpperCase()}`, value: `${row.distance.toFixed(1)} ly` });
+export function detailsOf(shown, id64) {
+  const { chosen, find } = shown;
+  if (id64 === chosen.id64) {
+    const values = [];
+    if (find?.score != null) values.push({ label: 'SCORE', value: String(Math.round(find.score)) });
+    if (find?.tier) values.push({ label: 'TIER', value: find.tier });
+    if (find?.archetype) values.push({ label: 'BEST AS', value: words(find.archetype) });
+    if (find?.second) values.push({ label: 'ALSO SUITS', value: words(find.second) });
+    if (find?.claim) values.push({ label: 'CLAIM', value: words(find.claim) });
+    values.push({ label: 'STARS IN RANGE', value: String(shown.stars.length) });
+    values.push({ label: 'ID', value: chosen.id64, copy: chosen.id64 });
+    return {
+      description: find
+        ? `Chosen in Find, near ${shown.near}. The shaded ball is ${RANGE_LY} ly around it.`
+        : `Where the searches near ${shown.near} start. The shaded ball is ${RANGE_LY} ly around it.`,
+      values,
+    };
   }
-  if (row.claim) values.push({ label: 'CLAIM', value: words(row.claim) });
-  values.push({ label: 'ID', value: row.id64, copy: row.id64 });
-  return { description: `One of the first 10,000 candidates Find lists within 500 ly of ${anchorName}.`, values };
-}
-
-/**
- * Made-up systems in a cube around a point, the same each time, for seeing
- * how many markers the map can carry. Never mixed into the real candidates'
- * groups: they have a group of their own.
- */
-export function madeUpRecords(count, centre, edge) {
-  let seed = 12345;
-  const next = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
+  const star = shown.stars.find((one) => one.id64 === id64);
+  if (!star) return null;
+  return {
+    description: `A real star within ${RANGE_LY} ly of ${chosen.name}.`,
+    values: [
+      { label: `FROM ${chosen.name.toUpperCase()}`, value: `${star.distance.toFixed(1)} ly` },
+      { label: 'ID', value: star.id64, copy: star.id64 },
+    ],
   };
-  return Array.from({ length: count }, (_unused, index) => ({
-    name: `Made-up ${index + 1}`,
-    coords: {
-      x: centre.x + (next() - 0.5) * edge,
-      y: centre.y + (next() - 0.5) * edge,
-      z: centre.z + (next() - 0.5) * edge,
-    },
-    categories: ['Made-up'],
-  }));
 }
