@@ -72,6 +72,12 @@ is scored "on request". Confirmed by the owner on 11 November.
       The server holds nothing else of size but the database, 8.7 GB of
       Spansh downloads, and Octopus (below).
 
+- [ ] (13 Nov, 23:09) The owner: "the current server dies in 48hrs". Still
+      only on the server: Octopus (section 8). Still pointing at it:
+      `ed-finder.app` at Cloudflare, until the tunnel (section 7), and one
+      check on a timer in the old repo, "Production version drift", every six
+      hours (section 8).
+
 ## 1. The Pi itself (owner)
 
 - [x] Raspberry Pi OS Lite (64-bit), booting from the 500 GB NVMe (an SK
@@ -440,6 +446,12 @@ In order:
       table, Find among them. So the full backup runs when no nightly job
       starts for nine hours, will not start beside one, and the nightly
       jobs' units wait for it.
+      (13 Nov, 22:25) Installed on the Pi by the owner, both timers on. The
+      first small backup: 6.9 MB, 26 tables, 4 settings files. The first
+      full backup was started by hand through systemd at 22:25. While it
+      ran, a small backup refused to start ("another backup is already
+      running"): each kind has its own lock since #54, which reaches the Pi
+      when `backup.py` is fetched again.
 - [ ] (11 Nov) **Hearing about failures.** Today a nightly job that fails
       tells nobody. Each night's jobs report in when they finish, and
       something off the Pi notices when they have not.
@@ -503,6 +515,10 @@ side by side, no quiet week. See "Before anything else".
 (13 Nov) Backups: what cannot be made again every night and the whole
 database once a week, where the plan has the whole database every night.
 See section 6.
+
+(13 Nov) The EDDN listener is made ready to switch on now (PR #58), where
+the plan has it with "availability in Find", after the map. Only the
+listening comes forward: what it hears can only be gathered as it happens.
 
 (12 Nov) The catch-up over Spansh's full galaxy file moves to the Pi, after
 the switch: nobody uses the site yet, and it would have held up the copy.
@@ -679,6 +695,39 @@ EDDN is a live feed. What the new repo holds:
 
 Nothing here is needed for the move. The atmosphere fix above does not need
 EDDN.
+
+(13 Nov, 22:33) The owner: "Oh and we want the EDDN listener back on".
+
+- The listener built into the API cannot be switched back on by a setting.
+  It writes only to tables of the old database (`body_rings`,
+  `journal_events`, `body_scan_facts`) that this database does not have.
+- The listener decided on 21 October, station sightings from the feed as
+  evidence for the rulebook, is `apps/eddn_v3`: written that month, with
+  152 tests in the old repo, never switched on. PR #58 makes it ready: its
+  database change as migration `030`, its tests, its image built with the
+  others, `deploy/pi/eddn.yml` and its own settings file. Three steps on the
+  Pi switch it on (README, "The EDDN listener"). It has never run against
+  the live feed, so the first days are for watching it.
+- Nothing reads the sightings yet. Using them (stations seen on Look up;
+  hiding a system from Find the day it is claimed, where today that waits
+  for the nightly refresh) is later work.
+
+### CPE and CRE (owner asked, 13 November)
+
+"do we have any plans on what to do with anything in CPE or CRE?" What this
+repo holds, and what is on record:
+
+- CRE here is one pinned file, `apps/api/src/cpe/data/rulebook.json`:
+  version 0.5.0, 29 rules, each with its sources. Scoring and the builder
+  read it.
+- CPE here is the builder's rules engine, `apps/api/src/cpe` (about 1,000
+  lines), behind the Plan page.
+- The plan of 8 November keeps both as they are; none of its phases changes
+  them. Decided on 21 October: the rulebook changes only when the owner
+  approves a rule, and station sightings from EDDN are to be its evidence
+  (see "EDDN" above).
+- On no plan: what becomes of the two separate GitHub repos, and when the
+  two scoring fixes agreed on 21 October ("V4.1") are made.
 
 ### What the galaxy map is for (owner, 13 November)
 
@@ -993,6 +1042,74 @@ Whole pictures are not compared dot for dot against saved "correct" ones:
 that goes red for a different graphics card or driver, and teaches everyone
 to ignore red. Pictures side by side are for the owner's eyes; pass and fail
 come from the checks above.
+
+### The review of 13 November (owner asked, overnight)
+
+The owner: "review the whole repo/app look for any issues look for if the pi
+settings can be tweaked for performance and if there is anything we can use
+for ingame map to allow us to make it look nicer but still dropping Babylon".
+Then: "i dont mind us using some program if it helps us make what we want
+just Babylon is no longer needed".
+
+**Fixed that night**
+
+- Ring and belt sizes were 1,000 times too big: Spansh gives metres, the
+  columns are named for kilometres (#56). Put right where they are read, as
+  the surface pressure was. Sol's asteroid belt had come out far past Pluto.
+  Every other physical quantity was checked against Sol and is right.
+- The nightly small backup failed while a full one was running, as seen on
+  the Pi that evening: each kind has its own lock now (#54).
+- The web server gave browsers no keeping time and sent text unpacked. The
+  build's own files may now be kept for a year, the page is asked for
+  afresh, a missing build file is "not found", and text is gzip-packed (#55).
+- The System Map trial paints each body's surface with our own code: no
+  picture files, no engine, no library (#53). `@eluvade/cosmos` (MIT, WebGL)
+  was looked at and not used: its shaders are ported from other people's
+  work whose terms its page does not state, and it has no releases.
+- A read-only report of how the Pi is doing, `deploy/pi_report.py` (#57):
+  the measurements any tuning must start from.
+
+**Found, not fixed**
+
+- 20 addresses of the API answer with an error because they read tables of
+  the old database: `/api/body/…`, `/api/events/recent`, `/api/evidence/…`,
+  `/api/journal/imports/…`, `/api/local/system/…`, `/api/map/clusters/…`,
+  `/api/observations/…`, `/api/system/…`, `/api/systems/…/buildability`
+  and four more under `/api/systems/…`. The web app calls none of them. The
+  plan already says to leave these behind; removing them is a tidy-up.
+- Three packages have known faults with fixes out: Pillow 12.3.0 (draws the
+  share pictures; it never opens a picture from outside, which is where
+  nearly all its faults are), tornado 6.5.8 (used only by the EDDN library),
+  and `devalue` in the web build (its faults are on a server the app does
+  not have). None is reachable from outside as the app is built. Routine
+  updates, with a test of the share picture first.
+- The API's container runs as root and carries a compiler it does not need.
+- Find cannot rank by a colony type and search near a system at once: a
+  type gives a list for the whole galaxy, and the body filters (behind the
+  "Body filters" button) only work near a system with the type on "Any".
+  The owner asked that night where the body sliders are.
+- The System Map trial's recorded answers are from the old server, from
+  before the atmosphere and ring fixes; record them again from the Pi.
+
+**Pi settings**
+
+`deploy/pi/postgres.yml` is sensibly set for a 16 GB Pi and nothing in it is
+plainly wrong. What may be worth changing can only be told from
+measurements, which `pi_report.py` gives. In the order worth trying, each
+timed before and after with the same report:
+
+1. `jit` off. For a costly query PostgreSQL first builds a faster program
+   for it; on a small processor that can cost more than it saves.
+2. Whether the containers' memory limits are kept at all: a Pi starts with
+   memory accounting off unless told otherwise.
+3. The link to each NVMe drive. A Pi 5 runs it at half the speed many drives
+   can do unless told otherwise; the faster setting is not certified by
+   Raspberry Pi, and a two-drive board may not allow it.
+4. `io_workers` (3 by default) against `effective_io_concurrency` (200).
+5. The processor speed rule, `ondemand` against `performance`.
+
+Left alone on purpose: one API worker (enough for two or three people), and
+`io_method` (the faster kind is blocked inside Docker by default).
 
 ## Every table on the current server
 
