@@ -24,6 +24,7 @@ One command opens the map in a window and flies the steps of a tour file
 | `video.webm` | The whole tour as a video. |
 | `shots/` | A picture after each step. |
 | `report.json` | The same numbers, for a program to read. |
+| `timeline.txt` | What happened when: every data request, every change the map reported, every freeze. |
 
 The report says which graphics card drew the map, and warns in red if the
 browser drew it in software. It also says which drawing method the map itself
@@ -38,6 +39,25 @@ Requests the page dropped itself are listed apart and are not failures. The
 map drops its request for the stars of a view once the view has moved on, and
 the search box drops its question for "So" when "Sol" is typed. A tour of 30
 steps gives about 30 of these.
+
+### What happened when
+
+A picture after a step shows that the stars had arrived by then. It does not
+show when, or what they waited for. The timeline does. In the order it
+happened, with the time in seconds since the page was opened, it lists:
+
+- each data request the page made, and when and how it ended (answered, with
+  how long it took and its size; dropped by the page; or failed);
+- each change the map reported about itself: its camera starting and ending
+  a move, and the number of stars it is drawing;
+- each time the picture stood still for over 100 ms.
+
+So "the stars took nine seconds" can be read off as which requests were asked
+first, how long each took, and when the count of stars changed.
+
+Addresses in a recording have anything that looks like a private key taken
+out (a long run of letters and digits becomes `<key>`), because a recording
+gets passed on. A system's id is a plain number and stays.
 
 ## Setting it up, once
 
@@ -116,6 +136,14 @@ every step unless the step says `"shot": false`. `settleSeconds` (1.5 unless
 said) is how long the map is given to come to rest before the picture.
 
 A step that does not work is marked in the report and the tour carries on.
+
+Three more things a tour can say, all optional:
+
+| In the tour | What it does |
+|---|---|
+| `"ready": { "selector": …, "drawnWith": … }` | Waits for the map to say it is ready. `drawnWith` names the attribute, on the same thing, that says which drawing method it chose. |
+| `"probe": [{ "selector": …, "attributes": […] }]` | Attributes to read off the page after every step, and to watch for changes during it (they go in the timeline). One thing on the page, or a list. |
+| `"requests": { "under": "/api/" }` | Which of the page's own requests to time: those whose path starts this way. |
 
 ## Trying the recorder itself
 

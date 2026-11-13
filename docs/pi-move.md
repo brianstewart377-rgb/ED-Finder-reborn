@@ -438,7 +438,11 @@ get compared, and it is the same whichever map is used:
       things the recorder got wrong, both fixed: it lumped requests the page
       drops on purpose in with failures, so its "31 failed requests" said
       nothing, and it did not say whether the map drew with WebGPU or WebGL2.
-      Still to do: adjust the tour from the pictures.
+      (13 Nov) It also could not say why the stars near Sol took 9.5 s, as
+      it only wrote down requests that went wrong. It now times every data
+      request, notes each change the map reports about itself and each
+      freeze, and writes them in order to `timeline.txt`. Still to do: a
+      second recording with that in it.
 - [ ] Three small hooks in the map, for the tests to use: set the view
       exactly, say where a given system or area is on the screen, and say
       what is drawn and whether it has finished loading. The same three
@@ -446,6 +450,34 @@ get compared, and it is the same whichever map is used:
 - [ ] A small real slice of the database for tests, taken from the Pi. It
       comes straight after the first checks: heatmap results cannot be
       trusted without known numbers behind them.
+
+(13 Nov) What the first recording showed about our own map, on the owner's
+Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
+
+- Moving the map is smooth: 60 frames a second while panning, zooming,
+  turning and tilting. The hitches come when data arrives: the picture stood
+  still for 0.5 s as the page opened, 0.6 s when Enter was pressed on Sol,
+  0.5 s when the results arrived and 0.4 s when the stars arrived.
+- "Type a system and fly to it" does not look like flying. To Sol from the
+  whole galaxy: a 0.6 s freeze, a zoom of under half a second, then an empty
+  grid; the stars around Sol came 9.5 s after Enter. To Colonia from near
+  Sol: the map goes black from one frame to the next, the marker comes about
+  a second later and the stars about 2.8 s after Enter.
+- Why the stars are late, from the map's code and a run with no window: the
+  star requests wait until every other request has finished (the search, the
+  system's details, the watchlist), then go in two rounds of four boxes, and
+  nothing is drawn until the second round is in. A box takes 1 to 3 s to
+  come back from the server. The Pi is likely to be slower at each link, so
+  the box query is the first thing to time there.
+- The whole map turns teal when the mouse rests on it at close zoom: the
+  region under the mouse is highlighted, and up close one region fills the
+  view.
+- The heading reads "SYSTEM 10477373803" until the name arrives. Reset view
+  goes to Sol close up and tilted, though the page opens on the whole galaxy
+  from above. The nearest result to Sol is a system named "Test", 1 ly away,
+  with no bodies.
+
+These are what the Almanac trial is compared against.
 
 (12 Nov) How a map check earns trust. The owner's brief: do not overcomplicate
 it, but it must test everything fully and give results he can have confidence
