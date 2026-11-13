@@ -549,6 +549,11 @@ class SpanshAdapter:
             solar_radius = finite_float(body.get("solarRadius"))
             if solar_radius is not None:
                 radius = solar_radius * KM_PER_SOLAR_RADIUS
+        # Spansh gives this in atmospheres, not pascals. The division below
+        # therefore stores a number 101,325 times too small. It is left so on
+        # purpose: every stored row has the same mistake, and it is undone
+        # where the number is read (shared_contracts/surface_pressure.py,
+        # which says what must change together if this is ever corrected).
         pressure_pa = finite_float(body.get("surfacePressure"))
         gravity = finite_float(body.get("gravity"))
         if body.get("gravityUnit") == "m/s2" and gravity is not None:
