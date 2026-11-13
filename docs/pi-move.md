@@ -461,6 +461,29 @@ then the catch-up, all before the group is invited.
 The map (Almanac trial), bridge routes, BGS and the BGS-Tally link come after
 Find and Plan work on the Pi.
 
+### The Almanac trial: passed (owner, 13 November)
+
+The galaxy map moves to Almanac. The System Map stays on Babylon, as the
+owner chose on 12 November. His words on the evening of the 13th, after
+seeing his own systems and Find's on the trial page on his graphics card:
+
+> Hot damn that map looks better than anything we came up with on Babylon
+
+> I think the trial is very much passed this is already exceeding our best
+> effort on Babylon and now we have a clear plan of what we want from it
+
+What the trial showed, all with Almanac exactly as published (0.7.1):
+
+- It draws our own data on the owner's graphics card with no errors, at
+  about 4 to 5 ms a frame, and switches from one system to another in 3 ms.
+- It already has the panels the trial needed, and takes our own values and
+  buttons in them.
+- The three jobs on the roadmap below need nothing changed in Almanac.
+
+The build work stays where the roadmap below puts it: after the Pi move.
+`scripts/almanac-trial` stays until the map is built into the site, as the
+working example of how our data goes into Almanac. It goes after that.
+
 ### What the galaxy map is for (owner, 13 November)
 
 This replaces every earlier idea of the map in these notes. The owner's own
@@ -498,6 +521,11 @@ The map's roadmap, in this order:
    code says 16 (`COLONISATION_CLAIM_RANGE_LY = 16.0` in
    `apps/api/src/regional/regional_analysis.py`), with no note of why. The
    map draws 15. Still to do: see what that 16 feeds before changing it.
+   The number of stars in range is whatever the place holds. Counted from
+   the live site on 13 Nov: 50 around Sol, 105 around Colonia, 8 to 153
+   around the trial's systems, and 2,468 around Sagittarius A*, the most
+   crowded place there is. That last one has been counted, not drawn; it
+   would look crowded, and nobody colonises there today.
 2. **A player's colonies.** The builder keeps the list of a player's
    colonies, as Raven Colonial's "nexus" does (the owner's model), and the map
    reads it from there. Today the builder keeps plans in the browser and has
