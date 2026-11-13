@@ -2,11 +2,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  ANCHORS, GROUPS, OTHER_GROUP, OPENING_DISTANCE_LY, anchorRecord, categories, categoryOf, contentOf,
-  dataFile, datasetEntry, detailsOf, inspectAddress, madeUpRecords, toRecord, trimRow,
+  ANCHORS, ANCHOR_GROUP, FIND_PAGE, OPENING_DISTANCE_LY, RESULT_GROUP, SETS, STARS_SHOW_WITHIN_LY,
+  anchorRecord, contentOf, dataFile, datasetEntry, detailsOf, inspectAddress, madeUpRecords,
+  starCategories, starGroup, starsShownAt, toRecord, trimRow,
 } from './src/logic.mjs';
 import { TYPES, fileFor, typeOf } from './serve-files.mjs';
 import { copyWorkerFiles, filesAskedFor } from './worker-files.mjs';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -37,24 +39,71 @@ test('a row with no id, no name or no position is left out', () => {
   assert.equal(trimRow({ ...WREGOE, id64: '9007199254740994' }).id64, '9007199254740994');
 });
 
-test('a candidate goes to the map with its id as text, its position and one group', () => {
+test('a candidate goes to the map with its id as text, its position and its star\'s group', () => {
   assert.deepEqual(toRecord(trimRow(WREGOE)), {
     name: 'Wregoe SJ-I d9-89', id64: '3068561197395',
     coords: { x: 308.4375, y: -23.25, z: -253.0625 },
-    categories: ['Also a stronghold'], primaryStar: 'F (White) Star', bodyCount: 18,
+    categories: ['F class star'], primaryStar: 'F (White) Star', bodyCount: 18,
   });
+  assert.deepEqual(toRecord(trimRow(WREGOE), RESULT_GROUP).categories, ['Find results']);
 });
 
-test('every group a candidate can be given is one the map was told about', () => {
-  const told = new Set(categories().map((category) => category.name));
-  for (const group of GROUPS) assert.ok(told.has(categoryOf({ second: group.second })), group.second);
-  assert.equal(categoryOf({ second: 'something_new' }), OTHER_GROUP);
-  assert.equal(categoryOf({ second: null }), OTHER_GROUP);
-  assert.ok(told.has(OTHER_GROUP) && told.has(anchorRecord(ANCHORS.sol).categories[0]));
-  assert.equal(new Set(categories().map((category) => category.name)).size, categories().length);
-  for (const category of categories()) {
-    assert.ok(category.color.length === 3 && category.color.every((part) => part >= 0 && part <= 255));
+// Every name Find gave for a main star among the 20,000 candidates near Sol
+// and Colonia on 13 Nov 2026, with the group our own map's rule puts it in.
+const REAL_STAR_NAMES = [
+  ['M (Red dwarf) Star', 'M class star'],
+  ['K (Yellow-Orange) Star', 'K class star'],
+  ['G (White-Yellow) Star', 'G class star'],
+  ['F (White) Star', 'F class star'],
+  ['A (Blue-White) Star', 'A class star'],
+  ['B (Blue-White) Star', 'B class star'],
+  ['L (Brown dwarf) Star', 'L brown dwarf'],
+  ['T (Brown dwarf) Star', 'Y / T brown dwarf'],
+  ['Y (Brown dwarf) Star', 'Y / T brown dwarf'],
+  ['T Tauri Star', 'T Tauri / AeBe Herbig'],
+  ['K (Yellow-Orange giant) Star', 'M / K giant or supergiant'],
+  ['M (Red giant) Star', 'M / K giant or supergiant'],
+  ['G (White-Yellow super giant) Star', 'G giant or supergiant'],
+  ['F (White super giant) Star', 'F giant or supergiant'],
+  ['A (Blue-White super giant) Star', 'O / B / A giant or supergiant'],
+  ['Neutron Star', 'Neutron star'],
+  ['Black Hole', 'Black hole'],
+  ['White Dwarf (DA) Star', 'White dwarf'],
+  ['White Dwarf (DAB) Star', 'White dwarf'],
+  ['White Dwarf (DAV) Star', 'White dwarf'],
+  ['White Dwarf (DAZ) Star', 'White dwarf'],
+  ['White Dwarf (DB) Star', 'White dwarf'],
+  ['White Dwarf (DBV) Star', 'White dwarf'],
+  ['White Dwarf (DC) Star', 'White dwarf'],
+  ['White Dwarf (DCV) Star', 'White dwarf'],
+];
+
+test('every real star name from Find lands in a star group, in a colour the map can draw', () => {
+  for (const [star, group] of REAL_STAR_NAMES) {
+    const found = starGroup(star);
+    assert.equal(found.name, group, star);
+    assert.ok(found.color.length === 3 && found.color.every((part) => Number.isInteger(part) && part >= 0 && part <= 255), star);
+    assert.ok(Math.max(...found.color) >= 100, `${star} would be too dark to see`);
   }
+  assert.equal(starGroup(null).name, 'Unknown star class');
+});
+
+test('a star takes the colour our own map draws its class in', () => {
+  // From apps/web/src/lib/spatial/stellar-presentation.ts: an M class core is
+  // [1, 0.2, 0.06] and a G class core [1, 0.98, 0.66]. A black hole's core is
+  // black, so it takes its ring's colour, [0.56, 0.43, 0.34].
+  assert.deepEqual(starGroup('M (Red dwarf) Star').color, [255, 51, 15]);
+  assert.deepEqual(starGroup('G (White-Yellow) Star').color, [255, 250, 168]);
+  assert.deepEqual(starGroup('Black Hole').color, [143, 110, 87]);
+});
+
+test('the star groups among some candidates come commonest first, each once', () => {
+  const rows = ['M (Red dwarf) Star', 'K (Yellow-Orange) Star', 'M (Red dwarf) Star', 'M (Red giant) Star', null]
+    .map((star) => ({ star }));
+  assert.deepEqual(starCategories(rows).map((category) => category.name), [
+    'M class star', 'K class star', 'M / K giant or supergiant', 'Unknown star class',
+  ]);
+  assert.deepEqual(starCategories([]), []);
 });
 
 test('the panel says the score, the tier, both uses, the claim and the id', () => {
@@ -67,7 +116,7 @@ test('the panel says the score, the tier, both uses, the claim and the id', () =
     { label: 'CLAIM', value: 'free' },
     { label: 'ID', value: '3068561197395', copy: '3068561197395' },
   ]);
-  assert.equal(details.description, 'One of the candidates Find lists within 500 ly of Sol.');
+  assert.equal(details.description, 'One of the first 10,000 candidates Find lists within 500 ly of Sol.');
 });
 
 test('the panel adds the distance from the anchor only when the anchor is not Sol', () => {
@@ -91,28 +140,61 @@ test('the Inspect button opens the system on the live site', () => {
   assert.equal(inspectAddress('3068561197395'), 'https://ed-finder.app/s/3068561197395');
 });
 
-test('each anchor is one entry of the map\'s own list of sets, opening on its anchor', () => {
-  const sol = datasetEntry('sol', ANCHORS.sol);
-  const colonia = datasetEntry('colonia', ANCHORS.colonia);
-  assert.equal(sol.id, 'sol');
-  assert.equal(sol.label, 'Candidates near Sol');
-  assert.equal(colonia.label, 'Candidates near Colonia');
-  assert.deepEqual(colonia.view.cursor, [-9530.5, -910.28125, 19808.125]);
-  assert.equal(colonia.view.distance, OPENING_DISTANCE_LY);
-  assert.ok(sol.description.includes('first 10,000') && sol.description.includes('Sol'));
-  assert.equal(sol.load, undefined, 'the page adds the loader');
+test('the map is offered four sets: each anchor\'s results alone, and among stars', () => {
+  const entries = SETS.map(datasetEntry);
+  assert.deepEqual(entries.map((entry) => [entry.id, entry.label]), [
+    ['sol', 'Results near Sol'],
+    ['sol-stars', 'Results near Sol, among stars'],
+    ['colonia', 'Results near Colonia'],
+    ['colonia-stars', 'Results near Colonia, among stars'],
+  ]);
+  assert.deepEqual(entries[2].view.cursor, [-9530.5, -910.28125, 19808.125]);
+  assert.equal(entries[2].view.distance, OPENING_DISTANCE_LY);
+  assert.ok(entries[0].description.startsWith('The first 50 results Find lists within 500 light years of Sol'));
+  assert.ok(entries[1].description.includes('10,000 candidates') && entries[1].description.includes('star class'));
+  for (const entry of entries) assert.equal(entry.load, undefined, 'the page adds the loader');
 });
 
-test('a set hands the map its groups, the anchor first and then every candidate', () => {
-  const data = dataFile(ANCHORS.colonia, [WREGOE, { ...WREGOE, id64: 7, name: 'Other', secondary_archetype: null }], '2026-11-13');
-  const content = contentOf(data);
-  assert.deepEqual(content.categories, categories());
-  assert.deepEqual(content.systems.map((system) => system.name), ['Colonia', 'Wregoe SJ-I d9-89', 'Other']);
-  assert.deepEqual(content.systems[0], {
-    name: 'Colonia', coords: { x: -9530.5, y: -910.28125, z: 19808.125 }, categories: ['Anchor'],
-  });
-  const told = new Set(content.categories.map((category) => category.name));
-  for (const system of content.systems) assert.ok(told.has(system.categories[0]), system.name);
+// The real first 60 rows of Find's answer near Sol (see the file's own note).
+const FIRST_60 = JSON.parse(readFileSync(new URL('./fixtures/find-sol-first-60.json', import.meta.url), 'utf8')).results;
+const sixtyRows = () => dataFile(ANCHORS.sol, FIRST_60, '2026-11-13');
+
+test('a set of results alone holds the anchor and Find\'s first page, all in one group', () => {
+  const content = contentOf(sixtyRows(), false);
+  assert.equal(FIND_PAGE, 50);
+  assert.equal(content.systems.length, 1 + FIND_PAGE);
+  assert.deepEqual(content.systems[0], { name: 'Sol', coords: { x: 0, y: 0, z: 0 }, categories: [ANCHOR_GROUP] });
+  assert.equal(content.systems[1].name, 'Wregoe SJ-I d9-89');
+  assert.equal(content.systems[50].name, 'Col 285 Sector FM-U c3-4');
+  assert.ok(content.systems.slice(1).every((system) => system.categories[0] === RESULT_GROUP));
+  assert.deepEqual(content.categories.map((category) => category.name), [RESULT_GROUP, ANCHOR_GROUP]);
+});
+
+test('a set among stars adds every other candidate in its star\'s group', () => {
+  const content = contentOf(sixtyRows(), true);
+  assert.equal(content.systems.length, 1 + 60);
+  const others = content.systems.slice(1 + FIND_PAGE);
+  // Rows 51 to 60 as Find gave them: four G stars, three M, two F and one K.
+  assert.deepEqual(others.map((system) => system.name), [
+    'Synuefai SZ-M d8-44', 'Wregoe YL-L c21-28', 'R CrA Sector AF-A d92', 'Synuefe DT-O d7-60',
+    'Col 285 Sector AR-D c12-1', 'Synuefe PI-H b30-0', 'Col 359 Sector IG-X d1-92', 'Synuefe HN-Y b34-2',
+    'Synuefe OF-L d9-29', 'Praea Euq CE-K b8-12',
+  ]);
+  assert.deepEqual(content.categories.map((category) => category.name), [
+    RESULT_GROUP, 'G class star', 'M class star', 'F class star', 'K class star', ANCHOR_GROUP,
+  ]);
+  const counts = {};
+  for (const system of others) counts[system.categories[0]] = (counts[system.categories[0]] ?? 0) + 1;
+  assert.deepEqual(counts, { 'G class star': 4, 'M class star': 3, 'F class star': 2, 'K class star': 1 });
+  assert.equal(new Set(content.categories.map((category) => category.name)).size, content.categories.length);
+});
+
+test('stars draw close up and not from far out, and a set opens with them not drawn', () => {
+  assert.equal(STARS_SHOW_WITHIN_LY, 400);
+  assert.equal(starsShownAt(60), true);
+  assert.equal(starsShownAt(400), true);
+  assert.equal(starsShownAt(401), false);
+  assert.equal(starsShownAt(OPENING_DISTANCE_LY), false);
 });
 
 test('made-up systems are the same each time, stay in their cube and have their own group', () => {
@@ -124,7 +206,7 @@ test('made-up systems are the same each time, stay in their cube and have their 
     assert.ok(Math.abs(record.coords.x - 100) <= 500 && Math.abs(record.coords.y + 50) <= 500
       && Math.abs(record.coords.z - 20) <= 500);
   }
-  assert.ok(!categories().some((category) => category.name === 'Made-up'));
+  assert.ok(!contentOf(sixtyRows(), true).categories.some((category) => category.name === 'Made-up'));
 });
 
 test('the data file keeps each system once and says where and when it came from', () => {

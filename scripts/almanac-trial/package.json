@@ -10,7 +10,7 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.18"
   },
   "dependencies": {
     "@elite-dangerous-almanac/galaxy-map": "0.7.1"

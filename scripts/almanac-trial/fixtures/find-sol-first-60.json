@@ -1,0 +1,1025 @@
+{
+ "what": "The first 60 rows of Find's answer for 'within 500 ly of Sol', in Find's order, from POST https://ed-finder.app/api/local/search on 13 Nov 2026. Only the fields the trial page reads are kept; nothing is changed.",
+ "results": [
+  {
+   "id64": 3068561197395,
+   "name": "Wregoe SJ-I d9-89",
+   "coords": {
+    "x": 308.4375,
+    "y": -23.25,
+    "z": -253.0625
+   },
+   "distance": 399.64,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 83248419594,
+   "name": "HIP 101979",
+   "coords": {
+    "x": -377.53125,
+    "y": -168.6875,
+    "z": 270.65625
+   },
+   "distance": 494.21,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 15
+  },
+  {
+   "id64": 147849218427,
+   "name": "HIP 96143",
+   "coords": {
+    "x": -366.6875,
+    "y": 38.0625,
+    "z": 166.875
+   },
+   "distance": 404.67,
+   "main_star_type": "F (White super giant) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 14
+  },
+  {
+   "id64": 2175140858211,
+   "name": "HR 560",
+   "coords": {
+    "x": -30.8125,
+    "y": -108.65625,
+    "z": -64.65625
+   },
+   "distance": 130.14,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 26
+  },
+  {
+   "id64": 358327685762,
+   "name": "Mel 22 Sector JI-S c4-1",
+   "coords": {
+    "x": -246.3125,
+    "y": -114.71875,
+    "z": -399.5625
+   },
+   "distance": 483.2,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 15
+  },
+  {
+   "id64": 83651302034,
+   "name": "HIP 28168",
+   "coords": {
+    "x": -129.84375,
+    "y": 95.09375,
+    "z": -313.75
+   },
+   "distance": 352.62,
+   "main_star_type": "K (Yellow-Orange giant) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 9
+  },
+  {
+   "id64": 84188205698,
+   "name": "1 Cancri",
+   "coords": {
+    "x": 189.6875,
+    "y": 174.6875,
+    "z": -388.0625
+   },
+   "distance": 465.93,
+   "main_star_type": "K (Yellow-Orange giant) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 9
+  },
+  {
+   "id64": 5306532696842,
+   "name": "Swoilz XX-D c1-19",
+   "coords": {
+    "x": 1.6875,
+    "y": -101.28125,
+    "z": 287.96875
+   },
+   "distance": 305.27,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 13
+  },
+  {
+   "id64": 1659761625467,
+   "name": "Col 285 Sector VU-O d6-48",
+   "coords": {
+    "x": 18.90625,
+    "y": 206.21875,
+    "z": 161.90625
+   },
+   "distance": 262.86,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 7
+  },
+  {
+   "id64": 669611861521,
+   "name": "Swoiwns GO-H b2-0",
+   "coords": {
+    "x": -89.59375,
+    "y": -139.09375,
+    "z": 258.6875
+   },
+   "distance": 307.07,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 16
+  },
+  {
+   "id64": 1457772499618,
+   "name": "Wredguia QX-R c18-5",
+   "coords": {
+    "x": -278.25,
+    "y": 215.375,
+    "z": -260.59375
+   },
+   "distance": 437.86,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 10
+  },
+  {
+   "id64": 2282674295466,
+   "name": "Aries Dark Region OI-T c3-8",
+   "coords": {
+    "x": -114.53125,
+    "y": -210.25,
+    "z": -208.25
+   },
+   "distance": 317.32,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 11
+  },
+  {
+   "id64": 83852825282,
+   "name": "HIP 58422",
+   "coords": {
+    "x": -23.625,
+    "y": 344.15625,
+    "z": -88.21875
+   },
+   "distance": 356.07,
+   "main_star_type": "K (Yellow-Orange giant) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "mining_hub",
+   "claim_status": "free",
+   "body_count": 26
+  },
+  {
+   "id64": 7262923466073,
+   "name": "Synuefai CB-N b40-3",
+   "coords": {
+    "x": -374.8125,
+    "y": -159.25,
+    "z": -188.09375
+   },
+   "distance": 448.58,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 12
+  },
+  {
+   "id64": 2872394917241,
+   "name": "Wregoe EY-Y b43-1",
+   "coords": {
+    "x": 178.78125,
+    "y": 378.59375,
+    "z": -119.53125
+   },
+   "distance": 435.41,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "research_hub",
+   "claim_status": "free",
+   "body_count": 21
+  },
+  {
+   "id64": 1110022523283,
+   "name": "Swoilz ID-Z d1-32",
+   "coords": {
+    "x": 170.28125,
+    "y": -176.5625,
+    "z": 379.625
+   },
+   "distance": 451.98,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 13
+  },
+  {
+   "id64": 2965414840659,
+   "name": "Aries Dark Region GW-W d1-86",
+   "coords": {
+    "x": -21.25,
+    "y": -129.75,
+    "z": -227.875
+   },
+   "distance": 263.08,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 1006926481771,
+   "name": "HIP 6421",
+   "coords": {
+    "x": 57.75,
+    "y": -401.96875,
+    "z": -22.09375
+   },
+   "distance": 406.7,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "mining_hub",
+   "claim_status": "free",
+   "body_count": 13
+  },
+  {
+   "id64": 1522356160843,
+   "name": "Synuefe LU-M d8-44",
+   "coords": {
+    "x": 185.21875,
+    "y": -163.75,
+    "z": -309.4375
+   },
+   "distance": 396.07,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 15
+  },
+  {
+   "id64": 2282405925554,
+   "name": "Col 285 Sector OY-R c4-8",
+   "coords": {
+    "x": -266.71875,
+    "y": -126.84375,
+    "z": -181.78125
+   },
+   "distance": 346.8,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 7
+  },
+  {
+   "id64": 3656594232050,
+   "name": "Col 359 Sector YD-A c1-13",
+   "coords": {
+    "x": -419.75,
+    "y": -8.25,
+    "z": 171.34375
+   },
+   "distance": 453.45,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 6
+  },
+  {
+   "id64": 674980635993,
+   "name": "Synuefe UJ-N b40-0",
+   "coords": {
+    "x": 299.0625,
+    "y": -117.8125,
+    "z": -190.375
+   },
+   "distance": 373.58,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 12
+  },
+  {
+   "id64": 2283144090386,
+   "name": "Swoilz JU-B c2-8",
+   "coords": {
+    "x": 148.40625,
+    "y": -168.71875,
+    "z": 299.90625
+   },
+   "distance": 374.75,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 14
+  },
+  {
+   "id64": 82910913708,
+   "name": "HIP 58823",
+   "coords": {
+    "x": -187.875,
+    "y": 203.46875,
+    "z": -139.40625
+   },
+   "distance": 310.05,
+   "main_star_type": "A (Blue-White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 31
+  },
+  {
+   "id64": 4207423787762,
+   "name": "Wregoe XC-Z c27-15",
+   "coords": {
+    "x": 241.84375,
+    "y": 3.0625,
+    "z": 143.0625
+   },
+   "distance": 281.01,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 16068144014777,
+   "name": "Wregoe WU-H b51-7",
+   "coords": {
+    "x": 310.09375,
+    "y": 60.09375,
+    "z": 51.0625
+   },
+   "distance": 319.96,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 17
+  },
+  {
+   "id64": 1182760243922,
+   "name": "Col 285 Sector SV-L c8-4",
+   "coords": {
+    "x": -355.1875,
+    "y": 94.125,
+    "z": -10.125
+   },
+   "distance": 367.59,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 14
+  },
+  {
+   "id64": 2278236883259,
+   "name": "Wregoe DR-N d6-66",
+   "coords": {
+    "x": 29.875,
+    "y": 32.96875,
+    "z": -480.84375
+   },
+   "distance": 482.9,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 27
+  },
+  {
+   "id64": 9468657739097,
+   "name": "Hyades Sector VS-T b3-4",
+   "coords": {
+    "x": 117.03125,
+    "y": -121.625,
+    "z": -189.53125
+   },
+   "distance": 253.79,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 7271244965137,
+   "name": "Synuefe LW-C b32-3",
+   "coords": {
+    "x": 243.4375,
+    "y": -150.1875,
+    "z": -381.9375
+   },
+   "distance": 477.17,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 43
+  },
+  {
+   "id64": 3658003649274,
+   "name": "Wregoe YC-Y c28-13",
+   "coords": {
+    "x": 424.5,
+    "y": 152.3125,
+    "z": 176.34375
+   },
+   "distance": 484.25,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 17
+  },
+  {
+   "id64": 7780165489418,
+   "name": "Col 285 Sector DD-Z c14-28",
+   "coords": {
+    "x": -171.28125,
+    "y": -3.34375,
+    "z": 265.03125
+   },
+   "distance": 315.58,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 17
+  },
+  {
+   "id64": 14199833796,
+   "name": "HIP 66636",
+   "coords": {
+    "x": 201.96875,
+    "y": 320.03125,
+    "z": 244.375
+   },
+   "distance": 450.48,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 9
+  },
+  {
+   "id64": 1458174792442,
+   "name": "Synuefe SL-C c29-5",
+   "coords": {
+    "x": -36.65625,
+    "y": -211.875,
+    "z": 176.1875
+   },
+   "distance": 277.99,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 12
+  },
+  {
+   "id64": 1659744782675,
+   "name": "Aries Dark Region GW-W d1-48",
+   "coords": {
+    "x": -35.25,
+    "y": -124.3125,
+    "z": -249.5
+   },
+   "distance": 280.97,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 21
+  },
+  {
+   "id64": 1969049553299,
+   "name": "Swoilz II-Z d1-57",
+   "coords": {
+    "x": 267.28125,
+    "y": -85.65625,
+    "z": 390.5625
+   },
+   "distance": 480.95,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 9
+  },
+  {
+   "id64": 2557351039626,
+   "name": "Wredguia RB-W c15-9",
+   "coords": {
+    "x": -255.90625,
+    "y": -0.90625,
+    "z": -374.65625
+   },
+   "distance": 453.71,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 21
+  },
+  {
+   "id64": 2557887746722,
+   "name": "Synuefe DW-V c18-9",
+   "coords": {
+    "x": 62.5625,
+    "y": -207.6875,
+    "z": -233.5625
+   },
+   "distance": 318.75,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 14
+  },
+  {
+   "id64": 4167938607475,
+   "name": "Col 285 Sector QE-Q d5-121",
+   "coords": {
+    "x": -338.5625,
+    "y": 52.5625,
+    "z": 109.8125
+   },
+   "distance": 359.79,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "mining_hub",
+   "claim_status": "free",
+   "body_count": 11
+  },
+  {
+   "id64": 4206215893722,
+   "name": "Wredguia VU-E c25-15",
+   "coords": {
+    "x": -477.09375,
+    "y": 64.28125,
+    "z": 38.5625
+   },
+   "distance": 482.95,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 19
+  },
+  {
+   "id64": 6956404085450,
+   "name": "Synuefe AL-N c23-25",
+   "coords": {
+    "x": 342.71875,
+    "y": -135.1875,
+    "z": -31.53125
+   },
+   "distance": 369.76,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 15
+  },
+  {
+   "id64": 18267972183401,
+   "name": "Synuefe ZK-K b42-8",
+   "coords": {
+    "x": 369.0,
+    "y": -55.25,
+    "z": -161.96875
+   },
+   "distance": 406.75,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 19
+  },
+  {
+   "id64": 457137195363,
+   "name": "Lalande 2966",
+   "coords": {
+    "x": -95.25,
+    "y": 10.21875,
+    "z": -74.78125
+   },
+   "distance": 121.53,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 3034201442675,
+   "name": "Synuefe EE-E d13-88",
+   "coords": {
+    "x": 315.46875,
+    "y": -100.8125,
+    "z": 94.0625
+   },
+   "distance": 344.28,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "mining_hub",
+   "claim_status": "free",
+   "body_count": 16
+  },
+  {
+   "id64": 20465653458369,
+   "name": "Col 285 Sector KR-R b19-9",
+   "coords": {
+    "x": 255.25,
+    "y": -2.78125,
+    "z": 55.21875
+   },
+   "distance": 261.17,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 1041286302019,
+   "name": "Wregoe HX-L d7-30",
+   "coords": {
+    "x": 49.78125,
+    "y": 14.15625,
+    "z": -350.59375
+   },
+   "distance": 354.39,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 16
+  },
+  {
+   "id64": 16068949190089,
+   "name": "Wregoe LX-D b53-7",
+   "coords": {
+    "x": 368.09375,
+    "y": 34.625,
+    "z": 75.5
+   },
+   "distance": 377.35,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 21
+  },
+  {
+   "id64": 357992207042,
+   "name": "Synuefai EP-P c22-1",
+   "coords": {
+    "x": -427.78125,
+    "y": -25.96875,
+    "z": -86.0
+   },
+   "distance": 437.11,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 19
+  },
+  {
+   "id64": 5071148295729,
+   "name": "Swoilz PE-B b6-2",
+   "coords": {
+    "x": 165.1875,
+    "y": -57.90625,
+    "z": 342.0625
+   },
+   "distance": 384.25,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 10
+  },
+  {
+   "id64": 1183095755434,
+   "name": "Col 285 Sector FM-U c3-4",
+   "coords": {
+    "x": -147.78125,
+    "y": 32.5625,
+    "z": -218.90625
+   },
+   "distance": 266.12,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 9
+  },
+  {
+   "id64": 1522238736715,
+   "name": "Synuefai SZ-M d8-44",
+   "coords": {
+    "x": -325.40625,
+    "y": -80.1875,
+    "z": -333.6875
+   },
+   "distance": 472.93,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 8
+  },
+  {
+   "id64": 7781037904570,
+   "name": "Wregoe YL-L c21-28",
+   "coords": {
+    "x": 335.21875,
+    "y": 5.65625,
+    "z": -144.1875
+   },
+   "distance": 364.96,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 18
+  },
+  {
+   "id64": 3171590048139,
+   "name": "R CrA Sector AF-A d92",
+   "coords": {
+    "x": 81.40625,
+    "y": -128.21875,
+    "z": 370.8125
+   },
+   "distance": 400.71,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 24
+  },
+  {
+   "id64": 2072078436675,
+   "name": "Synuefe DT-O d7-60",
+   "coords": {
+    "x": 47.5625,
+    "y": -92.78125,
+    "z": -366.59375
+   },
+   "distance": 381.13,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 9
+  },
+  {
+   "id64": 358528979698,
+   "name": "Col 285 Sector AR-D c12-1",
+   "coords": {
+    "x": -136.9375,
+    "y": -162.875,
+    "z": 146.53125
+   },
+   "distance": 258.36,
+   "main_star_type": "K (Yellow-Orange) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 20
+  },
+  {
+   "id64": 673101784321,
+   "name": "Synuefe PI-H b30-0",
+   "coords": {
+    "x": 155.6875,
+    "y": -64.75,
+    "z": -421.1875
+   },
+   "distance": 453.68,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 19
+  },
+  {
+   "id64": 3171506178435,
+   "name": "Col 359 Sector IG-X d1-92",
+   "coords": {
+    "x": -324.625,
+    "y": -77.75,
+    "z": 257.40625
+   },
+   "distance": 421.53,
+   "main_star_type": "F (White) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "megacomplex",
+   "claim_status": "free",
+   "body_count": 35
+  },
+  {
+   "id64": 5070611424553,
+   "name": "Synuefe HN-Y b34-2",
+   "coords": {
+    "x": 120.8125,
+    "y": -46.5,
+    "z": -312.1875
+   },
+   "distance": 337.96,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 42
+  },
+  {
+   "id64": 1006976878931,
+   "name": "Synuefe OF-L d9-29",
+   "coords": {
+    "x": 334.0625,
+    "y": -82.09375,
+    "z": -247.71875
+   },
+   "distance": 423.91,
+   "main_star_type": "G (White-Yellow) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "manufacturing_hub",
+   "claim_status": "free",
+   "body_count": 12
+  },
+  {
+   "id64": 27063260030537,
+   "name": "Praea Euq CE-K b8-12",
+   "coords": {
+    "x": 298.59375,
+    "y": -14.09375,
+    "z": 395.3125
+   },
+   "distance": 495.61,
+   "main_star_type": "M (Red dwarf) Star",
+   "archetype_score": 100.0,
+   "archetype_tier": "S",
+   "primary_archetype": "flexible",
+   "secondary_archetype": "stronghold",
+   "claim_status": "free",
+   "body_count": 18
+  }
+ ]
+}
