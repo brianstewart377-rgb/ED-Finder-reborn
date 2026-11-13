@@ -297,13 +297,17 @@ def prepare(settings: Settings) -> None:
         raise BackupError("%s cannot be written. Run this with sudo" % settings.directory) from None
 
 
-def lock(settings: Settings):
-    handle = open(settings.directory / ".lock", "w")
+def lock(settings: Settings, kind: str):
+    """One backup of a kind at a time. The two kinds each have their own
+    lock: they write to different folders and only read the database, so the
+    nightly small backup must not fail because the weekly full one, which
+    takes hours, is still going."""
+    handle = open(settings.directory / (".lock-" + kind), "w")
     try:
         fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         handle.close()
-        raise BackupError("another backup is already running") from None
+        raise BackupError("another %s backup is already running" % kind) from None
     return handle
 
 
@@ -396,7 +400,7 @@ def pack_settings(settings: Settings, target: Path) -> List[str]:
 
 def small(settings: Settings) -> int:
     prepare(settings)
-    with lock(settings):
+    with lock(settings, "small"):
         folder = settings.small_directory
         clear_partials(folder)
         began = time.monotonic()
@@ -460,7 +464,7 @@ def make_room(settings: Settings, needed: float) -> None:
 
 def full(settings: Settings) -> int:
     prepare(settings)
-    with lock(settings):
+    with lock(settings, "full"):
         busy = running_jobs(settings)
         if busy:
             raise BackupError("%s is running. A full backup holds every table open for hours, and that job "

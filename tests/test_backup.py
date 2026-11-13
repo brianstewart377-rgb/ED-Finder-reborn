@@ -416,15 +416,43 @@ def test_an_unfinished_backup_from_before_is_cleared_away(kit, capsys):
     assert len(kit.names("small")) == 1 and len(kit.names("full")) == 2
 
 
-def test_two_backups_cannot_run_at_once(kit, capsys):
+def test_two_backups_of_one_kind_cannot_run_at_once(kit, capsys):
     kit.directory.mkdir()
-    with open(kit.directory / ".lock", "w") as held:
-        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        for kind in ("small", "full"):
+    for kind in ("small", "full"):
+        with open(kit.directory / (".lock-" + kind), "w") as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
             code, said = kit.run(kind, capsys)
-            assert code == 1 and "another backup is already running" in said
-    assert kit.names("small") == [] and kit.names("full") == []
-    assert kit.run("small", capsys)[0] == 0
+            assert code == 1 and "another %s backup is already running" % kind in said
+        assert kit.names(kind) == []
+        assert kit.run(kind, capsys)[0] == 0, "and once the other has finished, it runs"
+
+
+def test_the_nightly_small_backup_runs_while_a_full_one_is_going(kit, capsys):
+    """Seen on the Pi on 13 November 2026: the first full backup was running,
+    and a small one refused to start. A full backup takes hours; the small
+    one runs every night and must not fail for that."""
+    kit.directory.mkdir()
+    for kind in ("small", "full"):
+        (kit.directory / kind).mkdir()
+    # A full backup part-way through: its lock held, its unfinished file there.
+    half_full = kit.directory / "full" / "edfinder-full-20261113T222526Z.dump.partial"
+    half_full.write_text("half")
+    with open(kit.directory / ".lock-full", "w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        code, said = kit.run("small", capsys)
+        assert code == 0, said
+        assert len(kit.names("small")) == 1
+        assert half_full.exists(), "the small backup leaves the full one's unfinished file alone"
+        # ...and the other way round.
+        held_small = open(kit.directory / ".lock-small", "w")
+        fcntl.flock(held_small, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        half_small = kit.directory / "small" / "edfinder-small-20261114T023000Z.partial"
+        half_small.mkdir()
+        assert kit.run("full", capsys)[0] == 0
+        assert half_small.exists() and not half_full.exists()
+    finally:
+        held_small.close()
 
 
 # -- where backups may go ---------------------------------------------------------
