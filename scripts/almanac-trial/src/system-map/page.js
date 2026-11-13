@@ -5,6 +5,8 @@
 import { RING_KINDS, buildTree, readSystem, ringKind } from './tree.mjs';
 import { layoutOf } from './layout.mjs';
 import { RING_COLOURS, lookOf, pictureOf } from './draw.mjs';
+import { familyOf } from './body-look.mjs';
+import { pixelsFor, seedOf, surface } from './surface.mjs';
 
 const stage = document.querySelector('#stage');
 const about = document.querySelector('#about');
@@ -182,9 +184,33 @@ function select(target) {
   }
 }
 
+// Each body's surface is painted once and kept, by the body and its size.
+const painted = new Map();
+const easel = document.createElement('canvas');
+
+/** The address of a body's painted picture, or null where painting is off. */
+function pictureFor(item, look) {
+  if (new URLSearchParams(location.search).get('plain') === '1') return null;
+  const size = pixelsFor(item.r);
+  const key = `${item.id}/${size}`;
+  if (!painted.has(key)) {
+    const made = surface({
+      seed: seedOf(item.id), size, family: familyOf(item.node.bodyClass),
+      colour: look.colour, star: look.star, halo: look.halo ?? look.colour, dark: look.dark,
+    });
+    easel.width = size;
+    easel.height = size;
+    easel.getContext('2d').putImageData(new ImageData(made.data, size, size), 0, 0);
+    painted.set(key, easel.toDataURL('image/png'));
+  }
+  return painted.get(key);
+}
+
 function draw(raw) {
   tree = buildTree(readSystem(raw));
-  stage.innerHTML = pictureOf(layoutOf(tree));
+  const began = performance.now();
+  stage.innerHTML = pictureOf(layoutOf(tree), 28, pictureFor);
+  window.systemTrial = { ...(window.systemTrial ?? {}), paintedIn: Math.round(performance.now() - began) };
   const [x, y, w, h] = stage.querySelector('svg').dataset.box.split(' ').map(Number);
   whole = { x, y, w, h };
   setView(opening());
@@ -255,7 +281,7 @@ async function start() {
   chooser.addEventListener('change', show);
   show();
   // For looking in from the browser's console.
-  window.systemTrial = { data, tree: () => tree };
+  window.systemTrial = { ...(window.systemTrial ?? {}), data, tree: () => tree };
 }
 
 start().catch((error) => {

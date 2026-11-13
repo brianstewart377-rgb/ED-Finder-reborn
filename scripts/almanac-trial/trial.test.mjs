@@ -15,6 +15,7 @@ import { drawnRadius, entriesOf, groundMarkOf, layoutOf } from './src/system-map
 import {
   RING_COLOURS, lookOf, pictureOf, ringBandsOf, safe, spokenOf, spokenOfStation,
 } from './src/system-map/draw.mjs';
+import { patternOf, pixelsFor, seedOf, surface } from './src/system-map/surface.mjs';
 import { LICENCE_FILES, addLicences, noticesMissingFrom, requiredNotices } from './licence-files.mjs';
 import { copyWorkerFiles, filesAskedFor } from './worker-files.mjs';
 import { readFileSync } from 'node:fs';
@@ -724,4 +725,131 @@ test('each ring and belt says what kind it is, in words as well as in colour', (
     layoutOf(lhs).labels.filter((label) => label.small).map((label) => label.text),
     ['icy ring', 'metallic', 'belt', 'rings: metal rich, icy', 'icy ring', 'metallic', 'belt'],
   );
+});
+
+// ---------------------------------------------------------------------------
+// Painted surfaces: each body's picture, made by arithmetic.
+// ---------------------------------------------------------------------------
+
+/** How bright the solid pixels of a square part of a picture are, on average (0 to 255). */
+function brightness({ size, data }, x0, y0, x1, y1) {
+  let total = 0;
+  let count = 0;
+  for (let y = Math.round(y0 * size); y < Math.round(y1 * size); y += 1) {
+    for (let x = Math.round(x0 * size); x < Math.round(x1 * size); x += 1) {
+      const at = (y * size + x) * 4;
+      if (data[at + 3] !== 255) continue;
+      total += 0.2126 * data[at] + 0.7152 * data[at + 1] + 0.0722 * data[at + 2];
+      count += 1;
+    }
+  }
+  return total / count;
+}
+
+const painted = (family, extra = {}) => surface({
+  seed: seedOf(`body of ${family}`), size: 96, family, colour: FAMILIES[family]?.colour ?? [1, 0.98, 0.66], ...extra,
+});
+
+test('a body is painted as a ball: solid inside, clear outside, and the same every time', () => {
+  const rock = painted('rocky');
+  assert.equal(rock.data.length, 96 * 96 * 4);
+  const solid = (x, y) => rock.data[(y * 96 + x) * 4 + 3];
+  assert.equal(solid(0, 0), 0, 'a corner is outside the ball');
+  assert.equal(solid(95, 95), 0);
+  assert.equal(solid(48, 48), 255, 'the middle is inside');
+  assert.ok(solid(48, 0) > 0 && solid(48, 0) < 255, 'the edge is soft, not a staircase');
+  // The same body gives the same picture; another body of the same class does not.
+  assert.deepEqual(painted('rocky').data, rock.data);
+  assert.notDeepEqual(surface({ seed: seedOf('another body'), size: 96, family: 'rocky', colour: FAMILIES.rocky.colour }).data, rock.data);
+  assert.equal(seedOf('Sol'), seedOf('Sol'));
+  assert.notEqual(seedOf('Sol'), seedOf('Sol 2'));
+});
+
+test('a planet is lit from the upper left and dark on the far side; a star is not shaded', () => {
+  for (const family of ['rocky', 'icy', 'earth-like', 'gas-giant-I', 'water-world', 'ammonia-world', 'metal-rich']) {
+    const picture = painted(family);
+    const lit = brightness(picture, 0.2, 0.2, 0.45, 0.45);
+    const far = brightness(picture, 0.55, 0.55, 0.8, 0.8);
+    assert.ok(lit > far * 1.3, `${family}: lit ${lit.toFixed(0)}, far side ${far.toFixed(0)}`);
+  }
+  const star = painted('star', { star: true, halo: [1, 0.6, 0.2] });
+  const one = brightness(star, 0.2, 0.2, 0.45, 0.45);
+  const other = brightness(star, 0.55, 0.55, 0.8, 0.8);
+  assert.ok(Math.abs(one - other) < 12, 'a star shines the same all round');
+  // ...and is darker toward its edge than in its middle.
+  assert.ok(brightness(star, 0.4, 0.4, 0.6, 0.6) > brightness(star, 0.44, 0.02, 0.56, 0.08));
+  // A black hole is a black ball.
+  const hole = painted('star', { star: true, dark: true });
+  assert.equal(brightness(hole, 0.3, 0.3, 0.7, 0.7), 0);
+});
+
+test('the class decides the pattern: bands on a gas giant, sea and land on a world with seas', () => {
+  assert.equal(patternOf('gas-giant-III'), 'bands');
+  assert.equal(patternOf('earth-like'), 'seas');
+  assert.equal(patternOf('rocky'), 'ground');
+  assert.equal(patternOf('a class not seen before'), 'ground');
+  // Every class our own map draws with bands is painted with bands here, and no other.
+  for (const family of Object.keys(FAMILIES)) {
+    assert.equal(patternOf(family) === 'bands', isBanded(family), family);
+  }
+  assert.deepEqual(Object.keys(FAMILIES).filter((family) => patternOf(family) === 'seas'), ['earth-like', 'water-world', 'ammonia-world']);
+
+  // Bands run across the ball: going down it the picture changes more than
+  // going along it. Bare ground changes about the same both ways.
+  const downOverAcross = (picture) => {
+    const { size, data } = picture;
+    const bright = (at) => 0.2126 * data[at] + 0.7152 * data[at + 1] + 0.0722 * data[at + 2];
+    let down = 0;
+    let across = 0;
+    for (let y = 29; y < 67; y += 1) {
+      for (let x = 29; x < 67; x += 1) {
+        const at = (y * size + x) * 4;
+        down += Math.abs(bright(at + size * 4 * 3) - bright(at));
+        across += Math.abs(bright(at + 4 * 3) - bright(at));
+      }
+    }
+    return down / across;
+  };
+  for (const family of Object.keys(FAMILIES).filter(isBanded)) {
+    const ratio = downOverAcross(painted(family));
+    assert.ok(ratio > 1.2, `${family}: ${ratio.toFixed(2)}`);
+  }
+  for (const family of ['rocky', 'icy', 'metal-rich', 'high-metal-content']) {
+    const ratio = downOverAcross(painted(family));
+    assert.ok(ratio > 0.85 && ratio < 1.18, `${family}: ${ratio.toFixed(2)}`);
+  }
+
+  // A world with seas shows sea, land and cloud: many more colours than bare rock of one colour.
+  const colours = (picture) => {
+    const seen = new Set();
+    for (let at = 0; at < picture.data.length; at += 4) {
+      if (picture.data[at + 3] === 255) seen.add(`${picture.data[at] >> 5},${picture.data[at + 1] >> 5},${picture.data[at + 2] >> 5}`);
+    }
+    return seen.size;
+  };
+  assert.ok(colours(painted('earth-like')) > colours(painted('rocky')) * 1.5);
+});
+
+test('a picture is as big as the body is drawn, within bounds', () => {
+  assert.deepEqual([3.5, 8, 24, 46, 78].map(pixelsFor), [40, 48, 144, 256, 256]);
+});
+
+test('the page may give each body a painted picture; without one the plain ball is drawn', () => {
+  const layout = layoutOf(solTree());
+  const plain = pictureOf(layout);
+  assert.ok(!plain.includes('<image'));
+  const asked = [];
+  const withPictures = pictureOf(layout, 28, (item, look) => {
+    asked.push(item.node.name);
+    return item.node.name === 'Pluto' ? null : `data:image/png;base64,${look.star ? 'STAR' : 'BODY'}`;
+  });
+  assert.equal(asked.length, 40, 'every body is offered one');
+  assert.equal(withPictures.match(/<image class="sm-surface"/gu).length, 39);
+  assert.ok(withPictures.includes('href="data:image/png;base64,STAR"'));
+  // Still every body an element that can be clicked and read aloud, and rings and marks as before.
+  assert.equal(withPictures.match(/class="sm-body/gu).length, 40);
+  assert.equal(withPictures.match(/class="sm-ring"/gu).length, plain.match(/class="sm-ring"/gu).length);
+  assert.ok(withPictures.includes('aria-label="Earth, Earth-like world; 2 in orbit"'));
+  // An address from anywhere cannot break out of the picture.
+  assert.ok(!pictureOf(layout, 28, () => '"><script>x</script>').includes('<script>'));
 });
