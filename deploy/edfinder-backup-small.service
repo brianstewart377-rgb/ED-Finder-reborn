@@ -1,0 +1,16 @@
+# Back up what cannot be made again: everything users have written, and this
+# machine's settings files (deploy/backup.py small). A few megabytes and a
+# minute. Started every night by edfinder-backup-small.timer.
+[Unit]
+Description=ED-Finder: back up what users have written, and the settings
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edfinder/backup.py small
+TimeoutStartSec=30min
+# When the run ends, well or badly, tell healthchecks.io, which emails the
+# owner about a failure or a night with no word (deploy/report_in.py). It
+# does nothing until the check's address has been saved on the machine, and
+# it cannot make the job fail (the dash).
+ExecStopPost=-/usr/bin/python3 /opt/edfinder/report_in.py backup-small

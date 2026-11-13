@@ -1,0 +1,27 @@
+# Back up the whole database in one file (deploy/backup.py full). Tens of
+# gigabytes and a few hours. Started once a week by edfinder-backup-full.timer.
+#
+# A full backup reads every table for hours, and while it does no job can
+# have a table to itself. The nightly state refresh needs that for a moment,
+# and would wait behind the backup with everything that reads that table
+# waiting behind it. So this runs after the nightly jobs, never beside them
+# (After= here, and After= this unit in theirs), and backup.py itself will not
+# start while one of them is running.
+#
+# To start one by hand, do it through systemd, so the nightly jobs wait
+# their turn:   sudo systemctl start edfinder-backup-full.service
+[Unit]
+Description=ED-Finder: back up the whole database
+After=docker.service edfinder-state-refresh.service edfinder-galaxy-update.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edfinder/backup.py full
+# Be gentle with the machine: this is background work.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=12h
+# When the run ends, well or badly, tell healthchecks.io (see the small
+# backup's unit).
+ExecStopPost=-/usr/bin/python3 /opt/edfinder/report_in.py backup-full

@@ -46,6 +46,31 @@ is scored "on request". Confirmed by the owner on 11 November.
       after the switch (section 3), and the copy comes next. Aim to switch over
       around 20 November and avoid the December payment. Check how much notice
       MevSpace needs to cancel.
+- [x] (13 Nov) **The owner will not pay for November either.** "i dont see
+      the point in waster £135 to have the server sit a month when most of
+      the important stuff is on the PI"; "If there stuff we need lets save it
+      to the pc till we need it". The server's paid time ends on 15 November
+      and it does not renew by itself (the owner, from MevSpace's panel).
+      MevSpace asks no notice: by its terms the agreement ends when the paid
+      time runs out unless the next invoice is paid, and the server may be
+      wiped the day after (https://mevspace.com/terms-of-service, read
+      13 Nov). This drops the month side by side and the quiet week.
+      What that costs: no way back to the old site, and until the Pi's first
+      full backup its one drive holds the only copy of the galaxy. If it
+      failed in that gap, the galaxy could be built again from Spansh's files
+      in days. `ed-finder.app` goes dark when the server ends, until the
+      tunnel is up; nobody uses it yet.
+- [x] (13 Nov) **Saved from the server before it ends**, onto the Pi, in
+      `/srv/data/from-server` and again on its other drive in
+      `/var/backups/edfinder/from-server`:
+      * `users.dump` (7 MB): what users have written, all 26 tables of
+        `v3_identity` and `v3_private`, read back and counted;
+      * `old-server-small-things.tar.gz` (198 MB, root only: it holds
+        passwords): the server's settings (`/etc/ed-finder`) and its small
+        folders (`/root` without the Spansh downloads, `/data/v3`,
+        `/opt/ed-finder`).
+      The server holds nothing else of size but the database, 8.7 GB of
+      Spansh downloads, and Octopus (below).
 
 ## 1. The Pi itself (owner)
 
@@ -265,8 +290,12 @@ In order:
 - [ ] (12 Nov) On the server, switch the galaxy update and the state refresh
       off for the length of the copy (the copy will not start otherwise), and
       make sure no system is waiting for new scores.
-- [ ] Run the copy script on the Pi: `python3 copy_to_pi.py check`, then
-      `python3 copy_to_pi.py copy`. (12 Nov) How it works:
+- [x] Run the copy script on the Pi: `python3 copy_to_pi.py check`, then
+      `python3 copy_to_pi.py copy`. (13 Nov) Done, and checked: the owner ran
+      `copy_to_pi.py validate` overnight on 12 to 13 November, and run again
+      on the 13th it says "Every link and rule the copy added has been
+      checked and holds." The clean-up settings below are on (11 tables).
+      (12 Nov) How it works:
       * On the server it makes one table of its own, the list of systems
         within 500 ly of an inhabited system (schema `edfinder_copy`), and
         removes it at the end. Nothing else on the server changes.
@@ -394,6 +423,23 @@ In order:
       users have written, and the settings), to the USB drives, with an
       encrypted copy off-site; once a week, a full dump; a full restore
       tested once before we rely on it.
+      (13 Nov) Built that way: `deploy/backup.py` with two timers (README,
+      "Backups"). Every night at 02:30 UTC, what users have written and the
+      settings files; on Sundays at 07:00 UTC, the whole database. This is
+      a change to the plan, which the owner has yet to say yes to; the tool
+      does either, and nightly full backups are a change to one timer.
+      Where: no USB drive is on the Pi yet, so the backups go on the drive
+      the Pi starts from (468 GB, 434 GB free on 13 Nov), which is a
+      separate drive from the database's (580 GB on the 2 TB drive). That
+      covers the loss of the database's drive, and not the loss of the
+      whole Pi. Still to build: a copy to a USB drive, an encrypted copy
+      off-site, and a restore test that runs by itself.
+      A full backup holds every table open for hours, and the state refresh
+      needs one table to itself for a moment (it empties `system_stage`). A
+      refresh waiting behind a backup would hold up every reader of that
+      table, Find among them. So the full backup runs when no nightly job
+      starts for nine hours, will not start beside one, and the nightly
+      jobs' units wait for it.
 - [ ] (11 Nov) **Hearing about failures.** Today a nightly job that fails
       tells nobody. Each night's jobs report in when they finish, and
       something off the Pi notices when they have not.
@@ -450,6 +496,13 @@ Also decided since: one band of scores out to 500 ly, kept up to date every
 night (owner, 11 November), in place of 250 ly every night and 500 ly on
 request (9 November). (12 Nov) The systems a new colony brings within that
 band are scored within a week rather than the same night: see "Reach".
+
+(13 Nov) The old server is not paid for after 15 November (owner): no month
+side by side, no quiet week. See "Before anything else".
+
+(13 Nov) Backups: what cannot be made again every night and the whole
+database once a week, where the plan has the whole database every night.
+See section 6.
 
 (12 Nov) The catch-up over Spansh's full galaxy file moves to the Pi, after
 the switch: nobody uses the site yet, and it would have held up the copy.

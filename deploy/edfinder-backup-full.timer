@@ -1,0 +1,13 @@
+# Sundays at 07:00 UTC: after the night's state refresh (03:30 UTC) and galaxy
+# update (04:30 UTC) have finished, and nine and a half hours before the next
+# job starts (the galaxy update's second run, 16:30 UTC).
+[Unit]
+Description=ED-Finder: back up the whole database
+
+[Timer]
+OnCalendar=Sun *-*-* 07:00:00 UTC
+# If the machine was off at the time, run once it is back.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

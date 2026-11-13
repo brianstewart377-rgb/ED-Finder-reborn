@@ -230,6 +230,71 @@ app itself does not mind either way.
 
 The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
 
+## Backups
+
+`deploy/backup.py` (Python standard library only) backs the database up on
+the machine that runs the site. Two kinds, because the database is two kinds
+of thing:
+
+| Command | What it does |
+|---|---|
+| `check` | Says what a backup would do and whether there is room. Changes nothing. |
+| `small` | Backs up what cannot be made again: everything users have written (`v3_identity`, `v3_private`) and the machine's settings files. A few megabytes and a minute. |
+| `full` | Backs up the whole database in one file. The galaxy could be built again from Spansh's files, but that takes days; this brings it back in hours. Tens of gigabytes and a few hours. |
+| `status` | Lists the backups that are there, and says if the newest is older than it should be. |
+
+- **Where.** `EDFINDER_BACKUP_DIR` (default `/var/backups/edfinder`), which
+  must be on a different drive from the database: a backup on the database's
+  own drive is lost with it, so the tool refuses that. On the Pi the database
+  is on the 2 TB drive and the backups are on the drive it starts from.
+- **When.** `edfinder-backup-small.timer` every night at 02:30 UTC;
+  `edfinder-backup-full.timer` on Sundays at 07:00 UTC.
+- **How many.** The newest 14 small ones and the newest 2 full ones. An older
+  one is removed only once a new one is safely there. If the drive is too full
+  for a new full backup the oldest full ones go first, but never the last one.
+  Only files the tool made, by their names, are ever removed.
+- **A backup that is there is a whole one.** Each is written under a name
+  ending in `.partial`, read back, and only then given its real name.
+- **Settings files are copied unread.** The tool never shows their contents,
+  and the files it writes can be read by root only.
+
+A full backup reads every table for hours, and while it does no job can have
+a table to itself. The nightly state refresh needs that for a moment, and
+would wait behind the backup with every reader of that table waiting behind
+it. So a full backup will not start while a nightly job is running, the
+nightly jobs wait for one that is, and its timer is set for when no job
+starts for nine hours. Start one by hand through systemd, never with
+`python3 backup.py full`, so that they queue:
+
+```bash
+sudo systemctl start edfinder-backup-full.service
+```
+
+Both backups report in like the other nightly jobs (next section), as
+`backup-small` and `backup-full`.
+
+To bring the whole database back, into a new, empty database:
+
+```bash
+docker exec edfinder-v3-phase4c-full-20260827_r5-postgres createdb -U edfinder_v3 edfinder_restored
+docker exec -i edfinder-v3-phase4c-full-20260827_r5-postgres pg_restore -U edfinder_v3 -d edfinder_restored --no-owner --exit-on-error < /var/backups/edfinder/full/edfinder-full-<date>.dump
+```
+
+To bring back only what users have written, into a database whose tables are
+there and empty (after the galaxy has been rebuilt, say):
+
+```bash
+docker exec -i edfinder-v3-phase4c-full-20260827_r5-postgres pg_restore -U edfinder_v3 -d edfinder_v3_phase4c_full_20260827_r5 --data-only --exit-on-error < /var/backups/edfinder/small/edfinder-small-<date>/users.dump
+```
+
+The tests restore both kinds and count the rows. A restore of the real
+database at its full size has not been tried on the Pi yet: building the
+indexes of 600 million rows there is a day's work, and it needs as much room
+again as the database.
+
+Not built yet: a copy off the machine (a USB drive, and an encrypted copy
+off-site), and a restore test that runs by itself.
+
 ## Hearing when a nightly job fails
 
 A nightly job that fails, or does not run at all, would otherwise tell nobody.
@@ -256,6 +321,8 @@ well". It is kept in a file that only root can read, and is never printed:
 |---|---|---|
 | Galaxy update (04:30 and 16:30 UTC) | `/etc/edfinder/report/galaxy-update.url` | 12 hours, then 6 hours |
 | System state refresh (03:30 UTC) | `/etc/edfinder/report/state-refresh.url` | 1 day, then 3 hours |
+| Small backup (02:30 UTC) | `/etc/edfinder/report/backup-small.url` | 1 day, then 2 hours |
+| Full backup (Sundays, 07:00 UTC) | `/etc/edfinder/report/backup-full.url` | 1 week, then 12 hours |
 
 A job reports when it ends, not when it starts, so the grace time has to
 cover the longest a run normally takes. Until a job's file exists, nothing is
