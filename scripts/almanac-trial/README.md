@@ -73,17 +73,31 @@ the browser draws itself (SVG) and no 3D engine:
 - Each body is shaded as a lit ball. Gas giants carry bands, and rings pass
   behind and in front of their planet. Colours are by class, by our own
   map's rules; they are not pictures of the real surface.
-- Each station in orbit is a small marker hanging from its body, and each
-  body shows how many sites it has on the ground.
+- Each station in orbit is a small marker hanging from its body.
+- Beside each body, two numbers for its ground: a triangle with how many
+  sites our data holds there, and an empty square with how many ground slots
+  the site predicts. They are shown side by side and never as a fraction,
+  because they do not count the same thing.
+- Each ring is its own band, coloured by its kind (icy, rocky, metal rich,
+  metallic), with the kind written under the planet's name. A belt says its
+  kind above it.
 - Every body and station is an ordinary page element: it can be clicked,
   reached with the Tab key, and read by a screen reader.
 
 It shows Sol, LHS 3447 (two stars), Polaris (a giant with a small companion)
 and the player's own systems, all from the live site
-(`GET /api/v1/systems/<id>`, `.../bodies`, `.../rings`, `.../stations`).
+(`GET /api/v1/systems/<id>`, `.../bodies`, `.../rings`, `.../stations`, and
+the builder's `GET /api/v1/plan/systems/<id>/bodies` for the predicted
+ground slots).
 
-Two things our data does not always say, and how the page handles them. Both
-are marked on the page, so a guess is never passed off as a fact:
+Three things our data does not always say, and how the page handles them.
+Each is marked on the page, so a guess is never passed off as a fact:
+
+- **How many ground slots a body has.** The game publishes no slot counts.
+  The site's builder predicts them, and only when it holds every fact its
+  rule needs. Where it predicts, the page shows the number and calls it a
+  prediction. Where it does not, the page shows no number and the side panel
+  says which fact is missing.
 
 - **Which body a station is at.** Sites on the ground come with their body.
   Stations in orbit mostly do not. Those are put at the body nearest to them
@@ -184,7 +198,7 @@ commands.
 |---|---|
 | `index.html`, `src/main.js` | The page. It hands our data to the map and has no controls of its own. |
 | `src/logic.mjs` | The page's own rules: which stars are in range of a system, a star's group and colour, the range ball, and what the panel says. |
-| `fixtures/` | For the tests, all real and unchanged answers of the live site: the first 60 rows of Find's answer near Sol, the 30 ly box around Sol, a name search for "Sol", and the bodies, rings and stations of Sol and of Polaris. |
+| `fixtures/` | For the tests, all real and unchanged answers of the live site: the first 60 rows of Find's answer near Sol, the 30 ly box around Sol, a name search for "Sol", the bodies, rings and stations of Sol and of Polaris, and the same for LHS 3447 with the builder's list of its bodies. |
 | `fetch-data.mjs` | Fetches Find's results and the stars around each system from the live site, and the player's own systems if a list is given. |
 | `system-map.html`, `src/system-map/` | The System Map trial: `tree.mjs` (what orbits what, what is built where), `layout.mjs` (where everything goes), `draw.mjs` (the picture), `body-look.mjs` (a checked copy of our own planet colours), `page.js` (the page). |
 | `my-systems.example.json` | The form of a player's own list. The real one, `my-systems.local.json`, stays out of git. |

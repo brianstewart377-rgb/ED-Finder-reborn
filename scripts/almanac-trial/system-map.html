@@ -38,7 +38,10 @@
       .sm-line { stroke: var(--line); stroke-width: 1; }
       .sm-pair { stroke: #5b6f84; stroke-width: 1; fill: none; }
       .sm-label { fill: var(--muted); font-size: 9.5px; pointer-events: none; }
+      .sm-caption { fill: #7f8ea0; font-size: 7.5px; pointer-events: none; }
       .sm-ground { fill: var(--amber); font-size: 7.5px; pointer-events: none; }
+      .sm-slots { fill: #7fe0c0; }
+      .legend .swatch { width: 16px; height: 6px; border-radius: 3px; justify-self: center; }
       .sm-body, .sm-station { cursor: pointer; outline: none; }
       .sm-body:focus-visible .sm-hit, .sm-body:hover .sm-hit { stroke: #8fb6d8; stroke-width: 1; }
       .sm-body.sm-selected .sm-hit { stroke: #5ad0ff; stroke-width: 1.6; }
@@ -69,9 +72,11 @@
         <svg viewBox="-9 -7 18 14" class="sm-station"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /><path d="M0 -3.2 V3.2 M-3.2 0 H3.2" fill="none" /></svg><span>Being built in orbit</span>
         <svg viewBox="-9 -7 18 14" class="sm-station"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /><path d="M-3.4 0 H3.4" stroke-width="2.2" fill="none" /></svg><span>A megaship</span>
         <svg viewBox="-9 -7 18 14" class="sm-station sm-guess"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /></svg><span>Dashed: placed by its distance. Our data does not say which body it is at.</span>
-        <svg viewBox="-9 -7 18 14"><text class="sm-ground" x="-7" y="3" style="font-size: 10px">&#9650;3</text></svg><span>Three sites on the ground</span>
+        <svg viewBox="-9 -7 18 14"><text class="sm-ground" x="-7" y="3" style="font-size: 10px">&#9650;3</text></svg><span>Three sites on the ground, in our data</span>
+        <svg viewBox="-9 -7 18 14"><text class="sm-ground" x="-7" y="3" style="font-size: 10px"><tspan class="sm-slots">&#9633;4</tspan></text></svg><span>Four ground slots, predicted by our site. The game is the only sure source. No square: the site makes no prediction for that body.</span>
         <svg viewBox="-9 -7 18 14"><path class="sm-pair" d="M-7 4 V-3 H7 V4" /></svg><span>Two bodies that circle each other</span>
       </div>
+      <div class="legend" id="ring-legend" style="margin-top: 5px"></div>
       <p class="note">Sizes are for reading, not to scale. Colours are by class, as on our own map; they are not pictures of the real surface.</p>
     </aside>
     <script type="module" src="./src/system-map/page.js"></script>

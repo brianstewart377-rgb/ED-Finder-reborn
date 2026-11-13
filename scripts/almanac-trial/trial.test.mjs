@@ -8,9 +8,13 @@ import {
 } from './src/logic.mjs';
 import { TYPES, fileFor, typeOf } from './serve-files.mjs';
 import { FAMILIES, FAMILY_OF_CLASS, familyOf, isBanded } from './src/system-map/body-look.mjs';
-import { buildTree, nearEnough, readSystem, shortName } from './src/system-map/tree.mjs';
-import { drawnRadius, entriesOf, layoutOf } from './src/system-map/layout.mjs';
-import { lookOf, pictureOf, safe, spokenOf, spokenOfStation } from './src/system-map/draw.mjs';
+import {
+  RING_KINDS, buildTree, groundSlotsOf, nearEnough, readSystem, ringsInWords, shortName,
+} from './src/system-map/tree.mjs';
+import { drawnRadius, entriesOf, groundMarkOf, layoutOf } from './src/system-map/layout.mjs';
+import {
+  RING_COLOURS, lookOf, pictureOf, ringBandsOf, safe, spokenOf, spokenOfStation,
+} from './src/system-map/draw.mjs';
 import { LICENCE_FILES, addLicences, noticesMissingFrom, requiredNotices } from './licence-files.mjs';
 import { copyWorkerFiles, filesAskedFor } from './worker-files.mjs';
 import { readFileSync } from 'node:fs';
@@ -436,6 +440,8 @@ test('the build puts the licence files beside the page and stops if the page lac
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
 const solTree = () => buildTree(readSystem(fixture('system-sol')));
 const polarisTree = () => buildTree(readSystem(fixture('system-polaris')));
+// LHS 3447 comes with a fifth answer: the builder's list, with its predicted ground slots.
+const lhsTree = () => buildTree(readSystem(fixture('system-lhs3447')));
 const named = (tree, name) => [...tree.nodes.values()].find((node) => node.name === name);
 
 test('the copy of our own planet colours still matches the web app, word for word', () => {
@@ -551,7 +557,7 @@ test('what hangs from a body comes in order: what is in orbit, then its children
 });
 
 test('every body is drawn once, none on top of another, in the manner of the game\'s map', () => {
-  for (const tree of [solTree(), polarisTree()]) {
+  for (const tree of [solTree(), polarisTree(), lhsTree()]) {
     const layout = layoutOf(tree);
     const bodies = layout.items.filter((item) => item.kind === 'body');
     const real = [...tree.nodes.values()].filter((node) => node.type !== 'barycentre');
@@ -596,7 +602,7 @@ test('a body is coloured and named by its class, by our own rules', () => {
   assert.ok(sol.star && !sol.dark);
   assert.deepEqual(sol.colour, [1, 0.98, 0.66], 'the G class core of apps/web/src/lib/spatial/stellar-presentation.ts');
   assert.equal(spokenOf(named(tree, 'Earth')), 'Earth, Earth-like world; 2 in orbit');
-  assert.equal(spokenOf(named(tree, 'Saturn')), 'Saturn, Class I gas giant; ringed');
+  assert.equal(spokenOf(named(tree, 'Saturn')), 'Saturn, Class I gas giant; icy ring');
   assert.equal(spokenOf(named(tree, 'Europa')), 'Europa, Icy body; 2 on the ground');
   const daedalus = named(tree, 'Mercury').orbit[0];
   assert.equal(spokenOfStation(daedalus), 'Daedalus, orbis starport, placed by its distance: our data does not say which body');
@@ -620,4 +626,102 @@ test('the picture holds every body and station once, marks each guess, and lets 
   raw.bodies = raw.bodies.map((body) => (body.name === 'Earth' ? { ...body, name: 'Earth<script>x</script>' } : body));
   const unsafe = pictureOf(layoutOf(buildTree(readSystem(raw))));
   assert.ok(!unsafe.includes('<script>') && unsafe.includes('Earth&lt;script&gt;x&lt;/script&gt;'));
+});
+
+test('ground slots are the site\'s prediction, or the reason there is none, and never a made-up number', () => {
+  assert.deepEqual(groundSlotsOf({ prediction_status: 'predicted', predicted_surface_slots: 3 }), { count: 3, why: 'predicted', missing: [] });
+  assert.deepEqual(
+    groundSlotsOf({ prediction_status: 'unknown', predicted_surface_slots: null, missing_inputs: ['atmosphere'] }),
+    { count: null, why: 'facts missing', missing: ['atmosphere'] },
+  );
+  assert.deepEqual(groundSlotsOf({ prediction_status: null, is_landable: false }), { count: null, why: 'cannot land', missing: [] });
+  assert.deepEqual(groundSlotsOf({ prediction_status: null, is_landable: null }), { count: null, why: 'no prediction', missing: [] });
+  assert.deepEqual(groundSlotsOf(undefined), { count: null, why: 'not asked', missing: [] });
+  // A count that is said to be predicted but is no whole number is not passed on.
+  assert.equal(groundSlotsOf({ prediction_status: 'predicted', predicted_surface_slots: null }).count, null);
+
+  const tree = lhsTree();
+  const all = [...tree.nodes.values()];
+  const predicted = all.filter((node) => node.groundSlots.why === 'predicted').map((node) => [node.short, node.groundSlots.count]);
+  assert.deepEqual(predicted.sort(), [['A 3', 4], ['B 3 a', 3], ['B 3 b', 3], ['B 3 c', 3], ['B 3 d', 3], ['B 4 d', 3]]);
+  // Of the 23 bodies that can be landed on, the site predicts for 6. For the
+  // other 17 our data has no atmosphere, and the site says so.
+  const landable = all.filter((node) => node.landable);
+  assert.equal(landable.length, 23);
+  const lacking = landable.filter((node) => node.groundSlots.why === 'facts missing');
+  assert.equal(lacking.length, 17);
+  assert.ok(lacking.every((node) => node.groundSlots.missing.join() === 'atmosphere'));
+  assert.equal(named(tree, 'LHS 3447 B 3').groundSlots.why, 'cannot land');
+  // Sol's fixture has no builder's list: nothing is claimed for any body.
+  assert.ok([...solTree().nodes.values()].every((node) => node.groundSlots.why === 'not asked' && node.groundSlots.count === null));
+});
+
+test('sites on the ground and ground slots are two numbers side by side, not a fraction', () => {
+  const tree = lhsTree();
+  const mark = (name) => {
+    const found = groundMarkOf(named(tree, name));
+    return found && [found.built, found.slots];
+  };
+  // Our data holds five sites on A 3 and the site predicts four slots: the
+  // two do not count the same thing, so neither is shown as part of the other.
+  assert.deepEqual(mark('LHS 3447 A 3'), [5, 4]);
+  assert.deepEqual(mark('LHS 3447 B 3 b'), [3, 3]);
+  assert.deepEqual(mark('LHS 3447 A 2'), [5, null], 'sites, and no prediction');
+  assert.equal(mark('LHS 3447 B 3'), null, 'a gas giant has neither');
+  const layout = layoutOf(tree);
+  const marked = layout.items.filter((item) => item.kind === 'body' && item.mark);
+  assert.equal(marked.length, 21);
+  for (const item of marked) {
+    // The mark sits below the body's own line and inside the picture.
+    assert.ok(item.mark.y >= 12.5 && item.mark.x > 0 && item.mark.w > 0);
+    assert.ok(item.x + item.mark.x + item.mark.w <= layout.box.x1 && item.y + item.mark.y <= layout.box.y1, item.node.name);
+  }
+  const picture = pictureOf(layout);
+  assert.equal(picture.match(/class="sm-slots"/gu).length, 6);
+  assert.ok(picture.includes('<tspan>&#9650;5</tspan><tspan class="sm-slots" dx="3">&#9633;4</tspan>'));
+  assert.ok(!/&#9650;\d+\//u.test(picture), 'no fraction');
+  assert.equal(spokenOf(named(tree, 'LHS 3447 A 3')), 'A 3, High metal content world; 1 in orbit; 5 on the ground; 4 ground slots predicted');
+  // Without the builder's list there is no square anywhere.
+  assert.ok(!pictureOf(layoutOf(solTree())).includes('sm-slots'));
+});
+
+test('each ring and belt says what kind it is, in words as well as in colour', () => {
+  const ring = (ringClass) => ({ ringClass });
+  assert.equal(ringsInWords([]), null);
+  assert.equal(ringsInWords([ring('icy')]), 'icy ring');
+  assert.equal(ringsInWords([ring('metal_rich'), ring('metal_rich')]), '2 metal rich rings');
+  assert.equal(ringsInWords([ring('metal_rich'), ring('icy')]), 'rings: metal rich, icy');
+  assert.equal(ringsInWords([ring(null)]), 'ring, kind not known');
+  assert.equal(ringsInWords([ring('icy'), ring('something new')]), 'rings: icy, not known');
+  assert.deepEqual(Object.keys(RING_COLOURS), Object.keys(RING_KINDS), 'a colour for every kind we name');
+  assert.equal(new Set(Object.values(RING_COLOURS).map(String)).size, 4, 'and no two alike');
+
+  const sol = solTree();
+  assert.deepEqual(
+    ['Jupiter', 'Saturn', 'Uranus', 'Neptune'].map((name) => named(sol, name).ringWords),
+    ['rocky ring', 'icy ring', 'icy ring', 'icy ring'],
+  );
+  assert.equal(named(sol, 'Earth').ringWords, null);
+  // The words are on the picture: under each ringed planet's name, and over the belt.
+  const captions = layoutOf(sol).labels.filter((label) => label.small).map((label) => label.text);
+  assert.deepEqual(captions, ['rocky ring', 'icy ring', 'icy ring', 'icy ring', 'rocky', 'belt']);
+  const picture = pictureOf(layoutOf(sol));
+  assert.equal(picture.match(/class="sm-caption"/gu).length, 6);
+  assert.ok(picture.includes('<title>Asteroid Belt, rocky belt</title>'));
+  assert.ok(picture.includes(`fill="rgb(${RING_COLOURS.rocky.join(',')})"`) && picture.includes(`fill="rgb(${RING_COLOURS.icy.join(',')})"`));
+
+  // LHS 3447 B 2 has two rings of different kinds: two bands, the inner one first, not touching.
+  const lhs = lhsTree();
+  const b2 = named(lhs, 'LHS 3447 B 2');
+  assert.deepEqual(b2.rings.map((one) => one.name), ['LHS 3447 B 2 A Ring', 'LHS 3447 B 2 B Ring']);
+  assert.equal(b2.ringWords, 'rings: metal rich, icy');
+  const bands = ringBandsOf(b2);
+  assert.deepEqual(bands.map((band) => band.kind), ['metal rich', 'icy']);
+  assert.deepEqual(bands.map((band) => band.colour), [RING_COLOURS.metal_rich, RING_COLOURS.icy]);
+  assert.ok(bands[0].from >= 1.3 && bands[0].to < bands[1].from && bands[1].to <= 2.1 + 1e-9);
+  assert.equal(spokenOf(b2), 'B 2, Gas giant with ammonia-based life; rings: metal rich, icy');
+  assert.deepEqual(
+    layoutOf(lhs).labels.filter((label) => label.small).map((label) => label.text),
+    ['icy ring', 'metallic', 'belt', 'rings: metal rich, icy', 'icy ring', 'metallic', 'belt'],
+  );
 });

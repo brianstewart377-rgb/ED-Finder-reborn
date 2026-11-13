@@ -6,10 +6,17 @@
 // Sizes are for reading, not to scale. A real scale would make every moon a
 // dot beside its planet and every planet a dot beside its star.
 
+import { ringKind } from './tree.mjs';
+
 const KM_PER_LS = 299792.458;
 const GAP = 16;
 const LABEL_CHAR = 5.5;
 const LABEL_H = 11;
+/** The smaller words under a name, saying what kind a planet's rings or a belt are. */
+const CAPTION_CHAR = 4.3;
+const CAPTION_H = 8.5;
+/** The small mark beside a body for what is on its ground. */
+const MARK_CHAR = 4.8;
 const STATION = 11;
 /** How far a star's glow reaches, as a multiple of its radius. */
 const GLOW = 1.3;
@@ -30,6 +37,24 @@ export function drawnRadius(node) {
 
 function labelWidth(text) {
   return text.length * LABEL_CHAR;
+}
+
+function captionWidth(text) {
+  return text ? text.length * CAPTION_CHAR : 0;
+}
+
+/**
+ * Puts a body's name above it, and under the name the kind of its rings when
+ * it has any. Returns nothing; the part's labels and box take them in.
+ */
+function nameAbove(part, node, r) {
+  const rise = nameRise(node, r);
+  const caption = node.ringWords;
+  const lift = caption ? CAPTION_H : 0;
+  part.labels.push({ x: 0, y: -rise - lift, text: node.short, anchor: 'middle' });
+  if (caption) part.labels.push({ x: 0, y: -rise, text: caption, anchor: 'middle', small: true });
+  const width = Math.max(labelWidth(node.short), captionWidth(caption)) / 2;
+  grow(part.box, { x0: -width, x1: width, y0: -rise - lift - LABEL_H, y1: -r });
 }
 
 function grow(box, other, dx = 0, dy = 0) {
@@ -84,8 +109,35 @@ export function entriesOf(node) {
   return entries;
 }
 
+/**
+ * The small mark beside a body for the ground: how many sites our data
+ * holds there (`built`), and how many ground slots the site predicts
+ * (`slots`). Either may be absent, as null; the mark itself is null when
+ * both are. With it, where it sits from the body's centre and how wide it is.
+ *
+ * It sits below the body's own line, clear of a station hanging to the
+ * right of a small moon.
+ */
+export function groundMarkOf(node, r = drawnRadius(node)) {
+  const built = node.ground.length > 0 ? node.ground.length : null;
+  const slots = node.groundSlots?.count ?? null;
+  if (built === null && slots === null) return null;
+  const letters = (built === null ? 0 : 1 + String(built).length) + (slots === null ? 0 : 1 + String(slots).length);
+  const w = letters * MARK_CHAR + (built !== null && slots !== null ? 3 : 0);
+  return { built, slots, x: r * 0.72 + 2, y: Math.max(r * 0.72 + 8, 12.5), w };
+}
+
 function bodyItem(node, r) {
-  return { kind: 'body', id: node.id, x: 0, y: 0, r, node };
+  return { kind: 'body', id: node.id, x: 0, y: 0, r, node, mark: groundMarkOf(node, r) };
+}
+
+/** A body with its rings or glow, and the room its ground mark takes. */
+function bodyPart(node, r) {
+  const half = halfWidth(node, r);
+  const item = bodyItem(node, r);
+  const part = { items: [item], lines: [], labels: [], box: { x0: -half, x1: half, y0: -r, y1: r } };
+  if (item.mark) grow(part.box, { x0: 0, x1: item.mark.x + item.mark.w, y0: 0, y1: item.mark.y + 2 });
+  return part;
 }
 
 function leaf(entry) {
@@ -96,9 +148,17 @@ function leaf(entry) {
       lines: [], labels: [], box: { x0: -half, x1: half, y0: -half, y1: half },
     };
   }
+  // A belt says what it is in two short lines above it: "rocky" over "belt".
+  const kind = ringKind(entry.belt);
+  const lines = kind ? [kind, 'belt'] : ['belt'];
+  const half = Math.max(9, ...lines.map((text) => captionWidth(text) / 2));
   return {
     items: [{ kind: 'belt', x: 0, y: 0, w: 14, h: 46, belt: entry.belt }],
-    lines: [], labels: [], box: { x0: -9, x1: 9, y0: -23, y1: 23 },
+    lines: [],
+    labels: lines.map((text, index) => ({
+      x: 0, y: -27 - (lines.length - 1 - index) * CAPTION_H, text, anchor: 'middle', small: true,
+    })),
+    box: { x0: -half, x1: half, y0: -27 - lines.length * CAPTION_H, y1: 23 },
   };
 }
 
@@ -141,15 +201,18 @@ function brackets(placed, across) {
 function rowOf(node, nameAt) {
   const r = drawnRadius(node);
   const half = halfWidth(node, r);
-  const part = { items: [bodyItem(node, r)], lines: [], labels: [], box: { x0: -half, x1: half, y0: -r, y1: r } };
+  const part = bodyPart(node, r);
   if (nameAt === 'above') {
-    const width = labelWidth(node.short) / 2;
-    const rise = nameRise(node, r);
-    part.labels.push({ x: 0, y: -rise, text: node.short, anchor: 'middle' });
-    grow(part.box, { x0: -width, x1: width, y0: -rise - LABEL_H, y1: r * (node.type === 'star' ? GLOW : 1) });
+    nameAbove(part, node, r);
+    grow(part.box, { x0: 0, x1: 0, y0: 0, y1: r * (node.type === 'star' ? GLOW : 1) });
   } else {
+    const caption = node.ringWords;
     part.labels.push({ x: -half - 5, y: 3.5, text: node.short, anchor: 'end' });
-    grow(part.box, { x0: -half - 5 - labelWidth(node.short), x1: -half, y0: -LABEL_H / 2, y1: LABEL_H / 2 });
+    if (caption) part.labels.push({ x: -half - 5, y: 3.5 + CAPTION_H, text: caption, anchor: 'end', small: true });
+    grow(part.box, {
+      x0: -half - 5 - Math.max(labelWidth(node.short), captionWidth(caption)), x1: -half,
+      y0: -LABEL_H / 2, y1: LABEL_H / 2 + (caption ? CAPTION_H : 0),
+    });
   }
   let x = half + GAP;
   let last = null;
@@ -173,12 +236,8 @@ function rowOf(node, nameAt) {
 /** A node with what hangs from it running downward. Its own name goes above it. */
 function columnOf(node) {
   const r = drawnRadius(node);
-  const half = halfWidth(node, r);
-  const width = labelWidth(node.short) / 2;
-  const part = { items: [bodyItem(node, r)], lines: [], labels: [], box: { x0: -half, x1: half, y0: -r, y1: r } };
-  const rise = nameRise(node, r);
-  part.labels.push({ x: 0, y: -rise, text: node.short, anchor: 'middle' });
-  grow(part.box, { x0: -width, x1: width, y0: -rise - LABEL_H, y1: -r });
+  const part = bodyPart(node, r);
+  nameAbove(part, node, r);
   let y = r + GAP * 0.75;
   let last = null;
   const placed = [];
