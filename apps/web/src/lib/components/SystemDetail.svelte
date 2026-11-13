@@ -26,6 +26,7 @@
     type RatingsSourceState,
   } from './source-freshness';
   import {
+    bodySignalSummary,
     hotspotSummary,
     isFleetCarrier,
     percent,
@@ -251,10 +252,6 @@
     const label = bodyTypeLabel(body.bodyType) ?? 'Unknown body type';
     const classification = stellarClassification(body);
     return classification ? `${label} · ${classification}` : label;
-  }
-
-  function signalLabel(code: string): string {
-    return code.replace(/^saa_signaltype_/u, '').replaceAll('_', ' ');
   }
 
   /** `Metallic · Pristine reserves`; null when neither is catalogued. */
@@ -632,14 +629,8 @@
                   <div>
                     <dt>Signals</dt>
                     <dd>
-                      {selectedBody.signals.length > 0
-                        ? selectedBody.signals
-                            .map(
-                              (signal) =>
-                                `${signal.count} ${signalLabel(signal.signalType)}`,
-                            )
-                            .join(' · ')
-                        : 'None recorded'}
+                      {bodySignalSummary(selectedBody.signals) ??
+                        'None recorded'}
                     </dd>
                   </div>
                   {#if selectedBody.rings.length > 0}
