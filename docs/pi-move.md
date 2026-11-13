@@ -544,9 +544,41 @@ show a numerical indicator of how many ground slots the body has" and
   fact is missing. In the six trial systems, 121 bodies can be landed on;
   the site predicts for 8. For the other 113 our data has no atmosphere at
   all, and every one of the 8 has a thin atmosphere. So a body with no
-  atmosphere, the commonest kind to build on, gets no prediction. Whether
-  the source file leaves that fact out or our import drops it is not known
-  yet. It limits the builder in the same way. To be checked on the Pi.
+  atmosphere, the commonest kind to build on, gets no prediction. It limits
+  the builder in the same way.
+- **The cause is found (13 November).** Spansh leaves the atmosphere kind
+  empty for a body with no atmosphere, and our import copies that
+  faithfully. Read from Spansh's own records (`/api/dump/<id>`) for the six
+  systems: 8 of the 121 name an atmosphere; 106 give no kind and a surface
+  pressure of exactly 0; 7 give no kind and a pressure above 0. Our database
+  keeps the pressure (`surface_pressure_atm`), but the builder's route does
+  not read it.
+- **Cross-checked against EDSM (13 November).** The owner asked: "Is there
+  any other sources we can cross check with?" EDSM is built separately from
+  Spansh and writes "No atmosphere" out in words
+  (`https://www.edsm.net/api-system-v1/bodies?systemName=<name>`). Of the 106
+  bodies with no kind and a pressure of exactly 0, EDSM holds 99 and calls
+  every one "No atmosphere"; the other 7 are Polaris, which EDSM has no
+  bodies for. The 8 named atmospheres carry the same name in both.
+- **The 7 with a trace of pressure.** EDSM calls all 7 "No atmosphere" too.
+  Their pressures run from 0.0005 to 0.0008 atmospheres; the thinnest named
+  atmosphere in these systems is 0.0011. So the game seems to call anything
+  under about 0.001 "no atmosphere". That rests on 15 bodies: likely, not
+  proven.
+- **An empty kind alone is not enough.** Spansh also leaves Earth's kind
+  empty, and EDSM has Earth as "Suitable for water-based life". The pressure
+  is what tells the two apart.
+- **A fix, proposed and not made.** Where the kind is empty and the stored
+  pressure is exactly 0, give the rule "No atmosphere", which it already
+  knows how to count. No change to the database. On the six systems
+  predictions would go from 8 to 114 of 121. The 7 trace-pressure bodies are
+  a second, separate step, once more systems have been looked at. It changes
+  what the builder shows, so it waits for the owner's yes.
+- **Checking the predictions themselves.** Raven Colonial holds the real
+  slot counts players read in the game. After the fix, the owner's own
+  systems can be put beside Raven's counts. The game's journal and EDDN
+  carry the atmosphere in words as well, for bodies scanned by the player
+  or since our site began listening.
 - **Sites and slots are not the same count.** In LHS 3447 our data holds
   more sites on the ground than the slots predicted on five of the six
   bodies (5 against 4; 4 against 3). The page shows the two numbers side by
