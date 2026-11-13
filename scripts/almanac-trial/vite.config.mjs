@@ -2,6 +2,7 @@
 // hand out. "base" is relative so the page works from any folder.
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { addLicences } from './licence-files.mjs';
 import { copyWorkerFiles } from './worker-files.mjs';
 
 const here = (path) => fileURLToPath(new URL(path, import.meta.url));
@@ -35,6 +36,8 @@ export default defineConfig({
           here('./node_modules/@elite-dangerous-almanac/galaxy-map/dist/assets'),
         );
         console.log(`Copied for the map's workers: ${copied.join(', ') || 'nothing'}`);
+        const licences = await addLicences(here('./site'), here('./node_modules'));
+        console.log(`Licence files beside the page: ${licences.files.length}. The page shows: ${licences.notices.join(' | ')}`);
       },
     },
   ],

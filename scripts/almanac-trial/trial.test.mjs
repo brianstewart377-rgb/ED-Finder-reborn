@@ -7,6 +7,7 @@ import {
   starCategories, starGroup, starsShownAt, toRecord, trimRow,
 } from './src/logic.mjs';
 import { TYPES, fileFor, typeOf } from './serve-files.mjs';
+import { LICENCE_FILES, addLicences, noticesMissingFrom, requiredNotices } from './licence-files.mjs';
 import { copyWorkerFiles, filesAskedFor } from './worker-files.mjs';
 import { readFileSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -265,4 +266,54 @@ test('what the workers ask for is copied next to them, once, and a missing file 
 
   await writeFile(join(built, 'volume.worker-abc.js'), 'new URL("gone.bin", import.meta.url)');
   await assert.rejects(copyWorkerFiles(built, library), /volume\.worker-abc\.js asks for gone\.bin/u);
+});
+
+// The first lines of the map's real licence file (LICENSE.md of the package,
+// 0.7.1), and the worked example further down in the same file.
+const NOTICE = 'Required Notice: Copyright 2026 Dark Session (https://github.com/Elite-Dangerous-Almanac/Galaxy-Map)';
+const LICENCE_EXCERPT = `${NOTICE}
+
+# PolyForm Noncommercial License 1.0.0
+
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
+
+beginning with \`Required Notice:\` that the licensor provided
+with the software. For example:
+
+> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+`;
+
+test('the required notice is read from the licence, and its worked example is not', () => {
+  assert.deepEqual(requiredNotices(LICENCE_EXCERPT), [NOTICE]);
+  assert.deepEqual(requiredNotices(LICENCE_EXCERPT.replaceAll('\n', '\r\n')), [NOTICE]);
+  assert.deepEqual(requiredNotices('MIT License\n\nCopyright (c) 2026'), []);
+});
+
+test('the page as kept in git shows the required notice and where the licence terms are', () => {
+  const page = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  assert.deepEqual(noticesMissingFrom(page, [NOTICE]), []);
+  assert.ok(page.includes('https://polyformproject.org/licenses/noncommercial/1.0.0'));
+  assert.ok(page.includes('./licences/galaxy-map-LICENSE.md'));
+  assert.deepEqual(noticesMissingFrom('<p>Map by someone</p>', [NOTICE]), [NOTICE]);
+  assert.deepEqual(noticesMissingFrom(`<p>Required  Notice: Copyright 2026 <b>Dark Session</b>\n (https://github.com/Elite-Dangerous-Almanac/Galaxy-Map)</p>`, [NOTICE]), []);
+});
+
+test('the build puts the licence files beside the page and stops if the page lacks the notice', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'almanac-trial-licence-'));
+  const site = join(folder, 'site');
+  const modules = join(folder, 'node_modules');
+  await mkdir(site);
+  for (const [from] of LICENCE_FILES) {
+    await mkdir(join(modules, from, '..'), { recursive: true });
+    await writeFile(join(modules, from), from === LICENCE_FILES[0][0] ? LICENCE_EXCERPT : `text of ${from}`);
+  }
+  await writeFile(join(site, 'index.html'), `<p>${NOTICE}</p>`);
+  const done = await addLicences(site, modules);
+  assert.deepEqual(done.notices, [NOTICE]);
+  assert.equal(done.files.length, LICENCE_FILES.length);
+  assert.equal(await readFile(join(site, 'licences', 'galaxy-map-LICENSE.md'), 'utf8'), LICENCE_EXCERPT);
+  assert.equal(await readFile(join(site, 'licences', 'gl-matrix-LICENSE.md'), 'utf8'), 'text of gl-matrix/LICENSE.md');
+
+  await writeFile(join(site, 'index.html'), '<p>no notice here</p>');
+  await assert.rejects(addLicences(site, modules), /The page does not show: Required Notice: Copyright 2026 Dark Session/u);
 });

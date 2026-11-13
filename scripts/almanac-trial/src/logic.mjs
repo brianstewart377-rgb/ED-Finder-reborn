@@ -2,9 +2,9 @@
 // without a browser: how a candidate from Find becomes a marker, and what is
 // said about it.
 //
-// People find a system in Find, not on the map. The map shows where Find's
-// results are. So the page marks Find's first page of results, and can show
-// the other candidates around them as plain stars.
+// The page marks Find's first page of results, and can show the other
+// candidates around them as plain stars. That is one guess at what the map
+// could carry: what it should show in the end is the owner's call.
 //
 // A star's colour is its star class, by the same rule our own map uses. The
 // rule is read straight from the web app, not copied, so the two cannot drift.
