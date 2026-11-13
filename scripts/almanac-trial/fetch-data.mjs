@@ -10,8 +10,11 @@
 //
 //     node fetch-data.mjs
 //
-// About 25 questions to the site, and two more for each of the player's
-// systems, a little over a second apart.
+// It also writes public/data/systems.json for the System Map trial: the
+// bodies, rings and stations of three example systems and of the player's own.
+//
+// About 40 questions to the site, and six more for each of the player's
+// systems, a little over a second apart: two to three minutes.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
@@ -20,6 +23,8 @@ import {
 } from './src/logic.mjs';
 
 const SITE = process.env.EDFINDER_SITE ?? 'https://ed-finder.app';
+/** Systems every copy of the System Map trial shows: one star, two stars, and a giant with a small companion. */
+const SYSTEM_MAP_EXAMPLES = ['Sol', 'LHS 3447', 'Polaris'];
 const pause = () => new Promise((done) => setTimeout(done, 1200));
 
 async function answer(response, what) {
@@ -100,8 +105,32 @@ for (const anchor of Object.values(ANCHORS)) {
   }
 }
 
+/** A system's bodies, rings and stations, as the site gives them, for the System Map trial. */
+async function wholeSystem(found) {
+  const ask = async (part) => {
+    await pause();
+    const response = await fetch(`${SITE}/api/v1/systems/${found.id64}${part}`, { signal: AbortSignal.timeout(90_000) });
+    return answer(response, `${found.name}${part}`);
+  };
+  const system = await ask('');
+  const bodies = await ask('/bodies');
+  const rings = await ask('/rings');
+  // Fleet carriers come and go, and nobody built them here.
+  const stations = (await ask('/stations')).filter((station) => station.station_type !== 'fleet_carrier');
+  console.log(`System map, ${found.name}: ${bodies.length} bodies, ${rings.length} rings and belts, ${stations.length} stations`);
+  return { system, bodies, rings, stations };
+}
+
+// The System Map trial: one star, two stars, a giant star, and the player's own.
+const systems = [];
+for (const name of [...SYSTEM_MAP_EXAMPLES, ...(await mineFromFile()).map((mine) => mine.name)]) {
+  systems.push(await wholeSystem(await byName(name)));
+}
+
 const folder = fileURLToPath(new URL('./public/data/', import.meta.url));
 await mkdir(folder, { recursive: true });
+await writeFile(`${folder}systems.json`, JSON.stringify({ fetchedOn: new Date().toISOString().slice(0, 10), systems }));
+console.log(`public/data/systems.json: ${systems.length} systems for the System Map trial`);
 const file = { fetchedOn: new Date().toISOString().slice(0, 10), rangeLy: RANGE_LY, showings };
 await writeFile(`${folder}shown.json`, JSON.stringify(file));
 console.log(`public/data/shown.json: ${showings.length} systems to show`);

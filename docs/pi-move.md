@@ -484,6 +484,49 @@ The build work stays where the roadmap below puts it: after the Pi move.
 `scripts/almanac-trial` stays until the map is built into the site, as the
 working example of how our data goes into Almanac. It goes after that.
 
+### The System Map: is Babylon still right? (13 November, open)
+
+The owner, once the galaxy map was settled: "is Babylon still the right
+choice for a really nice system map or is it massively excessive?"
+
+What our System Map draws today, read from the code: each body as a plain
+coloured ball, faint bands on gas giants, orbit rings, a line from each body
+to its parent, and names. No surface pictures. It is a diagram drawn with a
+3D engine, and once the galaxy map moves to Almanac, Babylon stays in the
+app for this one view.
+
+What the owner wants from it, shown with five pictures of the game's own
+system map: "This but I'd like it to look a bit more 3d and show what
+orbitals are built on each body (similar to how the ingame system map
+behaves".
+
+A trial page draws that with no 3D engine: `scripts/almanac-trial`,
+`system-map.html`, with Sol, two systems of two stars and the owner's own,
+from the live site's data. Each body is a shaded ball, rings pass behind and
+in front, and every body and station is an ordinary page element, so
+ordinary tests can check it in CI. The owner has not yet judged it. Nothing
+is decided, and the System Map on the site is unchanged.
+
+What building it showed about our data:
+
+- Sites on the ground come with their body. Stations in orbit mostly do not:
+  none of Sol's ten has one, and it is the same in the owner's systems. So
+  "what is built in orbit of each body" cannot be read from our data today.
+- Placing them by distance from the arrival point works for a lone planet
+  and fails beside a moon. For Sol it puts Columbus at Jupiter, where the
+  owner's list has Europa, and it leaves M.Gorbachev unplaced, because our
+  distance for it (502 ls) is 5 ls off Earth's.
+- The sources disagree about Burnell Station. Our data and INARA's page for
+  Sol both give 363 ls, which is Venus's distance. EDSM ties it to Ariel.
+  To be checked in the game.
+- EDSM's own ties cannot be used as they are. On 13 Nov it had Daedalus,
+  Galileo and Mars High at Earth, and Titan City at Io.
+- For a player's own colonies the builder is the better source: its plan
+  already says which body each facility is for.
+- Some moons and all pairs of planets come with no parent. The page hangs a
+  moon from the planet its name points to, and a pair from the nearest star,
+  and marks both.
+
 ### What the galaxy map is for (owner, 13 November)
 
 This replaces every earlier idea of the map in these notes. The owner's own

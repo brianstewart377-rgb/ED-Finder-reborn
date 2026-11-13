@@ -7,6 +7,10 @@ import {
   showing, showingMine, starCategories, starGroup, starsInRange, systemInBox, trimRow,
 } from './src/logic.mjs';
 import { TYPES, fileFor, typeOf } from './serve-files.mjs';
+import { FAMILIES, FAMILY_OF_CLASS, familyOf, isBanded } from './src/system-map/body-look.mjs';
+import { buildTree, nearEnough, readSystem, shortName } from './src/system-map/tree.mjs';
+import { drawnRadius, entriesOf, layoutOf } from './src/system-map/layout.mjs';
+import { lookOf, pictureOf, safe, spokenOf, spokenOfStation } from './src/system-map/draw.mjs';
 import { LICENCE_FILES, addLicences, noticesMissingFrom, requiredNotices } from './licence-files.mjs';
 import { copyWorkerFiles, filesAskedFor } from './worker-files.mjs';
 import { readFileSync } from 'node:fs';
@@ -422,4 +426,198 @@ test('the build puts the licence files beside the page and stops if the page lac
 
   await writeFile(join(site, 'index.html'), '<p>no notice here</p>');
   await assert.rejects(addLicences(site, modules), /The page does not show: Required Notice: Copyright 2026 Dark Session/u);
+});
+
+// ---------------------------------------------------------------------------
+// The System Map trial.
+// ---------------------------------------------------------------------------
+
+// The live site's real answers for Sol and for Polaris (see each file's own note).
+const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
+const solTree = () => buildTree(readSystem(fixture('system-sol')));
+const polarisTree = () => buildTree(readSystem(fixture('system-polaris')));
+const named = (tree, name) => [...tree.nodes.values()].find((node) => node.name === name);
+
+test('the copy of our own planet colours still matches the web app, word for word', () => {
+  const source = readFileSync(new URL('../../apps/web/src/lib/spatial/system-scene.ts', import.meta.url), 'utf8');
+  const palette = source.slice(source.indexOf('export const BODY_FAMILY_PRESENTATIONS = {'), source.indexOf('} as const satisfies Readonly<Record<string, BodyFamilyPresentation>>;'));
+  const theirs = {};
+  for (const [, key, label, colour] of palette.matchAll(/'?([a-zA-Z-]+)'?:\s*\{\s*label:\s*'([^']+)',\s*colour:\s*\[([0-9., ]+)\],?\s*\}/gu)) {
+    theirs[key] = { label, colour: colour.split(',').map(Number) };
+  }
+  assert.deepEqual(FAMILIES, theirs);
+  const rule = source.slice(source.indexOf('export function bodyFamilyFromClass'), source.indexOf('type BodyFamilyPresentation'));
+  const classes = [...rule.matchAll(/case '([^']+)':/gu)].map((found) => found[1]);
+  assert.deepEqual(Object.keys(FAMILY_OF_CLASS), classes);
+  assert.equal(familyOf('Class I gas giant'), 'gas-giant-I');
+  assert.equal(familyOf('Earth-like world'), 'earth-like');
+  assert.equal(familyOf('something new'), 'unknown');
+  assert.equal(familyOf(null), 'unknown');
+  assert.ok(isBanded('gas-giant-III') && isBanded('water-giant') && !isBanded('icy'));
+});
+
+test('Sol is read as one star with its planets in a row, going outward', () => {
+  const tree = solTree();
+  assert.equal(tree.name, 'Sol');
+  assert.deepEqual(tree.stars.map((star) => star.name), ['Sol']);
+  // Pluto and Charon circle each other; our data gives the pair no parent, so it is placed by distance.
+  assert.deepEqual(tree.stars[0].children.map((child) => child.short), [
+    'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'barycentre 31', '90482 Orcus',
+    '(307261) 2002 MS4', 'Salacia', 'Haumea', 'Quaoar', 'Makemake', '(225088) 2007 OR10', 'Eris', 'Sedna', 'Persephone',
+  ]);
+  const pair = named(tree, 'Sol barycentre 31');
+  assert.equal(pair.guessedParent, 'distance');
+  assert.deepEqual(pair.children.map((child) => child.name).sort(), ['Charon', 'Pluto']);
+  assert.equal(named(tree, 'Earth').guessedParent, false);
+  // Moons go by the size of their orbit, not by their distance from the arrival point.
+  assert.deepEqual(named(tree, 'Jupiter').children.map((moon) => moon.name), ['Io', 'Europa', 'Ganymede', 'Callisto']);
+  assert.equal(named(tree, 'Saturn').rings.length, 1);
+  assert.equal(tree.stars[0].belts.length, 1);
+});
+
+test('a body\'s name loses the system\'s name from its front, and nothing else', () => {
+  assert.equal(shortName({ name: 'Sol barycentre 31' }, 'Sol'), 'barycentre 31');
+  assert.equal(shortName({ name: 'Solati 2' }, 'Sol'), 'Solati 2');
+  assert.equal(shortName({ name: 'Earth' }, 'Sol'), 'Earth');
+});
+
+test('what is built is put at its body: a fact where our data says, a marked guess where it does not', () => {
+  const tree = solTree();
+  const all = [...tree.nodes.values()];
+  // Sites on the ground come with their body: 53 of them, none a guess.
+  const ground = all.flatMap((node) => node.ground);
+  assert.equal(ground.length, 53);
+  assert.ok(ground.every((site) => site.guess === false));
+  assert.equal(named(tree, 'Callisto').ground.length, 7);
+  // Our data ties none of Sol's stations in orbit to a body. Eight sit close enough to one by distance.
+  const orbit = all.flatMap((node) => node.orbit.map((station) => [node.name, station.name, station.mark, station.guess]));
+  assert.deepEqual(orbit.sort((one, other) => one[1].localeCompare(other[1])), [
+    ['Earth', 'Abraham Lincoln', 'starport', true],
+    ['Venus', 'Burnell Station', 'outpost', true],
+    ['Jupiter', 'Columbus', 'starport', true],
+    ['Mercury', 'Daedalus', 'starport', true],
+    ['Moon', 'Galileo', 'starport', true],
+    ['Earth', 'Li Qing Jao', 'starport', true],
+    ['Mars', 'Mars High', 'starport', true],
+    ['Titan', 'Titan City', 'starport', true],
+  ]);
+  // Two are not close enough to any body, and are said to be not placed.
+  assert.deepEqual(tree.notPlaced.map((station) => station.name).sort(), ['M.Gorbachev', 'Rescue Ship - Li Qing Jao']);
+  // Four have a body but no kind in our data: claimed neither for orbit nor for the ground.
+  assert.deepEqual(all.flatMap((node) => node.unknownKind.map((station) => station.name)).sort(), [
+    'Chargaff Reach', 'Daimler Camp', "Fung's Claim", 'Illy Enterprise',
+  ]);
+});
+
+test('a station is near enough to a body within 3 light seconds, or half a percent when far out', () => {
+  assert.ok(nearEnough(159.72, 159.66));
+  assert.ok(nearEnough(506.91, 504.0));
+  assert.ok(!nearEnough(506.91, 502.09), 'M.Gorbachev, 4.8 ls from Earth in our data');
+  assert.ok(nearEnough(9143.99, 9180));
+  assert.ok(!nearEnough(9143.99, 9284));
+});
+
+test('with two stars, each heads a row in the game\'s own order, and a moon is hung by its name', () => {
+  const tree = polarisTree();
+  assert.deepEqual(tree.stars.map((star) => star.name), ['Polaris A', 'Polaris B']);
+  assert.equal(tree.stars[0].children.length, 0);
+  const b1 = named(tree, 'Polaris B 1');
+  // "B 1 d" and "B 1 e" come with no parent; their names say they are moons of "B 1".
+  assert.equal(named(tree, 'Polaris B 1 d').guessedParent, 'name');
+  assert.ok(b1.children.includes(named(tree, 'Polaris B 1 d')) && b1.children.includes(named(tree, 'Polaris B 1 e')));
+  assert.deepEqual(b1.children.map((moon) => moon.short).sort(), ['B 1 a', 'B 1 b', 'B 1 c', 'B 1 d', 'B 1 e', 'B 1 f', 'B 1 g']);
+});
+
+test('sizes are for reading: a star is largest, a giant larger than a rock, and nothing vanishes', () => {
+  const tree = solTree();
+  const size = (name) => Number(drawnRadius(named(tree, name)).toFixed(1));
+  assert.deepEqual(['Sol', 'Jupiter', 'Earth', 'Moon', 'Enceladus'].map(size), [46, 24.5, 8.2, 4.6, 3.5]);
+  const polaris = polarisTree();
+  assert.ok(drawnRadius(named(polaris, 'Polaris A')) > drawnRadius(named(polaris, 'Polaris B')));
+  assert.ok(drawnRadius(named(polaris, 'Polaris A')) <= 78);
+});
+
+test('what hangs from a body comes in order: what is in orbit, then its children with belts among them', () => {
+  const tree = solTree();
+  assert.deepEqual(entriesOf(named(tree, 'Earth')).map((entry) => entry.station?.name ?? entry.node.name), [
+    'Abraham Lincoln', 'Li Qing Jao', 'Moon',
+  ]);
+  const row = entriesOf(tree.stars[0]);
+  assert.equal(row.filter((entry) => entry.kind === 'belt').length, 1);
+  // The pair is not drawn itself: Pluto and Charon take its place, marked as one pair.
+  const pair = row.filter((entry) => entry.pair);
+  assert.deepEqual(pair.map((entry) => entry.node.name).sort(), ['Charon', 'Pluto']);
+  assert.equal(new Set(pair.map((entry) => entry.pair)).size, 1);
+});
+
+test('every body is drawn once, none on top of another, in the manner of the game\'s map', () => {
+  for (const tree of [solTree(), polarisTree()]) {
+    const layout = layoutOf(tree);
+    const bodies = layout.items.filter((item) => item.kind === 'body');
+    const real = [...tree.nodes.values()].filter((node) => node.type !== 'barycentre');
+    assert.equal(bodies.length, real.length);
+    assert.equal(new Set(bodies.map((item) => item.id)).size, bodies.length);
+    for (let one = 0; one < bodies.length; one += 1) {
+      for (let other = one + 1; other < bodies.length; other += 1) {
+        const apart = Math.hypot(bodies[one].x - bodies[other].x, bodies[one].y - bodies[other].y);
+        assert.ok(apart >= bodies[one].r + bodies[other].r, `${bodies[one].node.name} and ${bodies[other].node.name} overlap`);
+      }
+    }
+    for (const item of layout.items) {
+      assert.ok(item.x >= layout.box.x0 && item.x <= layout.box.x1 && item.y >= layout.box.y0 && item.y <= layout.box.y1);
+    }
+  }
+  const layout = layoutOf(solTree());
+  const at = (name) => layout.items.find((item) => item.kind === 'body' && item.node.name === name);
+  // Planets run to the right of the star on its line; moons hang straight below their planet.
+  assert.ok(at('Mercury').x > at('Sol').x && at('Earth').x > at('Venus').x && at('Persephone').x > at('Neptune').x);
+  assert.equal(at('Earth').y, at('Sol').y);
+  assert.equal(at('Moon').x, at('Earth').x);
+  assert.ok(at('Moon').y > at('Earth').y);
+  assert.ok(at('Callisto').y > at('Ganymede').y && at('Ganymede').y > at('Europa').y && at('Europa').y > at('Io').y);
+  // Earth's two stations hang between it and the Moon.
+  const stations = layout.items.filter((item) => item.kind === 'station' && item.x === at('Earth').x);
+  assert.deepEqual(stations.map((item) => item.station.name), ['Abraham Lincoln', 'Li Qing Jao']);
+  assert.ok(stations.every((item) => item.y > at('Earth').y && item.y < at('Moon').y));
+  // Polaris: the two stars are stacked, their centres in one column, joined by a bracket.
+  const two = layoutOf(polarisTree());
+  const stars = two.items.filter((item) => item.kind === 'body' && item.node.type === 'star');
+  assert.equal(stars[0].x, stars[1].x);
+  assert.ok(stars[1].y > stars[0].y + stars[0].r + stars[1].r);
+  assert.ok(two.lines.some((line) => line.kind === 'pair' && line.x1 === line.x2 && line.x1 < stars[0].x));
+});
+
+test('a body is coloured and named by its class, by our own rules', () => {
+  const tree = solTree();
+  assert.deepEqual(lookOf(named(tree, 'Earth')).colour, [0.16, 0.58, 0.57]);
+  assert.equal(lookOf(named(tree, 'Jupiter')).banded, true);
+  assert.equal(lookOf(named(tree, 'Earth')).banded, false);
+  const sol = lookOf(named(tree, 'Sol'));
+  assert.ok(sol.star && !sol.dark);
+  assert.deepEqual(sol.colour, [1, 0.98, 0.66], 'the G class core of apps/web/src/lib/spatial/stellar-presentation.ts');
+  assert.equal(spokenOf(named(tree, 'Earth')), 'Earth, Earth-like world; 2 in orbit');
+  assert.equal(spokenOf(named(tree, 'Saturn')), 'Saturn, Class I gas giant; ringed');
+  assert.equal(spokenOf(named(tree, 'Europa')), 'Europa, Icy body; 2 on the ground');
+  const daedalus = named(tree, 'Mercury').orbit[0];
+  assert.equal(spokenOfStation(daedalus), 'Daedalus, orbis starport, placed by its distance: our data does not say which body');
+});
+
+test('the picture holds every body and station once, marks each guess, and lets no name break it', () => {
+  const picture = pictureOf(layoutOf(solTree()));
+  assert.ok(picture.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'));
+  assert.equal(picture.match(/class="sm-body/gu).length, 40);
+  assert.equal(picture.match(/data-station="/gu).length, 8);
+  assert.equal(picture.match(/class="sm-station sm-guess"/gu).length, 8, 'all eight are placed by distance');
+  assert.equal(picture.match(/class="sm-belt"/gu).length, 1);
+  // Four ringed planets, each with a ring behind, a ring in front and the ring's shadow.
+  assert.equal(picture.match(/rotate\(-12\)/gu).length, 12);
+  assert.ok(picture.includes('aria-label="Earth, Earth-like world; 2 in orbit"'));
+  assert.ok(picture.includes('&#9650;7'), 'Callisto shows its seven sites on the ground');
+  // A name from data cannot close a tag or open one.
+  assert.equal(safe(`<b a="1" c='2'>&`), '&lt;b a=&quot;1&quot; c=&#39;2&#39;&gt;&amp;');
+  assert.ok(picture.includes('Fung&#39;s Claim') || !picture.includes("Fung's Claim"));
+  const raw = fixture('system-sol');
+  raw.bodies = raw.bodies.map((body) => (body.name === 'Earth' ? { ...body, name: 'Earth<script>x</script>' } : body));
+  const unsafe = pictureOf(layoutOf(buildTree(readSystem(raw))));
+  assert.ok(!unsafe.includes('<script>') && unsafe.includes('Earth&lt;script&gt;x&lt;/script&gt;'));
 });
