@@ -5,8 +5,11 @@ Almanac's galaxy map. It answers one question: does Almanac's map do the job
 we want of a map, on a real graphics card, well enough to replace our own?
 
 It is a trial tool, like the map recorder. It is not part of the site and
-nothing in `apps/web` uses it. When the trial ends, either way, this folder
-goes.
+nothing in `apps/web` uses it.
+
+The trial passed on 13 November 2026 (`docs/pi-move.md`, "The Almanac trial:
+passed"). This folder stays until the map is built into the site, as the
+working example of how our data goes into Almanac. It goes after that.
 
 ## What it shows
 
