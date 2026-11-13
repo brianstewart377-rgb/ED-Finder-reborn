@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, ConfigDict
 
 from edfinder_api.deps import get_readonly_pool
+from shared_contracts.ring_radius import true_kilometres
 from shared_contracts.surface_pressure import true_atmospheres
 
 router = APIRouter(prefix="/api/v1", tags=["v3-canonical"])
@@ -309,8 +310,8 @@ async def rings(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_p
         name=row["name"],
         ring_type=row["ring_type"],
         reserve_type=row["reserve_type"],
-        inner_radius_km=row["inner_radius_km"],
-        outer_radius_km=row["outer_radius_km"],
+        inner_radius_km=true_kilometres(row["inner_radius_km"]),
+        outer_radius_km=true_kilometres(row["outer_radius_km"]),
         mass_mt=row["mass_mt"],
         signals_complete=row["signals_complete"],
         source_updated_at=row["source_updated_at"].isoformat() if row["source_updated_at"] else None,
