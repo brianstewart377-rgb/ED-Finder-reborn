@@ -295,7 +295,14 @@ async function main() {
   page.on('requestfinished', (request) => {
     const entry = timed.get(request);
     if (!entry) return;
-    entry.tookSeconds = Math.round((since() - entry.atSeconds) * 100) / 100;
+    // The browser's own clock for this request, where it gives one: when it
+    // went out and when the last of the answer came in. The moment this
+    // recorder hears about it can be late if the machine is busy.
+    const timing = request.timing();
+    if (timing.startTime > 0) entry.atSeconds = since(timing.startTime);
+    entry.tookSeconds = timing.responseEnd > 0
+      ? Math.round(timing.responseEnd / 10) / 100
+      : Math.round((since() - entry.atSeconds) * 100) / 100;
     entry.outcome = 'answered';
     finishing.push((async () => {
       entry.status = (await request.response())?.status() ?? null;
