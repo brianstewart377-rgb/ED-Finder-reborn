@@ -544,9 +544,23 @@ show a numerical indicator of how many ground slots the body has" and
   fact is missing. In the six trial systems, 121 bodies can be landed on;
   the site predicts for 8. For the other 113 our data has no atmosphere at
   all, and every one of the 8 has a thin atmosphere. So a body with no
-  atmosphere, the commonest kind to build on, gets no prediction. Whether
-  the source file leaves that fact out or our import drops it is not known
-  yet. It limits the builder in the same way. To be checked on the Pi.
+  atmosphere, the commonest kind to build on, gets no prediction. It limits
+  the builder in the same way.
+- **The cause is found (13 November).** Spansh leaves the atmosphere kind
+  empty for a body with no atmosphere, and our import copies that
+  faithfully. Read from Spansh's own records (`/api/dump/<id>`) for the six
+  systems: 8 of the 121 name an atmosphere; 106 give no kind and a surface
+  pressure of exactly 0; 7 give no kind and a pressure above 0. Our database
+  keeps the pressure (`surface_pressure_atm`), but the builder's route does
+  not read it.
+- **A fix, proposed and not made.** Where the kind is empty and the stored
+  pressure is exactly 0, give the rule "No atmosphere", which it already
+  knows how to count. No change to the database. On the six systems
+  predictions would go from 8 to 114 of 121. The 7 with a pressure above 0
+  stay "not known", rightly: they have an atmosphere nobody has named. It
+  changes what the builder shows, so it waits for the owner's yes. A cheap
+  check afterwards: the owner's own systems against the counts he sees in
+  the game.
 - **Sites and slots are not the same count.** In LHS 3447 our data holds
   more sites on the ground than the slots predicted on five of the six
   bodies (5 against 4; 4 against 3). The page shows the two numbers side by
