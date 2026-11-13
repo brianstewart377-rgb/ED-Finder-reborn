@@ -257,6 +257,39 @@ def test_try_of_a_broken_release_fails_and_cleans_up(site):
 
 # -- going live -----------------------------------------------------------------
 
+def test_live_address_held_outside_docker_stops_check_as_it_stops_live(site):
+    """On the Pi, 13 Nov: "check" said the machine was ready, then "live"
+    refused because a program outside Docker held the live address. "check"
+    has to make the same test."""
+    result = site.tool("check")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Live address 127.0.0.1:%d: free" % site.live_port in result.stdout
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", site.live_port))
+        listener.listen()
+
+        result = site.tool("check")
+        assert result.returncode == 1
+        assert "live address 127.0.0.1:%d is in use by a program outside Docker" % site.live_port \
+            in result.stdout
+        named = "(process %d)" % os.getpid() in result.stdout
+        told_how = "sudo ss -H -ltnp 'sport = :%d'" % site.live_port in result.stdout
+        assert named if shutil.which("ss") else told_how
+
+        result = site.tool("live", tag(SHA_A))
+        assert result.returncode == 2
+        assert "REFUSED, nothing was changed: the live address" in result.stdout
+        assert "outside Docker" in result.stdout
+        assert named if shutil.which("ss") else told_how
+        assert site.project + "-web" not in site.names()
+
+    # With the address given back, the same release goes live.
+    result = site.tool("live", tag(SHA_A))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert site.serving() == SHA_A
+
+
 def test_first_release_goes_live_on_a_free_address(site):
     result = site.tool("live", tag(SHA_A))
     assert result.returncode == 0, result.stdout + result.stderr

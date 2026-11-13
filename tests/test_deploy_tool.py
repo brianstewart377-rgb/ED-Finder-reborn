@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
+import shutil
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -307,6 +310,74 @@ def test_only_one_deploy_can_hold_the_lock(tmp_path):
                 pass
     with tool.single_run(tmp_path):
         pass
+
+
+def test_without_root_the_lock_refusal_says_to_use_sudo(tmp_path, monkeypatch):
+    """On the Pi, 13 Nov: "live" typed without sudo ended in a Python error
+    trace about the lock file. It must say what to do instead."""
+    def no_permission(self, *args, **kwargs):
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "mkdir", no_permission)
+    monkeypatch.setattr(tool.os, "geteuid", lambda: 1000)
+    with pytest.raises(tool.Refused) as refusal:
+        with tool.single_run(tmp_path / "state"):
+            pass
+    assert "sudo in front of it" in str(refusal.value)
+    assert str(tmp_path / "state") in str(refusal.value)
+
+    # Root is not told to use sudo: for root the cause is something else.
+    monkeypatch.setattr(tool.os, "geteuid", lambda: 0)
+    with pytest.raises(tool.Refused) as refusal:
+        with tool.single_run(tmp_path / "state"):
+            pass
+    assert "sudo" not in str(refusal.value)
+    assert str(tmp_path / "state") in str(refusal.value)
+
+
+def test_a_refused_permission_anywhere_is_said_in_plain_words(monkeypatch, capsys):
+    def no_permission(settings):
+        raise PermissionError(13, "Permission denied", "/var/lib/edfinder-deploy/state.json")
+
+    monkeypatch.setattr(tool, "command_status", no_permission)
+    monkeypatch.setattr(tool.os, "geteuid", lambda: 1000)
+
+    assert tool.main(["status"]) == 1
+    printed = capsys.readouterr().out
+    assert printed.startswith("FAILED: the machine would not allow it")
+    assert "/var/lib/edfinder-deploy/state.json" in printed
+    assert "sudo in front of it" in printed
+    assert "Traceback" not in printed
+
+
+def test_programs_are_read_from_what_ss_prints():
+    # Printed by `ss -H -ltnp 'sport = :58080'` (iproute2 5.15) with a Python
+    # web server listening there, 13 Nov 2026.
+    listing = 'LISTEN 0      5      127.0.0.1:58080 0.0.0.0:* users:(("python3",pid=4,fd=3))\n'
+    assert tool.programs_in(listing) == ["python3 (process 4)"]
+    # With nothing listening it prints nothing.
+    assert tool.programs_in("") == []
+
+
+def test_an_address_held_outside_docker_is_reported_with_its_program():
+    """On the Pi, 13 Nov: "live" refused because the live address was in use
+    "by a program outside Docker" and did not say which. This process listens
+    on an address here, and the tool has to name it, or say how to find out
+    where the machine has no `ss`."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port = listener.getsockname()[1]
+        bind = "127.0.0.1:%d" % port
+
+        assert tool.port_is_free(bind) is False
+        report = tool.held_outside_docker(bind)
+
+    assert report.startswith("in use by a program outside Docker")
+    if shutil.which("ss"):
+        assert "(process %d)" % os.getpid() in report
+    else:
+        assert "sudo ss -H -ltnp 'sport = :%d'" % port in report
 
 
 def test_tags_that_are_not_image_tags_are_refused():
