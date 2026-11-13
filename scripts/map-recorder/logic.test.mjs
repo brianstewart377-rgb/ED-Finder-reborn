@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   DEFAULTS, UsageError, describeStep, drawnBySoftware, droppedByThePage, folderName, frameStats, parseArgs, reportHtml,
-  summaryLines, usage, validateTour,
+  requestNote, requestTotals, summaryLines, tidyAddress, timelineLines, usage, validateTour,
 } from './logic.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -97,6 +97,29 @@ test('a tour with a mistake is refused, naming the step', () => {
   refused({ ready: {}, steps: [{ do: 'shot', name: 'a' }] }, '"ready" needs a "selector"');
   refused({ probe: { selector: '.map' }, steps: [{ do: 'shot', name: 'a' }] }, '"probe" needs');
   refused({ ready: { selector: '.map', drawnWith: 7 }, steps: [{ do: 'shot', name: 'a' }] }, '"drawnWith" that is not the name of an attribute');
+  refused({ probe: [{ selector: '.map', attributes: ['a'] }, { selector: '.count', attributes: ['a'] }], steps: [{ do: 'shot', name: 'a' }] }, 'names the attribute "a" twice');
+  refused({ probe: [{ selector: '.map', attributes: ['a'] }, { attributes: ['b'] }], steps: [{ do: 'shot', name: 'a' }] }, '"probe" needs');
+  refused({ requests: { under: 'api/' }, steps: [{ do: 'shot', name: 'a' }] }, '"requests" needs an "under" that starts with /');
+  refused({ requests: {}, steps: [{ do: 'shot', name: 'a' }] }, '"requests" needs an "under"');
+});
+
+test('a tour can probe one thing on the page or several, and can say which requests to time', async () => {
+  const steps = [{ do: 'shot', name: 'a' }];
+  assert.equal(validateTour({ steps }).probe, null);
+  assert.equal(validateTour({ steps }).requests, null);
+  // One thing, as the first tours had it, becomes a list of one.
+  assert.deepEqual(validateTour({ probe: { selector: '.map', attributes: ['a', 'b'] }, steps }).probe, [{ selector: '.map', attributes: ['a', 'b'] }]);
+  assert.deepEqual(
+    validateTour({ probe: [{ selector: '.map', attributes: ['a'] }, { selector: '.count', attributes: ['n'] }], steps }).probe,
+    [{ selector: '.map', attributes: ['a'] }, { selector: '.count', attributes: ['n'] }],
+  );
+  assert.deepEqual(validateTour({ requests: { under: '/api/' }, steps }).requests, { under: '/api/' });
+  // Our own tour watches the camera, the number of stars drawn, and /api/.
+  const explore = validateTour(JSON.parse(await readFile(path.join(HERE, 'tours', 'explore.json'), 'utf8')));
+  assert.deepEqual(explore.requests, { under: '/api/' });
+  const watched = explore.probe.flatMap((probe) => probe.attributes);
+  assert.ok(watched.includes('data-camera-transition-active'));
+  assert.ok(watched.includes('data-catalogue-star-count'));
 });
 
 test('a tour can say where the map tells which drawing method it chose', async () => {
@@ -158,6 +181,96 @@ test('a request the page dropped itself is told apart from one that failed', () 
   assert.equal(droppedByThePage(undefined), false);
 });
 
+test('an address in a report loses the site\'s name and anything that looks like a private key', () => {
+  const site = 'https://ed-finder.app';
+  assert.equal(tidyAddress('https://ed-finder.app/api/map/systems?min_x=-2000&max_x=0&limit=5000', site), '/api/map/systems?min_x=-2000&max_x=0&limit=5000');
+  // A system's id is a plain number, not a secret: it stays.
+  assert.equal(tidyAddress('https://ed-finder.app/api/v1/systems/10477373803/bodies', site), '/api/v1/systems/10477373803/bodies');
+  // A long run of letters and digits is a key that belongs to one browser
+  // or one person. It must not travel with a recording. (An invented one.)
+  assert.equal(tidyAddress('https://ed-finder.app/api/v2/watchlist/Qw3rTy7uI0pAsDfGh1JkLzXcVbNm2468', site), '/api/v2/watchlist/<key>');
+  assert.equal(tidyAddress('https://ed-finder.app/api/thing?token=Qw3rTy7uI0pAsDfGh1JkLzXcVbNm2468&page=2', site), '/api/thing?token=<key>&page=2');
+  assert.equal(tidyAddress('https://ed-finder.app/api/sessions/3f2b8c1e-7a4d-4e9b-b1c2-9d8e7f6a5b4c', site), '/api/sessions/<key>');
+  // A long route name in small letters is not a key.
+  assert.equal(tidyAddress('https://ed-finder.app/api/colonisation-candidate-summaries', site), '/api/colonisation-candidate-summaries');
+  // Another site keeps its name. Something that is not an address is cut short, not thrown.
+  assert.equal(tidyAddress('https://example.org/font.woff2', site), 'https://example.org/font.woff2');
+  assert.equal(tidyAddress('not an address', site), 'not an address');
+  assert.equal(tidyAddress(`https://ed-finder.app/api/x?q=${'a'.repeat(400)}`, site).length, 240);
+});
+
+// -- timed requests and the timeline ---------------------------------------------------
+
+const asked = (step, atSeconds, address, outcome, tookSeconds, more = {}) => ({
+  step, atSeconds, method: 'GET', address, outcome, status: outcome === 'answered' ? 200 : null, why: null, tookSeconds, kilobytes: null, ...more,
+});
+
+test('timed requests are counted by how they ended, and the slowest answer is found', () => {
+  const requests = [
+    asked('a', 1, '/api/one', 'answered', 0.4),
+    asked('a', 1.1, '/api/two', 'answered', 2.94),
+    asked('a', 1.2, '/api/three', 'dropped', 9),
+    asked('b', 5, '/api/four', 'failed', 0.2, { why: 'net::ERR_CONNECTION_RESET' }),
+    asked('b', 6, '/api/five', 'waiting', null),
+  ];
+  const totals = requestTotals(requests);
+  assert.deepEqual({ ...totals, slowest: totals.slowest.address }, { asked: 5, answered: 2, dropped: 1, failed: 1, waiting: 1, slowest: '/api/two' });
+  // A dropped request's long wait is not an answer's: it is never "slowest".
+  assert.equal(requestTotals([asked('a', 1, '/api/x', 'dropped', 30)]).slowest, null);
+  assert.equal(requestNote(requests.filter((request) => request.step === 'a')), '3 asked: 2 answered (slowest 2.9 s), 1 dropped');
+  assert.equal(requestNote(requests.filter((request) => request.step === 'b')), '2 asked: 1 failed, 1 never answered');
+  assert.equal(requestNote([]), '');
+});
+
+test('the timeline puts requests, changes and freezes in order, under the step that was running', () => {
+  const lines = timelineLines({
+    steps: [
+      { name: 'whole-galaxy', did: 'waited 5 s', startedSeconds: 2 },
+      { name: 'fly-to-sol', did: 'pressed Enter', startedSeconds: 10 },
+    ],
+    requests: [
+      asked('opening the page', 0.5, '/api/map/heatmap?voxel_size=590', 'answered', 1.25, { kilobytes: 412.5 }),
+      asked('fly-to-sol', 10.3, '/api/map/systems?min_x=-2000', 'dropped', 0.3),
+      asked('fly-to-sol', 10.7, '/api/map/systems?min_x=-1000', 'answered', 1.8),
+      asked('fly-to-sol', 11, '/api/local/search', 'failed', 0.5, { method: 'POST', why: 'net::ERR_CONNECTION_RESET' }),
+      asked('fly-to-sol', 12, '/api/never', 'waiting', null),
+    ],
+    changes: [
+      { atSeconds: 10.05, name: 'data-camera-transition-active', value: 'true', was: 'false' },
+      { atSeconds: 10.1, name: 'data-camera-revision', value: '3', was: '2' },
+      { atSeconds: 10.2, name: 'data-camera-revision', value: '4', was: '3' },
+      { atSeconds: 10.4, name: 'data-camera-revision', value: '5', was: '4' },
+      { atSeconds: 12.6, name: 'data-catalogue-star-count', value: '4554', was: '8000' },
+      { atSeconds: 12.7, name: 'data-last-settled-focus-id64', value: '10477373803', was: null },
+    ],
+    freezes: [{ atSeconds: 10.01, ms: 616.7 }],
+  });
+  assert.deepEqual(lines, [
+    'opening the page',
+    '     0.50 s  asked     GET /api/map/heatmap?voxel_size=590',
+    '     1.75 s  answered  GET /api/map/heatmap?voxel_size=590: 200, after 1.3 s, 412.5 KB',
+    '',
+    'fly-to-sol (began at 10 s: pressed Enter)',
+    '    10.01 s  froze     the picture stood still for 617 ms',
+    '    10.05 s  changed   data-camera-transition-active: false -> true',
+    // Changes running to the same attribute are one line. The request asked
+    // at 10.3 s comes between the second and third, so it ends the run.
+    '    10.10 s  changed   data-camera-revision: 2 -> 4, in 2 changes over 0.1 s',
+    '    10.30 s  asked     GET /api/map/systems?min_x=-2000',
+    '    10.40 s  changed   data-camera-revision: 4 -> 5',
+    '    10.60 s  dropped   GET /api/map/systems?min_x=-2000: by the page, after 0.3 s',
+    '    10.70 s  asked     GET /api/map/systems?min_x=-1000',
+    '    11.00 s  asked     POST /api/local/search',
+    '    11.50 s  FAILED    POST /api/local/search: net::ERR_CONNECTION_RESET, after 0.5 s',
+    '    12.00 s  asked     GET /api/never',
+    '    12.50 s  answered  GET /api/map/systems?min_x=-1000: 200, after 1.8 s',
+    '    12.60 s  changed   data-catalogue-star-count: 8000 -> 4554',
+    '    12.70 s  changed   data-last-settled-focus-id64: nothing -> 10477373803',
+  ]);
+  // Nothing timed (a tour that asks for none of it, or an older report): no timeline.
+  assert.deepEqual(timelineLines({ steps: [] }), []);
+});
+
 // -- the report ------------------------------------------------------------------------
 
 const REPORT = {
@@ -215,6 +328,26 @@ test('the report lists what went wrong', () => {
   assert.doesNotMatch(html, /Nothing: no errors/);
 });
 
+test('the report page shows each step\'s data requests and the timeline', () => {
+  const steps = [
+    { name: 'whole-galaxy', did: 'waited 4 s', startedSeconds: 2, picture: null, stats: frameStats([16.7, 16.7]), probe: null },
+    { name: 'fly-to-sol', did: 'pressed Enter', startedSeconds: 10, picture: null, stats: frameStats([16.7]), probe: null },
+  ];
+  const requests = [
+    asked('fly-to-sol', 10.2, '/api/map/systems?min_x=-2000', 'dropped', 0.3),
+    asked('fly-to-sol', 10.6, '/api/map/systems?min_x=-1000', 'answered', 1.9),
+  ];
+  const html = reportHtml({ ...REPORT, steps, requests, changes: [], freezes: [] });
+  assert.match(html, /<th>Data requests<\/th>/);
+  assert.match(html, /<td>fly-to-sol<\/td>.*<td>2 asked: 1 answered \(slowest 1\.9 s\), 1 dropped<\/td><\/tr>/);
+  assert.match(html, /<td>whole-galaxy<\/td>.*<td><\/td><\/tr>/);
+  assert.match(html, /<h2>What happened when<\/h2>/);
+  assert.match(html, /Show the timeline \(5 lines\)/);
+  assert.match(html, /10\.50 s {2}dropped {3}GET \/api\/map\/systems\?min_x=-2000: by the page, after 0\.3 s/);
+  // A report with nothing timed has no timeline section, and still reads.
+  assert.doesNotMatch(reportHtml(REPORT), /What happened when/);
+});
+
 test('requests the page dropped itself are shown apart, and are not called failures', () => {
   const dropped = ['fly-to-sol-start: GET /api/map/systems?min_x=0 (net::ERR_ABORTED)', 'type-sol: GET /api/local/autocomplete?q=So (net::ERR_ABORTED)'];
   const html = reportHtml({ ...REPORT, droppedRequests: dropped });
@@ -262,6 +395,16 @@ test('the closing lines say so when nothing stalled, and name steps that did not
     'No step had a stall (a frame over 100 ms).',
     'Steps that did not work: pick.',
     'Errors on the page: 0. In the console: 0. Requests that failed: 0.',
+  ]);
+  // With the page's data requests timed, they are counted and the slowest answer named.
+  const requests = [
+    asked('whole-galaxy', 1, '/api/map/heatmap?voxel_size=590', 'answered', 0.8),
+    asked('pick', 5, '/api/local/search?near=10477373803', 'answered', 4.26, { method: 'POST' }),
+    asked('pick', 5.1, '/api/map/systems?min_x=0', 'dropped', 0.2),
+  ];
+  assert.deepEqual(summaryLines({ ...REPORT, graphics: { ...REPORT.graphics, mapDrawnWith: '' }, steps: [steady], requests }).slice(-2), [
+    'The page\'s data requests: 3 asked, 2 answered, 1 dropped by the page, 0 failed.',
+    'Slowest answer: 4.3 s, for POST /api/local/search, asked in pick.',
   ]);
   // A tour that never ran (the map was not ready) still gets the error counts.
   assert.deepEqual(summaryLines({ ...REPORT, graphics: { ...REPORT.graphics, mapDrawnWith: '' }, steps: [] }), [

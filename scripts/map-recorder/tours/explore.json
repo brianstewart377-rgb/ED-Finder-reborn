@@ -2,17 +2,21 @@
   "about": "The Explore galaxy map as it is today. Type Sol and fly to it; pick a result; zoom, pan, turn and tilt; type Colonia and fly right across the map; back out to the whole galaxy.",
   "path": "/explore",
   "ready": { "selector": "[data-renderer-state=\"ready\"]", "timeoutSeconds": 90, "drawnWith": "data-renderer-backend" },
-  "probe": {
-    "selector": ".spatial-canvas",
-    "attributes": [
-      "data-camera-transition-active",
-      "data-last-settled-focus-id64",
-      "data-scene-target-count",
-      "data-rendered-layer-ids",
-      "data-camera-revision",
-      "data-camera-pitch"
-    ]
-  },
+  "probe": [
+    {
+      "selector": ".spatial-canvas",
+      "attributes": [
+        "data-camera-transition-active",
+        "data-last-settled-focus-id64",
+        "data-scene-target-count",
+        "data-rendered-layer-ids",
+        "data-camera-revision",
+        "data-camera-pitch"
+      ]
+    },
+    { "selector": ".map-catalogue-status", "attributes": ["data-catalogue-star-count"] }
+  ],
+  "requests": { "under": "/api/" },
   "steps": [
     { "do": "wait", "name": "whole-galaxy", "seconds": 5 },
 
@@ -24,6 +28,7 @@
     { "do": "wait", "name": "fly-to-sol-arrived", "seconds": 4, "settleSeconds": 0 },
 
     { "do": "waitFor", "name": "results-near-sol", "selector": "[data-system-result]", "timeoutSeconds": 30, "settleSeconds": 2 },
+    { "do": "wait", "name": "stars-near-sol", "seconds": 10, "settleSeconds": 0 },
     { "do": "click", "name": "fly-to-a-result-start", "selector": "[data-result-select]", "settleSeconds": 0.3 },
     { "do": "wait", "name": "fly-to-a-result-arrived", "seconds": 4, "settleSeconds": 0 },
 

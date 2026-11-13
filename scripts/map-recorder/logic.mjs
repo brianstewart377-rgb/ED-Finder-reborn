@@ -129,12 +129,25 @@ export function validateTour(tour) {
   if (ready !== null && ready.drawnWith !== undefined && (typeof ready.drawnWith !== 'string' || ready.drawnWith === '')) {
     throw new Error('The tour\'s "ready" has a "drawnWith" that is not the name of an attribute.');
   }
-  const probe = tour.probe ?? null;
-  if (probe !== null) {
-    if (typeof probe.selector !== 'string' || !Array.isArray(probe.attributes)
-      || !probe.attributes.every((name) => typeof name === 'string')) {
+  // "probe": attributes to read off the page after each step, and to watch
+  // for changes during it. One thing on the page, or a list of them.
+  const probes = tour.probe === undefined || tour.probe === null ? [] : [tour.probe].flat();
+  const probed = new Set();
+  for (const probe of probes) {
+    if (probe === null || typeof probe !== 'object' || typeof probe.selector !== 'string' || probe.selector === ''
+      || !Array.isArray(probe.attributes) || !probe.attributes.every((name) => typeof name === 'string' && name !== '')) {
       throw new Error('The tour\'s "probe" needs a "selector" and a list of "attributes".');
     }
+    for (const name of probe.attributes) {
+      if (probed.has(name)) throw new Error(`The tour's "probe" names the attribute "${name}" twice.`);
+      probed.add(name);
+    }
+  }
+  // "requests": which of the page's own requests to time, by the start of
+  // their path. Ours all sit under /api/.
+  const requests = tour.requests ?? null;
+  if (requests !== null && (typeof requests.under !== 'string' || !requests.under.startsWith('/'))) {
+    throw new Error('The tour\'s "requests" needs an "under" that starts with /, such as /api/.');
   }
   if (!Array.isArray(tour.steps) || tour.steps.length === 0) throw new Error('The tour needs a list of "steps".');
   const names = new Set();
@@ -191,7 +204,8 @@ export function validateTour(tour) {
     ready: ready === null ? null : {
       selector: ready.selector, timeoutSeconds: ready.timeoutSeconds ?? 90, drawnWith: ready.drawnWith ?? null,
     },
-    probe,
+    probe: probes.length === 0 ? null : probes.map((probe) => ({ selector: probe.selector, attributes: [...probe.attributes] })),
+    requests: requests === null ? null : { under: requests.under },
     steps,
   };
 }
@@ -244,6 +258,119 @@ export function droppedByThePage(errorText) {
   return /ERR_ABORTED|NS_BINDING_ABORTED/i.test(errorText ?? '');
 }
 
+/**
+ * A request's address as the report shows it: without the site's own name,
+ * short enough to read, and with anything that looks like a private key
+ * taken out. A recording gets passed on, and some addresses carry a key that
+ * belongs to one browser or one person (a long run of letters and digits).
+ * Plain numbers stay: a system's id is not a secret.
+ */
+export function tidyAddress(address, origin) {
+  let url;
+  try {
+    url = new URL(address);
+  } catch {
+    return String(address).slice(0, 240);
+  }
+  // A key: 20 or more letters, digits and dashes, with a digit or a capital
+  // among them. That leaves alone a long route name in small letters.
+  const key = (text) => /^[A-Za-z0-9_~.-]{20,}$/.test(text) && /[0-9A-Z]/.test(text) && /[A-Za-z]/.test(text);
+  const path = url.pathname.split('/').map((part) => (key(part) ? '<key>' : part)).join('/');
+  const asked = [...url.searchParams].map(([name, value]) => `${name}=${key(value) ? '<key>' : value}`).join('&');
+  const shown = `${url.origin === origin ? '' : url.origin}${path}${asked ? `?${asked}` : ''}`;
+  return shown.length > 240 ? `${shown.slice(0, 239)}…` : shown;
+}
+
+const seconds = (value) => `${Math.round(value * 10) / 10} s`;
+
+/** Count a list of timed requests, and find the answer that took longest. */
+export function requestTotals(requests) {
+  const count = (outcome) => requests.filter((request) => request.outcome === outcome).length;
+  const answered = requests.filter((request) => request.outcome === 'answered' && request.tookSeconds !== null);
+  return {
+    asked: requests.length,
+    answered: count('answered'),
+    dropped: count('dropped'),
+    failed: count('failed'),
+    waiting: count('waiting'),
+    slowest: answered.length === 0 ? null : answered.reduce((worst, request) => (request.tookSeconds > worst.tookSeconds ? request : worst)),
+  };
+}
+
+/** A few words on the requests one step asked: "6 asked: 5 answered (slowest 1.9 s), 1 dropped". */
+export function requestNote(requests) {
+  if (requests.length === 0) return '';
+  const totals = requestTotals(requests);
+  const parts = [];
+  if (totals.answered > 0) parts.push(`${totals.answered} answered${totals.slowest ? ` (slowest ${seconds(totals.slowest.tookSeconds)})` : ''}`);
+  if (totals.dropped > 0) parts.push(`${totals.dropped} dropped`);
+  if (totals.failed > 0) parts.push(`${totals.failed} failed`);
+  if (totals.waiting > 0) parts.push(`${totals.waiting} never answered`);
+  return `${totals.asked} asked: ${parts.join(', ')}`;
+}
+
+/**
+ * Everything the recorder timed, in the order it happened, as lines of text:
+ * each request asked and answered, each change the map reported about
+ * itself, and each time the picture stood still. Grouped under the step
+ * that was running. This is what answers "why did that take so long".
+ */
+export function timelineLines(report) {
+  const events = [];
+  for (const request of report.requests ?? []) {
+    events.push({ at: request.atSeconds, text: `asked     ${request.method} ${request.address}` });
+    if (request.outcome === 'waiting') continue;
+    const took = request.tookSeconds ?? 0;
+    const ending = {
+      answered: `answered  ${request.method} ${request.address}: ${request.status ?? 'no status'}, after ${seconds(took)}${request.kilobytes === null ? '' : `, ${request.kilobytes} KB`}`,
+      dropped: `dropped   ${request.method} ${request.address}: by the page, after ${seconds(took)}`,
+      failed: `FAILED    ${request.method} ${request.address}: ${request.why ?? 'no reason given'}, after ${seconds(took)}`,
+    }[request.outcome];
+    events.push({ at: request.atSeconds + took, text: ending });
+  }
+  for (const change of report.changes ?? []) events.push({ at: change.atSeconds, change });
+  for (const freeze of report.freezes ?? []) {
+    events.push({ at: freeze.atSeconds, text: `froze     the picture stood still for ${Math.round(freeze.ms)} ms` });
+  }
+  if (events.length === 0) return [];
+  events.sort((a, b) => a.at - b.at);
+  const starts = report.steps.filter((step) => typeof step.startedSeconds === 'number').sort((a, b) => a.startedSeconds - b.startedSeconds);
+  const lines = [];
+  let heading = null;
+  // An attribute that changes many times running (the camera's position
+  // while it moves, say) is one line: where it began and where it ended.
+  let run = null;
+  const endRun = () => {
+    if (run === null) return;
+    const often = run.count === 1 ? '' : `, in ${run.count} changes over ${seconds(run.last - run.at)}`;
+    lines.push(`  ${run.at.toFixed(2).padStart(7)} s  changed   ${run.name}: ${run.was ?? 'nothing'} -> ${run.value ?? 'nothing'}${often}`);
+    run = null;
+  };
+  for (const event of events) {
+    const step = starts.findLast((candidate) => candidate.startedSeconds <= event.at);
+    const title = step ? `${step.name} (began at ${seconds(step.startedSeconds)}: ${step.did})` : 'opening the page';
+    if (title !== heading) {
+      endRun();
+      if (heading !== null) lines.push('');
+      lines.push(title);
+      heading = title;
+    }
+    if (event.change && run !== null && run.name === event.change.name) {
+      run.value = event.change.value;
+      run.last = event.at;
+      run.count += 1;
+    } else if (event.change) {
+      endRun();
+      run = { at: event.at, last: event.at, count: 1, name: event.change.name, was: event.change.was, value: event.change.value };
+    } else {
+      endRun();
+      lines.push(`  ${event.at.toFixed(2).padStart(7)} s  ${event.text}`);
+    }
+  }
+  endRun();
+  return lines;
+}
+
 /** The lines printed when a recording ends: what to know before opening it. */
 export function summaryLines(report) {
   const lines = [];
@@ -264,6 +391,11 @@ export function summaryLines(report) {
   lines.push(`Errors on the page: ${report.pageErrors.length}. In the console: ${report.consoleErrors.length}. Requests that failed: ${report.failedRequests.length}.`);
   const dropped = (report.droppedRequests ?? []).length;
   if (dropped > 0) lines.push(`Requests the page dropped itself before an answer came: ${dropped}. That is normal while the map moves.`);
+  if ((report.requests ?? []).length > 0) {
+    const totals = requestTotals(report.requests);
+    lines.push(`The page's data requests: ${totals.asked} asked, ${totals.answered} answered, ${totals.dropped} dropped by the page, ${totals.failed} failed${totals.waiting > 0 ? `, ${totals.waiting} never answered` : ''}.`);
+    if (totals.slowest) lines.push(`Slowest answer: ${seconds(totals.slowest.tookSeconds)}, for ${totals.slowest.method} ${totals.slowest.address.split('?')[0]}, asked in ${totals.slowest.step}.`);
+  }
   return lines;
 }
 
@@ -286,9 +418,15 @@ export function reportHtml(report) {
   if (!report.ready.ok) warnings.push(`The map never said it was ready (waited ${report.ready.waitedSeconds} s for ${report.ready.selector}). The tour did not run.`);
   const failed = report.steps.filter((step) => step.failed);
   if (failed.length > 0) warnings.push(`${failed.length} of the tour's steps did not work: ${failed.map((step) => step.name).join(', ')}. The steps after them still ran.`);
+  const timed = report.requests ?? [];
   const rows = report.steps.map((step) => `<tr><td>${e(step.name)}</td><td>${e(step.did)}${step.failed ? `<br><b>Did not work:</b> ${e(step.failed)}` : ''}</td>`
     + `<td>${step.stats.framesPerSecond}</td><td>${step.stats.typicalMs}</td><td>${step.stats.slowestMs}</td>`
-    + `<td>${step.stats.missed}</td><td>${step.stats.stalls}</td></tr>`).join('\n');
+    + `<td>${step.stats.missed}</td><td>${step.stats.stalls}</td>`
+    + `<td>${e(requestNote(timed.filter((request) => request.step === step.name)))}</td></tr>`).join('\n');
+  const timeline = timelineLines(report);
+  const timelineNote = timeline.length === 0 ? '' : '<h2>What happened when</h2>'
+    + '<p>Every data request the page made and when its answer came, every change the map reported about itself, and every time the picture stood still. Times are seconds since the page was opened. The same list is in <code>timeline.txt</code>.</p>'
+    + `<details><summary>Show the timeline (${timeline.length} lines)</summary><pre>${e(timeline.join('\n'))}</pre></details>`;
   const pictures = report.steps.filter((step) => step.picture).map((step) => `<figure><img src="${e(step.picture)}" alt="${e(step.name)}">`
     + `<figcaption><b>${e(step.name)}</b>: ${e(step.did)}${step.probe ? `<br><code>${e(JSON.stringify(step.probe))}</code>` : ''}</figcaption></figure>`).join('\n');
   const list = (title, items) => (items.length === 0 ? '' : `<h3>${e(title)} (${items.length})</h3><ul>${items.slice(0, 50).map((item) => `<li><code>${e(item)}</code></li>`).join('')}</ul>`);
@@ -305,6 +443,7 @@ body{font:15px/1.5 system-ui,sans-serif;background:#111;color:#ddd;margin:24px;m
 h1,h2,h3{color:#fff}table{border-collapse:collapse}td,th{border:1px solid #444;padding:4px 10px;text-align:right}
 td:nth-child(-n+2),th:nth-child(-n+2){text-align:left}figure{margin:24px 0}img,video{max-width:100%;border:1px solid #444}
 .warn{background:#5a1d1d;border:1px solid #c44;padding:10px 14px;margin:10px 0}code{color:#f0ad56;word-break:break-all}dt{color:#999}
+td:last-child,th:last-child{text-align:left}pre{font:13px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
 </style></head><body>
 <h1>Map recording: ${e(report.name)}</h1>
 ${warnings.map((text) => `<p class="warn">${e(text)}</p>`).join('\n')}
@@ -318,10 +457,11 @@ ${warnings.map((text) => `<p class="warn">${e(text)}</p>`).join('\n')}
 <dt>Window</dt><dd>${e(report.width)} x ${e(report.height)}, display scaling ${e(report.scale)}</dd>
 </dl>
 <h2>How smoothly it ran</h2>
-<p>Frames a second while each step moved the map. "Missed" counts frames that took over 33 ms; "stalls" over 100 ms.</p>
-<table><tr><th>Step</th><th>What it did</th><th>Frames a second</th><th>Typical frame (ms)</th><th>Slowest frame (ms)</th><th>Missed</th><th>Stalls</th></tr>
+<p>Frames a second while each step moved the map. "Missed" counts frames that took over 33 ms; "stalls" over 100 ms. "Data requests" are the ones the page made during the step.</p>
+<table><tr><th>Step</th><th>What it did</th><th>Frames a second</th><th>Typical frame (ms)</th><th>Slowest frame (ms)</th><th>Missed</th><th>Stalls</th><th>Data requests</th></tr>
 ${rows}
 </table>
+${timelineNote}
 ${troubles ? `<h2>What went wrong</h2>${troubles}` : '<h2>What went wrong</h2><p>Nothing: no errors on the page, none in the console, no failed requests.</p>'}
 ${droppedNote}
 <h2>The video</h2>
