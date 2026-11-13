@@ -29,6 +29,15 @@ each.
 All of it is real data fetched from the live site: Find's results from
 `POST /api/local/search`, and the stars from `GET /api/map/systems`.
 
+- **A player's own systems, all at once.** The second step of the map's
+  roadmap. When the data holds systems of the player's own, the page opens on
+  "All my systems": each one on the map with its 15 light years around it,
+  framed together. Built, being built and planned systems are separate
+  groups, so Almanac's own switches hide and show each kind. Picking one
+  gives a SHOW ON MAP button that flies in to it and its stars in range.
+  On the site the builder will keep this list. In the trial it is a file:
+  see "Your own systems" below.
+
 - **Almanac's map exactly as published**: the npm package
   `@elite-dangerous-almanac/galaxy-map`, version 0.7.1, with no changes of
   ours. Its licence is PolyForm Noncommercial 1.0.0. None of its code is kept
@@ -70,6 +79,30 @@ To open on one system, add its id to the address, as a button in Find would:
 `http://localhost:5199/?system=3238296097059` opens on Colonia. Only the
 systems in the list are held.
 
+## Your own systems
+
+The list is yours, so it is not kept in git. To give the trial one, make a
+file named `my-systems.local.json` in this folder, in the form of
+`my-systems.example.json`:
+
+Reference text, the form of the file (not a command):
+
+```
+[
+  { "name": "Sol", "status": "built" },
+  { "name": "Colonia", "status": "building", "progress": 50 },
+  { "name": "Wregoe SJ-I d9-89", "status": "planned" }
+]
+```
+
+- `name` is the system's exact name.
+- `status` is `built`, `building` or `planned`.
+- `progress` is optional: how far along a build is, from 0 to 100.
+
+The data step below then looks each one up by name on the live site and
+fetches its stars in range. With no such file, the page simply has no "My
+systems".
+
 ## Building the page from nothing
 
 On any computer with Node 22.18 or newer and the internet, in this folder
@@ -109,8 +142,9 @@ commands.
 |---|---|
 | `index.html`, `src/main.js` | The page. It hands our data to the map and has no controls of its own. |
 | `src/logic.mjs` | The page's own rules: which stars are in range of a system, a star's group and colour, the range ball, and what the panel says. |
-| `fixtures/` | For the tests, both real and unchanged: the first 60 rows of Find's answer near Sol, and the site's answer for the 30 ly box around Sol. |
-| `fetch-data.mjs` | Fetches Find's results and the stars around each system from the live site. |
+| `fixtures/` | For the tests, all real and unchanged answers of the live site: the first 60 rows of Find's answer near Sol, the 30 ly box around Sol, and a name search for "Sol". |
+| `fetch-data.mjs` | Fetches Find's results and the stars around each system from the live site, and the player's own systems if a list is given. |
+| `my-systems.example.json` | The form of a player's own list. The real one, `my-systems.local.json`, stays out of git. |
 | `worker-files.mjs`, `vite.config.mjs` | The build. Almanac's background workers ask for one picture the bundler misses; this copies it. |
 | `licence-files.mjs` | Puts Almanac's licence files beside the built page, and stops the build unless the page shows the notice the licence asks for. |
 | `serve.mjs`, `serve-files.mjs` | A small server for this computer only. Node's own modules, nothing to install. |

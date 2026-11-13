@@ -1,0 +1,5 @@
+[
+  { "name": "Sol", "status": "built" },
+  { "name": "Colonia", "status": "building", "progress": 50 },
+  { "name": "Wregoe SJ-I d9-89", "status": "planned" }
+]

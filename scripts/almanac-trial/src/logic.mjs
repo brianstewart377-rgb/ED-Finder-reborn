@@ -133,11 +133,72 @@ export function anchorInBox(boxSystems, anchor) {
 }
 
 /**
+ * What a system of the player's own can be. The builder will keep this list;
+ * in the trial it comes from a file the player writes. Each status is a
+ * group on the map with its own switch, so planned systems can be hidden.
+ */
+export const STATUSES = {
+  built: { name: 'Built', color: [235, 235, 245] },
+  building: { name: 'Being built', color: [255, 170, 80] },
+  planned: { name: 'Planned', color: [120, 190, 255] },
+};
+
+/** The id of the set that shows all of the player's systems at once. */
+export const MINE_ID = 'my-systems';
+
+/**
+ * The player's list as written, checked. Each entry names a system and says
+ * whether it is built, being built or planned; one being built may say how
+ * far along it is, from 0 to 100.
+ */
+export function readMine(list) {
+  if (!Array.isArray(list)) throw new Error('The list of your systems must be a list in square brackets.');
+  return list.map((entry, index) => {
+    const where = `Entry ${index + 1} of your systems`;
+    if (typeof entry?.name !== 'string' || !entry.name.trim()) throw new Error(`${where} has no name.`);
+    if (!Object.hasOwn(STATUSES, entry.status)) {
+      throw new Error(`${where} (${entry.name}) needs a status: built, building or planned.`);
+    }
+    const mine = { name: entry.name.trim(), status: entry.status };
+    if (entry.progress != null) {
+      if (!Number.isFinite(entry.progress) || entry.progress < 0 || entry.progress > 100) {
+        throw new Error(`${where} (${entry.name}) has a progress that is not a number from 0 to 100.`);
+      }
+      mine.progress = entry.progress;
+    }
+    return mine;
+  });
+}
+
+/**
+ * The system of exactly this name among the site's answers to a name search
+ * (`GET /api/local/autocomplete`), or null. Capitals do not matter.
+ */
+export function pickByName(results, name) {
+  const wanted = name.trim().toLowerCase();
+  const found = results.find((result) => String(result.name).toLowerCase() === wanted);
+  if (!found || ![found.x, found.y, found.z].every(Number.isFinite)) return null;
+  if (typeof found.id64 === 'number' && !Number.isSafeInteger(found.id64)) return null;
+  return { id64: String(found.id64), name: found.name, x: found.x, y: found.y, z: found.z };
+}
+
+/** The site's own record of a system in the box around it, with its star class. */
+export function systemInBox(boxSystems, system) {
+  const found = boxSystems.find((one) => String(one.id64) === system.id64);
+  return { ...system, star: found?.main_star_class ?? null };
+}
+
+/**
  * One "show me on map": the chosen system and the real stars in range of it.
  * `find` is Find's row for the chosen system, or null for an anchor.
  */
 export function showing(chosen, boxSystems, near, find = null) {
   return { chosen, near, find, stars: starsInRange(boxSystems, chosen) };
+}
+
+/** A "show me on map" of one of the player's own systems. `mine` is its entry in the list. */
+export function showingMine(chosen, boxSystems, mine) {
+  return { chosen, near: null, find: null, mine, stars: starsInRange(boxSystems, chosen) };
 }
 
 /** The chosen system, in its own star's group like every other star. The ball around it marks it. */
@@ -165,6 +226,11 @@ function starRecord(star) {
   return record;
 }
 
+function collectionOf(shown) {
+  if (shown.mine) return 'My systems';
+  return shown.find ? `Chosen in Find, near ${shown.near}` : 'Where the searches start';
+}
+
 /**
  * A showing as an entry of the map's own list of sets, without its loader.
  * In the trial the list stands in for the "show me on map" button of Find.
@@ -174,7 +240,7 @@ export function datasetEntry(shown) {
   return {
     id: chosen.id64,
     label: chosen.name,
-    collection: shown.find ? `Chosen in Find, near ${shown.near}` : 'Where the searches start',
+    collection: collectionOf(shown),
     region: `Within ${RANGE_LY} ly of ${chosen.name}`,
     description: `${chosen.name} and the ${stars.length.toLocaleString('en-GB')} real stars within `
       + `${RANGE_LY} light years of it, each in the colour of its star class. ${RANGE_LY} light years is `
@@ -205,6 +271,51 @@ export function rangeSphere(shown) {
   };
 }
 
+/** The showings that are the player's own, in the order of the player's list. */
+export function mineAmong(showings) {
+  return showings.filter((shown) => shown.mine);
+}
+
+/** All of the player's systems at once, as an entry of the map's list. The camera frames them all. */
+export function mineEntry(mine) {
+  return {
+    id: MINE_ID,
+    label: 'All my systems',
+    collection: 'My systems',
+    description: `Your ${mine.length} systems, each with ${RANGE_LY} light years around it. Built, being built and `
+      + 'planned systems are separate groups, so each can be switched off.',
+    systemCount: mine.length,
+    view: { fit: 'systems', pitch: 35 },
+  };
+}
+
+/** What the overview hands the map: one group for each status in use, and the systems. */
+export function mineContent(mine) {
+  const used = new Set(mine.map((shown) => shown.mine.status));
+  return {
+    categories: Object.entries(STATUSES)
+      .filter(([status]) => used.has(status))
+      .map(([, group]) => ({ name: group.name, color: group.color, markerStyle: 'disc' })),
+    systems: mine.map((shown) => {
+      const record = {
+        name: shown.chosen.name,
+        id64: shown.chosen.id64,
+        coords: { x: shown.chosen.x, y: shown.chosen.y, z: shown.chosen.z },
+        categories: [STATUSES[shown.mine.status].name],
+      };
+      if (shown.chosen.star) record.primaryStar = shown.chosen.star;
+      return record;
+    }),
+  };
+}
+
+/** What the panel says of one of the player's systems: its status first. */
+function mineValues(mine) {
+  const values = [{ label: 'STATUS', value: STATUSES[mine.status].name.toLowerCase() }];
+  if (mine.progress != null) values.push({ label: 'PROGRESS', value: `${Math.round(mine.progress)} %` });
+  return values;
+}
+
 function words(code) {
   return String(code).replaceAll('_', ' ');
 }
@@ -212,6 +323,11 @@ function words(code) {
 /** Where Inspect shows a system on the live site. */
 export function inspectAddress(id64) {
   return `https://ed-finder.app/s/${id64}`;
+}
+
+function aboutChosen(shown) {
+  if (shown.mine) return 'One of your systems.';
+  return shown.find ? `Chosen in Find, near ${shown.near}.` : `Where the searches near ${shown.near} start.`;
 }
 
 /**
@@ -223,7 +339,7 @@ export function inspectAddress(id64) {
 export function detailsOf(shown, id64) {
   const { chosen, find } = shown;
   if (id64 === chosen.id64) {
-    const values = [];
+    const values = shown.mine ? mineValues(shown.mine) : [];
     if (find?.score != null) values.push({ label: 'SCORE', value: String(Math.round(find.score)) });
     if (find?.tier) values.push({ label: 'TIER', value: find.tier });
     if (find?.archetype) values.push({ label: 'BEST AS', value: words(find.archetype) });
@@ -231,12 +347,7 @@ export function detailsOf(shown, id64) {
     if (find?.claim) values.push({ label: 'CLAIM', value: words(find.claim) });
     values.push({ label: 'STARS IN RANGE', value: String(shown.stars.length) });
     values.push({ label: 'ID', value: chosen.id64, copy: chosen.id64 });
-    return {
-      description: find
-        ? `Chosen in Find, near ${shown.near}. The shaded ball is ${RANGE_LY} ly around it.`
-        : `Where the searches near ${shown.near} start. The shaded ball is ${RANGE_LY} ly around it.`,
-      values,
-    };
+    return { description: `${aboutChosen(shown)} The shaded ball is ${RANGE_LY} ly around it.`, values };
   }
   const star = shown.stars.find((one) => one.id64 === id64);
   if (!star) return null;
