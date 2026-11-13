@@ -271,6 +271,34 @@ test('the timeline puts requests, changes and freezes in order, under the step t
   assert.deepEqual(timelineLines({ steps: [] }), []);
 });
 
+test('two attributes that change turn about are two lines of the timeline, not one for every change', () => {
+  // What a tilt looks like: the camera's position and its tilt both change
+  // on every frame. The owner's second recording had 118 lines of this.
+  const changes = [];
+  for (let frame = 0; frame < 60; frame += 1) {
+    changes.push({ atSeconds: 60 + frame * 0.05, name: 'data-camera-revision', value: String(69 + frame), was: String(68 + frame) });
+    changes.push({ atSeconds: 60 + frame * 0.05, name: 'data-camera-pitch', value: (1.57 - (frame + 1) * 0.008).toFixed(3), was: (1.57 - frame * 0.008).toFixed(3) });
+  }
+  changes.push({ atSeconds: 63.2, name: 'data-catalogue-star-count', value: '482', was: '501' });
+  const lines = timelineLines({
+    steps: [{ name: 'tilt', did: 'dragged with the right button', startedSeconds: 59.9 }],
+    requests: [asked('tilt', 63.5, '/api/map/systems?min_x=0', 'answered', 0.2)],
+    changes: [...changes, { atSeconds: 63.9, name: 'data-catalogue-star-count', value: '668', was: '482' }],
+    freezes: [],
+  });
+  assert.deepEqual(lines, [
+    'tilt (began at 59.9 s: dragged with the right button)',
+    '    60.00 s  changed   data-camera-revision: 68 -> 128, in 60 changes over 3 s',
+    '    60.00 s  changed   data-camera-pitch: 1.570 -> 1.090, in 60 changes over 3 s',
+    '    63.20 s  changed   data-catalogue-star-count: 501 -> 482',
+    '    63.50 s  asked     GET /api/map/systems?min_x=0',
+    '    63.70 s  answered  GET /api/map/systems?min_x=0: 200, after 0.2 s',
+    // A request between two changes to the same attribute keeps them apart:
+    // the count of stars before the answer and after it are both shown.
+    '    63.90 s  changed   data-catalogue-star-count: 482 -> 668',
+  ]);
+});
+
 // -- the report ------------------------------------------------------------------------
 
 const REPORT = {

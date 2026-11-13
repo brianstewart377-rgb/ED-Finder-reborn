@@ -337,37 +337,45 @@ export function timelineLines(report) {
   const starts = report.steps.filter((step) => typeof step.startedSeconds === 'number').sort((a, b) => a.startedSeconds - b.startedSeconds);
   const lines = [];
   let heading = null;
-  // An attribute that changes many times running (the camera's position
-  // while it moves, say) is one line: where it began and where it ended.
-  let run = null;
-  const endRun = () => {
-    if (run === null) return;
-    const often = run.count === 1 ? '' : `, in ${run.count} changes over ${seconds(run.last - run.at)}`;
-    lines.push(`  ${run.at.toFixed(2).padStart(7)} s  changed   ${run.name}: ${run.was ?? 'nothing'} -> ${run.value ?? 'nothing'}${often}`);
-    run = null;
+  // An attribute that changes many times with no request or freeze in
+  // between (the camera's position and tilt while it moves, say) is one
+  // line: where it began and where it ended. Each attribute is followed by
+  // itself, so two that change turn about (position, tilt, position, tilt)
+  // make two lines, not hundreds.
+  const runs = new Map();
+  const endRuns = () => {
+    for (const run of [...runs.values()].sort((a, b) => a.at - b.at)) {
+      const often = run.count === 1 ? '' : `, in ${run.count} changes over ${seconds(run.last - run.at)}`;
+      lines.push(`  ${run.at.toFixed(2).padStart(7)} s  changed   ${run.name}: ${run.was ?? 'nothing'} -> ${run.value ?? 'nothing'}${often}`);
+    }
+    runs.clear();
   };
   for (const event of events) {
     const step = starts.findLast((candidate) => candidate.startedSeconds <= event.at);
     const title = step ? `${step.name} (began at ${seconds(step.startedSeconds)}: ${step.did})` : 'opening the page';
     if (title !== heading) {
-      endRun();
+      endRuns();
       if (heading !== null) lines.push('');
       lines.push(title);
       heading = title;
     }
-    if (event.change && run !== null && run.name === event.change.name) {
-      run.value = event.change.value;
-      run.last = event.at;
-      run.count += 1;
-    } else if (event.change) {
-      endRun();
-      run = { at: event.at, last: event.at, count: 1, name: event.change.name, was: event.change.was, value: event.change.value };
+    if (event.change) {
+      const run = runs.get(event.change.name);
+      if (run) {
+        run.value = event.change.value;
+        run.last = event.at;
+        run.count += 1;
+      } else {
+        runs.set(event.change.name, {
+          at: event.at, last: event.at, count: 1, name: event.change.name, was: event.change.was, value: event.change.value,
+        });
+      }
     } else {
-      endRun();
+      endRuns();
       lines.push(`  ${event.at.toFixed(2).padStart(7)} s  ${event.text}`);
     }
   }
-  endRun();
+  endRuns();
   return lines;
 }
 

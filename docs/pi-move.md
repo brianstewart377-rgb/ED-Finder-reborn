@@ -469,6 +469,22 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
   nothing is drawn until the second round is in. A box takes 1 to 3 s to
   come back from the server. The Pi is likely to be slower at each link, so
   the box query is the first thing to time there.
+- (13 Nov, second recording, with every request timed) The same chain with
+  its real times, on a server that had just answered the same questions.
+  After Enter on Sol the stars were drawn 4.0 s later. The map did not ask
+  for them until 2.6 s after Enter: it waited for the search (0.8 s) and the
+  system's details, and the picture stood still three times for about half
+  a second each. The two rounds of four boxes then took about 0.6 s each.
+  The first recording's 9.5 s was the same chain when the server had not
+  been asked before. With nothing else to wait for (Reset view) the stars
+  were there in under a second.
+- Near Colonia one star box took 6.4 s the first time it was asked. Its
+  neighbour had not answered after 6.9 s, and answered in 0.8 s when asked
+  again. So a box the server has not read lately can take several seconds
+  even there.
+- Zooming out asked for the density picture 15 times, once for each notch
+  of the wheel, and dropped 14 of them. Whether the server goes on working
+  on a request the page has dropped is to be checked on the Pi.
 - The whole map turns teal when the mouse rests on it at close zoom: the
   region under the mouse is highlighted, and up close one region fills the
   view.
