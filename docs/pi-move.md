@@ -326,7 +326,8 @@ In order:
       `e47ee21`, on `127.0.0.1:58080`. The deploy tool's own checks passed:
       the page, health, the API description, the sign-in state and three
       Find searches. The recorded tour ran against it. Look up and Plan have
-      not been tried by hand yet.
+      not been tried by hand yet. Build `2700e57` followed the same day.
+      The deploy tool has to be run with `sudo`.
 - [x] (11 Nov) **The web container works out each visitor's address itself.**
       On the current server a front web server does that from what Cloudflare
       sends. The Pi has no front web server, so without this change the app
@@ -342,9 +343,23 @@ In order:
 
 ## 6. Nightly jobs on the Pi
 
-- [ ] Galaxy update (`edfinder-galaxy-update.timer`), choosing its file as in
-      section 3.
-- [ ] System state refresh (`edfinder-state-refresh.timer`).
+- [x] Galaxy update (`edfinder-galaxy-update.timer`), choosing its file as in
+      section 3. (13 Nov) First run on the Pi, started through systemd: the
+      7-day file (2.9 GB, downloaded in 2 minutes), 55 minutes, 8,667,813
+      rows written, 348,082 systems put on the waiting list for new scores.
+      A dry run of the first 50,000 systems came first (`check --limit
+      50000`, 3 minutes). The timer was switched on at 15:19: 04:30 and
+      16:30 UTC.
+- [x] System state refresh (`edfinder-state-refresh.timer`). (13 Nov) First
+      run on the Pi, started through systemd: 28 minutes, 160,911 systems
+      read, 16,585 changed. Find goes on reading while it loads. The timer
+      was switched on at 15:19: 03:30 UTC.
+- [ ] (13 Nov) To decide: the galaxy update met four signal types it does
+      not know and left them out: `$PlanetaryMiningLocation_Name;` in 99,693
+      systems of the 7-day file, and `Cobalt`, `LiquidOxygen` and
+      `Lepidolite` in one each. They look like the game's new surface mining.
+      Keeping them means adding them to the list of known signal types, a
+      reviewed change to the database.
 - [ ] Re-score what is on the waiting list. (12 Nov) In order: apply
       migration `028` (after a fresh backup), work reach out once
       (`python3 galaxy_update.py reach`), then add `EDFINDER_GALAXY_SCORES=on`
@@ -503,6 +518,30 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
   the close-up boxes and the wide-view sample (`apps/api/src/routers/map.py`,
   `tests/test_map_star_queries.py`). No change to the database.
   Still open: stopping a query when the page has dropped the request.
+- (13 Nov) After that change, recorded again on the Pi: no star box went
+  unanswered or was stopped at the limit, and they answered in 0.1 to 3.5 s.
+  The stars near Sol came 17 s after Enter. Of those, 10.3 s is Find's own
+  search, which the map waits for before it asks for stars; then two rounds
+  of boxes, 3.5 s and 1.5 s. The first round is no faster than before: its
+  boxes are four times the size, and most of their time goes on finding which
+  systems are in the box.
+- (13 Nov) Find's search on the Pi. The slow part is one query, the count of
+  matching systems: 9.3 s near Sol and 4.9 s near Colonia in that recording.
+  Run twice by itself it took 6.5 s, then 0.6 s. It is the same query both
+  times; the difference is whether its data is in memory or has to come off
+  the drive (about 35,000 reads). Left alone for 13 minutes it was still
+  0.7 s. The Pi keeps about 9 GB of data in memory, of a database of about
+  1,000 GB, so whatever reads most decides what stays; a star box reads tens
+  of thousands of pages.
+  Near Sol four in five of the nearest systems are claimed, so the count
+  looks at 53,908 systems to find 10,001 free ones. A smaller default
+  distance does not shorten that near Sol. A count without the nearest-first
+  order was tried and is no better (5.0 s, then 0.5 s): the database read
+  the index for the whole cube, 922,417 systems. Not adopted. No change to
+  Find for now.
+- (13 Nov) Not planned for the current map unless the Almanac trial fails:
+  asking for stars without waiting for Find, smaller first-round boxes, the
+  half-second freezes.
 - The whole map turns teal when the mouse rests on it at close zoom: the
   region under the mouse is highlighted, and up close one region fills the
   view.
@@ -512,6 +551,28 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
   with no bodies.
 
 These are what the Almanac trial is compared against.
+
+(13 Nov) Almanac's Galaxy-Map, read and measured before the trial:
+
+- It takes at most 50,000 systems at a time, across all groups. That is one
+  number in its source, chosen by its author from his own timings. With the
+  number raised in a scratch copy it took a million. The work done for every
+  system on every frame grows in step: comfortable to about 200,000.
+- On the owner's graphics card (Radeon RX 6800 XT, Chrome, a map area of
+  1374 by 813), unchanged Almanac drew a frame in 3.4 to 4.4 ms with 50,000
+  markers packed around Sol, against 1.7 to 3.3 ms with none. Loading 50,000
+  took 45 to 50 ms, and finding the system under the mouse 0.6 ms. Above
+  50,000 is not measured.
+- It has no heat layer. Its grid is drawn by working out, for each pixel,
+  the point of the galactic plane it shows, so a heat layer could be added
+  the same way. Not built.
+- It handles touch. It will not draw without a real graphics card, so its
+  own browser tests run only on its author's machine, as ours do.
+- It never asks a server for stars. Our own points would be loaded by us:
+  whole for small sets, by area for large ones, and as a picture for
+  "everything" views.
+- Any change of ours would live in a fork. Its licence allows that for
+  non-commercial use. None is needed to start the trial.
 
 (12 Nov) How a map check earns trust. The owner's brief: do not overcomplicate
 it, but it must test everything fully and give results he can have confidence

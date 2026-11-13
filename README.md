@@ -71,6 +71,11 @@ standard library only) starts them with `deploy/compose.yml`:
 | `restore-old` | Stops this app and restarts the containers it first replaced. |
 | `status` | Shows what is live. |
 
+The tool has to be run as root. On the Raspberry Pi, where you log in as
+`pi`, put `sudo` in front, for example
+`sudo python3 /opt/edfinder/edfinder_deploy.py check`. Run without it, the
+tool says so and changes nothing.
+
 If a release fails its checks after the switch, the previous one is put back
 automatically. Settings (network, ports, the API settings file) have defaults
 for the current server and can be changed in a `deploy.conf` file beside the

@@ -296,6 +296,35 @@ def port_is_free(bind: str) -> bool:
     return True
 
 
+def programs_in(listing: str) -> List[str]:
+    """The programs named in what `ss -ltnp` printed, each with its process number."""
+    found: List[str] = []
+    for name, number in re.findall(r'\("([^"]+)",pid=(\d+)', listing):
+        label = "%s (process %s)" % (name, number)
+        if label not in found:
+            found.append(label)
+    return found
+
+
+def held_outside_docker(bind: str) -> str:
+    """Say that an address no container holds is in use, and by which program.
+
+    The machine names the program only to root, or to the user who started it.
+    When it does not, say how to find out.
+    """
+    port = split_bind(bind)[1]
+    look = ["ss", "-H", "-ltnp", "sport = :%d" % port]
+    try:
+        listing = subprocess.run(look, capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        listing = ""
+    programs = programs_in(listing)
+    if programs:
+        return "in use by a program outside Docker: %s" % ", ".join(programs)
+    return ("in use by a program outside Docker.\n"
+            "    To see which program, run: sudo ss -H -ltnp 'sport = :%d'" % port)
+
+
 def upstream_partner(container: Dict[str, Any]) -> Optional[str]:
     """Name of the API container a web container forwards to, if it says."""
     for entry in (container.get("Config") or {}).get("Env") or []:
@@ -600,10 +629,23 @@ class State:
             handle.write("%s %s\n" % (stamp, message))
 
 
+def without_root(what_failed: str) -> str:
+    """What to tell someone whose command failed for want of permission."""
+    if os.geteuid() == 0:
+        return what_failed
+    return ("%s.\n    This command has to be run as root. Run the same command again "
+            "with sudo in front of it." % what_failed)
+
+
 @contextlib.contextmanager
 def single_run(directory: Path) -> Iterator[None]:
-    directory.mkdir(parents=True, exist_ok=True)
-    with open(directory / "lock", "w", encoding="utf-8") as handle:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        handle = open(directory / "lock", "w", encoding="utf-8")
+    except PermissionError as error:
+        raise Refused(without_root(
+            "this tool could not write its own folder, %s" % directory)) from error
+    with handle:
         try:
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
@@ -631,8 +673,8 @@ def trial(settings: Settings, release: Release) -> None:
         raise Refused("the spare address %s is in use by %s" % (
             settings.trial_bind, ", ".join(others)))
     if not port_is_free(settings.trial_bind):
-        raise Refused("the spare address %s is in use by a program outside Docker"
-                      % settings.trial_bind)
+        raise Refused("the spare address %s is %s"
+                      % (settings.trial_bind, held_outside_docker(settings.trial_bind)))
     say("Testing %s on the spare address %s ..." % (release.describe(), settings.trial_bind))
     try:
         compose_up(settings, project, release, settings.trial_bind, "no")
@@ -705,8 +747,8 @@ def foreign_holders(settings: Settings, take_over: bool,
                 "the site running now differs from what would replace it:\n    - %s\n"
                 "    If these are fine, add --accept-differences." % "\n    - ".join(concerns))
     if not holders and not port_is_free(settings.live_bind):
-        raise Refused("the live address %s is in use by a program outside Docker"
-                      % settings.live_bind)
+        raise Refused("the live address %s is %s"
+                      % (settings.live_bind, held_outside_docker(settings.live_bind)))
     return foreign
 
 
@@ -907,6 +949,9 @@ def command_check(settings: Settings) -> None:
             say("API settings file %s: present (contents not shown)" % env_file)
             if mode & 0o077:
                 say("    note: other users on this machine can read it (mode %o)" % (mode & 0o777))
+    except PermissionError:
+        problems.append(without_root(
+            "API settings file %s cannot be looked at" % env_file).replace("\n", "\n  "))
     except OSError:
         problems.append("API settings file %s is missing or unreadable" % env_file)
     for line in describe_live(settings):
@@ -932,10 +977,18 @@ def command_check(settings: Settings) -> None:
         say("Spare address %s: held by a leftover test of this tool, which the next run "
             "clears" % settings.trial_bind)
     elif not port_is_free(settings.trial_bind):
-        problems.append("spare address %s is in use by a program outside Docker"
-                        % settings.trial_bind)
+        problems.append("spare address %s is %s" % (
+            settings.trial_bind, held_outside_docker(settings.trial_bind).replace("\n", "\n  ")))
     else:
         say("Spare address %s: free" % settings.trial_bind)
+    # The same test "live" makes before it switches: with no container on the
+    # live address, nothing else may be listening there either.
+    if not port_holders(settings.live_bind):
+        if port_is_free(settings.live_bind):
+            say("Live address %s: free" % settings.live_bind)
+        else:
+            problems.append("live address %s is %s" % (
+                settings.live_bind, held_outside_docker(settings.live_bind).replace("\n", "\n  ")))
     state = State(settings.state_dir)
     say("Recorded live release: %s" % (state.current.describe() if state.current else "none yet"))
     if problems:
@@ -987,6 +1040,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
     except DeployError as error:
         say("FAILED: %s" % error)
+        return 1
+    except PermissionError as error:
+        say("FAILED: %s" % without_root("the machine would not allow it (%s)" % error))
         return 1
     except KeyboardInterrupt:
         say("INTERRUPTED. Run \"status\" to see what is running.")
