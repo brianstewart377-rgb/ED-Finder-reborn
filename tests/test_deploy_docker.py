@@ -17,6 +17,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
@@ -98,6 +99,10 @@ def images(tmp_path_factory) -> Images:
                 '<body>stand-in</body></html>' % sha)
         (html / "index.html").write_text(page)
         (html / "200.html").write_text(page)
+        # One file as the real build names them: by its contents, under /_app/immutable/.
+        (html / "_app" / "immutable").mkdir(parents=True)
+        (html / "_app" / "immutable" / ("app.%s.js" % sha[:8])).write_text("export const filler = '%s';" % ("x" * 4000))
+        (html / "favicon.png").write_bytes(b"stand-in")
         reference = "%s:%s" % (names.api if kind == "api" else names.web, tag)
         extra = ["--build-arg", "FIND_ANSWER=" + find_answer] if find_answer else []
         docker("build", "-q", "-f", str(STUBS / ("%s.Dockerfile" % kind)),
@@ -322,6 +327,49 @@ def test_the_api_gets_each_visitors_address_from_the_header_the_machine_names(si
     result = site.tool("live", tag(SHA_B))
     assert result.returncode == 0, result.stdout + result.stderr
     assert address_seen(CF_Connecting_IP="198.51.100.7", X_Real_IP="203.0.113.9") == "203.0.113.9"
+
+
+def test_the_web_server_says_what_a_browser_may_keep_and_packs_text(site):
+    """The Pi sends everything up a home line, so what need not be sent again
+    should not be: the build's own files are named by their contents and may
+    be kept for a year, the page that names them is asked for afresh every
+    time, and text is sent packed."""
+    assert site.tool("live", tag(SHA_A)).returncode == 0
+
+    def ask(path: str) -> tuple[int, dict[str, str]]:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        request = urllib.request.Request(
+            "http://127.0.0.1:%d%s" % (site.live_port, path),
+            headers={"Accept-Encoding": "gzip", "Via": "1.1 cloudflare"})
+        try:
+            with opener.open(request, timeout=5) as response:
+                return response.status, {name.lower(): value for name, value in response.headers.items()}
+        except urllib.error.HTTPError as error:
+            return error.code, {name.lower(): value for name, value in error.headers.items()}
+
+    file_path = "/_app/immutable/app.%s.js" % SHA_A[:8]
+    status, headers = ask(file_path)
+    assert status == 200 and headers["cache-control"] == "max-age=31536000"
+    assert headers["content-encoding"] == "gzip", "text is packed, also for a request that came through Cloudflare"
+    # The page, by its own address and by any address of the app: asked for afresh.
+    for path in ("/", "/find", "/plan/123"):
+        status, headers = ask(path)
+        assert status == 200 and headers["cache-control"] == "no-cache", path
+        assert headers["content-type"].startswith("text/html")
+    # A file of the build that is not there is "not found": never the page
+    # in its place, and nothing a browser may keep.
+    status, headers = ask("/_app/immutable/app.00000000.js")
+    assert status == 404 and "cache-control" not in headers
+    # Other files, and the API's answers, are given no keeping time by this server.
+    for path in ("/favicon.png", "/api/stub/visitor-address"):
+        status, headers = ask(path)
+        assert status == 200 and "cache-control" not in headers and "expires" not in headers, path
+    # The security headers are on every one of them, the new places included.
+    for path in (file_path, "/", "/_app/immutable/app.00000000.js", "/favicon.png", "/api/stub/visitor-address"):
+        _, headers = ask(path)
+        assert headers["x-frame-options"] == "SAMEORIGIN", path
+        assert headers["x-content-type-options"] == "nosniff", path
+        assert headers["content-security-policy"] == "frame-ancestors 'self'", path
 
 
 def test_newer_release_replaces_the_live_one_and_rollback_returns(site):
