@@ -461,6 +461,54 @@ then the catch-up, all before the group is invited.
 The map (Almanac trial), bridge routes, BGS and the BGS-Tally link come after
 Find and Plan work on the Pi.
 
+### What the galaxy map is for (owner, 13 November)
+
+This replaces every earlier idea of the map in these notes. The owner's own
+words:
+
+> I think I've previously been way to ambitious re the map I'd like the map
+> to be working in tandem with the finder and also keeping track of all a
+> players colonies if it can show all the stars in range (real stars) It
+> would be good if we were able to show nearby system supplying needed
+> materials for builds etc like raven does but show them on the map also
+
+> Also if a player can select a system in finder they could select show me on
+> map
+
+He did not say the map should show Find's results, and it is not built to.
+
+The map's roadmap, in this order:
+
+1. **Show on map.** A system chosen in Find has a "show me on map" button.
+   The map flies to it, shows every real star within 15 ly of it in
+   star-class colours, and draws the 15 ly range. 15 ly is the claim
+   distance (owner, 13 Nov: "yes I think", having asked whether 250 ly would
+   be easier). Everything it needs is already held. Measured from the live
+   site on 13 Nov: 51 real stars within 15 ly of Sol, 106 within 15 ly of
+   Colonia. 250 ly is not easier: the 1,000 ly cube around Sol holds 922,417
+   systems, so a 250 ly ball holds some 60,000 or more, which is over
+   Almanac's limit and one bright ball from any distance. 250 ly stays what
+   it was, the distance Find searches.
+   First in the trial page, then on the site.
+2. **A player's colonies.** The builder keeps the list of a player's
+   colonies, as Raven Colonial's "nexus" does (the owner's model), and the map
+   reads it from there. Today the builder keeps plans in the browser and has
+   no such list, so the list is builder work and comes first; the map's part
+   is then small.
+3. **Build materials.** Show on the map the nearby systems that supply what
+   a build needs, as Raven does. The owner is content for this to wait until
+   after the move "as long as it's roadmapped". It is its own piece of work,
+   and needs two things not held today: what each build needs, and what
+   nearby stations sell. We hold each station's type, economy and services,
+   not its goods or stock. To check first: whether the Spansh files already
+   downloaded each night carry station markets.
+
+Claude's reading of what this leaves out, to be put back only if the owner
+asks: thousands of markers on the map at once, inhabited systems across the
+galaxy, a heat layer on the 3D map, a raised marker limit, and a version of
+Almanac of our own. None is needed for the three jobs above, and Almanac as
+published does them.
+
 (12 Nov) The owner's choice for the map: the galaxy map moves to the Almanac
 map, and the System Map stays on Babylon. The plan had this open, to be
 decided after a one-day trial, with Babylon going too if Almanac won. The
