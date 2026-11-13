@@ -84,6 +84,74 @@ MAX_MAP_VIEWPORT_LY = 15_000        # per-axis box guard; wider -> stay on the h
 MAX_GALAXY_SAMPLE_SYSTEMS = 40_000
 GALAXY_SAMPLE_PERCENT = 0.05
 
+# Both star queries below choose their systems first and cut them to the limit,
+# and only then look up each chosen system's star class in the galaxy's
+# `bodies` table (599 million rows). They used to look the class up before the
+# cut, which made one lookup for every system in the box: a box near Sol holds
+# 55,775 systems, of which 5,001 are returned. Timed on the Raspberry Pi on
+# 13 Nov 2026 for that box: 4.5 seconds before, 1.3 seconds after. The rows
+# returned and their order are the same.
+_MAIN_STAR_CLASS = """
+          LEFT JOIN LATERAL (
+            SELECT b.spectral_class
+              FROM {schema}.bodies b
+             WHERE b.system_id64 = s.id64
+               AND b.is_main_star
+             ORDER BY b.body_pk
+             LIMIT 1
+          ) body ON TRUE"""
+
+
+def close_up_stars_sql(schema: str) -> str:
+    """The systems inside one close-up box, lowest id64 first.
+
+    Parameters: the grid cell range on x, y and z ($1 to $6), the box itself
+    in light years ($7 to $12), and how many rows to return ($13).
+    """
+    return f"""
+        SELECT s.id64, s.name, s.x, s.y, s.z, s.galaxy_region_id,
+               FALSE AS populated,
+               body.spectral_class AS main_star_type
+          FROM (
+            SELECT s.id64, s.name, s.x_ly AS x, s.y_ly AS y, s.z_ly AS z,
+                   s.galaxy_region_id
+              FROM {schema}.systems s
+             WHERE s.grid_x BETWEEN $1 AND $2
+               AND s.grid_y BETWEEN $3 AND $4
+               AND s.grid_z BETWEEN $5 AND $6
+               AND s.x_ly BETWEEN $7 AND $8
+               AND s.y_ly BETWEEN $9 AND $10
+               AND s.z_ly BETWEEN $11 AND $12
+             ORDER BY s.id64
+             LIMIT $13
+          ) s{_MAIN_STAR_CLASS.format(schema=schema)}
+         ORDER BY s.id64
+    """
+
+
+def galaxy_sample_stars_sql(schema: str) -> str:
+    """A sample of real systems for a view too wide for close-up boxes.
+
+    Parameters: the share of the table to sample, in percent ($1), the box in
+    light years ($2 to $7), and how many rows to return ($8).
+    """
+    return f"""
+        SELECT s.id64, s.name, s.x, s.y, s.z, s.galaxy_region_id,
+               FALSE AS populated,
+               body.spectral_class AS main_star_type
+          FROM (
+            SELECT s.id64, s.name, s.x_ly AS x, s.y_ly AS y, s.z_ly AS z,
+                   s.galaxy_region_id
+              FROM {schema}.systems s TABLESAMPLE SYSTEM ($1::float4)
+             WHERE s.x_ly BETWEEN $2 AND $3
+               AND s.y_ly BETWEEN $4 AND $5
+               AND s.z_ly BETWEEN $6 AND $7
+             ORDER BY md5(s.id64::text)
+             LIMIT $8
+          ) s{_MAIN_STAR_CLASS.format(schema=schema)}
+         ORDER BY md5(s.id64::text)
+    """
+
 
 
 
@@ -704,26 +772,9 @@ async def map_systems(
                 """, GALAXY_SAMPLE_PERCENT, lo_x, hi_x, lo_y, hi_y, lo_z, hi_z,
                     min(limit, MAX_GALAXY_SAMPLE_SYSTEMS))
             else:
-                rows = await conn.fetch(f"""
-                    SELECT s.id64, s.name, s.x_ly AS x, s.y_ly AS y,
-                           s.z_ly AS z, s.galaxy_region_id,
-                           FALSE AS populated,
-                           body.spectral_class AS main_star_type
-                      FROM {schema}.systems s TABLESAMPLE SYSTEM ($1::float4)
-                      LEFT JOIN LATERAL (
-                        SELECT b.spectral_class
-                          FROM {schema}.bodies b
-                         WHERE b.system_id64 = s.id64
-                           AND b.is_main_star
-                         ORDER BY b.body_pk
-                         LIMIT 1
-                      ) body ON TRUE
-                     WHERE s.x_ly BETWEEN $2 AND $3
-                       AND s.y_ly BETWEEN $4 AND $5
-                       AND s.z_ly BETWEEN $6 AND $7
-                     ORDER BY md5(s.id64::text)
-                     LIMIT  $8
-                """, GALAXY_SAMPLE_PERCENT, lo_x, hi_x, lo_y, hi_y, lo_z, hi_z,
+                rows = await conn.fetch(
+                    galaxy_sample_stars_sql(schema),
+                    GALAXY_SAMPLE_PERCENT, lo_x, hi_x, lo_y, hi_y, lo_z, hi_z,
                     min(limit, MAX_GALAXY_SAMPLE_SYSTEMS))
 
         systems = [
@@ -780,29 +831,8 @@ async def map_systems(
                          id64
             """, lo_x, hi_x, lo_y, hi_y, lo_z, hi_z, limit + 1)
         else:
-            rows = await conn.fetch(f"""
-                SELECT s.id64, s.name, s.x_ly AS x, s.y_ly AS y, s.z_ly AS z,
-                       s.galaxy_region_id,
-                       FALSE AS populated,
-                       body.spectral_class AS main_star_type
-                  FROM {schema}.systems s
-                  LEFT JOIN LATERAL (
-                    SELECT b.spectral_class
-                      FROM {schema}.bodies b
-                     WHERE b.system_id64 = s.id64
-                       AND b.is_main_star
-                     ORDER BY b.body_pk
-                     LIMIT 1
-                  ) body ON TRUE
-                 WHERE s.grid_x BETWEEN $1 AND $2
-                   AND s.grid_y BETWEEN $3 AND $4
-                   AND s.grid_z BETWEEN $5 AND $6
-                   AND s.x_ly BETWEEN $7 AND $8
-                   AND s.y_ly BETWEEN $9 AND $10
-                   AND s.z_ly BETWEEN $11 AND $12
-                 ORDER BY s.id64
-                 LIMIT $13
-            """,
+            rows = await conn.fetch(
+                close_up_stars_sql(schema),
                 math.floor(lo_x / 10), math.floor(hi_x / 10),
                 math.floor(lo_y / 10), math.floor(hi_y / 10),
                 math.floor(lo_z / 10), math.floor(hi_z / 10),
