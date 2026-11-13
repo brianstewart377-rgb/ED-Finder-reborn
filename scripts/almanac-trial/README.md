@@ -60,6 +60,45 @@ Almost everything on the screen is Almanac's own:
 | The OPEN IN INSPECT button, which opens the system on ed-finder.app | Ours |
 | The faint ball around the chosen system | Ours, drawn with Almanac's own sphere |
 
+## The System Map trial (a second page)
+
+The same folder holds a second trial, for a different question: does the
+System Map need a 3D engine at all? The page is `system-map.html`.
+
+It draws a system in the manner of the game's own system map, with shapes
+the browser draws itself (SVG) and no 3D engine:
+
+- Each star heads a row, its planets follow along a line, each planet's
+  moons hang below it, and stars are stacked when there are two or more.
+- Each body is shaded as a lit ball. Gas giants carry bands, and rings pass
+  behind and in front of their planet. Colours are by class, by our own
+  map's rules; they are not pictures of the real surface.
+- Each station in orbit is a small marker hanging from its body, and each
+  body shows how many sites it has on the ground.
+- Every body and station is an ordinary page element: it can be clicked,
+  reached with the Tab key, and read by a screen reader.
+
+It shows Sol, LHS 3447 (two stars), Polaris (a giant with a small companion)
+and the player's own systems, all from the live site
+(`GET /api/v1/systems/<id>`, `.../bodies`, `.../rings`, `.../stations`).
+
+Two things our data does not always say, and how the page handles them. Both
+are marked on the page, so a guess is never passed off as a fact:
+
+- **Which body a station is at.** Sites on the ground come with their body.
+  Stations in orbit mostly do not. Those are put at the body nearest to them
+  by distance from the arrival point, and drawn with a dashed outline. This
+  can be wrong: distance cannot tell a planet from a moon close beside it.
+- **What a body orbits.** A moon with no parent in our data is hung from the
+  planet its name points to ("B 1 d" from "B 1"). A pair of planets with no
+  parent goes in the row of the nearest star.
+
+Because it needs no graphics card, this page can be checked by ordinary
+tests in CI, which the galaxy map cannot.
+
+To look at it, start the small server as below and open
+`http://localhost:5199/system-map.html`.
+
 ## Looking at it
 
 The map needs a real graphics card. It refuses to start without one and says
@@ -117,8 +156,8 @@ Download Almanac's map and the bundler:
 npm ci
 ```
 
-Fetch the systems and their stars from the live site (about a minute; it asks
-about once a second):
+Fetch the systems, their stars and their bodies from the live site (two to
+three minutes; it asks about once a second):
 
 ```
 npm run data
@@ -145,8 +184,9 @@ commands.
 |---|---|
 | `index.html`, `src/main.js` | The page. It hands our data to the map and has no controls of its own. |
 | `src/logic.mjs` | The page's own rules: which stars are in range of a system, a star's group and colour, the range ball, and what the panel says. |
-| `fixtures/` | For the tests, all real and unchanged answers of the live site: the first 60 rows of Find's answer near Sol, the 30 ly box around Sol, and a name search for "Sol". |
+| `fixtures/` | For the tests, all real and unchanged answers of the live site: the first 60 rows of Find's answer near Sol, the 30 ly box around Sol, a name search for "Sol", and the bodies, rings and stations of Sol and of Polaris. |
 | `fetch-data.mjs` | Fetches Find's results and the stars around each system from the live site, and the player's own systems if a list is given. |
+| `system-map.html`, `src/system-map/` | The System Map trial: `tree.mjs` (what orbits what, what is built where), `layout.mjs` (where everything goes), `draw.mjs` (the picture), `body-look.mjs` (a checked copy of our own planet colours), `page.js` (the page). |
 | `my-systems.example.json` | The form of a player's own list. The real one, `my-systems.local.json`, stays out of git. |
 | `worker-files.mjs`, `vite.config.mjs` | The build. Almanac's background workers ask for one picture the bundler misses; this copies it. |
 | `licence-files.mjs` | Puts Almanac's licence files beside the built page, and stops the build unless the page shows the notice the licence asks for. |

@@ -1,0 +1,2401 @@
+{
+ "what": "The live site's four answers for Sol (id 10477373803) on 13 Nov 2026: GET https://ed-finder.app/api/v1/systems/<id>, .../bodies, .../rings and .../stations. Nothing is changed.",
+ "system": {
+  "id64": "10477373803",
+  "name": "Sol",
+  "x_ly": 0.0,
+  "y_ly": 0.0,
+  "z_ly": 0.0,
+  "source_body_count": 40,
+  "loaded_body_count": 41,
+  "lifecycle_state": "ACTIVE",
+  "source_updated_at": "2026-11-12T21:58:31+00:00"
+ },
+ "bodies": [
+  {
+   "body_id": "10477373803",
+   "source_body_id64": "10477373803",
+   "frontier_body_id": "0",
+   "direct_parent_body_id": null,
+   "name": "Sol",
+   "body_type": "star",
+   "body_class": "G (White-Yellow) Star",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": true,
+   "spectral_class": "G2",
+   "luminosity_class": "V",
+   "is_landable": null,
+   "radius_km": 695699.9679907978,
+   "planet_mass_earth": null,
+   "stellar_mass_solar": 1.0,
+   "surface_pressure_atm": null,
+   "semi_major_axis_km": null,
+   "distance_from_arrival_ls": 0.0,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "36028807496337771",
+   "source_body_id64": "36028807496337771",
+   "frontier_body_id": "1",
+   "direct_parent_body_id": "10477373803",
+   "name": "Mercury",
+   "body_type": "planet",
+   "body_class": "Metal-rich body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 2439.7,
+   "planet_mass_earth": 0.055,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 57909091.114997886,
+   "distance_from_arrival_ls": 159.716871,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 6
+    }
+   ]
+  },
+  {
+   "body_id": "72057604515301739",
+   "source_body_id64": "72057604515301739",
+   "frontier_body_id": "2",
+   "direct_parent_body_id": "10477373803",
+   "name": "Venus",
+   "body_type": "planet",
+   "body_class": "High metal content world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 6051.8,
+   "planet_mass_earth": 0.815,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0009197089465154187,
+   "semi_major_axis_km": 108207982.77854924,
+   "distance_from_arrival_ls": 363.160791,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "108086401534265707",
+   "source_body_id64": "108086401534265707",
+   "frontier_body_id": "3",
+   "direct_parent_body_id": "10477373803",
+   "name": "Earth",
+   "body_type": "planet",
+   "body_class": "Earth-like world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 6378.1,
+   "planet_mass_earth": 1.0,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 9.860140822237601e-06,
+   "semi_major_axis_km": 149597978.59191865,
+   "distance_from_arrival_ls": 506.914241,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 5
+    },
+    {
+     "signal_type": "saa_signaltype_other",
+     "count": 3
+    }
+   ]
+  },
+  {
+   "body_id": "144115198553229675",
+   "source_body_id64": "144115198553229675",
+   "frontier_body_id": "4",
+   "direct_parent_body_id": "108086401534265707",
+   "name": "Moon",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 1738.14,
+   "planet_mass_earth": 0.012304,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 384398.9372253423,
+   "distance_from_arrival_ls": 505.722884,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    },
+    {
+     "signal_type": "saa_signaltype_other",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "180143995572193643",
+   "source_body_id64": "180143995572193643",
+   "frontier_body_id": "5",
+   "direct_parent_body_id": "10477373803",
+   "name": "Mars",
+   "body_type": "planet",
+   "body_class": "Earth-like world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 3396.2,
+   "planet_mass_earth": 0.107,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 2.2732698724384014e-05,
+   "semi_major_axis_km": 227939069.27108797,
+   "distance_from_arrival_ls": 827.113941,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 8
+    }
+   ]
+  },
+  {
+   "body_id": "252201589610121579",
+   "source_body_id64": "252201589610121579",
+   "frontier_body_id": "7",
+   "direct_parent_body_id": "10477373803",
+   "name": "Jupiter",
+   "body_type": "planet",
+   "body_class": "Class I gas giant",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 71492.0,
+   "planet_mass_earth": 317.799622,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 778547084.3315119,
+   "distance_from_arrival_ls": 2609.011173,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "324259183648049515",
+   "source_body_id64": "324259183648049515",
+   "frontier_body_id": "9",
+   "direct_parent_body_id": "252201589610121579",
+   "name": "Io",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 1821.3,
+   "planet_mass_earth": 0.015,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 421699.9351978296,
+   "distance_from_arrival_ls": 2608.228803,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "360287980667013483",
+   "source_body_id64": "360287980667013483",
+   "frontier_body_id": "10",
+   "direct_parent_body_id": "252201589610121579",
+   "name": "Europa",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 1560.8,
+   "planet_mass_earth": 0.008,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 670899.8978137964,
+   "distance_from_arrival_ls": 2607.410073,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_geological",
+     "count": 2
+    },
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 6
+    },
+    {
+     "signal_type": "saa_signaltype_other",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "396316777685977451",
+   "source_body_id64": "396316777685977451",
+   "frontier_body_id": "11",
+   "direct_parent_body_id": "252201589610121579",
+   "name": "Ganymede",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 2634.1,
+   "planet_mass_earth": 0.024814,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 1070399.8208045952,
+   "distance_from_arrival_ls": 2605.607222,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 6
+    }
+   ]
+  },
+  {
+   "body_id": "432345574704941419",
+   "source_body_id64": "432345574704941419",
+   "frontier_body_id": "12",
+   "direct_parent_body_id": "252201589610121579",
+   "name": "Callisto",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 2410.0,
+   "planet_mass_earth": 0.018016,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 1882699.668407433,
+   "distance_from_arrival_ls": 2611.686913,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 8
+    }
+   ]
+  },
+  {
+   "body_id": "468374371723905387",
+   "source_body_id64": "468374371723905387",
+   "frontier_body_id": "13",
+   "direct_parent_body_id": "10477373803",
+   "name": "Saturn",
+   "body_type": "planet",
+   "body_class": "Class I gas giant",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 59000.0,
+   "planet_mass_earth": 95.159035,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 1433449089.5271297,
+   "distance_from_arrival_ls": 4713.716668,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "540431965761833323",
+   "source_body_id64": "540431965761833323",
+   "frontier_body_id": "15",
+   "direct_parent_body_id": "468374371723905387",
+   "name": "Enceladus",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 252.1,
+   "planet_mass_earth": 1.8e-05,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 237947.9587078084,
+   "distance_from_arrival_ls": 4714.055355,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_geological",
+     "count": 2
+    },
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "576460762780797291",
+   "source_body_id64": "576460762780797291",
+   "frontier_body_id": "16",
+   "direct_parent_body_id": "468374371723905387",
+   "name": "Tethys",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 531.1,
+   "planet_mass_earth": 0.000103,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 294618.9522743228,
+   "distance_from_arrival_ls": 4714.579541,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_geological",
+     "count": 2
+    },
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "612489559799761259",
+   "source_body_id64": "612489559799761259",
+   "frontier_body_id": "17",
+   "direct_parent_body_id": "468374371723905387",
+   "name": "Dione",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 561.4,
+   "planet_mass_earth": 0.000183,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 377395.93982696533,
+   "distance_from_arrival_ls": 4712.645267,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_geological",
+     "count": 2
+    },
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "648518356818725227",
+   "source_body_id64": "648518356818725227",
+   "frontier_body_id": "18",
+   "direct_parent_body_id": "468374371723905387",
+   "name": "Rhea",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 763.8,
+   "planet_mass_earth": 0.000386,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 527107.9182624826,
+   "distance_from_arrival_ls": 4712.547073,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "684547153837689195",
+   "source_body_id64": "684547153837689195",
+   "frontier_body_id": "19",
+   "direct_parent_body_id": "468374371723905387",
+   "name": "Titan",
+   "body_type": "planet",
+   "body_class": "Rocky Ice world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 2576.0,
+   "planet_mass_earth": 0.022499,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 9.896336987956675e-06,
+   "semi_major_axis_km": 1221869.7667121892,
+   "distance_from_arrival_ls": 4715.675417,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "720575950856653163",
+   "source_body_id64": "720575950856653163",
+   "frontier_body_id": "20",
+   "direct_parent_body_id": "468374371723905387",
+   "name": "Iapetus",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 734.5,
+   "planet_mass_earth": 0.000302,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 3560819.38743591,
+   "distance_from_arrival_ls": 4722.187133,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 4
+    },
+    {
+     "signal_type": "saa_signaltype_other",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "792633544894581099",
+   "source_body_id64": "792633544894581099",
+   "frontier_body_id": "22",
+   "direct_parent_body_id": "10477373803",
+   "name": "Uranus",
+   "body_type": "planet",
+   "body_class": "Class I gas giant",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 25559.0,
+   "planet_mass_earth": 14.539695,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 2876678645.6108165,
+   "distance_from_arrival_ls": 9143.42823,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "864691138932509035",
+   "source_body_id64": "864691138932509035",
+   "frontier_body_id": "24",
+   "direct_parent_body_id": "792633544894581099",
+   "name": "Ariel",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 578.9,
+   "planet_mass_earth": 0.000227,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 191019.97017860416,
+   "distance_from_arrival_ls": 9143.986338,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 6
+    }
+   ]
+  },
+  {
+   "body_id": "900719935951473003",
+   "source_body_id64": "900719935951473003",
+   "frontier_body_id": "25",
+   "direct_parent_body_id": "792633544894581099",
+   "name": "Umbriel",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 584.7,
+   "planet_mass_earth": 0.000196,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 265999.9489784245,
+   "distance_from_arrival_ls": 9143.45728,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "936748732970436971",
+   "source_body_id64": "936748732970436971",
+   "frontier_body_id": "26",
+   "direct_parent_body_id": "792633544894581099",
+   "name": "Titania",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 788.4,
+   "planet_mass_earth": 0.000591,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 435909.9268913264,
+   "distance_from_arrival_ls": 9144.457614,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "972777529989400939",
+   "source_body_id64": "972777529989400939",
+   "frontier_body_id": "27",
+   "direct_parent_body_id": "792633544894581099",
+   "name": "Oberon",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 761.4,
+   "planet_mass_earth": 0.000505,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 583519.9117660519,
+   "distance_from_arrival_ls": 9142.382549,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 4
+    }
+   ]
+  },
+  {
+   "body_id": "1008806327008364907",
+   "source_body_id64": "1008806327008364907",
+   "frontier_body_id": "28",
+   "direct_parent_body_id": "10477373803",
+   "name": "Neptune",
+   "body_type": "planet",
+   "body_class": "Class I gas giant",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 24764.0,
+   "planet_mass_earth": 17.149633,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 4459503948.68851,
+   "distance_from_arrival_ls": 14921.040097,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1080863921046292843",
+   "source_body_id64": "1080863921046292843",
+   "frontier_body_id": "30",
+   "direct_parent_body_id": "1008806327008364907",
+   "name": "Triton",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 1353.4,
+   "planet_mass_earth": 0.00359,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 354758.9421272287,
+   "distance_from_arrival_ls": 14922.087745,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "1116892718065256811",
+   "source_body_id64": "1116892718065256811",
+   "frontier_body_id": "31",
+   "direct_parent_body_id": null,
+   "name": "Sol barycentre 31",
+   "body_type": "barycentre",
+   "body_class": null,
+   "body_class_source": null,
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": null,
+   "radius_km": null,
+   "planet_mass_earth": null,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": null,
+   "semi_major_axis_km": 5873998939.9909935,
+   "distance_from_arrival_ls": null,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "1152921515084220779",
+   "source_body_id64": "1152921515084220779",
+   "frontier_body_id": "32",
+   "direct_parent_body_id": "1116892718065256811",
+   "name": "Pluto",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": false,
+   "radius_km": 1153.0,
+   "planet_mass_earth": 0.00218,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 4.01529662395174e-08,
+   "semi_major_axis_km": 2034.0207219119966,
+   "distance_from_arrival_ls": 20445.384977,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1188950312103184747",
+   "source_body_id64": "1188950312103184747",
+   "frontier_body_id": "33",
+   "direct_parent_body_id": "1116892718065256811",
+   "name": "Charon",
+   "body_type": "planet",
+   "body_class": "Rocky body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 603.5,
+   "planet_mass_earth": 0.000253,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 17536.976933479076,
+   "distance_from_arrival_ls": 20445.327711,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1224979109122148715",
+   "source_body_id64": "1224979109122148715",
+   "frontier_body_id": "34",
+   "direct_parent_body_id": "10477373803",
+   "name": "90482 Orcus",
+   "body_type": "planet",
+   "body_class": "Rocky Ice world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 917.0,
+   "planet_mass_earth": 0.000107,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 5904482781.887058,
+   "distance_from_arrival_ls": 16044.779136,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "body_id": "1261007906141112683",
+   "source_body_id64": "1261007906141112683",
+   "frontier_body_id": "35",
+   "direct_parent_body_id": "1224979109122148715",
+   "name": "Vanth",
+   "body_type": "planet",
+   "body_class": "Rocky Ice world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 276.0,
+   "planet_mass_earth": 7e-06,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 9029.998600482992,
+   "distance_from_arrival_ls": 16044.80662,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "body_id": "1297036703160076651",
+   "source_body_id64": "1297036703160076651",
+   "frontier_body_id": "36",
+   "direct_parent_body_id": "10477373803",
+   "name": "(307261) 2002 MS4",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 934.0,
+   "planet_mass_earth": 0.00028,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 6240778684.616086,
+   "distance_from_arrival_ls": 18841.155889,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1333065500179040619",
+   "source_body_id64": "1333065500179040619",
+   "frontier_body_id": "37",
+   "direct_parent_body_id": "10477373803",
+   "name": "Salacia",
+   "body_type": "planet",
+   "body_class": "Rocky Ice world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 854.0,
+   "planet_mass_earth": 0.0028,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 6262171447.277076,
+   "distance_from_arrival_ls": 18614.373779,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 2
+    }
+   ]
+  },
+  {
+   "body_id": "1369094297198004587",
+   "source_body_id64": "1369094297198004587",
+   "frontier_body_id": "38",
+   "direct_parent_body_id": "1333065500179040619",
+   "name": "Actaea",
+   "body_type": "planet",
+   "body_class": "Rocky Ice world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 303.0,
+   "planet_mass_earth": 3e-06,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 5618.999063968996,
+   "distance_from_arrival_ls": 18614.355025,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_geological",
+     "count": 3
+    },
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 6
+    }
+   ]
+  },
+  {
+   "body_id": "1405123094216968555",
+   "source_body_id64": "1405123094216968555",
+   "frontier_body_id": "39",
+   "direct_parent_body_id": "10477373803",
+   "name": "Haumea",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 620.0,
+   "planet_mass_earth": 0.00066,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 6465325117.111206,
+   "distance_from_arrival_ls": 25195.582797,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1441151891235932523",
+   "source_body_id64": "1441151891235932523",
+   "frontier_body_id": "40",
+   "direct_parent_body_id": "1405123094216968555",
+   "name": "Hi'iaka",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 160.0,
+   "planet_mass_earth": 3e-06,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 49879.992604256004,
+   "distance_from_arrival_ls": 25195.4857,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "1477180688254896491",
+   "source_body_id64": "1477180688254896491",
+   "frontier_body_id": "41",
+   "direct_parent_body_id": "10477373803",
+   "name": "Quaoar",
+   "body_type": "planet",
+   "body_class": "Rocky Ice world",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 1074.0,
+   "planet_mass_earth": 0.000234,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 6488513171.672816,
+   "distance_from_arrival_ls": 21086.973882,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1513209485273860459",
+   "source_body_id64": "1513209485273860459",
+   "frontier_body_id": "42",
+   "direct_parent_body_id": "10477373803",
+   "name": "Makemake",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 715.0,
+   "planet_mass_earth": 0.000736,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 6838871538.639067,
+   "distance_from_arrival_ls": 25371.164146,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1549238282292824427",
+   "source_body_id64": "1549238282292824427",
+   "frontier_body_id": "43",
+   "direct_parent_body_id": "10477373803",
+   "name": "(225088) 2007 OR10",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 1280.0,
+   "planet_mass_earth": 0.000435,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 10011844635.009764,
+   "distance_from_arrival_ls": 24435.971703,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "1585267079311788395",
+   "source_body_id64": "1585267079311788395",
+   "frontier_body_id": "44",
+   "direct_parent_body_id": "10477373803",
+   "name": "Eris",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 1163.0,
+   "planet_mass_earth": 0.0028,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 10139899849.891668,
+   "distance_from_arrival_ls": 38982.084854,
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "body_id": "1621295876330752363",
+   "source_body_id64": "1621295876330752363",
+   "frontier_body_id": "45",
+   "direct_parent_body_id": "10477373803",
+   "name": "Sedna",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 995.0,
+   "planet_mass_earth": 0.000435,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 75726497769.3558,
+   "distance_from_arrival_ls": 290998.778667,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "body_id": "1657324673349716331",
+   "source_body_id64": "1657324673349716331",
+   "frontier_body_id": "46",
+   "direct_parent_body_id": "10477373803",
+   "name": "Persephone",
+   "body_type": "planet",
+   "body_class": "Icy body",
+   "body_class_source": "ratings-v4-derived",
+   "is_main_star": null,
+   "spectral_class": null,
+   "luminosity_class": null,
+   "is_landable": true,
+   "radius_km": 14427.148,
+   "planet_mass_earth": 9.9997,
+   "stellar_mass_solar": null,
+   "surface_pressure_atm": 0.0,
+   "semi_major_axis_km": 104718583822.25027,
+   "distance_from_arrival_ls": 484209.510552,
+   "lifecycle_state": "ACTIVE",
+   "signals": [
+    {
+     "signal_type": "saa_signaltype_geological",
+     "count": 2
+    },
+    {
+     "signal_type": "saa_signaltype_human",
+     "count": 1
+    }
+   ]
+  }
+ ],
+ "rings": [
+  {
+   "ring_id": "86538235841653151",
+   "body_id": "792633544894581099",
+   "source_ring_id64": null,
+   "kind": "RING",
+   "name": "ZetaCC Ring",
+   "ring_type": "icy",
+   "reserve_type": "common",
+   "inner_radius_km": 30890000.0,
+   "outer_radius_km": 103000000.0,
+   "mass_mt": 171570.0,
+   "signals_complete": false,
+   "source_updated_at": "2026-11-12T20:11:22+00:00",
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "ring_id": "597514295058618576",
+   "body_id": "468374371723905387",
+   "source_ring_id64": null,
+   "kind": "RING",
+   "name": "D Ring",
+   "ring_type": "icy",
+   "reserve_type": "common",
+   "inner_radius_km": 74500000.0,
+   "outer_radius_km": 140180000.0,
+   "mass_mt": 58071.0,
+   "signals_complete": false,
+   "source_updated_at": "2026-11-12T20:11:22+00:00",
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "ring_id": "2492911389117770254",
+   "body_id": "10477373803",
+   "source_ring_id64": null,
+   "kind": "BELT",
+   "name": "Asteroid Belt",
+   "ring_type": "rocky",
+   "reserve_type": null,
+   "inner_radius_km": 308170000000.0,
+   "outer_radius_km": 489190000000.0,
+   "mass_mt": 4060500000000.0,
+   "signals_complete": false,
+   "source_updated_at": "2026-11-12T21:58:31+00:00",
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "ring_id": "3368656148037061295",
+   "body_id": "1008806327008364907",
+   "source_ring_id64": null,
+   "kind": "RING",
+   "name": "Galle Ring",
+   "ring_type": "icy",
+   "reserve_type": "common",
+   "inner_radius_km": 40900000.0,
+   "outer_radius_km": 57200000.0,
+   "mass_mt": 29009.0,
+   "signals_complete": false,
+   "source_updated_at": "2026-11-12T20:11:22+00:00",
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  },
+  {
+   "ring_id": "4591987383625969468",
+   "body_id": "252201589610121579",
+   "source_ring_id64": null,
+   "kind": "RING",
+   "name": "Jupiter Halo Ring",
+   "ring_type": "rocky",
+   "reserve_type": "common",
+   "inner_radius_km": 92000000.0,
+   "outer_radius_km": 182000000.0,
+   "mass_mt": 10000.0,
+   "signals_complete": false,
+   "source_updated_at": "2026-11-12T20:11:22+00:00",
+   "lifecycle_state": "ACTIVE",
+   "signals": []
+  }
+ ],
+ "stations": [
+  {
+   "station_id": "128016384",
+   "market_id": "128016384",
+   "name": "Daedalus",
+   "station_type": "orbis_starport",
+   "distance_from_arrival_ls": 159.662457,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "refinery",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128016640",
+   "market_id": "128016640",
+   "name": "Galileo",
+   "station_type": "ocellus_starport",
+   "distance_from_arrival_ls": 505.743893,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "refinery",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128016896",
+   "market_id": "128016896",
+   "name": "Abraham Lincoln",
+   "station_type": "orbis_starport",
+   "distance_from_arrival_ls": 507.02787,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "service",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128017152",
+   "market_id": "128017152",
+   "name": "M.Gorbachev",
+   "station_type": "orbis_starport",
+   "distance_from_arrival_ls": 502.085524,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "service",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128017408",
+   "market_id": "128017408",
+   "name": "Li Qing Jao",
+   "station_type": "orbis_starport",
+   "distance_from_arrival_ls": 506.797096,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "service",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128017664",
+   "market_id": "128017664",
+   "name": "Mars High",
+   "station_type": "orbis_starport",
+   "distance_from_arrival_ls": 827.043687,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "service",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128017920",
+   "market_id": "128017920",
+   "name": "Columbus",
+   "station_type": "ocellus_starport",
+   "distance_from_arrival_ls": 2609.454083,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "refinery",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128018176",
+   "market_id": "128018176",
+   "name": "Titan City",
+   "station_type": "orbis_starport",
+   "distance_from_arrival_ls": 4715.616234,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "refinery",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128677511",
+   "market_id": "128677511",
+   "name": "Dekker's Yard",
+   "station_type": "planetary_outpost",
+   "distance_from_arrival_ls": 4722.176853,
+   "body_id": "720575950856653163",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "colony",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "128977009",
+   "market_id": "128977009",
+   "name": "Rescue Ship - Li Qing Jao",
+   "station_type": "megaship",
+   "distance_from_arrival_ls": 496.966721,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "rescue",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3228719104",
+   "market_id": "3228719104",
+   "name": "Burnell Station",
+   "station_type": "outpost",
+   "distance_from_arrival_ls": 363.227241,
+   "body_id": null,
+   "association_state": "SYSTEM_ONLY",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "refinery",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534389760",
+   "market_id": "3534389760",
+   "name": "Walz Depot",
+   "station_type": "planetary_outpost",
+   "distance_from_arrival_ls": 162.22651,
+   "body_id": "36028807496337771",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "industrial",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534390016",
+   "market_id": "3534390016",
+   "name": "Ehrlich City",
+   "station_type": "planetary_port",
+   "distance_from_arrival_ls": 161.667294,
+   "body_id": "36028807496337771",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "industrial",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534390272",
+   "market_id": "3534390272",
+   "name": "Haberlandt Survey",
+   "station_type": "planetary_outpost",
+   "distance_from_arrival_ls": 2611.394847,
+   "body_id": "360287980667013483",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "military",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534390528",
+   "market_id": "3534390528",
+   "name": "Illy Enterprise",
+   "station_type": null,
+   "distance_from_arrival_ls": null,
+   "body_id": "360287980667013483",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "colony",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534390784",
+   "market_id": "3534390784",
+   "name": "Durrance Camp",
+   "station_type": "planetary_outpost",
+   "distance_from_arrival_ls": 2613.290327,
+   "body_id": "396316777685977451",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "colony",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534391296",
+   "market_id": "3534391296",
+   "name": "Schottky Reformatory",
+   "station_type": "planetary_outpost",
+   "distance_from_arrival_ls": 2613.570074,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "colony",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534391552",
+   "market_id": "3534391552",
+   "name": "Daimler Camp",
+   "station_type": null,
+   "distance_from_arrival_ls": null,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": []
+  },
+  {
+   "station_id": "3534391808",
+   "market_id": "3534391808",
+   "name": "Furukawa Enterprise",
+   "station_type": "planetary_outpost",
+   "distance_from_arrival_ls": 164.046213,
+   "body_id": "36028807496337771",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "industrial",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534392064",
+   "market_id": "3534392064",
+   "name": "Fung's Claim",
+   "station_type": null,
+   "distance_from_arrival_ls": null,
+   "body_id": "360287980667013483",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "colony",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3534392832",
+   "market_id": "3534392832",
+   "name": "Chargaff Reach",
+   "station_type": null,
+   "distance_from_arrival_ls": null,
+   "body_id": "360287980667013483",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "colony",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802400000",
+   "market_id": "3802400000",
+   "name": "Navarrete's Prospect",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9144.363339,
+   "body_id": "972777529989400939",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802400256",
+   "market_id": "3802400256",
+   "name": "Amos Mining Hub",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9145.338464,
+   "body_id": "972777529989400939",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802400512",
+   "market_id": "3802400512",
+   "name": "Shen Extraction Rigs",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9145.112009,
+   "body_id": "972777529989400939",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802400768",
+   "market_id": "3802400768",
+   "name": "Indongo Bay",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9145.147066,
+   "body_id": "972777529989400939",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802401024",
+   "market_id": "3802401024",
+   "name": "Lamar's Prospect",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9143.401672,
+   "body_id": "864691138932509035",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802401280",
+   "market_id": "3802401280",
+   "name": "Deshpande Mining Exchange",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9142.696614,
+   "body_id": "864691138932509035",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802401536",
+   "market_id": "3802401536",
+   "name": "Abimbola Metallurgic Reserve",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9142.823965,
+   "body_id": "864691138932509035",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802401792",
+   "market_id": "3802401792",
+   "name": "Hirano Mineralogic Territory",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9143.488495,
+   "body_id": "864691138932509035",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802402048",
+   "market_id": "3802402048",
+   "name": "Pavlenko's Reception",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9142.78338,
+   "body_id": "864691138932509035",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802402304",
+   "market_id": "3802402304",
+   "name": "Avery Manufacturing Hub",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9142.740543,
+   "body_id": "864691138932509035",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "industrial",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802402560",
+   "market_id": "3802402560",
+   "name": "Ndiaye Hospitality Complex",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4717.060522,
+   "body_id": "612489559799761259",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802402816",
+   "market_id": "3802402816",
+   "name": "Majoro Entertainment Complex",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2610.093466,
+   "body_id": "360287980667013483",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802403072",
+   "market_id": "3802403072",
+   "name": "Hidalgo's Slumber",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2610.363243,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802403328",
+   "market_id": "3802403328",
+   "name": "Alasa Industries",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2615.596245,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "industrial",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802403584",
+   "market_id": "3802403584",
+   "name": "Fraser Industrial Moulding",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2618.537703,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "industrial",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802403840",
+   "market_id": "3802403840",
+   "name": "Bourne Mining Installation",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2614.569583,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802404096",
+   "market_id": "3802404096",
+   "name": "Vadamootoo Mining Base",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2605.451624,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802404352",
+   "market_id": "3802404352",
+   "name": "Dewsnap Prospecting Station",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2615.559862,
+   "body_id": "432345574704941419",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802404608",
+   "market_id": "3802404608",
+   "name": "Bibeau's Wandering",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4719.012563,
+   "body_id": "648518356818725227",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802404864",
+   "market_id": "3802404864",
+   "name": "Correa Entertainment Complex",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9142.534957,
+   "body_id": "900719935951473003",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802405120",
+   "market_id": "3802405120",
+   "name": "Kvitka's Origin",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4713.862514,
+   "body_id": "576460762780797291",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802405376",
+   "market_id": "3802405376",
+   "name": "Beauchene's Horizon",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18842.75052,
+   "body_id": "1297036703160076651",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802405632",
+   "market_id": "3802405632",
+   "name": "Adebisi Hospitality Zone",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 25372.346348,
+   "body_id": "1513209485273860459",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802405888",
+   "market_id": "3802405888",
+   "name": "Ponomarenko's Drilling",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 21086.487311,
+   "body_id": "1477180688254896491",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802406144",
+   "market_id": "3802406144",
+   "name": "Sakurai Tourism Complex",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 16035.088282,
+   "body_id": "1224979109122148715",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802406400",
+   "market_id": "3802406400",
+   "name": "Tsarenko Prospecting Exchange",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 16042.852785,
+   "body_id": "1224979109122148715",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802406656",
+   "market_id": "3802406656",
+   "name": "Ji's Slumber",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18615.183713,
+   "body_id": "1333065500179040619",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802406912",
+   "market_id": "3802406912",
+   "name": "Avery Excavation Hub",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18614.544225,
+   "body_id": "1333065500179040619",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802407168",
+   "market_id": "3802407168",
+   "name": "Mendy Excavation Site",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4719.735562,
+   "body_id": "720575950856653163",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802407424",
+   "market_id": "3802407424",
+   "name": "Mathibeli Excavation Station",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4722.098289,
+   "body_id": "720575950856653163",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802407680",
+   "market_id": "3802407680",
+   "name": "Aithal Garrison",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4712.447689,
+   "body_id": "720575950856653163",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "military",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802407936",
+   "market_id": "3802407936",
+   "name": "Banyard Command Outpost",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4718.039204,
+   "body_id": "720575950856653163",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "military",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802408192",
+   "market_id": "3802408192",
+   "name": "Hao's Steal",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 25201.14032,
+   "body_id": "1405123094216968555",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802408448",
+   "market_id": "3802408448",
+   "name": "Oshpak's House",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 9144.190808,
+   "body_id": "936748732970436971",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802408704",
+   "market_id": "3802408704",
+   "name": "Kvitka Dredging Enterprise",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2611.29654,
+   "body_id": "396316777685977451",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802408960",
+   "market_id": "3802408960",
+   "name": "Grebby Prospecting",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2608.261053,
+   "body_id": "396316777685977451",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802409216",
+   "market_id": "3802409216",
+   "name": "Bruno's Encampment",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2610.850078,
+   "body_id": "396316777685977451",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "military",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3802409472",
+   "market_id": "3802409472",
+   "name": "Malins's Camp",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 2609.727727,
+   "body_id": "396316777685977451",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "military",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807123712",
+   "market_id": "3807123712",
+   "name": "Seidel's Globe",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18614.58049,
+   "body_id": "1369094297198004587",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807123968",
+   "market_id": "3807123968",
+   "name": "Fincham Drilling Hub",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18614.580505,
+   "body_id": "1369094297198004587",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807124224",
+   "market_id": "3807124224",
+   "name": "Yamashita Excavation Territory",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18614.489648,
+   "body_id": "1369094297198004587",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807124480",
+   "market_id": "3807124480",
+   "name": "Florianz Mining Prospect",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18614.355074,
+   "body_id": "1369094297198004587",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807124736",
+   "market_id": "3807124736",
+   "name": "Awolowo Mineralogic Base",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 18614.35499,
+   "body_id": "1369094297198004587",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807124992",
+   "market_id": "3807124992",
+   "name": "Walachnia's Gate",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 16044.687733,
+   "body_id": "1261007906141112683",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3807125248",
+   "market_id": "3807125248",
+   "name": "Uutoni Extraction Platform",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 16042.483006,
+   "body_id": "1261007906141112683",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "extraction",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  },
+  {
+   "station_id": "3908612352",
+   "market_id": "3908612352",
+   "name": "Ikeda Tourist Zone",
+   "station_type": "settlement",
+   "distance_from_arrival_ls": 4714.028659,
+   "body_id": "540431965761833323",
+   "association_state": "BODY_RESOLVED",
+   "lifecycle_state": "ACTIVE",
+   "economies": [
+    {
+     "economy": "tourism",
+     "economy_weight": null,
+     "is_primary": true,
+     "is_secondary": false
+    }
+   ]
+  }
+ ]
+}

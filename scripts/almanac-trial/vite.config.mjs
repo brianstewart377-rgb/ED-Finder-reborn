@@ -19,6 +19,8 @@ export default defineConfig({
     // small server tells the browser never to keep a copy, so no name needs
     // to change for a change to be seen.
     rollupOptions: {
+      // Two pages: the galaxy map trial and the System Map trial.
+      input: { index: here('./index.html'), 'system-map': here('./system-map.html') },
       output: {
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',

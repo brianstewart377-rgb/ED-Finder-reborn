@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ED-Finder: System Map trial</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root { --amber: #ffaa50; --line: #3b4a5a; --text: #dfe6ee; --muted: #93a3b3; --panel: rgba(9, 12, 18, 0.92); }
+      html, body { margin: 0; height: 100%; background: #04060a; color: var(--text); font: 14px/1.4 system-ui, sans-serif; overflow: hidden; }
+      header { position: fixed; inset: 0 0 auto 0; height: 46px; display: flex; align-items: center; gap: 14px; padding: 0 14px;
+               background: var(--panel); border-bottom: 1px solid #2a3440; z-index: 5; }
+      header h1 { margin: 0; font-size: 14px; letter-spacing: 0.16em; color: var(--amber); font-weight: 600; }
+      header label { color: var(--muted); }
+      select, button { font: inherit; color: var(--text); background: #121a24; border: 1px solid #40505f; border-radius: 4px; padding: 4px 8px; }
+      button { cursor: pointer; }
+      #stage { position: fixed; inset: 46px 320px 0 0; cursor: grab;
+               background-image: linear-gradient(#0d131b 1px, transparent 1px), linear-gradient(90deg, #0d131b 1px, transparent 1px);
+               background-size: 44px 44px; }
+      #stage.dragging { cursor: grabbing; }
+      #stage svg { display: block; width: 100%; height: 100%; }
+      #side { position: fixed; inset: 46px 0 0 auto; width: 320px; box-sizing: border-box; padding: 14px 16px; overflow: auto;
+              background: var(--panel); border-left: 1px solid #2a3440; }
+      #side h2 { margin: 0 0 2px; font-size: 17px; color: #fff; }
+      #side h3 { margin: 14px 0 4px; font-size: 11px; letter-spacing: 0.18em; color: var(--amber); text-transform: uppercase; }
+      #side p { margin: 4px 0; }
+      #side .kind { color: var(--muted); }
+      #side dl { margin: 6px 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+      #side dt { color: var(--muted); }
+      #side dd { margin: 0; }
+      #side ul { margin: 4px 0; padding-left: 18px; }
+      #side .note { color: var(--muted); font-size: 12.5px; }
+      #problem { color: #ffb4a6; }
+      #problem:empty { display: none; }
+      .legend { display: grid; grid-template-columns: 22px 1fr; gap: 5px 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+      .legend svg { width: 18px; height: 14px; overflow: visible; }
+
+      .sm-line { stroke: var(--line); stroke-width: 1; }
+      .sm-pair { stroke: #5b6f84; stroke-width: 1; fill: none; }
+      .sm-label { fill: var(--muted); font-size: 9.5px; pointer-events: none; }
+      .sm-ground { fill: var(--amber); font-size: 7.5px; pointer-events: none; }
+      .sm-body, .sm-station { cursor: pointer; outline: none; }
+      .sm-body:focus-visible .sm-hit, .sm-body:hover .sm-hit { stroke: #8fb6d8; stroke-width: 1; }
+      .sm-body.sm-selected .sm-hit { stroke: #5ad0ff; stroke-width: 1.6; }
+      .sm-station { color: var(--amber); }
+      .sm-station rect { fill: #0c1118; stroke: var(--amber); stroke-width: 1; }
+      .sm-station path { stroke: var(--amber); stroke-width: 1.2; }
+      .sm-station.sm-guess rect { stroke-dasharray: 2 1.6; }
+      .sm-station:focus-visible rect, .sm-station:hover rect { stroke: #fff; }
+      .sm-station.sm-selected rect { stroke: #5ad0ff; stroke-width: 1.6; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>SYSTEM MAP TRIAL</h1>
+      <label for="system">System</label>
+      <select id="system"></select>
+      <button id="fit" type="button">Show the whole system</button>
+      <span class="note" style="color: var(--muted)">Drag to move, wheel to zoom, click a body or a station.</span>
+    </header>
+    <main id="stage" aria-label="System map"></main>
+    <aside id="side" aria-live="polite">
+      <p id="problem" role="alert"></p>
+      <div id="about"></div>
+      <h3>What the marks mean</h3>
+      <div class="legend">
+        <svg viewBox="-9 -7 18 14" class="sm-station"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /><path d="M0 -3.2 L3.2 0 L0 3.2 L-3.2 0 Z" fill="currentColor" stroke="none" /></svg><span>A starport in orbit</span>
+        <svg viewBox="-9 -7 18 14" class="sm-station"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /><path d="M0 -3.2 L3.2 0 L0 3.2 L-3.2 0 Z" fill="none" /></svg><span>An outpost in orbit</span>
+        <svg viewBox="-9 -7 18 14" class="sm-station"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /><path d="M0 -3.2 V3.2 M-3.2 0 H3.2" fill="none" /></svg><span>Being built in orbit</span>
+        <svg viewBox="-9 -7 18 14" class="sm-station"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /><path d="M-3.4 0 H3.4" stroke-width="2.2" fill="none" /></svg><span>A megaship</span>
+        <svg viewBox="-9 -7 18 14" class="sm-station sm-guess"><rect x="-5.5" y="-5.5" width="11" height="11" rx="2" /></svg><span>Dashed: placed by its distance. Our data does not say which body it is at.</span>
+        <svg viewBox="-9 -7 18 14"><text class="sm-ground" x="-7" y="3" style="font-size: 10px">&#9650;3</text></svg><span>Three sites on the ground</span>
+        <svg viewBox="-9 -7 18 14"><path class="sm-pair" d="M-7 4 V-3 H7 V4" /></svg><span>Two bodies that circle each other</span>
+      </div>
+      <p class="note">Sizes are for reading, not to scale. Colours are by class, as on our own map; they are not pictures of the real surface.</p>
+    </aside>
+    <script type="module" src="./src/system-map/page.js"></script>
+  </body>
+</html>
