@@ -228,7 +228,36 @@ def test_unchanged_real_system_matches_production_base_exactly(records, base):
         assert not verdict.admit
 
 
+MINING_LOCATIONS = "$PlanetaryMiningLocation_Name;"
+
+
+def test_mining_locations_in_a_real_record_are_a_change_to_its_signals(records, base):
+    """Alioth's record of September 2026 lists mining locations on seven
+    bodies. The base was written before the importer knew that signal
+    (migration 029), so it holds none of them."""
+    listed = {body["name"]: body["signals"]["signals"][MINING_LOCATIONS]
+              for body in records[ALIOTH]["bodies"]
+              if MINING_LOCATIONS in ((body.get("signals") or {}).get("signals") or {})}
+    assert listed == {"Alioth 1 a": 19, "Alioth 2 e": 15, "Alioth 3 a": 21, "Alioth 4 a": 9,
+                      "Mackenzie's Legacy": 10, "Ousey Rock": 12, "Miller Rock": 29}
+
+    system = normalize_system(records[ALIOTH])
+    strict = classify_material_change(system, base, policy="strict", tables=BASE_TABLES)
+    stable = classify_material_change(system, base, policy="stable", tables=BASE_TABLES)
+
+    assert strict.status == "changed" and strict.changed_tables == ("bodies", "body_signal_current")
+    assert (strict.rows_added, strict.rows_removed) == (7, 0)
+    assert not system.unmapped_vocabulary
+    # The stable comparison sets the orbital phase aside, and still sees them.
+    assert stable.status == "changed" and stable.changed_tables == ("body_signal_current",)
+    assert (stable.rows_added, stable.rows_removed) == (7, 0)
+
+
 def test_rescan_only_moves_orbital_phase_columns(records, base):
+    # Without its mining locations (see the test above), Alioth's later record
+    # differs from the base only by where each body is on its orbit.
+    for body in records[ALIOTH]["bodies"]:
+        ((body.get("signals") or {}).get("signals") or {}).pop(MINING_LOCATIONS, None)
     system = normalize_system(records[ALIOTH])
     strict = classify_material_change(system, base, policy="strict", tables=BASE_TABLES)
     stable = classify_material_change(system, base, policy="stable", tables=BASE_TABLES)
