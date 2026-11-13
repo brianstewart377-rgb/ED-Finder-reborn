@@ -11,9 +11,10 @@
 //     node fetch-data.mjs
 //
 // It also writes public/data/systems.json for the System Map trial: the
-// bodies, rings and stations of three example systems and of the player's own.
+// bodies, rings and stations of three example systems and of the player's
+// own, and the builder's predicted ground slots for each body.
 //
-// About 40 questions to the site, and six more for each of the player's
+// About 45 questions to the site, and seven more for each of the player's
 // systems, a little over a second apart: two to three minutes.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -117,8 +118,25 @@ async function wholeSystem(found) {
   const rings = await ask('/rings');
   // Fleet carriers come and go, and nobody built them here.
   const stations = (await ask('/stations')).filter((station) => station.station_type !== 'fleet_carrier');
-  console.log(`System map, ${found.name}: ${bodies.length} bodies, ${rings.length} rings and belts, ${stations.length} stations`);
-  return { system, bodies, rings, stations };
+  // The builder's list of the same bodies carries the ground slots the site
+  // predicts. Only what the map reads of it is kept.
+  await pause();
+  const planned = await answer(
+    await fetch(`${SITE}/api/v1/plan/systems/${found.id64}/bodies`, { signal: AbortSignal.timeout(90_000) }),
+    `${found.name}, the builder's bodies`,
+  );
+  const plan = {
+    bodies: planned.bodies.map((body) => ({
+      body_id: body.body_id,
+      is_landable: body.is_landable,
+      predicted_surface_slots: body.predicted_surface_slots,
+      prediction_status: body.prediction_status,
+      missing_inputs: body.missing_inputs,
+    })),
+  };
+  const predicted = plan.bodies.filter((body) => body.prediction_status === 'predicted').length;
+  console.log(`System map, ${found.name}: ${bodies.length} bodies, ${rings.length} rings and belts, ${stations.length} stations, ground slots predicted for ${predicted}`);
+  return { system, bodies, rings, stations, plan };
 }
 
 // The System Map trial: one star, two stars, a giant star, and the player's own.

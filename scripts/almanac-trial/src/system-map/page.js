@@ -2,9 +2,9 @@
 // draws the chosen one as a picture (tree.mjs, layout.mjs, draw.mjs), and
 // handles the three things a person does: choose a system, move about the
 // picture, and click a body or a station to read about it.
-import { buildTree, readSystem } from './tree.mjs';
+import { RING_KINDS, buildTree, readSystem, ringKind } from './tree.mjs';
 import { layoutOf } from './layout.mjs';
-import { lookOf, pictureOf } from './draw.mjs';
+import { RING_COLOURS, lookOf, pictureOf } from './draw.mjs';
 
 const stage = document.querySelector('#stage');
 const about = document.querySelector('#about');
@@ -48,12 +48,36 @@ function listOf(title, stations) {
   return [el('h3', title), list];
 }
 
+/** What the panel says of a body's ground slots, in plain words. Null for a star. */
+function groundSlotsInWords(node) {
+  if (node.type === 'star') return null;
+  const { count, why, missing } = node.groundSlots;
+  if (why === 'predicted') return `${count} (predicted by our site; the game is the only sure source)`;
+  if (why === 'cannot land') return 'none: it cannot be landed on';
+  if (why === 'facts missing') {
+    return `not known: our data lacks this body's ${missing.join(', ') || 'facts'}, so the site makes no prediction`;
+  }
+  return 'not known';
+}
+
+/** A planet's rings or a star's belts, one to a line, from the inside out. */
+function ringList(title, rings, noun) {
+  if (rings.length === 0) return [];
+  const list = el('ul');
+  for (const ring of rings) list.append(el('li', `${ring.name ?? noun}: ${ringKind(ring) ?? 'kind not known'}`));
+  return [el('h3', title), list];
+}
+
 function showSystem() {
   const all = [...tree.nodes.values()];
   const inOrbit = all.flatMap((node) => node.orbit);
   const guesses = inOrbit.filter((station) => station.guess).length;
   const onGround = all.reduce((total, node) => total + node.ground.length, 0);
   const guessedParents = all.filter((node) => node.guessedParent && node.type !== 'barycentre').length;
+  const landable = all.filter((node) => node.landable);
+  const predicted = landable.filter((node) => node.groundSlots.why === 'predicted').length;
+  const lacking = landable.filter((node) => node.groundSlots.why === 'facts missing');
+  const lacked = [...new Set(lacking.flatMap((node) => node.groundSlots.missing))].join(', ');
   about.replaceChildren(
     el('h2', tree.name),
     el('p', 'Click a body or a station to read about it.', 'kind'),
@@ -61,7 +85,11 @@ function showSystem() {
       ['Bodies', String(all.filter((node) => node.type !== 'barycentre').length)],
       ['In orbit', `${inOrbit.length}${guesses > 0 ? `, of which ${guesses} placed by distance` : ''}`],
       ['On the ground', String(onGround)],
+      ['Ground slots', `predicted for ${predicted} of the ${landable.length} bodies that can be landed on`],
     ]),
+    ...(lacking.length > 0
+      ? [el('p', `No prediction for ${lacking.length} of them: our data lacks their ${lacked}.`, 'note')]
+      : []),
     ...(inOrbit.length + onGround === 0 ? [el('p', 'Our data holds nothing built in this system yet.', 'note')] : []),
     ...(guessedParents > 0
       ? [el('p', `${guessedParents} bodies come with no parent in our data. They are placed by their name or their distance.`, 'note')]
@@ -90,9 +118,10 @@ function showBody(node) {
       ['From arrival', node.arrivalLs != null ? `${whole1.format(node.arrivalLs)} ls` : null],
       ['Star class', node.spectral ? `${node.spectral}${node.luminosity ? ` ${node.luminosity}` : ''}` : null],
       ['Can be landed on', node.type === 'star' ? null : (node.landable ? 'yes' : 'no')],
-      ['Rings', node.rings.length > 0 ? node.rings.map((ring) => ring.ringClass ?? 'kind not known').join(', ') : null],
-      ['Belts', node.belts.length > 0 ? String(node.belts.length) : null],
+      ['Ground slots', groundSlotsInWords(node)],
     ]),
+    ...ringList(node.rings.length === 1 ? 'Ring' : 'Rings, from the inside out', node.rings, 'Ring'),
+    ...ringList(node.belts.length === 1 ? 'Belt' : 'Belts', node.belts, 'Belt'),
     ...listOf('In orbit', node.orbit),
     ...listOf('On the ground', node.ground),
     ...listOf('Kind not known', node.unknownKind),
@@ -204,7 +233,18 @@ stage.addEventListener('keydown', (event) => {
 });
 document.querySelector('#fit').addEventListener('click', () => setView({ ...whole }));
 
+/** The legend's lines for the kinds of ring and belt, in the colours the picture uses. */
+function ringLegend() {
+  const legend = document.querySelector('#ring-legend');
+  for (const [code, word] of Object.entries(RING_KINDS)) {
+    const swatch = el('span', null, 'swatch');
+    swatch.style.background = `rgb(${RING_COLOURS[code].join(',')})`;
+    legend.append(swatch, el('span', `${word[0].toUpperCase()}${word.slice(1)} ring or belt`));
+  }
+}
+
 async function start() {
+  ringLegend();
   const response = await fetch('./data/systems.json');
   if (!response.ok) throw new Error(`The data file data/systems.json did not load (${response.status}).`);
   const data = await response.json();

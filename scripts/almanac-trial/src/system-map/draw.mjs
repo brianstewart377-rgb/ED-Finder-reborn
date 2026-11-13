@@ -3,6 +3,10 @@
 // carry bands, rings pass behind and in front of their planet, and each
 // station in orbit is a small marker hanging from its body.
 //
+// Each ring is its own band, coloured by its kind (icy, rocky, metal rich,
+// metallic). Colour never says it alone: the kind is also written under the
+// planet's name, and spoken.
+//
 // The colours are illustrative, by class, exactly as on our own map: no
 // surface picture or observed weather is implied.
 //
@@ -10,14 +14,23 @@
 // name that comes from data is escaped before it goes into the picture.
 import { stellarPresentation } from '../../../../apps/web/src/lib/spatial/stellar-presentation.ts';
 import { FAMILIES, familyOf, isBanded } from './body-look.mjs';
+import { ringKind } from './tree.mjs';
 
-const RING_COLOURS = {
-  icy: [200, 225, 240],
-  rocky: [176, 150, 120],
-  metal_rich: [205, 185, 140],
-  metallic: [190, 190, 200],
+/** The colour of each kind of ring and belt, chosen to be told apart at a glance. */
+export const RING_COLOURS = {
+  icy: [170, 222, 250],
+  rocky: [170, 122, 84],
+  metal_rich: [230, 186, 80],
+  metallic: [156, 162, 180],
 };
+const RING_COLOUR_UNKNOWN = [120, 120, 126];
 const RING_TILT = -12;
+/** How flat a ring looks, seen from a little above: its height over its width. */
+const RING_FLAT = 0.24;
+/** Where a planet's rings are drawn, in planet radii from its centre, and the gap between two. */
+const RING_FROM = 1.3;
+const RING_TO = 2.1;
+const RING_GAP = 0.06;
 
 /** Text made safe to put inside the picture. */
 export function safe(text) {
@@ -70,37 +83,52 @@ export function lookOf(node) {
 /** What a screen reader and a tooltip say of a body. */
 export function spokenOf(node) {
   const parts = [`${node.short}, ${lookOf(node).words}`];
+  const slots = node.groundSlots?.count ?? null;
   if (node.orbit.length > 0) parts.push(`${node.orbit.length} in orbit`);
   if (node.ground.length > 0) parts.push(`${node.ground.length} on the ground`);
-  if (node.rings.length > 0) parts.push(node.rings.length === 1 ? 'ringed' : `${node.rings.length} rings`);
+  if (slots !== null) parts.push(`${slots} ground ${slots === 1 ? 'slot' : 'slots'} predicted`);
+  if (node.ringWords) parts.push(node.ringWords);
   return parts.join('; ');
 }
 
-function ringHalf(r, front) {
-  const sweep = front ? 0 : 1;
-  const wide = `M ${n(-1.85 * r)} 0 A ${n(1.85 * r)} ${n(0.44 * r)} 0 0 ${sweep} ${n(1.85 * r)} 0`;
-  const thin = `M ${n(-1.42 * r)} 0 A ${n(1.42 * r)} ${n(0.33 * r)} 0 0 ${sweep} ${n(1.42 * r)} 0`;
-  return { wide, thin };
+/** Each of a planet's rings as a band, from the inside out: where it runs, in planet radii, and its colour. */
+export function ringBandsOf(node) {
+  const count = node.rings.length;
+  const each = (RING_TO - RING_FROM - RING_GAP * (count - 1)) / count;
+  return node.rings.map((ring, index) => {
+    const from = RING_FROM + index * (each + RING_GAP);
+    return { from, to: from + each, colour: RING_COLOURS[ring.ringClass] ?? RING_COLOUR_UNKNOWN, kind: ringKind(ring) };
+  });
+}
+
+/**
+ * Half of a flat band between two distances from the centre: the half that
+ * passes in front of the planet, or the half that passes behind. Drawn as a
+ * filled shape, so the band is thin where it turns away and wide at the sides.
+ */
+function halfBand(from, to, front) {
+  const [outer, inner] = front ? [0, 1] : [1, 0];
+  return `M ${n(-to)} 0 A ${n(to)} ${n(to * RING_FLAT)} 0 0 ${outer} ${n(to)} 0 `
+    + `L ${n(from)} 0 A ${n(from)} ${n(from * RING_FLAT)} 0 0 ${inner} ${n(-from)} 0 Z`;
 }
 
 function ringOf(item, front) {
   const { node, r } = item;
   if (node.rings.length === 0) return '';
-  const colour = rgb255(RING_COLOURS[node.rings[0].ringClass] ?? [170, 170, 175]);
-  const half = ringHalf(r, front);
-  return `<g transform="rotate(${RING_TILT})" fill="none" stroke="${colour}" stroke-linecap="butt">`
-    + `<path d="${half.wide}" stroke-width="${n(0.34 * r)}" opacity="${front ? 0.8 : 0.5}"/>`
-    + `<path d="${half.thin}" stroke-width="${n(0.12 * r)}" opacity="${front ? 0.55 : 0.35}"/></g>`;
+  const bands = ringBandsOf(node)
+    .map((band) => `<path d="${halfBand(band.from * r, band.to * r, front)}" fill="${rgb255(band.colour)}"/>`)
+    .join('');
+  return `<g class="sm-ring" transform="rotate(${RING_TILT})" opacity="${front ? 0.92 : 0.5}">${bands}</g>`;
 }
 
-/** The shadow a ring throws across its planet, just above where the ring passes in front. */
+/** The shadow the rings throw across their planet, just above where they pass in front. */
 function ringShadowOf(item) {
   const { node, r } = item;
   if (node.rings.length === 0) return '';
   const id = `sm-ringclip-${safe(node.id)}`;
   return `<clipPath id="${id}"><circle r="${n(r)}"/></clipPath><g clip-path="url(#${id})">`
-    + `<g transform="rotate(${RING_TILT}) translate(0 ${n(-0.16 * r)})" fill="none" stroke="#000" opacity="0.34">`
-    + `<path d="${ringHalf(r, true).wide}" stroke-width="${n(0.3 * r)}"/></g></g>`;
+    + `<g transform="rotate(${RING_TILT}) translate(0 ${n(-0.14 * r)})" fill="#000" opacity="0.34">`
+    + `<path d="${halfBand(RING_FROM * r, RING_TO * r, true)}"/></g></g>`;
 }
 
 function bandsOf(item) {
@@ -134,9 +162,15 @@ function bodyOf(item) {
     shape = `<circle r="${n(r)}" fill="${rgb1(look.colour)}"/>${look.banded ? bandsOf(item) : ''}`
       + `${ringShadowOf(item)}<circle r="${n(r)}" fill="url(#sm-shade)"/>`;
   }
-  const ground = node.ground.length > 0
-    ? `<text class="sm-ground" x="${n(r * 0.72 + 2)}" y="${n(r * 0.72 + 8)}">&#9650;${node.ground.length}</text>`
-    : '';
+  // Two numbers side by side, never one over the other: sites in our data
+  // (a triangle) and ground slots the site predicts (an empty square). They
+  // do not count the same thing, so the page does not make a fraction of them.
+  const { mark } = item;
+  const ground = !mark
+    ? ''
+    : `<text class="sm-ground" x="${n(mark.x)}" y="${n(mark.y)}">`
+      + `${mark.built === null ? '' : `<tspan>&#9650;${mark.built}</tspan>`}`
+      + `${mark.slots === null ? '' : `<tspan class="sm-slots"${mark.built === null ? '' : ' dx="3"'}>&#9633;${mark.slots}</tspan>`}</text>`;
   const spoken = safe(spokenOf(node));
   return `<g class="sm-body${node.guessedParent ? ' sm-guessed' : ''}" data-id="${safe(node.id)}" tabindex="0" role="button" `
     + `aria-label="${spoken}" transform="translate(${n(item.x)} ${n(item.y)})"><title>${spoken}</title>`
@@ -159,7 +193,7 @@ function starGradients(layout) {
 
 function beltOf(item, index) {
   const next = numbersFrom(`belt-${index}`);
-  const colour = rgb255(RING_COLOURS[item.belt.ringClass] ?? [150, 140, 128]);
+  const colour = rgb255(RING_COLOURS[item.belt.ringClass] ?? RING_COLOUR_UNKNOWN);
   let rocks = '';
   for (let count = 0; count < 30; count += 1) {
     const angle = next() * Math.PI * 2;
@@ -168,7 +202,8 @@ function beltOf(item, index) {
     const y = Math.sin(angle) * reach * (item.h / 2);
     rocks += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(0.6 + next() * 1.5)}" opacity="${n(0.45 + next() * 0.5)}"/>`;
   }
-  const name = safe(item.belt.name ?? 'Asteroid belt');
+  const kind = ringKind(item.belt);
+  const name = safe(`${item.belt.name ?? 'Asteroid belt'}, ${kind ? `${kind} belt` : 'belt, kind not known'}`);
   return `<g class="sm-belt" fill="${colour}" transform="translate(${n(item.x)} ${n(item.y)})"><title>${name}</title>${rocks}</g>`;
 }
 
@@ -211,7 +246,7 @@ export function pictureOf(layout, margin = 28) {
     })
     .join('');
   const labels = layout.labels
-    .map((label) => `<text class="sm-label" x="${n(label.x)}" y="${n(label.y)}" text-anchor="${label.anchor}">${safe(label.text)}</text>`)
+    .map((label) => `<text class="${label.small ? 'sm-caption' : 'sm-label'}" x="${n(label.x)}" y="${n(label.y)}" text-anchor="${label.anchor}">${safe(label.text)}</text>`)
     .join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" class="sm" viewBox="${view.join(' ')}" data-box="${view.join(' ')}">`
     + '<defs>'

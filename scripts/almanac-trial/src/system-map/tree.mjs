@@ -15,6 +15,12 @@
 // 2. Which body a station is at. Stations on the ground come with their
 //    body. Most stations in orbit do not. Those go to the body whose distance
 //    from the arrival point is nearest to theirs, if one is close enough.
+//
+// A third thing is never a fact from the game at all: how many ground slots
+// a body has. The game publishes no slot counts. The site's builder predicts
+// them, and only when it holds every fact its rule needs; the count is
+// carried here with its reason, so the page can say "predicted" or say why
+// there is no number.
 
 /** Station types that are in orbit, and how the map marks each. */
 export const ORBITAL_TYPES = {
@@ -37,6 +43,48 @@ export const SURFACE_TYPES = new Set([
 /** How near a station's distance must be to a body's for the station to be put there, in light seconds. */
 export function nearEnough(bodyLs, stationLs) {
   return Math.abs(bodyLs - stationLs) <= Math.max(3, stationLs * 0.005);
+}
+
+/** How our data names each kind of ring and belt, in plain words. */
+export const RING_KINDS = { icy: 'icy', rocky: 'rocky', metal_rich: 'metal rich', metallic: 'metallic' };
+
+/** A ring's or belt's kind in plain words, or null when our data gives none we know. */
+export function ringKind(ring) {
+  return RING_KINDS[ring.ringClass] ?? null;
+}
+
+/**
+ * A planet's rings in a few words, from the inside out: "icy ring",
+ * "2 metal rich rings", "rings: metal rich, icy". Null when it has none.
+ */
+export function ringsInWords(rings) {
+  if (rings.length === 0) return null;
+  const kinds = rings.map((ring) => ringKind(ring));
+  if (kinds.every((kind) => kind === null)) return rings.length === 1 ? 'ring, kind not known' : `${rings.length} rings, kind not known`;
+  if (rings.length === 1) return `${kinds[0]} ring`;
+  if (new Set(kinds).size === 1) return `${rings.length} ${kinds[0]} rings`;
+  return `rings: ${kinds.map((kind) => kind ?? 'not known').join(', ')}`;
+}
+
+/**
+ * What the site's builder says of one body's ground slots: the count it
+ * predicts, or null with the reason there is none.
+ *   'predicted'      the site's rule gave a count
+ *   'facts missing'  the rule lacks a fact about the body, named in `missing`
+ *   'cannot land'    the body cannot be landed on
+ *   'no prediction'  the site gave none, for another reason
+ *   'not asked'      the builder's list was not fetched for this system
+ */
+export function groundSlotsOf(found) {
+  if (!found) return { count: null, why: 'not asked', missing: [] };
+  if (found.prediction_status === 'predicted' && Number.isInteger(found.predicted_surface_slots)) {
+    return { count: found.predicted_surface_slots, why: 'predicted', missing: [] };
+  }
+  if (found.prediction_status === 'unknown') {
+    return { count: null, why: 'facts missing', missing: [...(found.missing_inputs ?? [])] };
+  }
+  if (found.is_landable === false) return { count: null, why: 'cannot land', missing: [] };
+  return { count: null, why: 'no prediction', missing: [] };
 }
 
 function words(code) {
@@ -68,11 +116,16 @@ function readBody(found) {
 }
 
 /**
- * The site's four answers for one system, as one tidy record. Fleet carriers
- * are left out: they come and go, and nobody built them here.
+ * The site's answers for one system, as one tidy record: the system, its
+ * bodies, rings and stations, and (under `plan`, when it was fetched) the
+ * builder's list of the same bodies with its predicted ground slots. Fleet
+ * carriers are left out: they come and go, and nobody built them here.
  */
 export function readSystem(raw) {
-  const bodies = raw.bodies.filter((found) => found.lifecycle_state !== 'DELETED').map(readBody);
+  const planned = new Map((raw.plan?.bodies ?? []).map((found) => [String(found.body_id), found]));
+  const bodies = raw.bodies
+    .filter((found) => found.lifecycle_state !== 'DELETED')
+    .map((found) => ({ ...readBody(found), groundSlots: groundSlotsOf(planned.get(String(found.body_id))) }));
   const rings = raw.rings
     .filter((found) => found.lifecycle_state !== 'DELETED')
     .map((found) => ({
@@ -178,6 +231,11 @@ export function buildTree(system) {
   for (const ring of system.rings) {
     const node = nodes.get(ring.body);
     if (node) node[ring.belt ? 'belts' : 'rings'].push(ring);
+  }
+  // A planet's rings from the inside out, and what to call them.
+  for (const node of nodes.values()) {
+    node.rings.sort((one, other) => (one.innerKm ?? Infinity) - (other.innerKm ?? Infinity));
+    node.ringWords = ringsInWords(node.rings);
   }
   // Stars head the rows in the game's own order (A, then B), by the game's
   // number for each. That is not always the star a ship arrives at.

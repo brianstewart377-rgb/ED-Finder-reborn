@@ -527,6 +527,34 @@ What building it showed about our data:
   moon from the planet its name points to, and a pair from the nearest star,
   and marks both.
 
+Two more things the owner asked of it, the same evening: "It's should also
+show a numerical indicator of how many ground slots the body has" and
+"indicate what type each ring is ice/rocky etc". The page now does both.
+
+- **Ring kinds.** Our data holds four, for rings and belts alike: icy,
+  rocky, metal rich, metallic. Each ring is its own band in its kind's
+  colour, and the kind is written under the planet's name.
+- **Ground slots.** The game publishes no slot counts. The owner: "We use an
+  algorithm to predict surface slots". That is the builder's rule
+  (`validated-slot-v1`, `apps/api/src/ingest/slot_prediction.py`); the page
+  reads its answer from `GET /api/v1/plan/systems/<id>/bodies`. The owner
+  recalls it as about 99.6 % accurate; neither repo records a figure, and
+  the code's own note reads "only 2 true mismatches" against its evidence.
+- **It predicts for few bodies today.** The rule refuses to guess when a
+  fact is missing. In the six trial systems, 121 bodies can be landed on;
+  the site predicts for 8. For the other 113 our data has no atmosphere at
+  all, and every one of the 8 has a thin atmosphere. So a body with no
+  atmosphere, the commonest kind to build on, gets no prediction. Whether
+  the source file leaves that fact out or our import drops it is not known
+  yet. It limits the builder in the same way. To be checked on the Pi.
+- **Sites and slots are not the same count.** In LHS 3447 our data holds
+  more sites on the ground than the slots predicted on five of the six
+  bodies (5 against 4; 4 against 3). The page shows the two numbers side by
+  side and never as "5 of 4". Why they differ is not checked.
+- A player's own count, read in the game, would beat a prediction. The
+  builder already has a place to type it in. On the real site the map could
+  read it from there, as it would read which body each facility is at.
+
 ### What the galaxy map is for (owner, 13 November)
 
 This replaces every earlier idea of the map in these notes. The owner's own
