@@ -326,8 +326,9 @@ In order:
       `e47ee21`, on `127.0.0.1:58080`. The deploy tool's own checks passed:
       the page, health, the API description, the sign-in state and three
       Find searches. The recorded tour ran against it. Look up and Plan have
-      not been tried by hand yet. Build `2700e57` followed the same day.
-      The deploy tool has to be run with `sudo`.
+      not been tried by hand yet. Builds `2700e57` and `31bd7ea` followed
+      the same day. The deploy tool has to be run with `sudo`; the Pi's copy
+      was fetched again that evening, with the fixes of that day.
 - [x] (11 Nov) **The web container works out each visitor's address itself.**
       On the current server a front web server does that from what Cloudflare
       sends. The Pi has no front web server, so without this change the app
@@ -374,8 +375,14 @@ In order:
       rule is to leave rare odd words out; they are written down in
       `v3_source.unmapped_vocabulary`. Left out until someone can say what
       they are.
-      Still to do: Inspect shows the new signal by its code,
-      "planetarymininglocation name"; it wants a plain label.
+      Done on the Pi on 13 Nov, 16:47 to 16:51: the word lists backed up
+      (`/home/pi/v3_vocab-before-029.sql.gz`, 4,531 bytes), `029` applied
+      ("added signal type 8"), build `31bd7ea` live. The owner took the
+      backup of the word lists as the fresh backup for this change, since
+      the full nightly backup is not built yet. Still to see: the 04:30 run
+      of 14 Nov, the first to write the signal.
+      Inspect shows it in the game's own words, "planetary mining
+      locations" (the owner, 13 Nov).
 - [ ] Re-score what is on the waiting list. (12 Nov) In order: apply
       migration `028` (after a fresh backup), work reach out once
       (`python3 galaxy_update.py reach`), then add `EDFINDER_GALAXY_SCORES=on`

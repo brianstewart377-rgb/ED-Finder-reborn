@@ -56,6 +56,39 @@ export function hotspotSummary(
 }
 
 /**
+ * The V3 public code of a planet's mining locations (migration 029). The game
+ * shows them as "Planetary Mining Location".
+ */
+const MINING_LOCATION_SIGNAL = 'planetarymininglocation_name';
+
+/**
+ * How a body's signal reads after its count: `biological`, `geological`,
+ * `planetary mining locations`. The scan kinds are the code without its
+ * prefix; a code with no wording of its own is shown with spaces.
+ */
+export function bodySignalLabel(code: string, count: number): string {
+  if (code === MINING_LOCATION_SIGNAL) {
+    return count === 1
+      ? 'planetary mining location'
+      : 'planetary mining locations';
+  }
+  return code.replace(/^saa_signaltype_/u, '').replaceAll('_', ' ');
+}
+
+/** `2 biological · 19 planetary mining locations`, or null with no signals. */
+export function bodySignalSummary(
+  signals: readonly Readonly<{ signalType: string; count: number }>[],
+): string | null {
+  if (signals.length === 0) return null;
+  return signals
+    .map(
+      (signal) =>
+        `${signal.count} ${bodySignalLabel(signal.signalType, signal.count)}`,
+    )
+    .join(' · ');
+}
+
+/**
  * V3 station-type codes for fleet carriers. The importer files Spansh's
  * `Fleet Carrier` and `Drake-Class Carrier` under one vocabulary row, whose
  * public code is `fleet_carrier` when the vocabulary is seeded in source order

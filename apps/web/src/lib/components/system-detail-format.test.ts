@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { referenceRatingExplanation } from '$lib/api/v3-system-fixtures';
 import {
   adjustmentSummary,
+  bodySignalLabel,
+  bodySignalSummary,
   byPotential,
   contributionRole,
   evidenceLabel,
@@ -48,6 +50,30 @@ describe('Inspect display wording', () => {
       ]),
     ).toBe('2 Platinum · 1 Painite');
     expect(hotspotSummary([])).toBeNull();
+  });
+
+  it("words a body's signals, with the game's name for mining locations", () => {
+    // Alioth 3 a in Spansh's record of 8 Sept 2026: 21 mining locations,
+    // 3 geological and 6 human signals.
+    expect(
+      bodySignalSummary([
+        { signalType: 'saa_signaltype_geological', count: 3 },
+        { signalType: 'saa_signaltype_human', count: 6 },
+        { signalType: 'planetarymininglocation_name', count: 21 },
+      ]),
+    ).toBe('3 geological · 6 human · 21 planetary mining locations');
+    expect(bodySignalLabel('planetarymininglocation_name', 1)).toBe(
+      'planetary mining location',
+    );
+    // The code itself is never shown.
+    expect(bodySignalLabel('planetarymininglocation_name', 4)).not.toContain(
+      'planetarymininglocation',
+    );
+    expect(bodySignalLabel('saa_signaltype_planetanomaly', 2)).toBe(
+      'planetanomaly',
+    );
+    expect(bodySignalLabel('some_new_kind', 2)).toBe('some new kind');
+    expect(bodySignalSummary([])).toBeNull();
   });
 
   it('recognises fleet carriers by their governed station-type code', () => {
