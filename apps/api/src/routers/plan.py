@@ -46,6 +46,7 @@ from edfinder_api.routers.v3 import (
     _numeric_system_id,
     current_canonical_generation,
 )
+from shared_contracts.ring_radius import true_kilometres
 
 router = APIRouter(prefix="/api/v1/plan", tags=["v3-plan"])
 
@@ -490,8 +491,8 @@ async def bodies(
                 ring_type=row["ring_type"],
                 reserve=row["reserve"],
                 mass_mt=row["mass_mt"],
-                inner_radius_km=row["inner_radius_km"],
-                outer_radius_km=row["outer_radius_km"],
+                inner_radius_km=true_kilometres(row["inner_radius_km"]),
+                outer_radius_km=true_kilometres(row["outer_radius_km"]),
                 lifecycle_state=row["lifecycle_state"],
             )
             for row in belt_rows

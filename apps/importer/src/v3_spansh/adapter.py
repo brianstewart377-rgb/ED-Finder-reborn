@@ -648,6 +648,9 @@ class SpanshAdapter:
             int(source_id64) if source_id64 is not None else None, kind, name,
             self._vocab(batch, "ring_type", raw_type),
             self._vocab(batch, "reserve_type", ring.get("reserveLevel") or body_reserve_level),
+            # Spansh gives these two in metres; the columns are named for
+            # kilometres. They are stored as they come and put right where
+            # they are read: shared_contracts/ring_radius.py says why.
             finite_float(ring.get("innerRadius")), finite_float(ring.get("outerRadius")),
             finite_float(ring.get("mass")), isinstance(ring.get("signals"), dict),
             self.source_id, self.source_run_id, observed, self.observed_at, "ACTIVE",
