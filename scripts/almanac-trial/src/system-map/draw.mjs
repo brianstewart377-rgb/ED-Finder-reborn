@@ -115,8 +115,21 @@ function halfBand(from, to, front) {
 function ringOf(item, front) {
   const { node, r } = item;
   if (node.rings.length === 0) return '';
+  // Each ring is one band of its kind's colour. Within it, a few lanes of
+  // lighter and darker dust, so it reads as a ring of grains and not a strip
+  // of card. The lanes are for the eye only: one ring in our data, one band.
+  const next = numbersFrom(`ring-${node.id}`);
   const bands = ringBandsOf(node)
-    .map((band) => `<path d="${halfBand(band.from * r, band.to * r, front)}" fill="${rgb255(band.colour)}"/>`)
+    .map((band) => {
+      let lanes = `<path d="${halfBand(band.from * r, band.to * r, front)}" fill="${rgb255(band.colour)}"/>`;
+      const width = band.to - band.from;
+      for (let lane = 0; lane < 5; lane += 1) {
+        const from = band.from + width * (lane + 0.15 + next() * 0.3) / 5;
+        const to = Math.min(band.to, from + width * (0.04 + next() * 0.1));
+        lanes += `<path d="${halfBand(from * r, to * r, front)}" fill="${next() > 0.45 ? '#000' : '#fff'}" opacity="${n(0.1 + next() * 0.16)}"/>`;
+      }
+      return lanes;
+    })
     .join('');
   return `<g class="sm-ring" transform="rotate(${RING_TILT})" opacity="${front ? 0.92 : 0.5}">${bands}</g>`;
 }
@@ -148,11 +161,21 @@ function bandsOf(item) {
     + `<g clip-path="url(#sm-clip-${safe(node.id)})">${marks}</g>`;
 }
 
-function bodyOf(item) {
+function bodyOf(item, pictureFor) {
   const { node, r } = item;
   const look = lookOf(node);
+  // A painted surface, where the page can make one (surface.mjs); else the
+  // plain shaded ball below, which needs nothing but the browser's shapes.
+  const painted = pictureFor ? pictureFor(item, look) : null;
   let shape;
-  if (look.star && look.dark) {
+  if (painted) {
+    const glow = look.star
+      ? `<circle r="${n(r * 1.3)}" fill="${rgb1(look.halo)}" opacity="${look.dark ? 0.35 : 0.55}" filter="url(#sm-glow)"/>`
+      : '';
+    const edge = look.dark ? `<circle r="${n(r)}" fill="none" stroke="${rgb1(look.halo)}" stroke-width="${n(Math.max(1.5, r * 0.08))}"/>` : '';
+    shape = `${glow}<image class="sm-surface" href="${safe(painted)}" x="${n(-r)}" y="${n(-r)}" width="${n(2 * r)}" height="${n(2 * r)}"/>`
+      + `${edge}${look.star ? '' : ringShadowOf(item)}`;
+  } else if (look.star && look.dark) {
     shape = `<circle r="${n(r * 1.25)}" fill="${rgb1(look.halo)}" opacity="0.35" filter="url(#sm-glow)"/>`
       + `<circle r="${n(r)}" fill="#000" stroke="${rgb1(look.halo)}" stroke-width="${n(Math.max(1.5, r * 0.08))}"/>`;
   } else if (look.star) {
@@ -228,15 +251,20 @@ function stationOf(item) {
     + `<rect x="${-half}" y="${-half}" width="${size}" height="${size}" rx="2"/>${STATION_GLYPHS[station.mark] ?? ''}</g>`;
 }
 
-/** The whole picture, as SVG text, with a margin around what is drawn. */
-export function pictureOf(layout, margin = 28) {
+/**
+ * The whole picture, as SVG text, with a margin around what is drawn.
+ * `pictureFor(item, look)` may give the address of a painted picture for a
+ * body (the page makes them with surface.mjs); without it, or where it gives
+ * nothing, the body is a plain shaded ball.
+ */
+export function pictureOf(layout, margin = 28, pictureFor = null) {
   const { box } = layout;
   const view = [box.x0 - margin, box.y0 - margin, box.x1 - box.x0 + margin * 2, box.y1 - box.y0 + margin * 2].map(n);
   const lines = layout.lines
     .map((line) => `<line class="sm-${line.kind}" x1="${n(line.x1)}" y1="${n(line.y1)}" x2="${n(line.x2)}" y2="${n(line.y2)}"/>`)
     .join('');
   let belts = 0;
-  const bodies = layout.items.filter((item) => item.kind === 'body').map(bodyOf).join('');
+  const bodies = layout.items.filter((item) => item.kind === 'body').map((item) => bodyOf(item, pictureFor)).join('');
   const others = layout.items
     .filter((item) => item.kind !== 'body')
     .map((item) => {
