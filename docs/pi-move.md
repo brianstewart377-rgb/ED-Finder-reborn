@@ -298,7 +298,7 @@ In order:
 
 ## 5. The app on the Pi
 
-- [ ] (11 Nov) The API's settings file, written by hand on the Pi: the
+- [x] (11 Nov) The API's settings file, written by hand on the Pi: the
       database address, the Frontier client id and secret, the site's
       address, the owner token. Nothing in it protects stored data, so new
       values lose nothing. (12 Nov) Simpler than by hand:
@@ -306,9 +306,10 @@ In order:
       and writes `/etc/edfinder/api.env` (root only) with the Pi's own
       database and cache addresses; the read-only database address is left
       out (the Pi has no such login). Nothing is shown on the screen.
-- [ ] (12 Nov) Redis for the API's cache: `deploy/pi/redis.yml`. A cache only,
-      never saved to disk.
-- [ ] `deploy.conf` beside the deploy tool with the Pi's own settings: network
+      (13 Nov) Written on the Pi: 12 settings.
+- [x] (12 Nov) Redis for the API's cache: `deploy/pi/redis.yml`. A cache only,
+      never saved to disk. (13 Nov) Running on the Pi.
+- [x] `deploy.conf` beside the deploy tool with the Pi's own settings: network
       name, API settings file, and the psql command for the state refresh.
       (11 Nov) Also the galaxy update's: the database container's name, where
       downloads go, and scoring switched on. (12 Nov) `deploy/pi/deploy.conf`:
@@ -316,11 +317,16 @@ In order:
       address, downloads on the 2 TB drive, and no public check until the
       switch. Everything else is the same name as on the server, so the
       defaults fit. Scoring stays off until reach is kept up to date
-      (section 3).
+      (section 3). (13 Nov) In place on the Pi, beside the deploy tool in
+      `/opt/edfinder`.
 - [ ] `EDFINDER_FIND_CHECK=0` until the Finder data is in place, then remove
       that line. (12 Nov) Not needed: the copy brings the Finder data.
 - [ ] `python3 edfinder_deploy.py live main` and try Find, Look up and Plan on
-      the Pi's own address.
+      the Pi's own address. (13 Nov) Live on the Pi since 08:18, build
+      `e47ee21`, on `127.0.0.1:58080`. The deploy tool's own checks passed:
+      the page, health, the API description, the sign-in state and three
+      Find searches. The recorded tour ran against it. Look up and Plan have
+      not been tried by hand yet.
 - [x] (11 Nov) **The web container works out each visitor's address itself.**
       On the current server a front web server does that from what Cloudflare
       sends. The Pi has no front web server, so without this change the app
@@ -485,6 +491,18 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
 - Zooming out asked for the density picture 15 times, once for each notch
   of the wheel, and dropped 14 of them. Whether the server goes on working
   on a request the page has dropped is to be checked on the Pi.
+- (13 Nov) On the Pi, first look: the stars near Sol did not come for 38 s.
+  The first round of star boxes took 2.2 to 3.8 s each. The second round
+  had no answer after 14.4 s, and the database's log shows 22 star box
+  queries stopped at the app's 15 s limit. So the server does go on working
+  on a request the page has dropped, up to that limit.
+  The cause was the order of work inside the query. It looked up the star
+  class of every system in the box (55,775 in one box near Sol) and only
+  then cut to the 5,001 it returns. Timed by itself on the Pi: 4.5 s. With
+  the cut first: 1.3 s, and the same rows. Both star queries now cut first:
+  the close-up boxes and the wide-view sample (`apps/api/src/routers/map.py`,
+  `tests/test_map_star_queries.py`). No change to the database.
+  Still open: stopping a query when the page has dropped the request.
 - The whole map turns teal when the mouse rests on it at close zoom: the
   region under the mouse is highlighted, and up close one region fills the
   view.
