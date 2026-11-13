@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, ConfigDict
 
 from edfinder_api.deps import get_readonly_pool
+from shared_contracts.surface_pressure import true_atmospheres
 
 router = APIRouter(prefix="/api/v1", tags=["v3-canonical"])
 _SCHEMA = re.compile(r"^v3_gen_[a-z][a-z0-9_]{0,30}$")
@@ -264,7 +265,7 @@ async def bodies(system_id: SystemId, pool: asyncpg.Pool = Depends(get_readonly_
         luminosity_class=row["luminosity_class"], is_landable=row["is_landable"],
         radius_km=row["radius_km"],
         planet_mass_earth=row["planet_mass_earth"], stellar_mass_solar=row["stellar_mass_solar"],
-        surface_pressure_atm=row["surface_pressure_atm"], semi_major_axis_km=row["semi_major_axis_km"],
+        surface_pressure_atm=true_atmospheres(row["surface_pressure_atm"]), semi_major_axis_km=row["semi_major_axis_km"],
         distance_from_arrival_ls=row["distance_from_arrival_ls"],
         lifecycle_state=row["lifecycle_state"],
         signals=signals_by_body.get(int(row["body_pk"]), []),

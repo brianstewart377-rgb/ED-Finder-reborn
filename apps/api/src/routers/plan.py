@@ -36,6 +36,7 @@ from edfinder_api.routers.plan_economy_facts import (
     economy_topology,
 )
 from edfinder_api.routers.plan_slot_predictions import (
+    atmosphere_in_words,
     predict_surface_slots,
     prediction_generation_reason,
 )
@@ -346,6 +347,7 @@ async def bodies(
         f"""SELECT body.body_pk,body.name,body.direct_parent_body_pk,
                    body_type.public_code AS body_type,body.is_main_star,body.is_landable,
                    body.radius_km,body.surface_gravity_g,body.surface_temperature_k,
+                   body.surface_pressure_atm,
                    atmosphere.display_name AS atmosphere,
                    terraforming.display_name AS terraforming_state,
                    volcanism.display_name AS volcanism,body.distance_from_arrival_ls,
@@ -446,7 +448,7 @@ async def bodies(
             radius_km=row["radius_km"],
             surface_gravity_g=row["surface_gravity_g"],
             surface_temperature_k=row["surface_temperature_k"],
-            atmosphere=row["atmosphere"],
+            atmosphere=atmosphere_in_words(row),
             terraforming_state=row["terraforming_state"],
             volcanism=row["volcanism"],
             distance_from_arrival_ls=row["distance_from_arrival_ls"],

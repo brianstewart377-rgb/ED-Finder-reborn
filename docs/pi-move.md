@@ -560,25 +560,48 @@ show a numerical indicator of how many ground slots the body has" and
   bodies with no kind and a pressure of exactly 0, EDSM holds 99 and calls
   every one "No atmosphere"; the other 7 are Polaris, which EDSM has no
   bodies for. The 8 named atmospheres carry the same name in both.
-- **The 7 with a trace of pressure.** EDSM calls all 7 "No atmosphere" too.
-  Their pressures run from 0.0005 to 0.0008 atmospheres; the thinnest named
-  atmosphere in these systems is 0.0011. So the game seems to call anything
-  under about 0.001 "no atmosphere". That rests on 15 bodies: likely, not
-  proven.
-- **An empty kind alone is not enough.** Spansh also leaves Earth's kind
-  empty, and EDSM has Earth as "Suitable for water-based life". The pressure
-  is what tells the two apart.
-- **A fix, proposed and not made.** Where the kind is empty and the stored
-  pressure is exactly 0, give the rule "No atmosphere", which it already
-  knows how to count. No change to the database. On the six systems
-  predictions would go from 8 to 114 of 121. The 7 trace-pressure bodies are
-  a second, separate step, once more systems have been looked at. It changes
-  what the builder shows, so it waits for the owner's yes.
-- **Checking the predictions themselves.** Raven Colonial holds the real
-  slot counts players read in the game. After the fix, the owner's own
-  systems can be put beside Raven's counts. The game's journal and EDDN
-  carry the atmosphere in words as well, for bodies scanned by the player
-  or since our site began listening.
+- **The line is at 100 pascals (13 November).** The owner said yes to the
+  fix, and: "I want us to work on cross checking and fixing this fully". So
+  the question was put to the whole galaxy, through Spansh's body search.
+  Among bodies that can be landed on, the highest pressure with no atmosphere
+  name is 99.99999 pascals, and the lowest with a name is 100.00002. EDSM
+  agrees on the 96 it holds of the 120 bodies nearest the line: all 42 below
+  it are "No atmosphere", all 54 at or above it are named, and both sources
+  give the same pressure for every one. The 7 trace-pressure bodies above are
+  simply under the line.
+- **Only for a body that can be landed on.** Spansh leaves the kind empty
+  for others too: Earth (EDSM: "Suitable for water-based life"), and gas and
+  water giants, some at enormous pressures. For those, empty stays "not
+  known".
+- **A second fault found on the way: the pressure's unit.** Spansh's file
+  gives surface pressure in atmospheres (Earth: 0.999). Our import took it
+  for pascals and divided by 101,325, so every stored pressure is 101,325
+  times too small (Earth: 0.00000986). Nothing showed it, because no page
+  displays the pressure. The stored numbers are left as they are: every row
+  has the same mistake, the nightly update writes it the same way, and
+  putting it right in the database would mean rewriting a large share of the
+  biggest table. It is undone where the number is read, in one place:
+  `shared_contracts/surface_pressure.py`, which also says what must change
+  together if the import is ever corrected. Rewriting the stored rows is a
+  possible later step, as reviewed SQL after a fresh backup; nothing needs
+  it.
+- **The fix, made.** In the builder's list of bodies, a body that can be
+  landed on, with no atmosphere kind and a known pressure under 100 pascals,
+  is "No atmosphere", for the slot rule and in the answer. Look up's body
+  list gives the pressure in true atmospheres. No change to the database. On
+  the twelve real test systems predictions go from 19 to 191 of the 191
+  bodies that can be landed on; worked out from the live site's own answers
+  for the six trial systems, from 8 to 121 of 121.
+- **When it shows.** On the Pi, from the next deploy. The live site runs the
+  old server's code until switch-over, so the System Map trial page, which
+  reads the live site, keeps showing few numbers until then.
+- **Still to do: check the predictions against the game.** The rule's
+  answers are predictions. The owner sent the game's own count for every
+  body of one system (the System Architect view shows "used/total" beside
+  each body); with the system's name, our numbers can be put beside the
+  game's. One thing to watch: where our data has no signal count for a body,
+  the rule quietly gives no bonus for geology or life, so it can come out
+  one low.
 - **Sites and slots are not the same count.** In LHS 3447 our data holds
   more sites on the ground than the slots predicted on five of the six
   bodies (5 against 4; 4 against 3). The page shows the two numbers side by
@@ -586,6 +609,23 @@ show a numerical indicator of how many ground slots the body has" and
 - A player's own count, read in the game, would beat a prediction. The
   builder already has a place to type it in. On the real site the map could
   read it from there, as it would read which body each facility is at.
+
+### EDDN (owner asked, 13 November)
+
+"Do we still have the EDDN nightly import?" There is no nightly EDDN job:
+EDDN is a live feed. What the new repo holds:
+
+- The nightly jobs on the Pi take Spansh's files, not EDDN.
+- A listener built into the API (`apps/api/src/ingest/eddn_client.py`) takes
+  body scans from EDDN. The Pi's `deploy/compose.yml` switches it off: no
+  background writer starts with the API until it is wanted.
+- The old listener that took everything (`apps/eddn`) is not in this repo.
+  The live site's `GET /api/events/recent`, which read its table, answers
+  with an error (500) today.
+- `apps/eddn_v3` (station sightings) is code only and was never deployed.
+
+Nothing here is needed for the move. The atmosphere fix above does not need
+EDDN.
 
 ### What the galaxy map is for (owner, 13 November)
 

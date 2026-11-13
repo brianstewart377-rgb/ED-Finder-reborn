@@ -15,6 +15,37 @@ from edfinder_api.ingest.slot_prediction import (
     PREDICTION_VERSION,
     predict_body_slots,
 )
+from shared_contracts.surface_pressure import true_pascals
+
+NO_ATMOSPHERE = 'No atmosphere'
+#: The game gives a body that can be landed on an atmosphere name from 100
+#: pascals upward, and none below. Read off Spansh's own body search on
+#: 13 November 2026, over the whole galaxy: every such body from 99.5 Pa up
+#: to the line is unnamed, and every one from the line to 100.5 Pa is named.
+#: EDSM, built separately, calls the unnamed ones "No atmosphere" in words.
+ATMOSPHERE_NAMED_FROM_PASCALS = 100.0
+
+
+def atmosphere_in_words(body: Mapping[str, Any]) -> str | None:
+    """A body's atmosphere as the game words it, filling the one gap the
+    source leaves.
+
+    Spansh's file leaves the kind empty for a body with no atmosphere, which
+    reads the same as "not known". For a body that can be landed on, the
+    pressure settles it: a known pressure under 100 pascals is no atmosphere.
+
+    Only for a body that can be landed on. A gas giant also comes with no
+    kind and a surface pressure of 0, and Earth with no kind at all.
+    """
+    stated = body['atmosphere']
+    if stated:
+        return stated
+    if body['is_landable'] is not True:
+        return None
+    pressure = true_pascals(body['surface_pressure_atm'])
+    if pressure is None or not 0 <= pressure < ATMOSPHERE_NAMED_FROM_PASCALS:
+        return None
+    return NO_ATMOSPHERE
 
 
 @dataclass(frozen=True)
@@ -53,7 +84,7 @@ def slot_prediction_inputs(
         'radius': radius_km * 1000 if radius_km is not None else None,
         'surface_temp': body['surface_temperature_k'],
         'gravity': body['surface_gravity_g'],
-        'atmosphere': body['atmosphere'],
+        'atmosphere': atmosphere_in_words(body),
         'planet_class': mechanics['body_class'] if mechanics is not None else None,
         'terraform_state': body['terraforming_state'],
         'volcanism': body['volcanism'],
