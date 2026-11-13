@@ -1,6 +1,14 @@
 // The trial page's own rules, kept apart from the map so they can be tested
 // without a browser: how a candidate from Find becomes a marker, and what is
 // said about it.
+//
+// People find a system in Find, not on the map. The map shows where Find's
+// results are. So the page marks Find's first page of results, and can show
+// the other candidates around them as plain stars.
+//
+// A star's colour is its star class, by the same rule our own map uses. The
+// rule is read straight from the web app, not copied, so the two cannot drift.
+import { stellarPresentation } from '../../../apps/web/src/lib/spatial/stellar-presentation.ts';
 
 /** Where a search starts: the two places the trial shows candidates around. */
 export const ANCHORS = {
@@ -8,37 +16,63 @@ export const ANCHORS = {
   colonia: { name: 'Colonia', x: -9530.5, y: -910.28125, z: 19808.125 },
 };
 
+/** How many results Find shows at a time in our own app (its page size). */
+export const FIND_PAGE = 50;
+
+/** The group of Find's results: one calm colour and a plain disc, apart from the stars. */
+export const RESULT_GROUP = 'Find results';
+const RESULT_CATEGORY = {
+  name: RESULT_GROUP,
+  color: [70, 225, 215],
+  markerStyle: 'disc',
+  description: "The first page of Find's answer",
+};
+
+/** The group of the marker that shows where a search starts. */
+export const ANCHOR_GROUP = 'Search anchor';
+const ANCHOR_CATEGORY = {
+  name: ANCHOR_GROUP,
+  color: [255, 255, 255],
+  markerStyle: 'disc',
+  description: 'Where the search starts',
+};
+
 /**
- * The marker groups: what else a candidate suits, after its best use. On
- * 13 Nov 2026 the 10,000 candidates Find listed near Sol all had the same
- * score (100), tier (S) and best use (flexible), so those cannot tell them
- * apart on a map. The second use can: there are seven.
+ * The group and colour of a star, from Find's name for its class ("M (Red
+ * dwarf) Star"). Both come from our own map's rule: the group is its name for
+ * the family ("M class star") and the colour is the one it draws that family
+ * in. A black hole's own colour is black, so it takes the colour of its ring.
  */
-export const GROUPS = [
-  { second: 'stronghold', name: 'Also a stronghold', color: [255, 120, 100] },
-  { second: 'manufacturing_hub', name: 'Also a manufacturing hub', color: [255, 190, 80] },
-  { second: 'megacomplex', name: 'Also a megacomplex', color: [200, 150, 255] },
-  { second: 'research_hub', name: 'Also a research hub', color: [100, 200, 255] },
-  { second: 'mining_hub', name: 'Also a mining hub', color: [190, 200, 120] },
-  { second: 'paradise', name: 'Also a paradise', color: [120, 235, 160] },
-  { second: 'population_capital', name: 'Also a population capital', color: [255, 150, 220] },
-];
-
-const GROUP_BY_SECOND = new Map(GROUPS.map((group) => [group.second, group.name]));
-export const OTHER_GROUP = 'No second use';
-
-/** The marker group of a candidate. */
-export function categoryOf(row) {
-  return GROUP_BY_SECOND.get(row.second) ?? OTHER_GROUP;
+export function starGroup(star) {
+  const look = stellarPresentation({ type: star });
+  const rgb = look.darkCore ? look.haloRgb : look.coreRgb;
+  return { name: look.label, color: rgb.map((part) => Math.round(part * 255)) };
 }
 
-/** The groups the map is told about before any candidate is added. */
-export function categories() {
-  return [
-    ...GROUPS.map((group) => ({ name: group.name, color: group.color })),
-    { name: OTHER_GROUP, color: [150, 150, 150] },
-    { name: 'Anchor', color: [255, 255, 255], markerStyle: 'disc', description: 'Where a search starts' },
-  ];
+/**
+ * Stars are drawn only when the view is this close or closer. From further
+ * out, ten thousand of them are one bright ball that hides Find's results;
+ * close up they are a star field. Our own map does the same with its stars.
+ */
+export const STARS_SHOW_WITHIN_LY = 400;
+
+/** Whether the stars draw at a zoom distance. */
+export function starsShownAt(distanceLy) {
+  return distanceLy <= STARS_SHOW_WITHIN_LY;
+}
+
+/** The star groups among some candidates, the commonest first. */
+export function starCategories(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const group = starGroup(row.star);
+    const held = groups.get(group.name) ?? { ...group, count: 0 };
+    held.count += 1;
+    groups.set(group.name, held);
+  }
+  return [...groups.values()]
+    .sort((one, other) => other.count - one.count || one.name.localeCompare(other.name))
+    .map(({ name, color }) => ({ name, color }));
 }
 
 /**
@@ -82,13 +116,13 @@ export function dataFile(anchor, results, fetchedOn) {
   return { anchor, fetchedOn, rows };
 }
 
-/** A candidate as the map takes it. */
-export function toRecord(row) {
+/** A candidate as the map takes it: in its star's group unless another is named. */
+export function toRecord(row, group = starGroup(row.star).name) {
   const record = {
     name: row.name,
     id64: row.id64,
     coords: { x: row.x, y: row.y, z: row.z },
-    categories: [categoryOf(row)],
+    categories: [group],
   };
   if (row.star) record.primaryStar = row.star;
   if (row.bodies != null) record.bodyCount = row.bodies;
@@ -100,7 +134,7 @@ export function anchorRecord(anchor) {
   return {
     name: anchor.name,
     coords: { x: anchor.x, y: anchor.y, z: anchor.z },
-    categories: ['Anchor'],
+    categories: [ANCHOR_GROUP],
   };
 }
 
@@ -108,26 +142,51 @@ export function anchorRecord(anchor) {
 export const OPENING_DISTANCE_LY = 1600;
 
 /**
- * One anchor's candidates as an entry of the map's own list of sets, without
- * its loader. The map's top bar names the set and its dialog lists them all.
+ * The sets the map's top bar offers. For each anchor: Find's results alone,
+ * and the same results among the other candidates drawn as stars.
  */
-export function datasetEntry(key, anchor) {
+export const SETS = [
+  { id: 'sol', anchor: 'sol', others: false },
+  { id: 'sol-stars', anchor: 'sol', others: true },
+  { id: 'colonia', anchor: 'colonia', others: false },
+  { id: 'colonia-stars', anchor: 'colonia', others: true },
+];
+
+/**
+ * One set as an entry of the map's own list, without its loader. The map's
+ * top bar names the set and its dialog lists them all.
+ */
+export function datasetEntry(set) {
+  const anchor = ANCHORS[set.anchor];
+  const results = `the first ${FIND_PAGE} results Find lists within 500 light years of ${anchor.name}`;
   return {
-    id: key,
-    label: `Candidates near ${anchor.name}`,
+    id: set.id,
+    label: set.others ? `Results near ${anchor.name}, among stars` : `Results near ${anchor.name}`,
     collection: 'ED-Finder',
     region: `Within 500 ly of ${anchor.name}`,
-    description: `The first 10,000 candidates Find lists within 500 light years of ${anchor.name}, `
-      + 'fetched from the live site. Each is grouped by what else it suits, after its best use.',
+    description: set.others
+      ? `${results[0].toUpperCase()}${results.slice(1)}, with the rest of Find's first 10,000 candidates `
+        + `around them as stars, each in the colour of its star class. The stars show when you zoom in to `
+        + `${STARS_SHOW_WITHIN_LY} light years or closer.`
+      : `${results[0].toUpperCase()}${results.slice(1)}: one page, as our own app shows it.`,
     view: { cursor: [anchor.x, anchor.y, anchor.z], distance: OPENING_DISTANCE_LY, pitch: 35 },
   };
 }
 
-/** What a set's loader hands the map: the groups, the anchor and the candidates. */
-export function contentOf(data) {
+/**
+ * What a set's loader hands the map: the groups, the anchor, Find's first
+ * page of results, and (when the set asks) the other candidates as stars.
+ */
+export function contentOf(data, others) {
+  const results = data.rows.slice(0, FIND_PAGE);
+  const stars = others ? data.rows.slice(FIND_PAGE) : [];
   return {
-    categories: categories(),
-    systems: [anchorRecord(data.anchor), ...data.rows.map(toRecord)],
+    categories: [RESULT_CATEGORY, ...starCategories(stars), ANCHOR_CATEGORY],
+    systems: [
+      anchorRecord(data.anchor),
+      ...results.map((row) => toRecord(row, RESULT_GROUP)),
+      ...stars.map((row) => toRecord(row)),
+    ],
   };
 }
 
@@ -156,7 +215,7 @@ export function detailsOf(row, anchorName) {
   }
   if (row.claim) values.push({ label: 'CLAIM', value: words(row.claim) });
   values.push({ label: 'ID', value: row.id64, copy: row.id64 });
-  return { description: `One of the candidates Find lists within 500 ly of ${anchorName}.`, values };
+  return { description: `One of the first 10,000 candidates Find lists within 500 ly of ${anchorName}.`, values };
 }
 
 /**

@@ -616,6 +616,38 @@ graphics card:
   background worker asks for a picture the bundler does not copy. The trial's
   build copies it.
 
+(13 Nov) The trial page on the owner's graphics card (Radeon RX 6800 XT,
+Chrome, a map area of 1374 by 813, the window in view):
+
+- It started and drew both sets with no errors. The owner: "smooth as
+  butter".
+- A frame took about 5 ms whether the map held no markers, the 10,001 of one
+  set, or 50,000: looking at Sol from 1,600 ly, 5.2, 5.0 to 5.5 and 5.1 ms;
+  from 500 ly, 5.0, 5.0 and 5.2 ms; from 60 ly, 4.7, 4.0 to 5.1 and 5.3 ms.
+  Markers cost nothing measurable up to Almanac's limit.
+- Loading a set took 42 ms. Finding the system under the mouse took 0.1 ms
+  with 10,001 markers and 0.5 ms with 50,000.
+- The empty map measured about 5 ms here against 1.7 to 3.3 ms on Almanac's
+  own demo that morning. The cause is not known (the window was hidden then).
+- Not measured: frame pacing while the map moves under the hand.
+
+(13 Nov) What the owner's look at it decided:
+
+- 10,000 markers in a ball of loud colours is jarring and says nothing.
+  Colour is for star class, as on our own map.
+- People find a system in Find, not on the map. The map shows where the
+  results are. So the page now marks Find's first page (50 results) as plain
+  discs in one colour, and that is the set it opens on.
+- The other candidates can be shown around them as stars in star-class
+  colours (our own map's rule, read from the web app). Seen from far out
+  they are still one bright ball, in any colours: Almanac's markers are sized
+  for places of interest, about 12 px across at these distances, and do not
+  shrink to points as stars do. So the page draws them only from 400 ly or
+  closer. Whether stars around the results are wanted at all is the owner's
+  call.
+- This also means Almanac's limit of 50,000 systems is not in the way of
+  showing Find's results. It only matters for stars around them.
+
 (12 Nov) How a map check earns trust. The owner's brief: do not overcomplicate
 it, but it must test everything fully and give results he can have confidence
 in, heatmaps above all. These four rules are how, and they are the same for
