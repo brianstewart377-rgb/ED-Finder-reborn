@@ -30,6 +30,10 @@ def main() -> int:
         url = probe_url(os.environ)
         with urllib.request.urlopen(url, timeout=4) as response:  # nosemgrep: dynamic-urllib-use-detected -- fixed http scheme and /healthz path; host validated as an IPv4 literal and port as an integer by probe_url
             return 0 if response.status == 200 else 1
+    except urllib.error.HTTPError as error:
+        # The worker answered, and said it is not healthy (503).
+        error.close()
+        return 1
     except (urllib.error.URLError, OSError, ValueError):
         return 1
 

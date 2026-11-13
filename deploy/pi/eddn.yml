@@ -1,0 +1,62 @@
+# The EDDN listener on the Raspberry Pi: station sightings from the live feed.
+#
+# EDDN is the public feed that players' tools (EDMC and others) send their
+# game events to as they fly. This container listens to it and keeps one row
+# each time a station's state changes: its system, name, type, economies,
+# services and landing pads. Fleet carriers are left out. It never stores who
+# sent a message. What it does and does not keep: apps/eddn_v3/README.md.
+#
+# It writes to the schema v3_observe only, as a role that can add sightings
+# and nothing else. Nothing on the site reads them yet: they are evidence
+# that can only be gathered as it happens, never afterwards.
+#
+# Before the first start (README, "The EDDN listener"):
+#   1. migration 030 applied, after a fresh backup;
+#   2. /etc/edfinder/eddn.env written by scripts/pi/make_eddn_env.py: one
+#      setting, the database's address with its password. Root only; never
+#      shown.
+#
+# It reaches the database by name over the "edfinder" Docker network, which
+# the database's start-up file (postgres.yml) makes, and reaches EDDN by an
+# outgoing connection (eddn.edcd.io, port 9500). No port is opened to the
+# network: its health page answers inside the container only.
+#
+# Start, or apply a change to this file:
+#   sudo docker compose -f /opt/edfinder/eddn.yml up -d
+# Take a newer build (the image name below always means the newest one):
+#   sudo docker compose -f /opt/edfinder/eddn.yml pull
+#   sudo docker compose -f /opt/edfinder/eddn.yml up -d
+# Stop it (nothing else depends on it):
+#   sudo docker compose -f /opt/edfinder/eddn.yml down
+name: edfinder-eddn
+
+services:
+  eddn:
+    image: ghcr.io/brianstewart377-rgb/ed-finder-reborn/eddn:main
+    container_name: edfinder-eddn
+    # It stops itself after five failed writes in a row (the database away,
+    # say) so that it starts afresh; Docker starts it again.
+    restart: unless-stopped
+    env_file:
+      - /etc/edfinder/eddn.env
+    networks:
+      - edfinder
+    # Time to write what it holds before it is stopped.
+    stop_grace_period: 30s
+    read_only: true
+    cpus: "0.50"
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  edfinder:
+    name: edfinder
+    external: true

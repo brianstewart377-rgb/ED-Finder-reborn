@@ -1,12 +1,13 @@
 name: Images
 
-# Builds the API and web images for two processor types: amd64 (the current
+# Builds the API, web and EDDN listener images for two processor types: amd64 (the current
 # server) and arm64 (the Raspberry Pi). Each is built and smoke-tested on a
 # runner of its own type, so nothing is emulated.
 #
 # On main they are published to GHCR as
 #   ghcr.io/<owner>/<repo>/api:git-<commit>   and   :main
 #   ghcr.io/<owner>/<repo>/web:git-<commit>   and   :main
+#   ghcr.io/<owner>/<repo>/eddn:git-<commit>  and   :main
 # Each of those names covers both processor types: a machine that pulls it gets
 # the build for its own processor. (The per-type builds are also there as
 # :git-<commit>-amd64 and :git-<commit>-arm64.)
@@ -20,6 +21,7 @@ on:
     paths:
       - apps/api/**
       - apps/web/**
+      - apps/eddn_v3/**
       - packages/**
       - shared_contracts/**
       - assets/**
@@ -49,11 +51,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [api, web]
+        name: [api, web, eddn]
         arch: [amd64, arm64]
         include:
           - name: api
             dockerfile: apps/api/Dockerfile.release
+            build_args: ""
+          # The EDDN station-sightings listener (apps/eddn_v3).
+          - name: eddn
+            dockerfile: apps/eddn_v3/Dockerfile
             build_args: ""
           - name: web
             dockerfile: apps/web/Dockerfile
@@ -166,6 +172,22 @@ jobs:
           curl -fsS http://127.0.0.1:18080/plan -o /dev/null
           echo "web image serves the app for build $SHA"
 
+      - name: Smoke-test the EDDN listener image
+        if: matrix.name == 'eddn'
+        shell: bash
+        env:
+          IMAGE: ${{ steps.meta.outputs.exact }}
+        run: |
+          set -euo pipefail
+          # Its code and its two libraries load, as the user it runs as and
+          # under the same limits as on the Pi (deploy/pi/eddn.yml).
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges:true "$IMAGE" python -c "import zmq, psycopg, edfinder_observe.worker, edfinder_observe.healthcheck; print('listener imports cleanly')"
+          docker run --rm "$IMAGE" python -c "import os; assert os.environ['BUILD_SHA'] == '${{ steps.meta.outputs.sha }}'; assert os.getuid() == 10017"
+          # With no database named it stops at once with "bad settings" (2),
+          # before it connects anywhere.
+          code=0; docker run --rm "$IMAGE" || code=$?
+          [ "$code" -eq 2 ] || { echo "expected exit 2 with no settings, got $code" >&2; exit 1; }
+
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -184,7 +206,7 @@ jobs:
           docker push "$EXACT"
 
   publish:
-    # Only once all four builds have passed their smoke tests: join the two
+    # Only once every build has passed its smoke test: join the two
     # processor types under the names the deploy tool uses.
     name: Publish ${{ matrix.name }} image for both processor types
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -197,7 +219,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [api, web]
+        name: [api, web, eddn]
     steps:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 

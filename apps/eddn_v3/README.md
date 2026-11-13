@@ -1,7 +1,10 @@
 # V3 EDDN station-sighting worker (`apps/eddn_v3`)
 
-**Status: code only. Nothing here is deployed, scheduled or wired into any
-compose file, release workflow or production deploy authority.**
+**Status (13 November 2026): ready to be switched on, on the Raspberry Pi,
+and not yet switched on.** Its image is built with the others, its database
+change is migration `030`, and its start-up file is `deploy/pi/eddn.yml`. The
+steps are in the main README, "The EDDN listener". It has never run against
+the live feed: the first days are for watching it.
 
 ## What it does
 
@@ -131,26 +134,25 @@ sightings lost).
   to cover the metrics address (or not pass a proxy at all); the worker itself
   needs no HTTP proxy, since EDDN is ZeroMQ over TCP.
 
-## How it will be deployed later (each step needs the owner's go)
+## Switching it on
 
-None of these is done by this code:
+The steps for the Pi are in the main README, "The EDDN listener". What was
+written here in October for the old server, and what became of it:
 
-1. Register `sql/v3/proposals/017_v3_observe_station_sightings.sql` as V3
-   migration 017 (manifest, schema transition, schema identity) after the
-   Finder go-live, then plan and apply it through the governed migration
-   workflow. Before registering, make the `v3_source` id seed and
-   identity-sequence re-seed safe against concurrent writers (lock both
-   sequences, or allocate the ids from the repaired sequences), because the
-   live journal-import path inserts into the same source ledger.
-2. Add the worker to the V3 production deploy authority (compose services,
-   deployer, target authority, release runbook). The stack decision prefers one
-   backend image with several entrypoints, so that step may run this package
-   from the backend image instead of building this Dockerfile.
-3. Make the worker refuse to start while the governed derived purge is open,
-   using the shared read-only purge-state query, and keep it stopped during a
-   purge.
-4. First run, then a read-only review of rows per day, size, drops and
-   failures.
+1. *Register the database change.* It is migration `030` now
+   (`sql/v3/migrations/030_v3_observe_station_sightings.sql`, SQL unchanged),
+   applied by hand like `024` to `029`. One caution from October still holds:
+   it adds two rows to the list of sources and moves that list's counter on,
+   which is not safe beside another writer of the same list (a journal import
+   being read in). So it is applied at a quiet moment: no nightly job running
+   and nobody importing a journal. Today nobody uses the site.
+2. *Add it to the deploy.* On the Pi it is its own small start-up file,
+   `deploy/pi/eddn.yml`, with its own settings file, so it never sees the
+   API's settings.
+3. *Keep it stopped during the governed purge.* That purge was the old
+   server's and is finished; there is none on the Pi.
+4. *First run, then a review* of rows per day, size, drops and failures.
+   Still to do, on the Pi.
 
 ## Development
 
