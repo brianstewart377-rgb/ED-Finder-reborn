@@ -11,15 +11,30 @@
       #map { display: block; width: 100%; height: 100%; }
       /* Only seen when something goes wrong. Bottom centre: the map's own
          panels open on the left and right edges. */
-      #problem { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 50; margin: 0;
+      #problem { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 50; margin: 0;
                  max-width: min(560px, calc(100vw - 24px)); padding: 8px 12px; white-space: pre-wrap;
                  color: #ffb4a6; background: rgba(10, 14, 20, 0.92); border: 1px solid #a8483a; border-radius: 6px; }
       #problem:empty { display: none; }
+      /* The notice the map's licence asks for: a quiet block at the bottom
+         centre, clear of the map's own panels on the left and right edges. */
+      #notice { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 40; margin: 0;
+                width: min(620px, calc(100vw - 24px)); padding: 4px 10px; font-size: 11px; line-height: 1.35;
+                text-align: center; color: #9aa3ad; background: rgba(4, 5, 9, 0.55); border-radius: 4px 4px 0 0;
+                pointer-events: none; }
+      #notice a { color: inherit; pointer-events: auto; }
     </style>
   </head>
   <body>
     <div id="stage"><canvas id="map"></canvas></div>
     <p id="problem" role="alert"></p>
+    <p id="notice">
+      Map: <a href="https://github.com/Elite-Dangerous-Almanac/Galaxy-Map">Galaxy-Map</a>.
+      Required Notice: Copyright 2026 Dark Session (https://github.com/Elite-Dangerous-Almanac/Galaxy-Map)
+      &middot; <a href="https://polyformproject.org/licenses/noncommercial/1.0.0">PolyForm Noncommercial License 1.0.0</a>
+      &middot; <a href="./licences/galaxy-map-LICENSE.md">terms</a>
+      &middot; <a href="./licences/galaxy-map-THIRD_PARTY_NOTICES.md">notices</a>
+      &middot; Elite Dangerous game data and visuals are the property of Frontier Developments plc.
+    </p>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

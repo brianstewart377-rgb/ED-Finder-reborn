@@ -13,11 +13,14 @@ goes.
 - **Almanac's map exactly as published**: the npm package
   `@elite-dangerous-almanac/galaxy-map`, version 0.7.1, with no changes of
   ours. Its licence is PolyForm Noncommercial 1.0.0. None of its code is kept
-  in this repository; the build downloads it.
-- **Find's results, marked.** People find a system in Find, not on the map;
-  the map shows where the results are. So the page marks the first 50 results
-  Find lists within 500 light years of Sol (one page, as our own app shows
-  it), and the same around Colonia. They are plain discs in one colour.
+  in this repository; the build downloads it. The licence asks that anyone
+  given a copy also gets its terms and its "Required Notice" line, so the
+  built page shows that line and carries the licence files in `licences/`.
+- **Find's results, marked.** The page marks the first 50 results Find lists
+  within 500 light years of Sol (one page, as our own app shows it), and the
+  same around Colonia. They are plain discs in one colour. This is one guess
+  at what the map could carry, not a decision: what the map should show is
+  the owner's call.
 - **The other candidates as stars, if wanted.** A second set for each anchor
   adds the rest of Find's first 10,000 candidates around the results as
   stars. Each star takes the colour of its star class, by the same rule our
@@ -105,6 +108,7 @@ commands.
 | `fixtures/find-sol-first-60.json` | The real first 60 rows of Find's answer near Sol, for the tests. |
 | `fetch-data.mjs` | Fetches the candidates from the live site. |
 | `worker-files.mjs`, `vite.config.mjs` | The build. Almanac's background workers ask for one picture the bundler misses; this copies it. |
+| `licence-files.mjs` | Puts Almanac's licence files beside the built page, and stops the build unless the page shows the notice the licence asks for. |
 | `serve.mjs`, `serve-files.mjs` | A small server for this computer only. Node's own modules, nothing to install. |
 | `trial.test.mjs` | Tests of all the rules above. |
 

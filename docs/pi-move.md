@@ -631,22 +631,47 @@ Chrome, a map area of 1374 by 813, the window in view):
   own demo that morning. The cause is not known (the window was hidden then).
 - Not measured: frame pacing while the map moves under the hand.
 
-(13 Nov) What the owner's look at it decided:
+(13 Nov) What the owner said after looking at it, in his words:
 
-- 10,000 markers in a ball of loud colours is jarring and says nothing.
-  Colour is for star class, as on our own map.
-- People find a system in Find, not on the map. The map shows where the
-  results are. So the page now marks Find's first page (50 results) as plain
-  discs in one colour, and that is the set it opens on.
-- The other candidates can be shown around them as stars in star-class
-  colours (our own map's rule, read from the web app). Seen from far out
-  they are still one bright ball, in any colours: Almanac's markers are sized
-  for places of interest, about 12 px across at these distances, and do not
-  shrink to points as stars do. So the page draws them only from 400 ly or
-  closer. Whether stars around the results are wanted at all is the owner's
-  call.
-- This also means Almanac's limit of 50,000 systems is not in the way of
-  showing Find's results. It only matters for stars around them.
+- "It looks smooth as butter really impresed my only complaint is the big
+  ball of coloured dots isn't very intuitive". "It looks jarring compared to
+  the rest of the map".
+- "Do we need to colour all the stars like that I thought colours were for
+  star class?"
+- "Remember people are not going to be finding a system via the map".
+
+(13 Nov) A wrong turn, recorded so it is not repeated. From the last of
+those, Claude concluded that the map should mark Find's results, built the
+second version of the trial page around that (#42), and wrote it up as the
+owner's decision. He had said no such thing: "when did I ever say I wanted
+the map to display results?" What the map should show is the owner's call
+and is not decided. The second version stays in the repo as a trial page
+only; it was not put on the owner's PC.
+
+What that second version did show, whatever the map ends up carrying:
+
+- Stars in star-class colours, by our own map's rule read from the web app,
+  look right close up.
+- Seen from far out, ten thousand of Almanac's markers are one bright ball in
+  any colours. Almanac's markers are sized for places of interest, about
+  12 px across at these distances, and do not shrink to points as stars do.
+  The page draws them only from 400 ly or closer.
+
+(13 Nov) A second trial page, made in another chat and reviewed here. It
+shows inhabited systems within 45 ly of Colonia, the empty systems within
+15 ly of them, and the 15 ly claim area as one outlined shape, on EDSM
+sample data, with its own panels and jump buttons.
+
+- Worth taking: that picture (where people live and what can be claimed
+  around them), opening on the whole galaxy with jump buttons, and showing
+  the notice Almanac's licence asks for. Our trial page lacked the notice;
+  it has it now.
+- Not worth taking: the data (EDSM's, without our claim rule or scores); its
+  own hand build of Almanac with the maths library replaced; stars fetched
+  live from EDSM by the browser; and the claim area painted over the map by
+  working out Almanac's camera a second time, one circle per inhabited
+  system on every frame. That last one is the first real case for a change
+  of ours to Almanac.
 
 (12 Nov) How a map check earns trust. The owner's brief: do not overcomplicate
 it, but it must test everything fully and give results he can have confidence
