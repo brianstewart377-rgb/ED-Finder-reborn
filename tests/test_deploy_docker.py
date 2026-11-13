@@ -345,7 +345,8 @@ def test_the_web_server_says_what_a_browser_may_keep_and_packs_text(site):
             with opener.open(request, timeout=5) as response:
                 return response.status, {name.lower(): value for name, value in response.headers.items()}
         except urllib.error.HTTPError as error:
-            return error.code, {name.lower(): value for name, value in error.headers.items()}
+            with error:
+                return error.code, {name.lower(): value for name, value in error.headers.items()}
 
     file_path = "/_app/immutable/app.%s.js" % SHA_A[:8]
     status, headers = ask(file_path)
