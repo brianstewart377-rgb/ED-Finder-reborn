@@ -25,6 +25,12 @@ export const queryKeys = {
     [...queryKeys.auth(), accountId, 'galaxy-impact'] as const,
   health: () => [...queryKeys.all, 'health'] as const,
   system: (id64: Id64) => [...queryKeys.all, 'system', id64] as const,
+  /**
+   * The builder's list of one system's bodies (temperatures, predicted ground
+   * slots), shared by the Colony Planner and Inspect's System Map.
+   */
+  planBodies: (systemId: string) =>
+    [...queryKeys.all, 'plan-bodies', systemId] as const,
   /** Ratings V4 economy potentials for one system. */
   systemRatings: (id64: Id64) =>
     [...queryKeys.all, 'system', id64, 'ratings'] as const,

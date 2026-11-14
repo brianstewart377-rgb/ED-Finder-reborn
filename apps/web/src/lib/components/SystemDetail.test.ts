@@ -15,6 +15,7 @@ import {
   getSystem,
   getSystemRatingExplanation,
   getSystemRatings,
+  listV3PlanBodies,
   systemDetailFromV3,
 } from '$lib/api/client';
 import { queryClient, queryKeys } from '$lib/api/query';
@@ -29,7 +30,6 @@ import {
   v3System,
 } from '$lib/api/v3-system-fixtures';
 import { parseId64 } from '$lib/domain/id64';
-import { buildSystemScene } from '$lib/spatial/system-scene';
 import SystemDetailTestHost from './SystemDetailTestHost.svelte';
 
 vi.mock('$lib/api/client', async (loadOriginal) => {
@@ -39,19 +39,48 @@ vi.mock('$lib/api/client', async (loadOriginal) => {
     getSystem: vi.fn(),
     getSystemRatings: vi.fn(),
     getSystemRatingExplanation: vi.fn(),
+    listV3PlanBodies: vi.fn(),
   };
-});
-
-vi.mock('$lib/spatial/system-scene', async (loadOriginal) => {
-  const original =
-    await loadOriginal<typeof import('$lib/spatial/system-scene')>();
-  return { ...original, buildSystemScene: vi.fn(original.buildSystemScene) };
 });
 
 const mockedGetSystem = vi.mocked(getSystem);
 const mockedGetRatings = vi.mocked(getSystemRatings);
 const mockedGetExplanation = vi.mocked(getSystemRatingExplanation);
-const mockedBuildSystemScene = vi.mocked(buildSystemScene);
+const mockedListPlanBodies = vi.mocked(listV3PlanBodies);
+
+/** The System Map's drawing of one body, found by its catalogue key. */
+function mapBody(container: HTMLElement, bodyKey: string): Element | null {
+  return container.querySelector(`.sm-body[data-body-key="${bodyKey}"]`);
+}
+
+/**
+ * Records every time any body on the System Map or in the body list is shown
+ * as chosen, from now until `stop()`: a stale choice shown for even one
+ * render is caught, not only the state at the end.
+ */
+function watchChoices(container: HTMLElement): {
+  seen: string[];
+  stop: () => void;
+} {
+  const seen: string[] = [];
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      const element = record.target as Element;
+      if (element.getAttribute('aria-pressed') === 'true')
+        seen.push(
+          element.getAttribute('data-body-key') ??
+            element.textContent?.trim() ??
+            '',
+        );
+    }
+  });
+  observer.observe(container, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['aria-pressed'],
+  });
+  return { seen, stop: () => observer.disconnect() };
+}
 
 /** Each child element's text, whitespace-normalised: one entry per column. */
 const partsOf = (element: HTMLElement): string[] =>
@@ -91,10 +120,11 @@ describe('shared system detail', () => {
     queryClient.clear();
     mockedGetRatings.mockResolvedValue(referenceSystemRatings());
     mockedGetExplanation.mockResolvedValue(referenceRatingExplanation());
-    // SystemDetail mounts the locator SpatialCanvas, whose runtime starts
-    // asynchronously and observes its host element. jsdom has no
-    // ResizeObserver; the longer ratings tests below give that start enough
-    // time to run, so stub it as ExploreWorkspace.test.ts does.
+    // The builder's list of bodies is not part of these tests unless one
+    // gives it: without it the System Map is drawn from the catalogue alone.
+    mockedListPlanBodies.mockRejectedValue(new Error('not in this test'));
+    // The System Map measures its stage with a ResizeObserver, which jsdom
+    // lacks; stub it as ExploreWorkspace.test.ts does.
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -735,23 +765,34 @@ describe('shared system detail', () => {
     expect(detailValue('Bodies returned')).toBe('3');
   });
 
-  it('lists selectable bodies from V3 and shows their catalogued facts', async () => {
+  it('lists every catalogued body as selectable and shows its catalogued facts', async () => {
     const id64 = parseId64('10477373803');
     mockedGetSystem.mockResolvedValue(referenceSystemDetail());
 
-    render(SystemDetailTestHost, { props: { id64 } });
+    const { container } = render(SystemDetailTestHost, { props: { id64 } });
 
     await openTab('Bodies');
     const list = await screen.findByRole('list', { name: 'System bodies' });
     const buttons = within(list).getAllByRole('button');
-    // The body without a Frontier BodyID is counted but not selectable.
+    // The map draws by catalogue key, so a body without a Frontier BodyID
+    // is drawn and chosen like any other.
     expect(buttons.map((button) => button.textContent?.trim())).toEqual([
       'Reference System Star · G2 V',
       'Reference System 3 Planet',
+      'Reference System 3 a Planet',
     ]);
-    expect(
-      screen.getByRole('list', { name: 'Bodies without a map identity' }),
-    ).toHaveTextContent('Reference System 3 a');
+    await fireEvent.click(buttons[2] as HTMLElement);
+    const moon = await screen.findByRole('article');
+    expect(moon).toHaveAttribute(
+      'data-selected-body-key',
+      '180143985094819840',
+    );
+    expect(moon).not.toHaveAttribute('data-selected-body-id');
+    expect(within(moon).getByText('Reference System 3')).toBeInTheDocument();
+    expect(mapBody(container, '180143985094819840')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await fireEvent.click(buttons[1] as HTMLElement);
     const card = await screen.findByRole('article');
     expect(card).toHaveAttribute('data-selected-body-id', '3');
@@ -772,7 +813,7 @@ describe('shared system detail', () => {
     expect(within(star).getAllByText('None recorded')).toHaveLength(2);
   });
 
-  it('explains the hierarchy schematic and lists unknown positions without changing selection', async () => {
+  it('marks a body placed by its distance on the map, in the legend and on its card', async () => {
     mockedGetSystem.mockResolvedValue(
       systemDetailFromV3(
         v3System(),
@@ -828,50 +869,49 @@ describe('shared system detail', () => {
       name: 'System map legend',
     });
     expect(container.querySelector('.system-map-truth-note')).toHaveTextContent(
-      'schematic; order by known orbital distance; moons grouped by known parent',
+      'placed by its name or its distance, and marked so',
     );
-    const unplaced = within(legend).getByRole('list', {
-      name: 'Unplaced bodies',
+    // Only the body whose parent is not in the catalogue is a guess. The moon
+    // without a distance has a parent our data gives.
+    const guessed = within(legend).getByRole('list', {
+      name: 'Bodies placed by name or distance',
     });
-    const entries = within(unplaced).getAllByRole('listitem');
-    expect(entries).toHaveLength(2);
-    expect(unplaced).toHaveTextContent('Moon without distance');
-    expect(unplaced).toHaveTextContent('Body without parent');
-    expect(unplaced).not.toHaveTextContent('Known planet');
-    expect(unplaced).not.toHaveTextContent('Reference System');
-    for (const entry of entries) {
-      expect(entry).toHaveTextContent('position unknown');
-    }
-    expect(
-      container.querySelector('[data-unplaced-body-id="3"]'),
-    ).toHaveTextContent('Unattached group');
-    expect(
-      container.querySelector('[data-unplaced-body-id="2"]'),
-    ).not.toHaveTextContent('Unattached group');
+    expect(within(guessed).getAllByRole('listitem')).toHaveLength(1);
+    expect(guessed).toHaveTextContent(
+      'Body without parent — placed by its distance from the arrival point',
+    );
+    const onMap = mapBody(container, '12');
+    expect(onMap).toHaveClass('sm-guessed');
+    expect(onMap?.getAttribute('aria-label')).toContain(
+      'placed by its distance',
+    );
+    expect(mapBody(container, '11')).not.toHaveClass('sm-guessed');
 
-    await openTab('Bodies');
     const bodies = screen.getByRole('list', { name: 'System bodies' });
     await fireEvent.click(
       within(bodies).getByRole('button', {
         name: 'Body without parent Planet',
       }),
     );
-    expect(await screen.findByRole('article')).toHaveAttribute(
-      'data-selected-body-id',
-      '3',
-    );
+    const card = await screen.findByRole('article');
+    expect(card).toHaveAttribute('data-selected-body-id', '3');
+    expect(
+      within(card).getByText(
+        'Reference System (placed by its distance: our data gives no parent)',
+      ),
+    ).toBeInTheDocument();
+    expect(onMap).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('clears the selected body and every scene input when the next system is cached', async () => {
+  it('clears the chosen body on the map and in the list when the next system is cached', async () => {
     const id64 = parseId64('10477373803');
     const next = parseId64('42');
-    const firstSystem = referenceSystemDetail();
-    const secondSystem = referenceSystemDetail({
-      id64: next,
-      name: 'Second System',
-    });
-    mockedGetSystem.mockResolvedValue(firstSystem);
-    queryClient.setQueryData(queryKeys.system(next), secondSystem);
+    // The second system has the same body keys, so a stale choice would show.
+    mockedGetSystem.mockResolvedValue(referenceSystemDetail());
+    queryClient.setQueryData(
+      queryKeys.system(next),
+      referenceSystemDetail({ id64: next, name: 'Second System' }),
+    );
     queryClient.setQueryData(
       queryKeys.systemRatings(next),
       referenceSystemRatings(),
@@ -885,36 +925,34 @@ describe('shared system detail', () => {
       'data-selected-body-id',
       '3',
     );
-    expect(mockedBuildSystemScene).toHaveBeenLastCalledWith(
-      firstSystem,
-      expect.any(Number),
-      3,
+    expect(mapBody(view.container, '108086391056891904')).toHaveAttribute(
+      'aria-pressed',
+      'true',
     );
-    mockedBuildSystemScene.mockClear();
 
+    const choices = watchChoices(view.container);
     await view.rerender({ id64: next });
     await screen.findByRole('heading', { name: 'Second System' });
-
-    expect(screen.queryByRole('article')).toBeNull();
     await openTab('Bodies');
+    choices.stop();
+
+    expect(choices.seen).toEqual([]);
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(
+      view.container
+        .querySelector('.system-map-stage')
+        ?.getAttribute('data-system-id64'),
+    ).toBe('42');
+    for (const body of view.container.querySelectorAll('.sm-body')) {
+      expect(body).toHaveAttribute('aria-pressed', 'false');
+    }
     const bodies = screen.getByRole('list', { name: 'System bodies' });
     for (const button of within(bodies).getAllByRole('button')) {
       expect(button).toHaveAttribute('aria-pressed', 'false');
     }
-    expect(mockedBuildSystemScene).toHaveBeenCalledWith(
-      secondSystem,
-      expect.any(Number),
-      undefined,
-    );
-    // Inspect every call, including any render before the new query settles.
-    expect(
-      mockedBuildSystemScene.mock.calls.every(
-        ([, , selectedBodyId]) => selectedBodyId === undefined,
-      ),
-    ).toBe(true);
   });
 
-  it('clears the selected body and scene input while another system loads and after it resolves', async () => {
+  it('clears the chosen body while another system loads and after it resolves', async () => {
     const id64 = parseId64('10477373803');
     const next = parseId64('42');
     const secondSystem = referenceSystemDetail({
@@ -939,7 +977,7 @@ describe('shared system detail', () => {
       'data-selected-body-id',
       '3',
     );
-    mockedBuildSystemScene.mockClear();
+    const choices = watchChoices(view.container);
 
     await view.rerender({ id64: next });
     await screen.findByRole('heading', { name: 'Loading system…' });
@@ -952,26 +990,23 @@ describe('shared system detail', () => {
         .querySelector('.system-detail > [aria-live="polite"]')
         ?.textContent?.trim(),
     ).toBe('');
-    expect(
-      mockedBuildSystemScene.mock.calls.every(
-        ([, , selectedBodyId]) => selectedBodyId === undefined,
-      ),
-    ).toBe(true);
+    expect(view.container.querySelector('.sm-body')).toBeNull();
 
     complete(secondSystem);
     await screen.findByRole('heading', { name: 'Second System' });
+    await openTab('Bodies');
+    choices.stop();
 
     expect(screen.queryByRole('article')).toBeNull();
-    expect(mockedBuildSystemScene).toHaveBeenCalledWith(
-      secondSystem,
-      expect.any(Number),
-      undefined,
-    );
+    expect(choices.seen).toEqual([]);
     expect(
-      mockedBuildSystemScene.mock.calls.every(
-        ([, , selectedBodyId]) => selectedBodyId === undefined,
-      ),
-    ).toBe(true);
+      view.container
+        .querySelector('.system-map-stage')
+        ?.getAttribute('data-system-id64'),
+    ).toBe('42');
+    for (const body of view.container.querySelectorAll('.sm-body')) {
+      expect(body).toHaveAttribute('aria-pressed', 'false');
+    }
   });
 
   it.each(['invalidate', 'refetch'] as const)(
@@ -1035,11 +1070,15 @@ describe('shared system detail', () => {
           .querySelector('.system-detail > [aria-live="polite"]')
           ?.textContent?.trim(),
       ).toBe('Selected Reference System 3');
-      expect(mockedBuildSystemScene).toHaveBeenLastCalledWith(
-        refreshedSystem,
-        expect.any(Number),
-        3,
+      expect(mapBody(view.container, '108086391056891904')).toHaveAttribute(
+        'aria-pressed',
+        'true',
       );
+      expect(
+        mapBody(view.container, '108086391056891904')?.getAttribute(
+          'aria-label',
+        ),
+      ).toContain('Updated body name');
     },
   );
 
@@ -1060,7 +1099,7 @@ describe('shared system detail', () => {
       'data-selected-body-id',
       '3',
     );
-    mockedBuildSystemScene.mockClear();
+    const choices = watchChoices(view.container);
 
     await view.rerender({ id64: next });
     await screen.findByRole('heading', { name: 'Second System' });
@@ -1068,16 +1107,18 @@ describe('shared system detail', () => {
 
     await view.rerender({ id64 });
     await screen.findByRole('heading', { name: 'Reference System' });
+    await openTab('Bodies');
+    choices.stop();
 
     expect(screen.queryByRole('article')).toBeNull();
+    expect(choices.seen).toEqual([]);
     expect(
       screen.getByRole('button', { name: 'Reference System 3 Planet' }),
     ).toHaveAttribute('aria-pressed', 'false');
-    expect(
-      mockedBuildSystemScene.mock.calls.every(
-        ([, , selectedBodyId]) => selectedBodyId === undefined,
-      ),
-    ).toBe(true);
+    expect(mapBody(view.container, '108086391056891904')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
   it('announces only the selected body name and silently clears the announcement on a system change', async () => {
@@ -1090,8 +1131,8 @@ describe('shared system detail', () => {
     );
     const view = render(SystemDetailTestHost, { props: { id64 } });
     await screen.findByRole('heading', { name: 'Reference System' });
-    // SpatialCanvas has its own renderer-status live region. Body selection
-    // gets exactly one persistent, visually hidden region owned by Inspect.
+    // Body selection gets exactly one persistent, visually hidden region
+    // owned by Inspect.
     const announcements = view.container.querySelectorAll(
       '.system-detail > [aria-live="polite"]',
     );

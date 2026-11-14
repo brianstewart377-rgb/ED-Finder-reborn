@@ -189,3 +189,18 @@ permits community fan use for noncommercial purposes only. The owner's
 permission covers ED-Finder's use of the screenshot; because it shows Elite
 Dangerous imagery, these files stay recorded as noncommercial-only and are not
 approved for promotional or commercial use.
+
+## Cosmos, and Pixel Planets
+
+The System Map (`apps/web/src/lib/system-map/`) draws its planets and stars
+with [Cosmos](https://github.com/Eluvade/cosmos) by Eluvade
+(`@eluvade/cosmos` 1.3.0, an npm dependency of `apps/web`), used with the
+author's agreement. Cosmos's planet shaders are ported from Deep-Fold's
+[Pixel Planets](https://github.com/Deep-Fold/PixelPlanets). Both are under the
+MIT License. Their licence texts are served beside the site, at
+`/licences/cosmos-LICENSE.txt` and `/licences/pixel-planets-LICENSE.txt`
+(`apps/web/static/licences/`), and the map's legend links to them.
+
+Cosmos: Copyright (c) 2026 Eluvade. Pixel Planets: Copyright (c) 2020
+Deep-Fold. The pictures are drawn by these programs from each body's class;
+they are illustrations, not pictures of the real surface or Frontier media.
