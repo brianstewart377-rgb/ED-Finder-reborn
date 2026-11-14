@@ -399,7 +399,11 @@ JOBS = {
 def job_command(settings: Settings, route: str, image: str, command_name: str,
                 version: Dict[str, Any], limit: Optional[int], name: Optional[str]) -> List[str]:
     module, mode, reads_file = JOBS[command_name]
-    command = ["docker", "run", "--rm", "--name", JOB_NAME]
+    # --init: a small first process in the container passes signals on.
+    # Python as the container's first process ignores the polite stop signal,
+    # so when systemd stopped this job (its time limit, or by hand) the job's
+    # container went on working on its own, holding the name and the lock.
+    command = ["docker", "run", "--rm", "--init", "--name", JOB_NAME]
     if route == "local":
         # Share the database container's network and connect as a local client.
         command += [
