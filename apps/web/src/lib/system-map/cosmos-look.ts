@@ -200,15 +200,3 @@ export function cosmosAsk(body: {
     whole: false,
   };
 }
-
-/**
- * How many pixels across Cosmos is asked for, from how big the body is drawn
- * and how wide its picture is. Four times what the screen needs, so that
- * zooming in stays sharp, within bounds that keep a whole system quick.
- */
-export function cosmosPixels(drawnRadius: number, width: number): number {
-  return Math.min(
-    512,
-    Math.max(128, Math.round((drawnRadius * width * 4) / 16) * 16),
-  );
-}

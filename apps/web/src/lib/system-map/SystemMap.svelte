@@ -40,14 +40,16 @@
   import {
     askOf,
     cosmos,
+    jobAt,
     makePictures,
     pictureMaker,
     pictureName,
     type Picture,
+    type PictureBody,
     type PictureJob,
     type PictureMaker,
   } from './pictures';
-  import { SPIN_PIXELS, startSpinning, type SpinTarget } from './spin';
+  import { startSpinning, type SpinTarget } from './spin';
   import type { MapTree } from './tree';
   import {
     centredOn,
@@ -100,9 +102,11 @@
   let dragging = $state(false);
   let openedFor: string | null = null;
   let lastSize: Size | null = null;
-  const shown = $derived(view ?? whole);
+  const viewShown = $derived(view ?? whole);
   const viewBox = $derived(
-    [shown.x, shown.y, shown.w, shown.h].map((value) => n(value)).join(' '),
+    [viewShown.x, viewShown.y, viewShown.w, viewShown.h]
+      .map((value) => n(value))
+      .join(' '),
   );
 
   $effect(() => {
@@ -375,48 +379,99 @@
     };
   });
 
-  const jobs = $derived(
-    bodies.map((item): PictureJob => ({
+  // The view's scale, once it has stayed put for a moment: pictures are made
+  // for the size they are shown at, and made again when that changes, but
+  // not on every step of a zoom.
+  const devicePixels =
+    typeof window !== 'undefined'
+      ? Math.min(3, Math.max(1, window.devicePixelRatio || 1))
+      : 1;
+  let settled = $state<{ view: View; perUnit: number } | null>(null);
+  $effect(() => {
+    const current = view;
+    const across = size.width;
+    if (!current || across <= 0) return;
+    const next = {
+      view: current,
+      perUnit: (across / current.w) * devicePixels,
+    };
+    // The first view is taken at once; later ones once the zoom has stopped.
+    if (untrack(() => settled) === null) {
+      settled = next;
+      return;
+    }
+    const timer = setTimeout(() => {
+      settled = next;
+    }, 250);
+    return () => clearTimeout(timer);
+  });
+
+  const bodiesForPictures = $derived(
+    bodies.map((item): PictureBody => ({
       id: item.id,
       look: lookFor(item),
       r: item.r,
       surfaceK: item.node.surfaceK,
     })),
   );
-  /** Each body's picture name, in the way pictures are made here. */
-  const names = $derived(
-    maker && maker !== 'none'
-      ? new Map(
-          jobs.map((job) => [job.id, pictureName(maker as PictureMaker, job)]),
-        )
-      : new Map<string, string>(),
-  );
-  const pictures = new SvelteMap<string, Picture>();
+  /**
+   * The pictures wanted now: the bodies on screen (and a little beyond), each
+   * at the size it is shown. A body further off keeps the picture it has.
+   */
+  const jobs = $derived.by((): PictureJob[] => {
+    const current = maker;
+    if (!settled || !current || current === 'none') return [];
+    const { view: at, perUnit } = settled;
+    const margin = Math.max(at.w, at.h) * 0.25;
+    return bodiesForPictures.flatMap((body, index) => {
+      const item = bodies[index];
+      if (!item || !touches(at, item.x, item.y, item.r + margin)) return [];
+      return [jobAt(current, body, perUnit)];
+    });
+  });
+
+  // The picture shown for each body, by its key: the latest made for it. A
+  // body keeps its picture while a sharper one is being made, so nothing goes
+  // plain on a zoom.
+  const shown = new SvelteMap<string, { name: string; picture: Picture }>();
 
   function pictureOf(item: BodyItem): Picture | null {
-    const name = names.get(item.id);
-    return (name && pictures.get(name)) || null;
+    return shown.get(item.id)?.picture ?? null;
   }
+
+  /** How many pixels across a body's moving picture is: as many as its still one. */
+  function spinPixels(item: BodyItem): number {
+    return pictureOf(item)?.pixels ?? 64;
+  }
+
+  function show(id: string, name: string, picture: Picture): void {
+    const before = untrack(() => shown.get(id));
+    if (before) URL.revokeObjectURL(before.picture.href);
+    shown.set(id, { name, picture });
+  }
+
+  // A body no longer in the system lets its picture go.
+  $effect(() => {
+    const keys = new Set(bodies.map((item) => item.id));
+    untrack(() => {
+      for (const [id, made] of [...shown]) {
+        if (keys.has(id)) continue;
+        URL.revokeObjectURL(made.picture.href);
+        shown.delete(id);
+      }
+    });
+  });
 
   $effect(() => {
     const current = maker;
-    const wanted = new Map(
-      current && current !== 'none'
-        ? jobs.map((job) => [pictureName(current, job), job] as const)
-        : [],
-    );
-    if (!onScreen || !current || current === 'none') return;
+    const wanted = jobs;
+    if (!onScreen || !current || current === 'none' || wanted.length === 0)
+      return;
     const missing = untrack(() => {
-      // Pictures no longer drawn are let go.
-      for (const [name, picture] of [...pictures]) {
-        if (wanted.has(name)) continue;
-        URL.revokeObjectURL(picture.href);
-        pictures.delete(name);
-      }
       const onView = view;
-      const needed = [...wanted]
-        .filter(([name]) => !pictures.has(name))
-        .map(([, job]) => job);
+      const needed = wanted.filter(
+        (job) => shown.get(job.id)?.name !== pictureName(current, job),
+      );
       // What is on screen first.
       const near = (job: PictureJob) => {
         const item = bodies.find((one) => one.id === job.id);
@@ -426,13 +481,16 @@
       };
       return needed.sort((one, other) => near(one) - near(other));
     });
+    const byName = new Map(
+      missing.map((job) => [pictureName(current, job), job.id] as const),
+    );
     const stop = new AbortController();
     void makePictures(
       current,
       missing,
       (name, picture) => {
-        if (wanted.has(name) && !stop.signal.aborted)
-          pictures.set(name, picture);
+        const id = byName.get(name);
+        if (id !== undefined && !stop.signal.aborted) show(id, name, picture);
         else URL.revokeObjectURL(picture.href);
       },
       stop.signal,
@@ -441,8 +499,8 @@
   });
 
   onDestroy(() => {
-    for (const picture of pictures.values()) URL.revokeObjectURL(picture.href);
-    pictures.clear();
+    for (const made of shown.values()) URL.revokeObjectURL(made.picture.href);
+    shown.clear();
   });
 
   // ---- spinning ------------------------------------------------------------------
@@ -453,7 +511,7 @@
   let spinWanted = $state(!(calm?.matches ?? false));
   let spinNote = $state<string | null>(null);
   const spinning = $derived(
-    spinWanted && onScreen && maker === 'cosmos' && pictures.size > 0,
+    spinWanted && onScreen && maker === 'cosmos' && shown.size > 0,
   );
   // eslint-disable-next-line svelte/prefer-svelte-reactivity -- read only by the spinning loop, never drawn
   const pens = new Map<string, CanvasRenderingContext2D>();
@@ -503,13 +561,9 @@
               continue;
             found.push({
               id: item.id,
-              ask: askOf({
-                id: item.id,
-                look: lookFor(item),
-                r: item.r,
-                surfaceK: item.node.surfaceK,
-              }),
+              ask: askOf({ look: lookFor(item), surfaceK: item.node.surfaceK }),
               seed: seedOf(item.id),
+              pixels: spinPixels(item),
               pen,
             });
           }
@@ -736,8 +790,8 @@
                 height={n(2 * half)}
               >
                 <canvas
-                  width={SPIN_PIXELS}
-                  height={SPIN_PIXELS}
+                  width={spinPixels(item)}
+                  height={spinPixels(item)}
                   {@attach penFor(item.id)}
                 ></canvas>
               </foreignObject>
@@ -914,7 +968,8 @@
   }
 
   .system-map-stage {
-    height: clamp(22rem, 58vh, 40rem);
+    /* A page can set the height to fit the map into its own space. */
+    height: var(--system-map-height, clamp(22rem, 58vh, 40rem));
     border-block: 1px solid var(--line);
     background-color: var(--bg-deep, #0b1220);
     background-image:

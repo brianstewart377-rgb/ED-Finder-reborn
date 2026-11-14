@@ -68,6 +68,7 @@ function targetsOf(names: string[]): SpinTarget[] {
         halo: look.halo,
       }),
       seed: 1,
+      pixels: 64,
       pen: pen().pen,
     };
   });

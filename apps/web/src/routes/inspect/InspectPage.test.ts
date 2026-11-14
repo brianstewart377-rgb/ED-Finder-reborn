@@ -204,6 +204,24 @@ describe('Inspect tab URL state', () => {
     expect(mockedGoto).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['bodies', true],
+    ['overview', false],
+    ['stations', false],
+  ] as const)(
+    'gives the System Map the whole window width on the Bodies task only (%s)',
+    async (value, wide) => {
+      mockedPage.url.searchParams.set('tab', value);
+      const { container } = renderInspect();
+      await screen.findByRole('tablist', { name: 'Inspect sections' });
+      expect(
+        container
+          .querySelector('main.inspect-page')
+          ?.classList.contains('inspect-wide'),
+      ).toBe(wide);
+    },
+  );
+
   it.each([null, '', 'unknown', 'BODIES', 'bodies/stations', 'x'.repeat(1024)])(
     'uses Overview for an absent or invalid tab %s',
     async (value) => {

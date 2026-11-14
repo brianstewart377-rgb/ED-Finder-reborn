@@ -289,8 +289,3 @@ export function surface(ask: SurfaceAsk): {
   }
   return { size, data };
 }
-
-/** How many pixels across a body's painted picture is, from how big it is drawn. */
-export function pixelsFor(drawnRadius: number): number {
-  return Math.round(Math.min(256, Math.max(40, drawnRadius * 6)) / 8) * 8;
-}
