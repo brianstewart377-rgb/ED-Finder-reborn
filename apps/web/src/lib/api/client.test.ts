@@ -788,7 +788,7 @@ describe('selected-archetype rankings facade', () => {
       total: 3,
       navigable_total: 3,
       offset: 0,
-      navigation_limit: 10_000,
+      navigation_limit: 1_000,
       truncation: { source: 'rankings', is_truncated: false },
     });
     expect(page.ranking).toEqual(provenance);
@@ -866,7 +866,7 @@ describe('selected-archetype rankings facade', () => {
     expect(page.results[0]).not.toHaveProperty('rival_score');
   });
 
-  it('clamps the wire limit at the 10,000 window and rejects offsets beyond it', async () => {
+  it('clamps the wire limit at the 1,000 window and rejects offsets beyond it', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify(rankingsEnvelope([])), {
         headers: { 'content-type': 'application/json' },
@@ -875,13 +875,13 @@ describe('selected-archetype rankings facade', () => {
     await getArchetypeRankings({
       ...flexibleRequest,
       page_size: 50,
-      offset: 9_975,
+      offset: 975,
     });
     const url = new URL((fetchMock.mock.calls[0]?.[0] as Request).url);
     expect(url.searchParams.get('limit')).toBe('25');
-    expect(url.searchParams.get('offset')).toBe('9975');
+    expect(url.searchParams.get('offset')).toBe('975');
 
-    for (const offset of [10_000, -1, 1.5, 2_000_000_000]) {
+    for (const offset of [1_000, -1, 1.5, 2_000_000_000]) {
       await expect(
         getArchetypeRankings({ ...flexibleRequest, offset }),
       ).rejects.toThrow(RangeError);
@@ -894,24 +894,24 @@ describe('selected-archetype rankings facade', () => {
     await expect(
       getArchetypeRankings({ ...flexibleRequest, archetype: 'agri' as never }),
     ).rejects.toThrow(RangeError);
-    expect(FINDER_NAVIGATION_LIMIT).toBe(10_000);
+    expect(FINDER_NAVIGATION_LIMIT).toBe(1_000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves the independent API-owned truncation flag and total = min(qualifying, 10000)', () => {
+  it('preserves the independent API-owned truncation flag and total = min(qualifying, 1000)', () => {
     const rows = [rankingRow('1', 95, 'S')];
     const truncated = normalizeRankingsResponse(
-      rankingsEnvelope(rows, { total: 10_000, is_truncated: true }),
-      { ...flexibleRequest, page_size: 50, offset: 9_950 },
+      rankingsEnvelope(rows, { total: 1_000, is_truncated: true }),
+      { ...flexibleRequest, page_size: 50, offset: 950 },
     );
     expect(truncated.page).toMatchObject({
-      total: 10_000,
-      navigable_total: 10_000,
-      offset: 9_950,
+      total: 1_000,
+      navigable_total: 1_000,
+      offset: 950,
       truncation: { source: 'rankings', is_truncated: true },
     });
     const exact = normalizeRankingsResponse(
-      rankingsEnvelope(rows, { total: 10_000, is_truncated: false }),
+      rankingsEnvelope(rows, { total: 1_000, is_truncated: false }),
       flexibleRequest,
     );
     expect(exact.page.truncation).toEqual({
@@ -1022,7 +1022,7 @@ describe('Any (local search) page envelope normalization', () => {
       total: 2,
       navigable_total: 2,
       offset: 0,
-      navigation_limit: 10_000,
+      navigation_limit: 1_000,
       truncation: { source: 'local-search', total_is_capped: false },
     });
     expect(page.results[0]).toMatchObject({
@@ -1076,7 +1076,7 @@ describe('Any (local search) page envelope normalization', () => {
     expect(galaxyWide.page.page_size).toBe(24);
   });
 
-  it('exposes the sentinel-backed Any count states: below cap, exact 10,000 and overflow', () => {
+  it('exposes the sentinel-backed Any count states: below cap, exact 1,000 and overflow', () => {
     const request = { ...anchored, size: 1, from: 2 };
     const below = normalizeAnySearchResponse(
       searchEnvelope([anyRow('42')], { total: 3, total_is_capped: false }),
@@ -1091,28 +1091,28 @@ describe('Any (local search) page envelope normalization', () => {
       truncation: { source: 'local-search', total_is_capped: false },
     });
     const exact = normalizeAnySearchResponse(
-      searchEnvelope([anyRow('42')], { total: 10_000, total_is_capped: false }),
+      searchEnvelope([anyRow('42')], { total: 1_000, total_is_capped: false }),
       request,
       star,
     );
     expect(exact.page).toMatchObject({
-      total: 10_000,
-      navigable_total: 10_000,
+      total: 1_000,
+      navigable_total: 1_000,
       truncation: { source: 'local-search', total_is_capped: false },
     });
     const overflow = normalizeAnySearchResponse(
-      searchEnvelope([anyRow('42')], { total: 10_000, total_is_capped: true }),
+      searchEnvelope([anyRow('42')], { total: 1_000, total_is_capped: true }),
       request,
       star,
     );
     expect(overflow.page).toMatchObject({
-      total: 10_000,
-      navigable_total: 10_000,
+      total: 1_000,
+      navigable_total: 1_000,
       truncation: { source: 'local-search', total_is_capped: true },
     });
     // A null/absent flag is never read as capped.
     const unflagged = normalizeAnySearchResponse(
-      searchEnvelope([anyRow('42')], { total: 10_000, total_is_capped: null }),
+      searchEnvelope([anyRow('42')], { total: 1_000, total_is_capped: null }),
       request,
       star,
     );
@@ -1175,7 +1175,7 @@ describe('near-system body filters through the generated facade', () => {
   });
 });
 
-describe('facade page size versus clamped wire limit near the 10,000 ceiling', () => {
+describe('facade page size versus clamped wire limit near the 1,000 ceiling', () => {
   const nearCeiling = (body: unknown) =>
     new Response(JSON.stringify(body), {
       headers: { 'content-type': 'application/json' },
@@ -1185,18 +1185,18 @@ describe('facade page size versus clamped wire limit near the 10,000 ceiling', (
     vi.restoreAllMocks();
   });
 
-  it('Any (?page_size=50&offset=9975): wire size 25, envelope page_size 50', async () => {
+  it('Any (?page_size=50&offset=975): wire size 25, envelope page_size 50', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       nearCeiling({
         results: [],
-        total: 10_000,
+        total: 1_000,
         count: 0,
         total_is_capped: true,
         ranking: provenance,
       }),
     );
     const response = await searchExploreSystems(
-      { galaxy_wide: true, sort_by: 'development', size: 25, from: 9_975 },
+      { galaxy_wide: true, sort_by: 'development', size: 25, from: 975 },
       undefined,
       null,
       50,
@@ -1204,13 +1204,13 @@ describe('facade page size versus clamped wire limit near the 10,000 ceiling', (
     const request = fetchMock.mock.calls[0]?.[0] as Request;
     expect(await request.clone().json()).toMatchObject({
       size: 25,
-      from: 9_975,
+      from: 975,
     });
     expect(response.page).toMatchObject({
       page_size: 50,
-      offset: 9_975,
-      total: 10_000,
-      navigable_total: 10_000,
+      offset: 975,
+      total: 1_000,
+      navigable_total: 1_000,
     });
     // Without an explicit facade size (the live default-off path) the wire
     // size is the page size, and an invalid facade size never dispatches.
@@ -1231,13 +1231,13 @@ describe('facade page size versus clamped wire limit near the 10,000 ceiling', (
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('selected (?archetype=flexible&page_size=50&offset=9975): wire limit 25, envelope page_size 50', async () => {
+  it('selected (?archetype=flexible&page_size=50&offset=975): wire limit 25, envelope page_size 50', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       nearCeiling({
         archetype: 'flexible',
         archetype_label: 'Flexible Multi-Role Colony',
         results: [],
-        total: 10_000,
+        total: 1_000,
         count: 0,
         is_truncated: true,
         ranking: provenance,
@@ -1247,15 +1247,15 @@ describe('facade page size versus clamped wire limit near the 10,000 ceiling', (
       archetype: 'flexible',
       min_score: 60,
       page_size: 50,
-      offset: 9_975,
+      offset: 975,
     });
     const url = new URL((fetchMock.mock.calls[0]?.[0] as Request).url);
     expect(url.searchParams.get('limit')).toBe('25');
-    expect(url.searchParams.get('offset')).toBe('9975');
+    expect(url.searchParams.get('offset')).toBe('975');
     expect(page.page).toMatchObject({
       page_size: 50,
-      offset: 9_975,
-      total: 10_000,
+      offset: 975,
+      total: 1_000,
       truncation: { source: 'rankings', is_truncated: true },
     });
   });

@@ -77,6 +77,7 @@ from edfinder_api.ranking.profile import (
     ACCEPTED_ARCHETYPE_SCORE_FLOORS,
     ARCHETYPE_KEYS,
     ARCHETYPE_SCORE_FLOOR_DEFAULT,
+    FIND_COUNT_LIMIT,
     PICKED_ARCHETYPE_FILTER_REJECTION_REASON,
     PICKED_ARCHETYPE_REJECTED_FILTERS,
     PROFILE_SPEC,
@@ -87,7 +88,6 @@ from edfinder_api.ranking.profile import (
     RANKING_PAGE_LIMIT_MAX,
     RANKING_PAGE_LIMIT_MIN,
     RANKING_VERSION,
-    RANKING_WINDOW_LIMIT,
     ranking_sha256,
 )
 from edfinder_api.claim_rule import apply_claim_notes, claim_notes
@@ -277,7 +277,7 @@ async def _archetype_rankings_v3(
     if offset < RANKING_OFFSET_MIN or offset > RANKING_OFFSET_MAX:
         raise HTTPException(
             status_code=422,
-            detail=f'offset must be between 0 and {RANKING_WINDOW_LIMIT - 1}',
+            detail=f'offset must be between 0 and {RANKING_OFFSET_MAX}',
         )
     if limit < RANKING_PAGE_LIMIT_MIN or limit > RANKING_PAGE_LIMIT_MAX:
         raise HTTPException(
@@ -376,7 +376,7 @@ async def _archetype_rankings_v3(
         'archetype':       archetype,
         'archetype_label': _V3_ARCHETYPE_LABELS.get(archetype, archetype),
         'results':         results,
-        'total':           min(qualifying, RANKING_WINDOW_LIMIT),
+        'total':           min(qualifying, FIND_COUNT_LIMIT),
         'count':           len(results),
         'is_truncated':    qualifying == RANKING_COUNT_SENTINEL,
         'source':          f'v3:{RANKING_VERSION}',

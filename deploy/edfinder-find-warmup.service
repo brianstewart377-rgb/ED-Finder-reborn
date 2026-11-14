@@ -1,0 +1,21 @@
+# Run the searches visitors start with once (edfinder_deploy.py warm): Find,
+# galaxy-wide, for Any and for each colony type, at 250 and 500 ly. A nightly
+# job that reads a lot of the database pushes what those searches read out of
+# memory, and the first visitor afterwards would wait while it is read from
+# the drive again. Reads only; changes nothing. A minute or two.
+#
+# Started when the galaxy update or the weekly full backup has ended well
+# (the OnSuccess= line in their units). The state refresh has no such line:
+# the galaxy update starts an hour after it every night.
+#
+# By hand, after the machine has been restarted for example:
+#     sudo systemctl start edfinder-find-warmup.service
+[Unit]
+Description=ED-Finder: run Find's usual first searches once, after a nightly job
+# If a nightly job is running, wait for it to end first.
+After=docker.service edfinder-state-refresh.service edfinder-galaxy-update.service edfinder-backup-full.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edfinder/edfinder_deploy.py warm
+TimeoutStartSec=30min

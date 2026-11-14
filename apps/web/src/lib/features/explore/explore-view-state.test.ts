@@ -432,7 +432,7 @@ describe('Explore shareable view state', () => {
     const { view } = createView();
     const restored = view.restore(
       new URLSearchParams(
-        'near=42&radius=100000&bodies=elw_count:1000-,ring_count:-3&archetype=flexible&min-tier=C&page_size=100&offset=10000&selected=bad&weight=capacity:999999',
+        'near=42&radius=100000&bodies=elw_count:1000-,ring_count:-3&archetype=flexible&min-tier=C&page_size=100&offset=1000&selected=bad&weight=capacity:999999',
       ),
     );
     const next = createView(`?${restored.search}`, restored.state).view;
@@ -444,7 +444,7 @@ describe('Explore shareable view state', () => {
         archetype: 'flexible',
         minimumTier: 'B',
         pageSize: 50,
-        offset: 9950,
+        offset: 950,
         weights: {},
       },
       urlSelection: null,

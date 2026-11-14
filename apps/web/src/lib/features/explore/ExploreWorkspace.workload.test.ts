@@ -162,7 +162,7 @@ function finderResponse(size: number, offset = 0) {
       total: systems.length,
       navigable_total: systems.length,
       offset,
-      navigation_limit: 10_000,
+      navigation_limit: 1_000,
       truncation: { source: 'local-search' as const, total_is_capped: false },
     },
     ranking,

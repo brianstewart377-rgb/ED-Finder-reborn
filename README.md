@@ -70,6 +70,7 @@ standard library only) starts them with `deploy/compose.yml`:
 | `rollback` | Switches back to the release that was live before. |
 | `restore-old` | Stops this app and restarts the containers it first replaced. |
 | `status` | Shows what is live. |
+| `warm` | Runs the searches visitors start with once, so Find answers them quickly. Changes nothing. |
 
 The tool has to be run as root. On the Raspberry Pi, where you log in as
 `pi`, put `sudo` in front, for example
@@ -84,6 +85,22 @@ script; see the top of the script.
 Before a release goes live the tool also runs three real Find searches against
 it. On a machine whose database has no Finder data yet, put
 `EDFINDER_FIND_CHECK=0` in `deploy.conf`.
+
+Find counts its matches up to 1,000 ("1,000+ found") and pages through the
+first 1,000. Counting is most of a search's work, and the first search after
+the database's memory has been emptied has to read it all from the drive.
+
+`warm` runs the searches visitors start with against the live site once:
+Find galaxy-wide, for Any and for each colony type, at 250 and 500 ly. It
+prints how long each took. A nightly job that reads a lot of the database
+pushes what those searches need out of memory, so
+`deploy/edfinder-find-warmup.service` runs `warm` whenever the galaxy update
+or the weekly full backup has ended well (the `OnSuccess=` line in their
+units). To run it by hand, after the machine has been restarted say:
+
+```bash
+sudo systemctl start edfinder-find-warmup.service
+```
 
 ## Keeping the system state fresh
 

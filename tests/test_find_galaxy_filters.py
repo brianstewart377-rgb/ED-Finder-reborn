@@ -2,9 +2,10 @@
 
 Without a system to search near, filters thin the window of the best 10,000
 systems in reach (or, for a picked type, the type's best 10,000): the window
-walk is the unfiltered one, the count is exact over the window, and a filtered
-page never reads more than the window. Real PostgreSQL 18 with the real
-migrations, and production-sized statistics for the plans.
+walk is the unfiltered one, a filtered page never reads more than the window,
+and the count is taken over the window: exact below 1,000, and stopped at
+1,001 ("1,000+") above, as Find counts everywhere. Real PostgreSQL 18 with the
+real migrations, and production-sized statistics for the plans.
 
 The database layers need RATINGS_V4_VALIDATION_DATABASE_URL. CI sets
 EDF_DB_TESTS_REQUIRED=1 so they cannot be skipped there.
@@ -20,7 +21,9 @@ os.environ.setdefault("CORS_ORIGINS", "https://find-galaxy-filters-test.invalid"
 
 from edfinder_api.ranking.profile import (  # noqa: E402
     ARCHETYPE_KEYS,
+    FIND_COUNT_LIMIT,
     PROFILE_SPEC,
+    RANKING_COUNT_SENTINEL,
     RANKING_WINDOW_LIMIT,
 )
 from edfinder_api.ranking.ranking_sql import (  # noqa: E402
@@ -38,6 +41,7 @@ from tests.test_find_reach import (  # noqa: E402,F401  (the shared fixture)
 
 PICKED = ARCHETYPE_KEYS[0]
 ONLY_O = {"main_star_class_in": ["O"]}
+ONLY_K = {"main_star_class_in": ["K"]}
 PAGE = 50
 
 
@@ -52,12 +56,13 @@ def galaxy_count(*, picked: str | None, filters: dict):
     return build_count_query(
         PROFILE_SPEC, picked_archetype=picked, picked_economy=None,
         hard_filters=filters, reference_coords=None,
-        cap=None if picked else RANKING_WINDOW_LIMIT,
+        cap=None if picked else FIND_COUNT_LIMIT,
         min_score=60 if picked else None, hide_claimed=True, reach_ly=250)
 
 
-def _window(connection, picked: str | None) -> list[int]:
-    """The best 10,000 shown systems, unfiltered, straight from the views."""
+def _window(connection, picked: str | None, limit: int | None = RANKING_WINDOW_LIMIT) -> list[int]:
+    """The best 10,000 shown systems (or every one, with no limit),
+    unfiltered, straight from the views."""
     if picked:
         columns = ARCHETYPE_COLUMNS[picked]
         statement = (
@@ -69,34 +74,71 @@ def _window(connection, picked: str | None) -> list[int]:
             "SELECT sum.system_id64 FROM v3_app.system_archetype_summary sum "
             "ORDER BY sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC")
     ordered = [int(r[0]) for r in connection.execute(statement).fetchall()]
-    return [i for i in ordered if shown(i, 250)][:RANKING_WINDOW_LIMIT]
+    return [i for i in ordered if shown(i, 250)][:limit]
+
+
+def _star(connection, star_class: str) -> set[int]:
+    return {int(r[0]) for r in connection.execute(
+        "SELECT system_id64 FROM v3_app.system_search WHERE main_star_class = %s",
+        (star_class,)).fetchall()}
 
 
 def _star_o(connection) -> set[int]:
-    return {int(r[0]) for r in connection.execute(
-        "SELECT system_id64 FROM v3_app.system_search WHERE main_star_class = 'O'").fetchall()}
+    return _star(connection, "O")
+
+
+def _all_ids(connection, *, picked: str | None, filters: dict) -> list[int]:
+    """Every page Find serves, as deep as it pages."""
+    from tests.helpers.finder_seed import run_statement
+
+    ids: list[int] = []
+    for offset in range(0, FIND_COUNT_LIMIT, PAGE):
+        sql, params = galaxy(picked=picked, filters=filters, offset=offset)
+        rows = run_statement(connection, f"SELECT p.system_id64 FROM ({sql}) p", params)
+        ids.extend(int(r[0]) for r in rows)
+        if len(rows) < PAGE:
+            break
+    return ids
 
 
 @pytest.mark.db
 @pytest.mark.parametrize("picked", [None, PICKED], ids=["any", "type"])
 def test_filters_thin_the_window_and_the_count_is_exact(reach_database, picked):
+    """Few matches (O stars, one system in 97): every page, and an exact count."""
     from tests.helpers.finder_seed import run_statement
 
     connection = reach_database
     window = _window(connection, picked)
-    expected = [i for i in window if i in _star_o(connection)]
-    assert 0 < len(expected) < len(window)
+    star_o = _star_o(connection)
+    expected = [i for i in window if i in star_o]
+    assert 0 < len(expected) < len(window) and len(expected) < FIND_COUNT_LIMIT
+    if picked is None:
+        # Only the window's: the whole ranking holds more O stars than it does.
+        # (The picked type's window holds every system that fits it here.)
+        everywhere = _window(connection, None, limit=None)
+        assert len(everywhere) > RANKING_WINDOW_LIMIT
+        assert len(expected) < len([i for i in everywhere if i in star_o])
 
-    ids: list[int] = []
-    for offset in range(0, RANKING_WINDOW_LIMIT, PAGE):
-        sql, params = galaxy(picked=picked, filters=ONLY_O, offset=offset)
-        rows = run_statement(connection, f"SELECT p.system_id64 FROM ({sql}) p", params)
-        ids.extend(int(r[0]) for r in rows)
-        if len(rows) < PAGE:
-            break
-    assert ids == expected
+    assert _all_ids(connection, picked=picked, filters=ONLY_O) == expected
     sql, params = galaxy_count(picked=picked, filters=ONLY_O)
     assert run_statement(connection, sql, params)[0][0] == len(expected)
+
+
+@pytest.mark.db
+@pytest.mark.parametrize("picked", [None, PICKED], ids=["any", "type"])
+def test_a_filtered_count_stops_at_1000_and_more(reach_database, picked):
+    """Many matches (K stars, nearly all): the pages end at 1,000, all from
+    the window, and the count stops at 1,001, which Find shows as "1,000+"."""
+    from tests.helpers.finder_seed import run_statement
+
+    connection = reach_database
+    star_k = _star(connection, "K")
+    thinned = [i for i in _window(connection, picked) if i in star_k]
+    assert len(thinned) > FIND_COUNT_LIMIT
+
+    assert _all_ids(connection, picked=picked, filters=ONLY_K) == thinned[:FIND_COUNT_LIMIT]
+    sql, params = galaxy_count(picked=picked, filters=ONLY_K)
+    assert run_statement(connection, sql, params)[0][0] == RANKING_COUNT_SENTINEL
 
 
 @pytest.mark.db

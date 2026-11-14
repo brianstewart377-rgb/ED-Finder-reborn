@@ -32,7 +32,9 @@ from pydantic import ValidationError  # noqa: E402
 from edfinder_api import claim_rule, reach_rule  # noqa: E402
 from edfinder_api.ranking.profile import (  # noqa: E402
     ARCHETYPE_KEYS,
+    FIND_COUNT_LIMIT,
     PROFILE_SPEC,
+    RANKING_COUNT_SENTINEL,
     RANKING_PAGE_LIMIT_MAX,
     RANKING_WINDOW_LIMIT,
 )
@@ -90,7 +92,7 @@ def page(shape: str, *, reach: int | None, hide: bool = True, limit: int = 50, o
 
 def count(shape: str, *, reach: int | None, hide: bool = True):
     kwargs, _, _, capped = SHAPES[shape]
-    extra = {"cap": RANKING_WINDOW_LIMIT} if capped else {}
+    extra = {"cap": FIND_COUNT_LIMIT} if capped else {}
     return build_count_query(
         PROFILE_SPEC, picked_economy=None, hide_claimed=hide, reach_ly=reach,
         **extra, **kwargs)
@@ -140,7 +142,7 @@ def test_rule_is_off_unless_asked_for(shape, build):
         default = build_ranked_query(
             PROFILE_SPEC, picked_economy=None, limit=50, offset=0, hide_claimed=True, **kwargs)
     else:
-        extra = {"cap": RANKING_WINDOW_LIMIT} if capped else {}
+        extra = {"cap": FIND_COUNT_LIMIT} if capped else {}
         default = build_count_query(
             PROFILE_SPEC, picked_economy=None, hide_claimed=True, **extra, **kwargs)
     assert (sql, params) == default
@@ -168,11 +170,12 @@ def test_rule_adds_one_clause_and_nothing_else(shape, build, hide, reach):
 @pytest.mark.parametrize("shape", WINDOWED)
 def test_rule_is_inside_the_bounded_window(shape):
     """A window holds the best 10,000 systems in reach, so the rule is applied
-    before the window's LIMIT, in the page and the count."""
+    before the window's LIMIT, in the page and the count (whose window stops
+    at the count's sentinel, one past what Find counts)."""
     page_sql, _ = page(shape, reach=250)
     count_sql, _ = count(shape, reach=250)
     assert page_sql.index("system_reach") < page_sql.index(f"LIMIT {RANKING_WINDOW_LIMIT}\n")
-    assert count_sql.index("system_reach") < count_sql.index(f"LIMIT {RANKING_WINDOW_LIMIT + 1}\n")
+    assert count_sql.index("system_reach") < count_sql.index(f"LIMIT {RANKING_COUNT_SENTINEL}\n")
 
 
 @pytest.mark.parametrize("shape", ["nearest_first", "nearest_first_summary_filter"])
@@ -348,7 +351,7 @@ def _all_page_ids(connection, shape: str, *, reach: int | None) -> list[int]:
 
     ids: list[int] = []
     limit = RANKING_PAGE_LIMIT_MAX
-    for offset in range(0, RANKING_WINDOW_LIMIT, limit):
+    for offset in range(0, FIND_COUNT_LIMIT, limit):
         sql, params = page(shape, reach=reach, limit=limit, offset=offset)
         rows = run_statement(connection, f"SELECT page.system_id64 FROM ({sql}) page", params)
         ids.extend(int(row[0]) for row in rows)
@@ -396,29 +399,35 @@ def test_every_shape_returns_the_best_systems_in_reach(reach_database, shape, re
         assert any(reach_of(i) == 500 for i in after), "the wider band must add systems"
 
     if shape == "galaxy_wide_filtered":
-        # Filters thin the window of the best 10,000 shown systems.
+        # Filters thin the window of the best 10,000 shown systems; Find
+        # pages through the first 1,000 of what is left.
         everything = _full_order(connection, "galaxy_wide")
         star_k = {int(row[0]) for row in connection.execute(
             "SELECT system_id64 FROM v3_app.system_search WHERE main_star_class = 'K'"
         ).fetchall()}
         visible = [i for i in everything if shown(i, reach)]
         assert len(visible) > RANKING_WINDOW_LIMIT
-        assert after == [i for i in visible[:RANKING_WINDOW_LIMIT] if i in star_k]
-        expected = len(after)
+        thinned = [i for i in visible[:RANKING_WINDOW_LIMIT] if i in star_k]
+        assert len(thinned) > FIND_COUNT_LIMIT
+        assert after == thinned[:FIND_COUNT_LIMIT]
     elif shape in UNANCHORED:
         everything = _full_order(connection, shape)
         visible = [i for i in everything if shown(i, reach)]
-        if shape != "picked_archetype":
-            # More matches than a caller can page through, so the window must
-            # be refilled from further down the ranking, not left short. (The
-            # picked type's score floor leaves fewer than that at 250 ly.)
-            assert len(visible) > RANKING_WINDOW_LIMIT
-        assert after == visible[:RANKING_WINDOW_LIMIT]
-        expected = min(len(visible), RANKING_WINDOW_LIMIT + 1)
+        # More matches than a caller can page through, so the window must be
+        # refilled from further down the ranking, not left short.
+        assert len(visible) > FIND_COUNT_LIMIT
+        assert after == visible[:FIND_COUNT_LIMIT]
     else:
-        assert len(claimable) < RANKING_WINDOW_LIMIT
-        assert after == [i for i in claimable if in_reach(i, reach)]
-        expected = len(after)
+        # More in the radius than Find pages through: the same systems in the
+        # same order with the out-of-reach ones gone, and the pages refilled
+        # from further out.
+        assert len(claimable) == FIND_COUNT_LIMIT
+        kept = [i for i in claimable if in_reach(i, reach)]
+        assert len(kept) < FIND_COUNT_LIMIT
+        assert after[:len(kept)] == kept
+        assert len(after) == FIND_COUNT_LIMIT
+    # Each count stops at its sentinel: "1,000+ found".
+    expected = RANKING_COUNT_SENTINEL
 
     sql, params = count(shape, reach=reach)
     assert run_statement(connection, sql, params)[0][0] == expected
@@ -534,6 +543,19 @@ async def _api_pool(connection):
     )
 
 
+# Near enough to Sol that fewer than 1,000 seeded systems are inside.
+NEAR_RADIUS = 200
+
+
+def within(connection, radius: float) -> list[int]:
+    """The seeded systems within ``radius`` ly of Sol, straight from the view."""
+    return [int(row[0]) for row in connection.execute(
+        "SELECT system_id64 FROM v3_app.system_search "
+        "WHERE position_ly <-> cube(ARRAY[0, 0, 0]::float8[]) <= %s",
+        (radius,),
+    ).fetchall()]
+
+
 @pytest.mark.db
 def test_search_and_rankings_keep_to_the_asked_reach(reach_database):
     from edfinder_api import local_search
@@ -548,7 +570,7 @@ def test_search_and_rankings_keep_to_the_asked_reach(reach_database):
                 {"galaxy_wide": True, "size": 200, "from": 0, "reach_ly": reach}, pool)
             nearest = await local_search.local_db_search_v3(
                 {"reference_coords": {"x": 0.0, "y": 0.0, "z": 0.0},
-                 "filters": {"distance": {"max": 500}},
+                 "filters": {"distance": {"max": NEAR_RADIUS}},
                  "sort_by": "distance", "size": 200, "from": 0, "reach_ly": reach}, pool)
             ranked = await archetypes._archetype_rankings_v3(
                 pool=pool, archetype=PICKED, min_score=60, limit=200, offset=0,
@@ -563,6 +585,10 @@ def test_search_and_rankings_keep_to_the_asked_reach(reach_database):
         for response in (galaxy, nearest, ranked):
             assert response["count"] == len(response["results"]) == 200
             assert all(shown(r["id64"], reach) for r in response["results"])
-        # The nearest-first total counts only what this band shows.
-        assert nearest["total"] == len(_all_page_ids(connection, "nearest_first", reach=reach))
-        assert galaxy["total"] == RANKING_WINDOW_LIMIT and galaxy["total_is_capped"] is True
+        # The nearest-first total counts only what this band shows. Fewer than
+        # 1,000 are that near, so the count is exact.
+        near = [i for i in within(connection, NEAR_RADIUS) if shown(i, reach)]
+        assert len(near) < FIND_COUNT_LIMIT
+        assert nearest["total"] == len(near) and nearest["total_is_capped"] is False
+        assert galaxy["total"] == FIND_COUNT_LIMIT and galaxy["total_is_capped"] is True
+        assert ranked["total"] == FIND_COUNT_LIMIT and ranked["is_truncated"] is True

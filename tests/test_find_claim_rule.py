@@ -30,7 +30,9 @@ os.environ.setdefault("CORS_ORIGINS", "https://find-claim-rule-test.invalid")
 from edfinder_api import claim_rule  # noqa: E402
 from edfinder_api.ranking.profile import (  # noqa: E402
     ARCHETYPE_KEYS,
+    FIND_COUNT_LIMIT,
     PROFILE_SPEC,
+    RANKING_COUNT_SENTINEL,
     RANKING_PAGE_LIMIT_MAX,
     RANKING_WINDOW_LIMIT,
 )
@@ -76,8 +78,9 @@ SHAPES: dict[str, tuple[dict, str, str, bool]] = {
 }
 # Shapes that rank through a window of RANKING_WINDOW_LIMIT rows.
 WINDOWED = ("picked_archetype", "galaxy_wide")
-# Shapes that are not anchored, so the seeded database has more matches than
-# the RANKING_WINDOW_LIMIT rows a caller can page through.
+# Shapes that are not anchored: the seeded database has more matches than the
+# RANKING_WINDOW_LIMIT rows a window holds, and far more than the
+# FIND_COUNT_LIMIT rows a caller can page through.
 UNANCHORED = (*WINDOWED, "galaxy_wide_filtered")
 
 
@@ -90,7 +93,7 @@ def page(shape: str, *, hide: bool, limit: int = 50, offset: int = 0):
 
 def count(shape: str, *, hide: bool):
     kwargs, _, _, capped = SHAPES[shape]
-    extra = {"cap": RANKING_WINDOW_LIMIT} if capped else {}
+    extra = {"cap": FIND_COUNT_LIMIT} if capped else {}
     return build_count_query(
         PROFILE_SPEC, picked_economy=None, hide_claimed=hide, **extra, **kwargs)
 
@@ -123,7 +126,7 @@ def test_rule_is_off_unless_asked_for(shape, build):
     if build is page:
         default = build_ranked_query(PROFILE_SPEC, picked_economy=None, limit=50, offset=0, **kwargs)
     else:
-        extra = {"cap": RANKING_WINDOW_LIMIT} if capped else {}
+        extra = {"cap": FIND_COUNT_LIMIT} if capped else {}
         default = build_count_query(PROFILE_SPEC, picked_economy=None, **extra, **kwargs)
     assert (sql, params) == default
 
@@ -144,11 +147,12 @@ def test_rule_adds_one_clause_and_nothing_else(shape, build):
 @pytest.mark.parametrize("shape", WINDOWED)
 def test_rule_is_inside_the_bounded_window(shape):
     """A window holds the best 10,000 systems that can still be claimed, so
-    the rule is applied before the window's LIMIT, in the page and the count."""
+    the rule is applied before the window's LIMIT, in the page and the count
+    (whose window stops at the count's sentinel, one past what Find counts)."""
     page_sql, _ = page(shape, hide=True)
     count_sql, _ = count(shape, hide=True)
     assert page_sql.index("v3_state") < page_sql.index(f"LIMIT {RANKING_WINDOW_LIMIT}\n")
-    assert count_sql.index("v3_state") < count_sql.index(f"LIMIT {RANKING_WINDOW_LIMIT + 1}\n")
+    assert count_sql.index("v3_state") < count_sql.index(f"LIMIT {RANKING_COUNT_SENTINEL}\n")
 
 
 @pytest.mark.parametrize("shape", ["nearest_first", "nearest_first_summary_filter"])
@@ -259,7 +263,7 @@ def _all_page_ids(connection, shape: str, *, hide: bool) -> list[int]:
 
     ids: list[int] = []
     limit = RANKING_PAGE_LIMIT_MAX
-    for offset in range(0, RANKING_WINDOW_LIMIT, limit):
+    for offset in range(0, FIND_COUNT_LIMIT, limit):
         sql, params = page(shape, hide=hide, limit=limit, offset=offset)
         rows = run_statement(
             connection, f"SELECT page.system_id64 FROM ({sql}) page", params)
@@ -312,38 +316,41 @@ def test_every_shape_returns_the_best_systems_that_can_still_be_claimed(finder_d
 
     if shape == "galaxy_wide_filtered":
         # Filters thin the window of the best 10,000 claimable systems; the
-        # window itself is refilled past the hidden ones, as unfiltered.
+        # window itself is refilled past the hidden ones, as unfiltered. Find
+        # pages through the first 1,000 of what is left.
         everything = _full_order(connection, "galaxy_wide")
         visible = [i for i in everything if not hidden(i)]
         star_k = _star_k(connection)
-        expected = {
+        thinned = {
             False: [i for i in everything[:RANKING_WINDOW_LIMIT] if i in star_k],
             True: [i for i in visible[:RANKING_WINDOW_LIMIT] if i in star_k],
         }
-        assert before == expected[False]
-        assert after == expected[True]
-        # The count is exact over the window, never cut off.
-        expected_counts = {hide: len(ids) for hide, ids in expected.items()}
+        assert all(len(ids) > FIND_COUNT_LIMIT for ids in thinned.values())
+        assert before == thinned[False][:FIND_COUNT_LIMIT]
+        assert after == thinned[True][:FIND_COUNT_LIMIT]
     elif shape in UNANCHORED:
         # There are more matches than a caller can page through: with the rule
-        # the 10,000 must be refilled from further down the ranking, not left
+        # the pages must be refilled from further down the ranking, not left
         # short by the hidden systems.
         everything = _full_order(connection, shape)
         visible = [i for i in everything if not hidden(i)]
         assert len(visible) > RANKING_WINDOW_LIMIT
-        assert before == everything[:RANKING_WINDOW_LIMIT]
-        assert after == visible[:RANKING_WINDOW_LIMIT]
-        # Each count stops at its sentinel, one past the window.
-        expected_counts = {False: RANKING_WINDOW_LIMIT + 1, True: RANKING_WINDOW_LIMIT + 1}
+        assert before == everything[:FIND_COUNT_LIMIT]
+        assert after == visible[:FIND_COUNT_LIMIT]
     else:
-        assert len(before) < RANKING_WINDOW_LIMIT  # nothing was cut off
-        # Same systems, same order, only the hidden ones gone.
-        assert after == [i for i in before if not hidden(i)]
-        expected_counts = {False: len(before), True: len(after)}
+        # More in the radius than Find pages through: the same systems in the
+        # same order with the hidden ones gone, and the pages refilled from
+        # further out.
+        assert len(before) == FIND_COUNT_LIMIT
+        kept = [i for i in before if not hidden(i)]
+        assert len(kept) < FIND_COUNT_LIMIT
+        assert after[:len(kept)] == kept
+        assert len(after) == FIND_COUNT_LIMIT
 
+    # Each count stops at its sentinel, one past what Find counts: "1,000+".
     for hide in (False, True):
         sql, params = count(shape, hide=hide)
-        assert run_statement(connection, sql, params)[0][0] == expected_counts[hide]
+        assert run_statement(connection, sql, params)[0][0] == RANKING_COUNT_SENTINEL
 
 
 @pytest.mark.db
@@ -497,6 +504,7 @@ def _assert_only_claimable(results: list[dict]) -> None:
 def test_search_and_rankings_hide_claimed_systems_and_note_the_rest(finder_database):
     from edfinder_api import local_search
     from edfinder_api.routers import archetypes
+    from tests.test_find_reach import NEAR_RADIUS, within
 
     connection = finder_database
 
@@ -507,7 +515,7 @@ def test_search_and_rankings_hide_claimed_systems_and_note_the_rest(finder_datab
                 {"galaxy_wide": True, "size": 200, "from": 0}, pool)
             nearest = await local_search.local_db_search_v3(
                 {"reference_coords": {"x": 0.0, "y": 0.0, "z": 0.0},
-                 "filters": {"distance": {"max": 500}},
+                 "filters": {"distance": {"max": NEAR_RADIUS}},
                  "sort_by": "distance", "size": 200, "from": 0}, pool)
             by_score = await local_search.local_db_search_v3(
                 {"reference_coords": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -529,8 +537,11 @@ def test_search_and_rankings_hide_claimed_systems_and_note_the_rest(finder_datab
         noted = [r for r in response["results"] if r["claim_status"] == "claim_ended_unknown"]
         assert noted, "the page must show a system with the note"
 
-    # Totals count only what Find can show.
-    in_radius = [i for i in _all_page_ids(connection, "nearest_first", hide=True)]
-    assert nearest["total"] == len(in_radius)
-    assert galaxy["total"] == RANKING_WINDOW_LIMIT and galaxy["total_is_capped"] is True
-    assert ranked["total"] == RANKING_WINDOW_LIMIT and ranked["is_truncated"] is True
+    # Totals count only what Find can show. Fewer than 1,000 are that near,
+    # so the nearest-first count is exact; the others stop at "1,000+".
+    in_radius = within(connection, NEAR_RADIUS)
+    claimable = [i for i in in_radius if not hidden(i)]
+    assert len(claimable) < len(in_radius) < FIND_COUNT_LIMIT
+    assert nearest["total"] == len(claimable) and nearest["total_is_capped"] is False
+    assert galaxy["total"] == FIND_COUNT_LIMIT and galaxy["total_is_capped"] is True
+    assert ranked["total"] == FIND_COUNT_LIMIT and ranked["is_truncated"] is True

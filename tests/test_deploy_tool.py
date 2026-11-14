@@ -233,6 +233,122 @@ def test_find_check_fails_when_find_is_broken_or_lists_a_hidden_system(
         tool.find_check(fake_site(**overrides).origin)
 
 
+# -- warming Find up -------------------------------------------------------------------
+
+def ranking(colony_type: str, reach: int) -> str:
+    return ("/api/archetypes/rankings?archetype=%s&min_score=60&limit=50&offset=0&reach_ly=%d"
+            % (colony_type, reach))
+
+
+def warm_site(fake_site, **overrides) -> FakeSite:
+    """A site that answers every search warm asks, and nothing else."""
+    answers = {ranking(kind, reach): (200, json.dumps(
+        {"results": [], "total": 1000, "is_truncated": True}))
+        for kind in tool.COLONY_TYPES for reach in (250, 500)}
+    answers["/api/local/search"] = (200, json.dumps(
+        {"results": [], "total": 412, "total_is_capped": False}))
+    answers.update(overrides)
+    return fake_site(**answers)
+
+
+def warm_settings(site: FakeSite, **environ) -> "tool.Settings":
+    return settings(EDFINDER_LIVE_BIND=site.origin.removeprefix("http://"), **environ)
+
+
+def test_warm_runs_the_searches_visitors_start_with_on_the_live_address(fake_site, capsys):
+    site = warm_site(fake_site)
+    tool.command_warm(warm_settings(site))
+    printed = capsys.readouterr().out.splitlines()
+    # Galaxy-wide, Any and each colony type, at both reaches: 18 searches.
+    assert len(printed) == 19 and printed[-1] == "OK: Find is warmed up. Nothing was changed."
+    assert printed[0].startswith("Any, galaxy-wide, 250 ly") and printed[0].endswith("412 found")
+    assert printed[1].startswith("paradise, galaxy-wide, 250 ly")
+    assert printed[1].endswith("1,000+ found")
+    assert printed[9].startswith("Any, galaxy-wide, 500 ly")
+    assert all(re.search(r" \d+ ms  ", line) for line in printed[:-1])
+    # Any as the web app asks for it, at each reach.
+    assert [body for _, _, body in site.posted] == [
+        {"galaxy_wide": True, "sort_by": "development", "size": 50, "from": 0, "reach_ly": reach}
+        for reach in (250, 500)]
+
+
+def test_warm_asks_for_the_apis_own_colony_types_tier_and_reaches():
+    from edfinder_api.ranking.profile import ARCHETYPE_KEYS, ARCHETYPE_SCORE_FLOOR_DEFAULT
+    from edfinder_api.reach_rule import REACH_CHOICES
+
+    assert tool.COLONY_TYPES == ARCHETYPE_KEYS
+    # The web app's default minimum tier, B, is a fit of 60 or more.
+    assert tool.WARM_MIN_SCORE == ARCHETYPE_SCORE_FLOOR_DEFAULT == 60
+    assert tool.WARM_REACHES == REACH_CHOICES
+
+
+def test_warm_runs_every_search_and_then_fails_if_any_did(fake_site, capsys):
+    site = warm_site(fake_site, **{
+        ranking("stronghold", 500): (503, "{}"),
+        ranking("flexible", 250): (200, "not json")})
+    with pytest.raises(tool.DeployError, match="2 of 18 searches failed"):
+        tool.command_warm(warm_settings(site))
+    printed = capsys.readouterr().out.splitlines()
+    assert len(printed) == 18
+    assert [line.split("  ")[0] for line in printed if "FAILED" in line] == [
+        "flexible, galaxy-wide, 250 ly", "stronghold, galaxy-wide, 500 ly"]
+    assert "FAILED: did not answer with JSON" in printed[8]
+    assert "FAILED: answered 503" in printed[15]
+
+
+def test_warm_says_so_when_the_site_does_not_answer(capsys):
+    with socket.socket() as spare:
+        spare.bind(("127.0.0.1", 0))
+        port = spare.getsockname()[1]
+    with pytest.raises(tool.DeployError, match="18 of 18 searches failed"):
+        tool.command_warm(settings(EDFINDER_LIVE_BIND="127.0.0.1:%d" % port))
+    assert "FAILED: no answer from http://127.0.0.1:%d" % port in capsys.readouterr().out
+
+
+def test_warm_does_nothing_on_a_machine_without_find_data(capsys):
+    tool.command_warm(settings(EDFINDER_FIND_CHECK="0", EDFINDER_LIVE_BIND="127.0.0.1:9"))
+    assert capsys.readouterr().out == (
+        "Find has no data on this machine (EDFINDER_FIND_CHECK=0): nothing to warm up.\n")
+
+
+def test_warm_is_a_command_that_needs_no_lock(fake_site, monkeypatch, capsys):
+    site = warm_site(fake_site)
+    monkeypatch.setenv("EDFINDER_LIVE_BIND", site.origin.removeprefix("http://"))
+    monkeypatch.setenv("EDFINDER_FIND_CHECK", "1")
+
+    def no_lock(directory):
+        raise AssertionError("warm must not take the deploy lock")
+
+    monkeypatch.setattr(tool, "single_run", no_lock)
+    assert tool.main(["warm"]) == 0
+    assert capsys.readouterr().out.endswith("OK: Find is warmed up. Nothing was changed.\n")
+
+
+def unit_lines(name: str) -> dict[str, list[str]]:
+    found: dict[str, list[str]] = {}
+    for line in (ROOT / "deploy" / name).read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith(("#", "[")):
+            key, _, value = line.partition("=")
+            found.setdefault(key, []).append(value)
+    return found
+
+
+def test_the_warm_up_follows_the_jobs_that_read_the_most():
+    warm = unit_lines("edfinder-find-warmup.service")
+    assert warm["Type"] == ["oneshot"]
+    assert warm["ExecStart"] == ["/usr/bin/python3 /opt/edfinder/edfinder_deploy.py warm"]
+    # Started when the galaxy update or the full backup has ended well...
+    for job in ("edfinder-galaxy-update.service", "edfinder-backup-full.service"):
+        assert unit_lines(job)["OnSuccess"] == ["edfinder-find-warmup.service"]
+    # ...but not by the state refresh: the galaxy update follows it each night.
+    assert "OnSuccess" not in unit_lines("edfinder-state-refresh.service")
+    # It waits for any nightly job still running, and is never on a timer of its own.
+    assert set(warm["After"][0].split()) >= {
+        "edfinder-state-refresh.service", "edfinder-galaxy-update.service",
+        "edfinder-backup-full.service"}
+    assert not (ROOT / "deploy" / "edfinder-find-warmup.timer").exists()
+
+
 def test_find_check_can_be_switched_off_only_with_0_or_1():
     assert settings().find_check is True
     assert settings(EDFINDER_FIND_CHECK="0").find_check is False

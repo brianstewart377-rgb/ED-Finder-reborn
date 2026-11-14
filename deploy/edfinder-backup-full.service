@@ -13,6 +13,9 @@
 [Unit]
 Description=ED-Finder: back up the whole database
 After=docker.service edfinder-state-refresh.service edfinder-galaxy-update.service
+# When a backup has ended well, run Find's usual first searches once: it has
+# read every table, so they are slow until then (edfinder-find-warmup.service).
+OnSuccess=edfinder-find-warmup.service
 
 [Service]
 Type=oneshot

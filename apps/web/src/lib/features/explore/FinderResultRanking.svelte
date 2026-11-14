@@ -85,11 +85,16 @@
       )}–{number(page.count === 0 ? 0 : page.offset + page.count)})
     </span>
     {#if page.truncation.source === 'rankings' && page.truncation.is_truncated}
-      <span>within the top 10,000 for {archetypeLabel(archetype)}</span>
+      <span>
+        {number(page.navigation_limit)}+ matches for {archetypeLabel(
+          archetype,
+        )}; navigation is limited to the first {number(page.navigation_limit)} results.
+      </span>
     {:else if page.truncation.source === 'local-search'}
       <span>
         {#if page.truncation.total_is_capped}
-          10,000+ matches; navigation is limited to the first 10,000 results.
+          {number(page.navigation_limit)}+ matches; navigation is limited to the
+          first {number(page.navigation_limit)} results.
         {:else}
           {number(page.total)} {page.total === 1 ? 'match' : 'matches'}
         {/if}
