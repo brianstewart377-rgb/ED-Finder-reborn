@@ -465,20 +465,35 @@ In order:
 
 ## 7. Switch over
 
-- [ ] (11 Nov) **Copy what users have written a second time.** Days or weeks
+- [x] (11 Nov) **Copy what users have written a second time.** Days or weeks
       pass between the copy and this step. Stop the old site, copy the small
       user tables again, then switch.
-- [ ] Cloudflare Tunnel from the Pi; point `ed-finder.app` at it. (12 Nov)
+      (14 Nov) Not needed: the row counts of all 26 user tables were the
+      same on the old server and on the Pi just before the switch, so
+      nothing had been written on the old site since the copy.
+- [x] Cloudflare Tunnel from the Pi; point `ed-finder.app` at it. (12 Nov)
       `deploy/pi/tunnel.yml`; the tunnel's token goes in
       `/etc/edfinder/tunnel.env` (root only). Try it first on a second web
       address that goes to the Pi, before moving `ed-finder.app` itself.
+      (14 Nov) Done. Tunnel `edfinder-pi`, made in the dashboard (Networking,
+      Tunnels), running from `deploy/pi/tunnel.yml`. The test address
+      `pi.ed-finder.app` worked first; then, with the owner's OK, the old
+      server's records for `ed-finder.app` and `www` were deleted and both
+      sent down the tunnel to `http://127.0.0.1:58080`. The records for
+      `octopus` and `review`, which pointed at the old server, were deleted
+      too, so they never point at whoever gets that address next. The site
+      runs build `e30098c` (the ring fix and browser caching).
 - [ ] (11 Nov) The uptime check from Contabo, the error-tracking address in
       the API's settings, and the health page (disk, memory, temperature,
       database size), all from the plan.
 - [ ] Keep the old server running, untouched, for one quiet week as the way
-      back.
+      back. (14 Nov) Not possible: the server ends on 15 November. Nothing
+      points at it any more.
 
 ## 8. Before cancelling the old server
+
+(14 Nov) The owner: Octopus is dropped ("Drop it"), and goes with the
+server. Nothing of it was saved.
 
 - [ ] **Octopus runs on it** (three containers). Move it to Contabo or switch
       it off.
@@ -728,6 +743,35 @@ repo holds, and what is on record:
   (see "EDDN" above).
 - On no plan: what becomes of the two separate GitHub repos, and when the
   two scoring fixes agreed on 21 October ("V4.1") are made.
+
+### The System Map look: decided (owner, 14 November)
+
+Asked which of the trial page's three looks to use: "Cosmos for sure". The
+owner had checked Cosmos's use with its author. The System Map will be the
+browser-drawn map with Cosmos pictures; Babylon is not needed for it (13
+Nov: "just Babylon is no longer needed"). "Painted by us" stays as the
+fallback where a browser has no WebGL. Asked whether the bodies should
+spin: "If it can spin them that might be kinda cool?", then "If it's
+performance prohibitive don't do it only if it's negliable". On his PC a
+frame of all of Sol's 40 bodies took about 3 ms; spinning rests after 20
+seconds without input and switches itself off on a slow machine (#61).
+
+Still to do: the 1.3 s pause on the first system drawn; temperatures in the
+trial's data, so hot rock and metal is drawn molten as the rule says; then
+the real System Map in the app.
+
+### What the Pi itself showed (14 November, `pi_report.py`)
+
+- Both NVMe links run at the lower speed, and that is all the case allows:
+  the Pironman 5 Max's dual-drive board has a switch chip of that speed.
+  The faster setting is off the list.
+- Memory limits on the containers are not kept: the firmware adds
+  `cgroup_disable=memory` at start-up. To be put right at the restart for
+  the new power supply (the owner has one coming).
+- The power supply has been too weak since the Pi was started: the owner
+  knew, and a proper one is on its way.
+- `jit` is on, and the first Find search after a quiet spell took 7.1 s.
+  To be looked at after the switch.
 
 ### What the galaxy map is for (owner, 13 November)
 
