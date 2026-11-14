@@ -43,7 +43,7 @@ describe('FinderRankingState normalization', () => {
     expect(PAGE_SIZE_MIN).toBe(1);
     expect(PAGE_SIZE_MAX).toBe(50);
     expect(DEFAULT_PAGE_SIZE).toBe(50);
-    expect(NAVIGATION_LIMIT).toBe(10_000);
+    expect(NAVIGATION_LIMIT).toBe(1_000);
   });
 
   it('never lets Any retain a hidden tier floor', () => {
@@ -80,16 +80,16 @@ describe('FinderRankingState normalization', () => {
     }
   });
 
-  it('applies the exclusive 10,000 offset ceiling before any request', () => {
-    expect(normalizeRankingState({ offset: 9_999 }).offset).toBe(9_999);
-    expect(normalizeRankingState({ offset: 10_000 }).offset).toBe(9_950);
-    expect(normalizeRankingState({ offset: 2_000_000_000 }).offset).toBe(9_950);
+  it('applies the exclusive 1,000 offset ceiling before any request', () => {
+    expect(normalizeRankingState({ offset: 999 }).offset).toBe(999);
+    expect(normalizeRankingState({ offset: 1_000 }).offset).toBe(950);
+    expect(normalizeRankingState({ offset: 2_000_000_000 }).offset).toBe(950);
     expect(
       normalizeRankingState({ offset: 2_000_000_000, pageSize: 1 }).offset,
-    ).toBe(9_999);
+    ).toBe(999);
     expect(
       normalizeRankingState({ offset: 2_000_000_000, pageSize: 24 }).offset,
-    ).toBe(9_984);
+    ).toBe(984);
     for (const offset of [-1, 1.5, Number.NaN]) {
       expect(normalizeRankingState({ offset }).offset).toBe(0);
     }
@@ -110,9 +110,9 @@ describe('last valid page calculation', () => {
     expect(lastValidOffset(50, 50)).toBe(0);
     expect(lastValidOffset(51, 50)).toBe(50);
     expect(lastValidOffset(3, 1)).toBe(2);
-    expect(lastValidOffset(10_000, 50)).toBe(9_950);
-    expect(lastValidOffset(10_000, 1)).toBe(9_999);
-    expect(lastValidOffset(2_000_000_000, 50)).toBe(9_950);
+    expect(lastValidOffset(1_000, 50)).toBe(950);
+    expect(lastValidOffset(1_000, 1)).toBe(999);
+    expect(lastValidOffset(2_000_000_000, 50)).toBe(950);
     expect(lastValidOffset(-5, 50)).toBe(0);
     expect(lastValidOffset(120, 0)).toBe(100);
   });
@@ -120,7 +120,7 @@ describe('last valid page calculation', () => {
   const envelope = (overrides = {}) => ({
     total: 3,
     navigable_total: 3,
-    navigation_limit: 10_000,
+    navigation_limit: 1_000,
     page_size: 1,
     offset: 0,
     ...overrides,
@@ -137,7 +137,7 @@ describe('last valid page calculation', () => {
   });
 
   it('keeps a genuine zero-result response at the requested offset', () => {
-    for (const offset of [0, 3, 9_999]) {
+    for (const offset of [0, 3, 999]) {
       expect(
         lastPageCorrection(envelope({ total: 0, navigable_total: 0, offset })),
       ).toBeNull();
@@ -155,26 +155,26 @@ describe('last valid page calculation', () => {
     ).toBeNull();
   });
 
-  it('aligns a crossing page to the last page of the 10,000 navigation window', () => {
+  it('aligns a crossing page to the last page of the 1,000 navigation window', () => {
     const saturated = {
-      total: 10_000,
-      navigable_total: 10_000,
+      total: 1_000,
+      navigable_total: 1_000,
       page_size: 50,
     };
-    expect(lastPageCorrection(envelope({ ...saturated, offset: 9_975 }))).toBe(
-      9_950,
+    expect(lastPageCorrection(envelope({ ...saturated, offset: 975 }))).toBe(
+      950,
     );
     expect(
-      lastPageCorrection(envelope({ ...saturated, offset: 9_950 })),
+      lastPageCorrection(envelope({ ...saturated, offset: 950 })),
     ).toBeNull();
     expect(
       lastPageCorrection(
-        envelope({ ...saturated, page_size: 24, offset: 9_999 }),
+        envelope({ ...saturated, page_size: 24, offset: 999 }),
       ),
-    ).toBe(9_984);
+    ).toBe(984);
     expect(
       lastPageCorrection(
-        envelope({ ...saturated, page_size: 24, offset: 9_984 }),
+        envelope({ ...saturated, page_size: 24, offset: 984 }),
       ),
     ).toBeNull();
   });
@@ -187,10 +187,10 @@ describe('last valid page calculation', () => {
           navigable_total: 20_000,
           navigation_limit: 20_000,
           page_size: 50,
-          offset: 10_000,
+          offset: 1_000,
         }),
       ),
-    ).toBe(9_950);
+    ).toBe(950);
   });
 });
 
@@ -290,17 +290,17 @@ describe('ranking URL parsing', () => {
     expect(parse('offset=1').state.offset).toBe(1);
   });
 
-  it('corrects an offset at or beyond 10,000 to the last valid page from the URL alone', () => {
+  it('corrects an offset at or beyond 1,000 to the last valid page from the URL alone', () => {
     const fresh = parse('offset=2000000000');
-    expect(fresh.state.offset).toBe(9_950);
+    expect(fresh.state.offset).toBe(950);
     expect(fresh.issues).toEqual([
       { parameter: 'offset', reason: 'out-of-range', value: '2000000000' },
     ]);
     expect(fresh.canonical).toBe(false);
-    expect(serialize(fresh.state)).toBe('offset=9950');
-    expect(parse('page_size=1&offset=10000').state.offset).toBe(9_999);
-    expect(parse('offset=9999').state.offset).toBe(9_999);
-    expect(parse('offset=99999999999999999999').state.offset).toBe(9_950);
+    expect(serialize(fresh.state)).toBe('offset=950');
+    expect(parse('page_size=1&offset=1000').state.offset).toBe(999);
+    expect(parse('offset=999').state.offset).toBe(999);
+    expect(parse('offset=99999999999999999999').state.offset).toBe(950);
   });
 
   it('preserves selected, system and unrelated parameters in serialization', () => {
@@ -635,23 +635,23 @@ describe('request selection', () => {
     });
   });
 
-  it('clamps the wire window at the 10,000 boundary', () => {
-    expect(rankingWireWindow({ pageSize: 50, offset: 9_950 })).toEqual({
+  it('clamps the wire window at the 1,000 boundary', () => {
+    expect(rankingWireWindow({ pageSize: 50, offset: 950 })).toEqual({
       limit: 50,
-      offset: 9_950,
+      offset: 950,
     });
-    expect(rankingWireWindow({ pageSize: 50, offset: 9_975 })).toEqual({
+    expect(rankingWireWindow({ pageSize: 50, offset: 975 })).toEqual({
       limit: 25,
-      offset: 9_975,
+      offset: 975,
     });
-    expect(rankingWireWindow({ pageSize: 50, offset: 10_000 })).toEqual({
+    expect(rankingWireWindow({ pageSize: 50, offset: 1_000 })).toEqual({
       limit: 50,
-      offset: 9_950,
+      offset: 950,
     });
-    const nearCeiling = selectFinderRequest(parse('offset=9975').state, null, {
+    const nearCeiling = selectFinderRequest(parse('offset=975').state, null, {
       enabled: true,
     });
-    expect(nearCeiling.request).toMatchObject({ size: 25, from: 9_975 });
+    expect(nearCeiling.request).toMatchObject({ size: 25, from: 975 });
   });
 
   it('falls back to the galaxy-wide request for non-finite anchor coordinates', () => {
@@ -681,7 +681,7 @@ describe('request selection', () => {
 
   it('keeps the facade page size distinct from the clamped wire size near the ceiling in both modes', () => {
     const any = selectFinderRequest(
-      parse('page_size=50&offset=9975').state,
+      parse('page_size=50&offset=975').state,
       null,
       { enabled: true },
     );
@@ -691,13 +691,13 @@ describe('request selection', () => {
         galaxy_wide: true,
         sort_by: 'development',
         size: 25,
-        from: 9_975,
+        from: 975,
         reach_ly: 250,
       },
       pageSize: 50,
     });
     const selected = selectFinderRequest(
-      parse('archetype=flexible&page_size=50&offset=9975').state,
+      parse('archetype=flexible&page_size=50&offset=975').state,
       null,
       { enabled: true },
     );
@@ -707,7 +707,7 @@ describe('request selection', () => {
         archetype: 'flexible',
         min_score: 60,
         page_size: 50,
-        offset: 9_975,
+        offset: 975,
         reach_ly: 250,
       },
     });

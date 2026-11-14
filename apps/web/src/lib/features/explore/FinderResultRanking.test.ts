@@ -31,7 +31,7 @@ const page = (
   total,
   navigable_total: total,
   offset: 50,
-  navigation_limit: 10_000,
+  navigation_limit: 1_000,
   truncation,
 });
 
@@ -265,20 +265,20 @@ describe('ranking page count copy', () => {
         screen.getByText('Showing 3 of 153 (results 51–53)'),
       ).toBeInTheDocument();
       await rerender({
-        page: page(10_000, { source: 'local-search', total_is_capped: false }),
+        page: page(1_000, { source: 'local-search', total_is_capped: false }),
       });
-      expect(screen.getByText('10,000 matches')).toBeInTheDocument();
-      expect(container.textContent).not.toContain('10,000+');
+      expect(screen.getByText('1,000 matches')).toBeInTheDocument();
+      expect(container.textContent).not.toContain('1,000+');
       await rerender({
-        page: page(10_000, { source: 'local-search', total_is_capped: true }),
+        page: page(1_000, { source: 'local-search', total_is_capped: true }),
       });
       expect(
         screen.getByText(
-          '10,000+ matches; navigation is limited to the first 10,000 results.',
+          '1,000+ matches; navigation is limited to the first 1,000 results.',
         ),
       ).toBeInTheDocument();
       expect(container.textContent?.toLowerCase()).not.toContain('fit');
-      expect(container.textContent).not.toContain('within the top');
+      expect(container.textContent).not.toContain('matches for');
     },
   );
 
@@ -286,28 +286,30 @@ describe('ranking page count copy', () => {
     const { rerender } = render(FinderResultRanking, {
       variant: 'summary',
       archetype: 'manufacturing_hub',
-      page: page(10_000, { source: 'rankings', is_truncated: true }),
+      page: page(1_000, { source: 'rankings', is_truncated: true }),
     });
     expect(
-      screen.getByText('within the top 10,000 for Manufacturing Hub'),
+      screen.getByText(
+        '1,000+ matches for Manufacturing Hub; navigation is limited to the first 1,000 results.',
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Showing 3 of 10,000 (results 51–53)'),
+      screen.getByText('Showing 3 of 1,000 (results 51–53)'),
     ).toBeInTheDocument();
     await rerender({
-      page: page(10_000, { source: 'rankings', is_truncated: false }),
+      page: page(1_000, { source: 'rankings', is_truncated: false }),
     });
-    expect(screen.queryByText(/within the top/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/matches for/)).not.toBeInTheDocument();
     await rerender({
       page: page(153, { source: 'rankings', is_truncated: false }),
     });
-    expect(screen.queryByText(/within the top/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/matches for/)).not.toBeInTheDocument();
     expect(
       screen.getByText('Showing 3 of 153 (results 51–53)'),
     ).toBeInTheDocument();
   });
 
-  it.each([0, 9950])(
+  it.each([0, 950])(
     'counts a genuine empty page at offset %s from zero',
     (offset) => {
       render(FinderResultRanking, {

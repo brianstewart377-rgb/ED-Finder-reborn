@@ -42,11 +42,13 @@ from .profile import (
     ACCEPTED_ARCHETYPE_SCORE_FLOORS,
     ARCHETYPE_SCORE_FLOOR_DEFAULT,
     BODY_COUNT_COLUMNS,
+    FIND_COUNT_LIMIT,
     HARD_FILTER_KEYS,
     PROFILE_SPEC,
     RANKING_COUNT_SENTINEL,
     RANKING_OFFSET_MAX,
     RANKING_OFFSET_MIN,
+    RANKING_OFFSET_PLUS_LIMIT_MAX,
     RANKING_PAGE_LIMIT_MAX,
     RANKING_PAGE_LIMIT_MIN,
     RANKING_WINDOW_LIMIT,
@@ -373,9 +375,11 @@ def _picked_count_query(
         hard_filters=hard_filters or {},
         reference_coords=None,
     )
-    # Filtered, the count is exact over the same 10,000-row window the page
-    # thins; unfiltered, the window walks to the sentinel as before.
+    # Filtered, the count reads the same 10,000-row window the page thins and
+    # stops at the sentinel; unfiltered, the window itself walks only to the
+    # sentinel.
     window = RANKING_WINDOW_LIMIT if filters else RANKING_COUNT_SENTINEL
+    bound = f"    LIMIT {RANKING_COUNT_SENTINEL}\n" if filters else ""
     # The count is taken over the same archetype window the page ranks (the
     # sentinel instead of the 10,000-row window), joined to search exactly as
     # the page joins it. The window walks the matching partial index in its
@@ -396,6 +400,7 @@ def _picked_count_query(
         "    JOIN v3_app.system_search s ON s.system_id64 = aw.system_id64\n"
         f"    WHERE {_pinned('s')}\n"
         f"{_and_lines(filters, '      ')}"
+        f"{bound}"
         ") t"
     )
 
@@ -872,9 +877,9 @@ def build_ranked_query(
         or limit > RANKING_PAGE_LIMIT_MAX
         or offset < RANKING_OFFSET_MIN
         or offset > RANKING_OFFSET_MAX
-        or offset + limit > RANKING_WINDOW_LIMIT
+        or offset + limit > RANKING_OFFSET_PLUS_LIMIT_MAX
     ):
-        raise ValueError("limit/offset exceed the ranking window")
+        raise ValueError("limit/offset go past what Find counts and pages")
     builder = _ParamBuilder()
     if picked_archetype is not None and _picked_near(
         reference_coords, hard_filters, sort
@@ -953,8 +958,10 @@ def build_count_query(
         raise ValueError("picked_economy has no V3 projection")
     if sort not in SUPPORTED_SORTS:
         raise ValueError(f"unsupported sort: {sort!r}")
-    if cap is not None and (cap < 1 or cap > RANKING_WINDOW_LIMIT):
-        raise ValueError("count cap exceeds the ranking window")
+    # Find counts no further than FIND_COUNT_LIMIT. The SQL's literal window
+    # bounds (RANKING_COUNT_SENTINEL) rely on this: no sentinel exceeds them.
+    if cap is not None and (cap < 1 or cap > FIND_COUNT_LIMIT):
+        raise ValueError("count cap goes past what Find counts")
     builder = _ParamBuilder()
     if picked_archetype is not None and _picked_near(
         reference_coords, hard_filters, sort
@@ -985,9 +992,6 @@ def build_count_query(
         return sql, builder.params
 
     sentinel = int(cap) + 1 if cap is not None else None
-    # The SQL's literal window bounds rely on this: no sentinel exceeds them.
-    if sentinel is not None and sentinel > RANKING_COUNT_SENTINEL:
-        raise ValueError("count sentinel exceeds the ranking window")
     if (
         sort == SORT_DISTANCE
         and reference_coords is not None
@@ -1014,8 +1018,11 @@ def build_count_query(
         for clause in _rules("sum.system_id64", hide_claimed, reach_ly)
     )
     if reference_coords is None and filters:
-        # Filtered galaxy-wide: exact over the 10,000-row window the page
-        # thins, so it can never be cut off.
+        # Filtered galaxy-wide: over the 10,000-row window the page thins,
+        # stopping at the sentinel when there is one.
+        bound = ""
+        if sentinel is not None:
+            bound = f"    LIMIT {builder.add(sentinel)}\n"
         sql = (
             "SELECT count(*) FROM (\n"
             "    SELECT 1\n"
@@ -1030,6 +1037,7 @@ def build_count_query(
             "    JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64\n"
             f"    WHERE {_pinned('s')}\n"
             f"{_and_lines(filters, '      ')}"
+            f"{bound}"
             ") bounded"
         )
         return sql, builder.params

@@ -1194,7 +1194,7 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         hard_filters=hard_filters,
         reference_coords=reference_coords,
         # Every count is sentinel-bounded. The builder emits LIMIT cap + 1 so
-        # exactly 10,000 matches remains distinguishable from truncation.
+        # exactly FIND_COUNT_LIMIT matches stays distinguishable from more.
         cap=LOCAL_SEARCH_RESULT_CAP,
         sort=sort_mode,
         hide_claimed=True,
@@ -1311,7 +1311,7 @@ def prepare_galaxy_search_v3(body: dict) -> dict:
     - ``galaxy_region_id``: a galaxy-wide hard filter, rejected by
       `prepare_local_search_v3`;
     - a result window outside the ranking window (``limit`` 1..500,
-      ``offset`` >= 0, ``offset + limit`` <= 10,000).
+      ``offset`` >= 0, ``offset + limit`` <= FIND_COUNT_LIMIT, 1,000).
     """
     economy = body.get('economy')
     if economy is None:

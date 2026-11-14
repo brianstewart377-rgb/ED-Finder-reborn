@@ -284,7 +284,7 @@ function mockFacadeDefaults(): void {
       total: 0,
       navigable_total: 0,
       offset: 0,
-      navigation_limit: 10_000,
+      navigation_limit: 1_000,
       truncation: { source: 'local-search', total_is_capped: false },
     },
     ranking: {
@@ -1558,7 +1558,7 @@ function finderPage(offset: number, pageSize = 1, total = 3, selected = false) {
       total,
       navigable_total: total,
       count: Math.max(0, Math.min(pageSize, total - offset)),
-      navigation_limit: 10_000,
+      navigation_limit: 1_000,
       truncation: selected
         ? { source: 'rankings' as const, is_truncated: false }
         : { source: 'local-search' as const, total_is_capped: false },
@@ -2561,14 +2561,14 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
 
   it('canonicalizes a fresh huge offset before the first request reaches the API', async () => {
     vi.mocked(api.searchExploreSystems).mockImplementation(async (request) => ({
-      ...finderPage(request.from ?? 0, 1, 10_000),
+      ...finderPage(request.from ?? 0, 1, 1_000),
       results: [rankedRows[0]],
     }));
     renderEnabled('page_size=1&offset=2000000000');
     await screen.findByText('Ranked 1');
     expect(mockedGoto).toHaveBeenCalledTimes(1);
     expect(mockedGoto).toHaveBeenCalledWith(
-      '/explore?page_size=1&offset=9999',
+      '/explore?page_size=1&offset=999',
       expect.objectContaining({ replaceState: true }),
     );
     expect(
@@ -2576,7 +2576,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         from: request.from,
         size: request.size,
       })),
-    ).toEqual([{ from: 9999, size: 1 }]);
+    ).toEqual([{ from: 999, size: 1 }]);
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 

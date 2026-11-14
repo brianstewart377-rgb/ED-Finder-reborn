@@ -12,8 +12,11 @@ sys.path.insert(0, str(ROOT / "apps/api/src"))
 
 from edfinder_api.ranking.profile import (  # noqa: E402
     ARCHETYPE_KEYS,
+    FIND_COUNT_LIMIT,
     PROFILE_SPEC,
+    RANKING_COUNT_SENTINEL,
     RANKING_VERSION,
+    RANKING_WINDOW_LIMIT,
     ranking_sha256,
 )
 from edfinder_api.ranking.ranking_sql import (  # noqa: E402
@@ -197,11 +200,14 @@ def test_picked_page_rival_display_fields_preserve_the_pinned_ranking_identity()
     # rival display fields do not change the hashed ranking semantics.
     for key in ARCHETYPE_KEYS:
         for floor in (60, 76, 88):
-            sql, _ = _picked_page(key=key, floor=floor, limit=50, offset=9950)
+            sql, _ = _picked_page(key=key, floor=floor, limit=50, offset=950)
             assert f"picked.{key}_score AS picked_{key}_score" in sql
     assert RANKING_VERSION == "v3-colony-potential-2"
+    # The fingerprint covers the paging contract too: it changed on 14
+    # November 2026 when Find began to count and page to 1,000, not 10,000.
+    # What ranks first did not change, so the version did not.
     assert ranking_sha256() == (
-        "ec3533063f422f5859a26baf422974f9d330466f2ad675505fac2743bbca89e4"
+        "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56"
     )
 
 
@@ -214,7 +220,8 @@ def test_picked_count_has_fixed_sentinel_over_the_ordered_window():
     # The sentinel bounds the archetype window in the partial index's own
     # order before the page's search join, exactly like the page window.
     assert "ORDER BY ar.paradise_weighted_e4 DESC, ar.system_id64 ASC" in window
-    assert "LIMIT 10001" in window
+    # Find counts to 1,000: the sentinel is 1,001 (FIND_COUNT_LIMIT + 1).
+    assert "LIMIT 1001" in window
     assert "JOIN v3_app.system_search s ON s.system_id64 = aw.system_id64" in join
     assert "LIMIT" not in join
     assert params == []
@@ -256,9 +263,11 @@ def test_picked_window_is_thinned_by_search_filters_never_widened():
         reference_coords=None,
         min_score=60,
     )
-    # Filtered, the count is exact over the same 10,000-row window.
-    assert "LIMIT 10000\n" in count_sql and "LIMIT 10001" not in count_sql
-    assert "s.galaxy_region_id = $1" in count_sql
+    # Filtered, the count reads the same 10,000-row window and, like every
+    # count, stops at the sentinel.
+    window, join = count_sql.split(") aw", 1)
+    assert "LIMIT 10000\n" in window and "LIMIT 1001\n" in join
+    assert "s.galaxy_region_id = $1" in join
     assert count_params == [7]
     for refused in ({"min_development_score": 50}, {"max_distance_ly": 100.0}):
         with pytest.raises(ValueError, match="does not accept"):
@@ -312,32 +321,60 @@ def test_count_cap_means_cap_plus_one_sentinel():
         picked_economy=None,
         hard_filters={},
         reference_coords=None,
-        cap=10_000,
+        cap=1_000,
     )
     window, outer = sql.split(") sum", 1)
     # The galaxy count is taken over the galaxy page's ordered window; the
     # literal bound equals the largest sentinel so the parameter decides.
     assert f"WHERE sum.derived_generation_id = {PIN}" in window
     assert "ORDER BY sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC" in window
-    assert "LIMIT 10001" in window
+    assert "LIMIT 1001" in window
     assert f"WHERE s.derived_generation_id = {PIN}" in outer
     assert "LIMIT $1" in outer
-    assert params == [10_001]
+    assert params == [1_001]
 
 
-def test_count_sentinel_cannot_exceed_the_literal_window_bound(monkeypatch):
-    import edfinder_api.ranking.ranking_sql as ranking_sql_module
+def _galaxy_count(cap, hard_filters=None):
+    return build_count_query(
+        PROFILE_SPEC,
+        picked_archetype=None,
+        picked_economy=None,
+        hard_filters=hard_filters or {},
+        reference_coords=None,
+        cap=cap,
+    )
 
-    monkeypatch.setattr(ranking_sql_module, "RANKING_WINDOW_LIMIT", 10_001)
-    with pytest.raises(ValueError, match="sentinel"):
-        ranking_sql_module.build_count_query(
-            PROFILE_SPEC,
-            picked_archetype=None,
-            picked_economy=None,
-            hard_filters={},
-            reference_coords=None,
-            cap=10_001,
-        )
+
+def test_find_counts_no_further_than_1000():
+    # Counting is most of a search's work; Find counts to 1,000 ("1,000+")
+    # and pages no deeper, while the windows filters thin stay 10,000.
+    assert FIND_COUNT_LIMIT == 1_000 and RANKING_WINDOW_LIMIT == 10_000
+    for cap in (0, FIND_COUNT_LIMIT + 1, RANKING_WINDOW_LIMIT):
+        with pytest.raises(ValueError, match="count cap goes past what Find counts"):
+            _galaxy_count(cap)
+    with pytest.raises(ValueError, match="go past what Find counts"):
+        _picked_page(key="paradise", floor=60, limit=50, offset=951)
+    sql, _ = _picked_page(key="paradise", floor=60, limit=50, offset=950)
+    assert "LIMIT 10000\n" in sql
+
+
+def test_no_accepted_cap_goes_past_the_literal_window_bound():
+    # The counts' literal window bound is one past the furthest Find counts,
+    # so the parameter (cap + 1) always decides where a count stops.
+    assert RANKING_COUNT_SENTINEL == FIND_COUNT_LIMIT + 1
+    sql, params = _galaxy_count(FIND_COUNT_LIMIT)
+    assert f"LIMIT {RANKING_COUNT_SENTINEL}\n" in sql
+    assert params == [RANKING_COUNT_SENTINEL]
+
+
+def test_a_filtered_galaxy_count_reads_the_window_and_stops_at_the_sentinel():
+    sql, params = _galaxy_count(FIND_COUNT_LIMIT, {"main_star_class_in": ["K"]})
+    window, outer = sql.split(") sum", 1)
+    # The window is the best 10,000 the page thins, walked as unfiltered.
+    assert "LIMIT 10000\n" in window and "main_star_class" not in window
+    assert "s.main_star_class IN ($1)" in outer
+    assert "LIMIT $2\n" in outer
+    assert params == ["K", RANKING_COUNT_SENTINEL]
 
 
 def test_anchored_nearest_first_has_knn_order_inside_limit_radius_outside():
@@ -370,7 +407,7 @@ def test_anchored_nearest_first_count_uses_knn_sentinel_inside_radius():
         hard_filters={"max_distance_ly": 500.0},
         reference_coords=(1.0, 2.0, 3.0),
         sort="distance",
-        cap=10_000,
+        cap=1_000,
     )
     inner, outer = sql.split(") nearest", 1)
     assert "ORDER BY s.position_ly <->" in inner
@@ -380,12 +417,12 @@ def test_anchored_nearest_first_count_uses_knn_sentinel_inside_radius():
     assert ", s.system_id64 ASC\n" in inner
     assert "weighted_potential" not in inner
     assert "system_archetype_summary" not in inner
-    assert "LIMIT 10001" in inner
+    assert "LIMIT 1001" in inner
     assert "JOIN v3_app.system_archetype_summary sum ON sum.system_id64 = nearest.system_id64" in outer
     assert f"sum.derived_generation_id = {PIN}" in outer
     assert "nearest.distance_ly <= $4" in outer
     assert "LIMIT $5" in outer
-    assert params[-1] == 10_001
+    assert params[-1] == 1_001
 
 
 def test_anchored_count_keeps_summary_filters_inside_the_nearest_window():
@@ -396,13 +433,13 @@ def test_anchored_count_keeps_summary_filters_inside_the_nearest_window():
         hard_filters={"max_distance_ly": 500.0, "min_development_score": 60},
         reference_coords=(1.0, 2.0, 3.0),
         sort="distance",
-        cap=10_000,
+        cap=1_000,
     )
     inner, outer = sql.split(") nearest", 1)
     assert "JOIN v3_app.system_archetype_summary sum ON sum.system_id64 = s.system_id64" in inner
     assert "sum.best_colony_potential >= $5" in inner
     assert "system_archetype_summary" not in outer
-    assert params == [1.0, 2.0, 3.0, 500.0, 60, 10_001]
+    assert params == [1.0, 2.0, 3.0, 500.0, 60, 1_001]
 
 
 def test_anchored_score_page_walks_candidates_in_distance_order_without_truncation():
@@ -450,8 +487,11 @@ def test_anchored_filters_remain_parameterized():
 
 
 def test_page_window_bound_fails_closed_in_builder():
+    _picked_page(limit=1, offset=999)
     with pytest.raises(ValueError):
-        _picked_page(limit=2, offset=9_999)
+        _picked_page(limit=2, offset=999)
+    with pytest.raises(ValueError):
+        _picked_page(limit=1, offset=1_000)
     with pytest.raises(ValueError):
         _picked_page(limit=501, offset=0)
 

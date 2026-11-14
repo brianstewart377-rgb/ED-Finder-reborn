@@ -492,8 +492,11 @@ export type ExploreSystem = Readonly<
     } & Partial<RankingIdentityFields>
 >;
 
-/** Exclusive offset ceiling and navigable window applied to every mode. */
-export const FINDER_NAVIGATION_LIMIT = 10_000;
+/**
+ * Exclusive offset ceiling and navigable window applied to every mode: the
+ * API counts and pages to 1,000 ("1,000+ found"), so the web app does too.
+ */
+export const FINDER_NAVIGATION_LIMIT = 1_000;
 export const FINDER_PAGE_SIZE_MIN = 1;
 export const FINDER_PAGE_SIZE_MAX = 50;
 export const FINDER_PAGE_SIZE_DEFAULT = 50;
@@ -501,12 +504,12 @@ export const FINDER_PAGE_SIZE_DEFAULT = 50;
 export type FinderPageTruncation =
   | Readonly<{
       source: 'local-search';
-      /** Sentinel-backed: true only when a 10,001st matching row existed. */
+      /** Sentinel-backed: true only when a 1,001st matching row existed. */
       total_is_capped: boolean;
     }>
   | Readonly<{
       source: 'rankings';
-      /** API-owned: a 10,001st qualifying row existed in canonical order. */
+      /** API-owned: a 1,001st qualifying row existed in canonical order. */
       is_truncated: boolean;
     }>;
 
@@ -514,7 +517,7 @@ export type FinderPageTruncation =
 export type FinderPageEnvelope = Readonly<{
   page_size: number;
   count: number;
-  /** Raw response total (never above 10,000 from either route). */
+  /** Raw response total (never above 1,000 from either route). */
   total: number;
   /** `min(total, navigation_limit)`. */
   navigable_total: number;
@@ -882,7 +885,7 @@ export function normalizeAnySearchRow(
 
 /**
  * The facade/URL page size of an Any request. It is distinct from the wire
- * `size`, which is clamped to `min(page_size, 10000 - offset)` near the
+ * `size`, which is clamped to `min(page_size, 1000 - offset)` near the
  * navigation ceiling: Previous/Next must keep stepping by the facade page
  * size, exactly as the rankings path does. Without an explicit value (the
  * live default-off request) the wire size is the page size.

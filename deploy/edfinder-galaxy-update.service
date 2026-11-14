@@ -11,6 +11,9 @@ Description=ED-Finder: bring the galaxy up to date from Spansh
 # edfinder-backup-full.service).
 After=docker.service network-online.target edfinder-state-refresh.service edfinder-backup-full.service
 Wants=network-online.target
+# When a run has ended well, run Find's usual first searches once, so they
+# are quick again (edfinder-find-warmup.service).
+OnSuccess=edfinder-find-warmup.service
 
 [Service]
 Type=oneshot

@@ -5,7 +5,7 @@
  * The URL is the source of truth for shareable ranking state. This module is
  * pure: it parses and canonicalizes `archetype`, `min-tier`, `page_size`,
  * `offset` (and, once slice 2 defines the contract, `weight`), decides which
- * request a state produces, and applies the one exclusive 10,000 navigation
+ * request a state produces, and applies the one exclusive 1,000 navigation
  * ceiling to every mode *from the URL alone, before any request is issued*.
  * Rendering, history effects and hydration live in the Explore feature behind
  * the default-off `FINDER_F4_ENABLED` gate.
@@ -49,8 +49,11 @@ export type FinderRankingState = Readonly<{
 export const PAGE_SIZE_MIN = 1;
 export const PAGE_SIZE_MAX = 50;
 export const DEFAULT_PAGE_SIZE = 50;
-/** Exclusive offset ceiling and navigable window for every mode. */
-export const NAVIGATION_LIMIT = 10_000;
+/**
+ * Exclusive offset ceiling and navigable window for every mode, the same as
+ * the API client's `FINDER_NAVIGATION_LIMIT`: Find counts and pages to 1,000.
+ */
+export const NAVIGATION_LIMIT = 1_000;
 
 /** Today's live Explore page size, preserved exactly in a disabled build. */
 export const LEGACY_EXPLORE_PAGE_SIZE = 24;
@@ -132,7 +135,7 @@ export function lastPageCorrection(
  * Enforce the cross-field invariants: Any never retains a tier floor, a
  * selected archetype defaults to B, page size is 1..50 (default 50), offset is
  * a non-negative integer below the ceiling (a URL at or beyond it canonicalizes
- * to the last valid page of the 10,000-row window before any request), and
+ * to the last valid page of the 1,000-row window before any request), and
  * weights are empty until slice 2.
  */
 export function normalizeRankingState(

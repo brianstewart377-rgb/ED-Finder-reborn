@@ -9,6 +9,9 @@ Commands:
     rollback       switch the site back to the release that was live before
     restore-old    stop this app and restart the containers it first replaced
     status         show what is live
+    warm           run the searches visitors start with once, so Find answers
+                   them quickly (after a nightly job; see
+                   edfinder-find-warmup.service). Changes nothing
 
 TAG is an image tag: "main" for the newest build, or "git-<40 hex>" for an
 exact one.
@@ -595,6 +598,80 @@ def find_check(origin: str) -> None:
                         name, str(result.get("name"))[:60], status_of.replace("_", " ")))
 
 
+# -- warming Find up ----------------------------------------------------------------
+
+# The searches visitors start with: galaxy-wide, for Any and for each colony
+# type at the web app's default minimum tier (B, a fit of 60 or more), at both
+# reaches, first page, as the web app asks for them. A nightly job that reads
+# a lot of the database pushes what they read out of memory; run once after
+# it (edfinder-find-warmup.service), they put it back, so the day's first
+# visitor does not wait for the drive. The colony types are the API's own
+# (tests/test_deploy_tool.py checks that).
+COLONY_TYPES = ("paradise", "mining_hub", "manufacturing_hub", "megacomplex",
+                "research_hub", "stronghold", "population_capital", "flexible")
+WARM_REACHES = (250, 500)
+WARM_MIN_SCORE = 60
+WARM_PAGE = 50
+WARM_TIMEOUT_SECONDS = 120
+
+
+def warm_searches() -> List[Tuple[str, str, Optional[Dict[str, Any]]]]:
+    """(name, path, JSON body to post or None) for each search warm runs."""
+    searches: List[Tuple[str, str, Optional[Dict[str, Any]]]] = []
+    for reach in WARM_REACHES:
+        searches.append((
+            "Any, galaxy-wide, %d ly" % reach, "/api/local/search",
+            {"galaxy_wide": True, "sort_by": "development", "size": WARM_PAGE,
+             "from": 0, "reach_ly": reach}))
+        for colony_type in COLONY_TYPES:
+            searches.append((
+                "%s, galaxy-wide, %d ly" % (colony_type, reach),
+                "/api/archetypes/rankings?archetype=%s&min_score=%d&limit=%d"
+                "&offset=0&reach_ly=%d" % (colony_type, WARM_MIN_SCORE, WARM_PAGE, reach),
+                None))
+    return searches
+
+
+def command_warm(settings: Settings) -> None:
+    """Run each of warm_searches once against the live site. Reads only."""
+    if not settings.find_check:
+        say("Find has no data on this machine (EDFINDER_FIND_CHECK=0): nothing to warm up.")
+        return
+    origin = origin_of(settings.live_bind)
+    searches = warm_searches()
+    failed = 0
+    for name, path, payload in searches:
+        started = time.monotonic()
+        try:
+            status, body = http_get(origin, path, timeout=WARM_TIMEOUT_SECONDS,
+                                    payload=payload)
+        except DeployError as error:
+            failed += 1
+            say("%-40s FAILED: %s" % (name, error))
+            continue
+        took = (time.monotonic() - started) * 1000
+        if status != 200:
+            failed += 1
+            say("%-40s FAILED: answered %d" % (name, status))
+            continue
+        try:
+            answer = json.loads(body)
+        except ValueError:
+            answer = None
+        if not isinstance(answer, dict):
+            failed += 1
+            say("%-40s FAILED: did not answer with JSON" % name)
+            continue
+        total = answer.get("total")
+        more = answer.get("total_is_capped") or answer.get("is_truncated")
+        found = ("%s%s found" % (format(total, ","), "+" if more else "")
+                 if isinstance(total, int) else "answered")
+        say("%-40s %7.0f ms  %s" % (name, took, found))
+    if failed:
+        raise DeployError("%d of %d searches failed" % (failed, len(searches)))
+    say("OK: Find is warmed up. Nothing was changed.")
+
+
 # -- state ----------------------------------------------------------------------
 
 class State:
@@ -1009,6 +1086,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("check", help="show whether this machine is ready; changes nothing")
     commands.add_parser("status", help="show what is live; changes nothing")
+    commands.add_parser("warm", help="run the searches visitors start with once, so Find "
+                                     "answers them quickly; changes nothing")
     try_parser = commands.add_parser("try", help="test a release on the spare address only")
     try_parser.add_argument("tag")
     live_parser = commands.add_parser("live", help="test a release, then switch the site to it")
@@ -1026,8 +1105,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         settings = Settings()
-        if args.command in ("check", "status"):
-            (command_check if args.command == "check" else command_status)(settings)
+        if args.command in ("check", "status", "warm"):
+            {"check": command_check, "status": command_status,
+             "warm": command_warm}[args.command](settings)
             return 0
         with single_run(settings.state_dir):
             if args.command == "try":

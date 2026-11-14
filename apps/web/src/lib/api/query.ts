@@ -52,7 +52,7 @@ export const queryKeys = {
     [...queryKeys.all, 'explore', 'autocomplete', query] as const,
   /**
    * Any-mode results: the wire request, the facade page size (distinct from
-   * the clamped wire `size` near the 10,000 ceiling, and recorded in the
+   * the clamped wire `size` near the 1,000 ceiling, and recorded in the
    * normalized envelope) and the committed anchor identity.
    */
   explore: (

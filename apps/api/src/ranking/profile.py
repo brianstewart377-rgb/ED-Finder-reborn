@@ -113,13 +113,20 @@ TIE_BREAK: Final[tuple[str, ...]] = ("system_id64",)
 
 ARCHETYPE_SCORE_FLOOR_DEFAULT: Final[int] = 60
 ACCEPTED_ARCHETYPE_SCORE_FLOORS: Final[tuple[int, ...]] = (60, 76, 88)
+# The galaxy-wide windows: the best 10,000 systems (for Any, or for one
+# colony type), which body filters thin.
 RANKING_WINDOW_LIMIT: Final[int] = 10_000
-RANKING_OFFSET_PLUS_LIMIT_MAX: Final[int] = 10_000
-RANKING_COUNT_SENTINEL: Final[int] = 10_001
+# How far Find counts, and so how deep its pages go: "1,000+ found". Counting
+# is most of a search's work, and on the Pi most of a first search's reading
+# from the drive: on 14 November 2026 a first galaxy-wide type search took
+# 7.7 s and the same search again 0.26 s, counting to 10,001 each time.
+FIND_COUNT_LIMIT: Final[int] = 1_000
+RANKING_OFFSET_PLUS_LIMIT_MAX: Final[int] = FIND_COUNT_LIMIT
+RANKING_COUNT_SENTINEL: Final[int] = FIND_COUNT_LIMIT + 1
 RANKING_PAGE_LIMIT_MIN: Final[int] = 1
 RANKING_PAGE_LIMIT_MAX: Final[int] = 500
 RANKING_OFFSET_MIN: Final[int] = 0
-RANKING_OFFSET_MAX: Final[int] = 9_999
+RANKING_OFFSET_MAX: Final[int] = FIND_COUNT_LIMIT - 1
 
 PICKED_ARCHETYPE_REJECTED_FILTERS: Final[tuple[str, ...]] = (
     "galaxy_region",
@@ -133,7 +140,7 @@ PICKED_ARCHETYPE_FILTER_REJECTION_REASON: Final[str] = (
     "filter in Any mode or drop the filter"
 )
 
-LOCAL_SEARCH_RESULT_CAP: Final[int] = 10_000
+LOCAL_SEARCH_RESULT_CAP: Final[int] = FIND_COUNT_LIMIT
 LOCAL_SEARCH_FROM_MIN: Final[int] = 0
 LOCAL_SEARCH_SIZE_MIN: Final[int] = 1
 LOCAL_SEARCH_REQUEST_RADIUS_DEFAULT_LY: Final[int] = 500
@@ -230,8 +237,8 @@ def _canonical_base() -> dict[str, Any]:
             "offset_min": RANKING_OFFSET_MIN,
             "offset_max": RANKING_OFFSET_MAX,
             "count_sentinel": RANKING_COUNT_SENTINEL,
-            "is_truncated_rule": "qualifying = 10001",
-            "total_rule": "min(qualifying, 10000)",
+            "is_truncated_rule": f"qualifying = {RANKING_COUNT_SENTINEL}",
+            "total_rule": f"min(qualifying, {FIND_COUNT_LIMIT})",
         },
         "picked_archetype_rejected_filters": list(
             PICKED_ARCHETYPE_REJECTED_FILTERS

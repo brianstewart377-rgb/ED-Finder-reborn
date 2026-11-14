@@ -29,8 +29,8 @@ from pydantic import ValidationError  # noqa: E402
 from edfinder_api.ranking.profile import (  # noqa: E402
     ACCEPTED_ARCHETYPE_SCORE_FLOORS,
     ARCHETYPE_KEYS,
+    FIND_COUNT_LIMIT,
     PROFILE_SPEC,
-    RANKING_WINDOW_LIMIT,
 )
 from edfinder_api.ranking.ranking_sql import (  # noqa: E402
     ARCHETYPE_COLUMNS,
@@ -66,7 +66,7 @@ def near_count(*, floor: int = 60, reach: int | None = 250, filters: dict | None
     return build_count_query(
         PROFILE_SPEC, picked_archetype=PICKED, picked_economy=None,
         hard_filters={"max_distance_ly": radius, **(filters or {})},
-        reference_coords=ANCHOR, cap=RANKING_WINDOW_LIMIT, sort=SORT_DISTANCE,
+        reference_coords=ANCHOR, cap=FIND_COUNT_LIMIT, sort=SORT_DISTANCE,
         min_score=floor, hide_claimed=True, reach_ly=reach)
 
 
@@ -191,7 +191,7 @@ def _paged(connection, **kwargs) -> list[int]:
 
     ids: list[int] = []
     limit = PAGE
-    for offset in range(0, RANKING_WINDOW_LIMIT, limit):
+    for offset in range(0, FIND_COUNT_LIMIT, limit):
         sql, params = near(limit=limit, offset=offset, **kwargs)
         rows = run_statement(connection, f"SELECT p.system_id64 FROM ({sql}) p", params)
         ids.extend(int(r[0]) for r in rows)
@@ -209,6 +209,7 @@ def test_every_page_lists_the_fitting_systems_nearest_first(reach_database, floo
     connection = reach_database
     expected = _expected(connection, floor=floor, reach=reach)
     assert len(expected) > 2 * PAGE, "the radius must need several pages"
+    assert len(expected) < FIND_COUNT_LIMIT, "fewer than Find counts, so the count is exact"
     assert _paged(connection, floor=floor, reach=reach) == expected
     sql, params = near_count(floor=floor, reach=reach)
     assert run_statement(connection, sql, params)[0][0] == len(expected)
