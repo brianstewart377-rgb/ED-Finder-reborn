@@ -208,16 +208,67 @@ def test_the_requests_take_the_band_and_refuse_others():
     assert prepare_galaxy_search_v3({"reach_ly": 500})["reach_ly"] == 500
 
 
-def test_the_rankings_route_takes_the_band():
+def _ask_rankings(monkeypatch, query: str) -> tuple[int, dict, dict]:
+    """Ask the rankings route through the API itself, with ``query`` in the
+    web address exactly as the browser sends it, so FastAPI reads every
+    value from text. The database step is replaced: what the route would
+    have asked of it is given back, with the answer's status and body."""
+    import httpx
+    from fastapi.responses import JSONResponse
+
+    from edfinder_api.main import app
+    from edfinder_api.routers import archetypes
+
+    asked: dict = {}
+
+    async def rankings(**arguments):
+        asked.update(arguments)
+        return JSONResponse({"results": []})
+
+    monkeypatch.setattr(archetypes, "get_pool", lambda: None)
+    monkeypatch.setattr(archetypes, "_archetype_rankings_v3", rankings)
+
+    async def scenario():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://finder.test") as client:
+            return await client.get(f"/api/archetypes/rankings?{query}")
+
+    answer = asyncio.run(scenario())
+    return answer.status_code, answer.json(), asked
+
+
+def test_the_rankings_route_reads_the_band_from_the_web_address(monkeypatch):
+    # The web app's own request on 14 November 2026. "250" arrives as text:
+    # the route answered 422 to every ranking until it read it as a number.
+    status, _, asked = _ask_rankings(
+        monkeypatch, f"archetype={PICKED}&min_score=60&limit=50&offset=0&reach_ly=250")
+    assert status == 200
+    assert asked["reach_ly"] == 250 and type(asked["reach_ly"]) is int
+    status, _, asked = _ask_rankings(
+        monkeypatch, f"archetype={PICKED}&min_score=60&limit=50&offset=0&reach_ly=500")
+    assert (status, asked["reach_ly"]) == (200, 500)
+    status, _, asked = _ask_rankings(monkeypatch, f"archetype={PICKED}")
+    assert (status, asked["reach_ly"]) == (200, 250)
+
+
+@pytest.mark.parametrize("bad", ["300", "0", "250.5", "far", "", "true"])
+def test_the_rankings_route_refuses_any_other_band(monkeypatch, bad):
+    status, body, asked = _ask_rankings(monkeypatch, f"archetype={PICKED}&reach_ly={bad}")
+    assert status == 422
+    assert [problem["loc"] for problem in body["detail"]] == [["query", "reach_ly"]]
+    assert asked == {}
+
+
+def test_the_rankings_route_describes_the_band():
     from edfinder_api.main import app
 
     schema = app.openapi()
     parameters = {
         p["name"]: p for p in schema["paths"]["/api/archetypes/rankings"]["get"]["parameters"]
     }
-    # FastAPI answers 422 for any value outside the enum.
     assert parameters["reach_ly"]["schema"]["enum"] == [250, 500]
     assert parameters["reach_ly"]["schema"]["default"] == 250
+    assert parameters["reach_ly"]["schema"]["type"] == "integer"
 
 
 # ---------------------------------------------------------------------------

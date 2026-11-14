@@ -548,17 +548,22 @@ def smoke(origin: str, sha: str) -> None:
 
 # Three real searches, one for each way Find reads the database: the ranking
 # for one colony type, the galaxy-wide list, and nearest-first around Sol,
-# where most systems are inhabited.
+# where most systems are inhabited. Each is asked with the settings the web
+# app sends, written the way it writes them: on 14 November 2026 every
+# ranking the web app asked for was refused, because the API could not read
+# "reach_ly=250" from a web address, while this check, which left the
+# setting out, passed. An older build ignores a setting it does not know.
 FIND_SEARCHES: Tuple[Tuple[str, str, Optional[Dict[str, Any]], bool], ...] = (
     ("ranking for one colony type",
-     "/api/archetypes/rankings?archetype=flexible&limit=5", None, True),
+     "/api/archetypes/rankings?archetype=flexible&min_score=60&limit=5&offset=0&reach_ly=250",
+     None, True),
     ("galaxy-wide search",
-     "/api/local/search", {"galaxy_wide": True, "size": 5, "from": 0}, True),
+     "/api/local/search", {"galaxy_wide": True, "size": 5, "from": 0, "reach_ly": 250}, True),
     ("nearest-first search around Sol",
      "/api/local/search",
      {"reference_coords": {"x": 0.0, "y": 0.0, "z": 0.0},
       "filters": {"distance": {"max": 100}},
-      "sort_by": "distance", "size": 5, "from": 0}, False),
+      "sort_by": "distance", "size": 5, "from": 0, "reach_ly": 250}, False),
 )
 FIND_TIMEOUT_SECONDS = 30
 FIND_HIDDEN = ("inhabited", "being_claimed")
