@@ -416,12 +416,28 @@ In order:
       backup of the word lists as the fresh backup for this change, since
       the full nightly backup is not built yet. Still to see: the 04:30 run
       of 14 Nov, the first to write the signal.
+      (14 Nov) That run left out only the three rare words below, so the
+      new signal is being written.
       Inspect shows it in the game's own words, "planetary mining
       locations" (the owner, 13 Nov).
-- [ ] Re-score what is on the waiting list. (12 Nov) In order: apply
+- [x] Re-score what is on the waiting list. (12 Nov) In order: apply
       migration `028` (after a fresh backup), work reach out once
       (`python3 galaxy_update.py reach`), then add `EDFINDER_GALAXY_SCORES=on`
       to `deploy.conf`.
+      (14 Nov) Reach worked out on the Pi in 42 min 35 s: 157,247 inhabited
+      systems, 39,300,288 systems within 500 ly, 19,561,475 within 250 ly.
+      The owner: "Also switch scores on". `EDFINDER_GALAXY_SCORES=on` is in
+      `deploy.conf`, and the first scoring run was started by hand through
+      the galaxy update's own unit at 12:37 UTC. It took 39 min 52 s:
+      207,644 systems given scores (123,665 for the first time, 25,348
+      changed, 58,631 the same), none failed, 211,248 Find rows rebuilt,
+      nothing left waiting. 323,461 waiting systems further than 500 ly were
+      taken off the list unscored. Only 71,416 systems in reach had no
+      scores; the copy had nearly all of them.
+      Found on the way: a stopped job (its 6-hour limit, or by hand) left
+      its container working on its own, because Python as a container's
+      first process ignores the polite stop signal. #63 starts the job's
+      container with `--init`; on the Pi since 14 Nov.
 - [ ] (11 Nov) **Backups, sized for the Pi.** The plan says a full dump every
       night and an automatic restore test every week; for about 600 GB on a
       Pi that is hours every night and a day or more every week. Suggested
@@ -452,6 +468,8 @@ In order:
       ran, a small backup refused to start ("another backup is already
       running"): each kind has its own lock since #54, which reaches the Pi
       when `backup.py` is fetched again.
+      (14 Nov) The first full backup finished: 133.5 GB, 120 tables,
+      3 hours 25 minutes.
 - [ ] (11 Nov) **Hearing about failures.** Today a nightly job that fails
       tells nobody. Each night's jobs report in when they finish, and
       something off the Pi notices when they have not.
@@ -497,8 +515,10 @@ server. Nothing of it was saved.
 
 - [ ] **Octopus runs on it** (three containers). Move it to Contabo or switch
       it off.
-- [ ] The old repo's GitHub workflows that reach the old server are switched
-      off.
+- [x] The old repo's GitHub workflows that reach the old server are switched
+      off. (14 Nov) Checked: the only one that ran by itself and reached the
+      server, "Production version drift", was switched off by hand on
+      9 November. The rest run only when someone starts them.
 - [ ] One last full backup, copied to the USB drives.
 - [ ] (11 Nov) Remove the Pi's key from the server: the line ending
       `pi-move` in `/root/.ssh/authorized_keys`.
@@ -723,6 +743,11 @@ EDDN.
   others, `deploy/pi/eddn.yml` and its own settings file. Three steps on the
   Pi switch it on (README, "The EDDN listener"). It has never run against
   the live feed, so the first days are for watching it.
+- (14 Nov) The owner: "EDDN Yes". Migration `030` applied after the full
+  backup that finished early that day, and the listener started on the Pi
+  (`deploy/pi/eddn.yml`). It started before `030` was in, so its first
+  writes failed and it restarted itself, as it is built to; once `030` was
+  applied it saved its first station sightings at 12:34 UTC.
 - Nothing reads the sightings yet. Using them (stations seen on Look up;
   hiding a system from Find the day it is claimed, where today that waits
   for the nightly refresh) is later work.
