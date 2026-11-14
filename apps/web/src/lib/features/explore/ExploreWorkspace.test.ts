@@ -2009,6 +2009,20 @@ describe.each([false, true])(
       ).not.toBeInTheDocument();
     });
 
+    it('keeps the chosen reach when a system is picked from the suggestions', async () => {
+      renderEnabled('reach=500');
+      const input = screen.getByRole('combobox', { name: 'System name' });
+      await fireEvent.input(input, { target: { value: 'Anchor' } });
+      await fireEvent.click(
+        await screen.findByRole('option', { name: /Anchor A/ }),
+      );
+      await screen.findByText('Ranked 1');
+      expect(mockedPage.url.searchParams.get('reach')).toBe('500');
+      expect(
+        vi.mocked(api.searchExploreSystems).mock.lastCall?.[0].reach_ly,
+      ).toBe(500);
+    });
+
     it('loads nearby results only after an autocomplete anchor is chosen, then clears rows and markers', async () => {
       renderEnabled('');
       const input = screen.getByRole('combobox', { name: 'System name' });

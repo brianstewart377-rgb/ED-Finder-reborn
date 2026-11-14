@@ -1372,6 +1372,7 @@
         near: committedAnchor?.id64 ?? null,
         bodyFilters: viewState.bodyFilters,
         radius: viewState.radius,
+        reach: viewState.reach,
       },
       page.url.searchParams,
     );
