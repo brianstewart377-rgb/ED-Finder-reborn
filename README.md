@@ -55,9 +55,9 @@ changes. A newer record always wins over an older one.
 
 ## Deploying
 
-Every push to `main` builds two images and publishes them to GHCR:
-`ghcr.io/brianstewart377-rgb/ed-finder-reborn/api` and `.../web`, tagged
-`main` and `git-<commit>`.
+Every push to `main` that changes the app builds three images and publishes
+them to GHCR: `ghcr.io/brianstewart377-rgb/ed-finder-reborn/api`, `.../web`
+and `.../eddn` (the EDDN listener), tagged `main` and `git-<commit>`.
 
 On the machine that runs the site, `deploy/edfinder_deploy.py` (Python
 standard library only) starts them with `deploy/compose.yml`:
