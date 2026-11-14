@@ -401,18 +401,25 @@ describe('Inspect Explore navigation', () => {
     expect(mockedPage.state).toBe(originalState);
     mounted.unmount();
     renderExplore();
+    // With the anchor back, the type is searched near it, on the same page.
     await waitFor(() =>
-      expect(api.getArchetypeRankings).toHaveBeenCalledWith(
+      expect(api.searchExploreSystems).toHaveBeenCalledWith(
         {
+          reference_coords: { x: 67.5, y: -12.25, z: 42 },
+          filters: { distance: { min: 0, max: 500 }, economy: 'any' },
+          sort_by: 'distance',
+          size: 1,
+          from: 2,
+          reach_ly: 250,
           archetype: 'flexible',
           min_score: 76,
-          page_size: 1,
-          offset: 2,
-          reach_ly: 250,
         },
         expect.any(AbortSignal),
+        { id64: anchor.id64, name: anchor.name },
+        1,
       ),
     );
+    expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     expect(
       screen.getByRole('radio', { name: 'Flexible Multi-Role Colony' }),
     ).toBeChecked();

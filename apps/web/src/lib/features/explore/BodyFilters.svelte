@@ -31,8 +31,7 @@
   } = $props();
 
   const id = $props.id();
-  const explanation =
-    'Body filters work when you search near a system with Any selected.';
+  const explanation = 'Body filters work when you search near a system.';
   let open = $state(false);
   let draft = $state<BodyFilterValues>({});
   let activeTab = $state(0);

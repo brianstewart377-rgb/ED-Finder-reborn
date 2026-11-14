@@ -208,6 +208,8 @@ async def local_search_endpoint(
         'galaxy_wide':    req.galaxy_wide,
         'galaxy_region_id': req.galaxy_region_id,
         'reach_ly':       req.reach_ly,
+        'archetype':      req.archetype,
+        'min_score':      req.min_score,
     }
 
     # Reject a disallowed request shape (422) before any database access, so

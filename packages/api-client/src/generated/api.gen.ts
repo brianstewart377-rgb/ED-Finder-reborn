@@ -4826,6 +4826,10 @@ export interface components {
              * @enum {integer}
              */
             reach_ly: 250 | 500;
+            /** Archetype */
+            archetype?: string | null;
+            /** Min Score */
+            min_score?: (60 | 76 | 88) | null;
         };
         /** MapHeatmapBounds */
         MapHeatmapBounds: {
@@ -7912,6 +7916,12 @@ export interface components {
              * @description When a station in this system was last seen (ISO 8601), if any.
              */
             claim_station_seen_at?: string | null;
+            /** Selected Archetype */
+            selected_archetype?: string | null;
+            /** Selected Archetype Score */
+            selected_archetype_score?: number | null;
+            /** Selected Archetype Tier */
+            selected_archetype_tier?: ("S" | "A" | "B" | "C" | "D") | null;
             /** Elw Count */
             elw_count?: number | null;
             /** Ww Count */

@@ -448,11 +448,11 @@ describe('applied body filters', () => {
     const trigger = screen.getByRole('button', { name: 'Body filters' });
     expect(trigger).toBeDisabled();
     expect(trigger).toHaveAccessibleDescription(
-      'Body filters work when you search near a system with Any selected.',
+      'Body filters work when you search near a system.',
     );
     const chips = screen.getByRole('group', { name: 'Paused body filters' });
     expect(chips).toHaveAccessibleDescription(
-      'Body filters work when you search near a system with Any selected.',
+      'Body filters work when you search near a system.',
     );
     expect(within(chips).queryByText('Applied')).not.toBeInTheDocument();
     expect(screen.getByText('Paused')).toBeVisible();

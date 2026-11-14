@@ -19,6 +19,12 @@ exception in placement only: its candidates subquery already returns every
 system in the radius, so the rule is applied to the candidates and the GiST
 walk inside is planned as before.
 
+A picked archetype with an anchor and a radius ("this colony type near that
+system") walks the nearest-first window like the Any search does, with the
+type's score floor as one more condition on each row, and returns its rows
+nearest first. Each row also carries the type's score and stored tier. The
+whole radius is never sorted by score.
+
 ``reach_ly`` applies Find's reach rule (``edfinder_api.reach_rule``): it keeps
 only systems within 250 ly (or 500 ly) of inhabited space. It is placed exactly
 where the claim rule is, right after it, for the same reasons: one primary-key
@@ -510,6 +516,138 @@ def _no_pick_knn_count(
     )
 
 
+def _picked_knn_page(
+    builder: _ParamBuilder,
+    *,
+    picked_archetype: str,
+    min_score: int | None,
+    hard_filters: dict[str, Any],
+    reference_coords: tuple[float, float, float],
+    limit: int,
+    offset: int,
+    hide_claimed: bool = False,
+    reach_ly: int | None = None,
+) -> str:
+    """Nearest-first page of the systems that fit a picked type.
+
+    The nearest-first window of the Any search, joined to the wide archetype
+    row instead of the summary view (both read v3_derived.system_archetype)
+    so the type's score floor can be one more condition on each row. The row
+    is aliased ``sum`` so the summary hard filters keep their meaning."""
+    columns = _picked_columns(picked_archetype)
+    floor = _floor_literal(min_score)
+    score = columns["score"]
+    tier = columns["tier"]
+    weighted = columns["weighted_key"]
+    radius = float(hard_filters["max_distance_ly"])
+    anchor, bounding_cube, radius_param = _radius_geometry(
+        builder, reference_coords, radius
+    )
+    clauses = [
+        _pinned("s"),
+        _pinned("sum"),
+        f"s.position_ly <@ {bounding_cube}",
+        f"sum.{score} >= {floor}",
+    ]
+    clauses.extend(
+        _no_pick_filters(
+            builder,
+            hard_filters=hard_filters,
+            reference_coords=reference_coords,
+            omit_max_distance=True,
+        )
+    )
+    clauses.extend(_rules("s.system_id64", hide_claimed, reach_ly))
+    inner_limit = builder.add(int(offset + limit))
+    limit_param = builder.add(int(limit))
+    offset_param = builder.add(int(offset))
+    where_sql = "\n      AND ".join(clauses)
+    return (
+        "SELECT nearest.*\n"
+        "FROM (\n"
+        "    SELECT s.*,\n"
+        "           sum.best_colony_potential AS primary_score,\n"
+        "           s.confidence AS ranking_confidence,\n"
+        "           (s.confidence * s.completeness) AS uncertainty_factor,\n"
+        "           sum.primary_archetype AS summary_primary_archetype,\n"
+        "           sum.secondary_archetype AS summary_secondary_archetype,\n"
+        "           sum.best_colony_potential AS summary_best_colony_potential,\n"
+        "           (sum.archetype_confidence_ppm / 1000000.0)::double precision "
+        "AS summary_archetype_confidence,\n"
+        "           sum.weighted_potential AS weighted_potential,\n"
+        f"           sum.{score} AS selected_archetype_score,\n"
+        f"           sum.{tier} AS selected_archetype_tier,\n"
+        f"           sum.{weighted} AS selected_archetype_weighted_e4,\n"
+        f"           s.position_ly <-> {anchor} AS distance_ly\n"
+        "    FROM v3_app.system_search s\n"
+        "    JOIN v3_app.system_archetype sum ON sum.system_id64 = s.system_id64\n"
+        f"    WHERE {where_sql}\n"
+        f"    ORDER BY s.position_ly <-> {anchor}, "
+        f"sum.{weighted} DESC, s.system_id64 ASC\n"
+        f"    LIMIT {inner_limit}\n"
+        ") nearest\n"
+        f"WHERE nearest.distance_ly <= {radius_param}\n"
+        "ORDER BY nearest.distance_ly ASC, "
+        "nearest.selected_archetype_weighted_e4 DESC, nearest.system_id64 ASC\n"
+        f"LIMIT {limit_param} OFFSET {offset_param}"
+    )
+
+
+def _picked_knn_count(
+    builder: _ParamBuilder,
+    *,
+    picked_archetype: str,
+    min_score: int | None,
+    hard_filters: dict[str, Any],
+    reference_coords: tuple[float, float, float],
+    sentinel: int,
+    hide_claimed: bool = False,
+    reach_ly: int | None = None,
+) -> str:
+    """Count for ``_picked_knn_page``: the same nearest-first window, with the
+    floor inside it, stopping at the sentinel."""
+    columns = _picked_columns(picked_archetype)
+    floor = _floor_literal(min_score)
+    score = columns["score"]
+    radius = float(hard_filters["max_distance_ly"])
+    anchor, bounding_cube, radius_param = _radius_geometry(
+        builder, reference_coords, radius
+    )
+    clauses = [
+        _pinned("s"),
+        _pinned("sum"),
+        f"s.position_ly <@ {bounding_cube}",
+        f"sum.{score} >= {floor}",
+    ]
+    clauses.extend(
+        _no_pick_filters(
+            builder,
+            hard_filters=hard_filters,
+            reference_coords=reference_coords,
+            omit_max_distance=True,
+        )
+    )
+    clauses.extend(_rules("s.system_id64", hide_claimed, reach_ly))
+    sentinel_param = builder.add(int(sentinel))
+    where_sql = "\n          AND ".join(clauses)
+    return (
+        "SELECT count(*) FROM (\n"
+        "    SELECT nearest.system_id64\n"
+        "    FROM (\n"
+        "        SELECT s.system_id64, "
+        f"s.position_ly <-> {anchor} AS distance_ly\n"
+        "        FROM v3_app.system_search s\n"
+        "        JOIN v3_app.system_archetype sum ON sum.system_id64 = s.system_id64\n"
+        f"        WHERE {where_sql}\n"
+        f"        ORDER BY s.position_ly <-> {anchor}, s.system_id64 ASC\n"
+        f"        LIMIT {RANKING_COUNT_SENTINEL}\n"
+        "    ) nearest\n"
+        f"    WHERE nearest.distance_ly <= {radius_param}\n"
+        f"    LIMIT {sentinel_param}\n"
+        ") bounded"
+    )
+
+
 def _no_pick_page(
     builder: _ParamBuilder,
     *,
@@ -641,6 +779,21 @@ def _no_pick_radius_score_page(
     )
 
 
+def _picked_near(
+    reference_coords: tuple[float, float, float] | None,
+    hard_filters: dict[str, Any],
+    sort: str,
+) -> bool:
+    """Whether a picked type is asked for near a system. That search is
+    nearest first only: ranking a whole radius by a type's score would sort
+    every system in it."""
+    if reference_coords is None or hard_filters.get("max_distance_ly") is None:
+        return False
+    if sort != SORT_DISTANCE:
+        raise ValueError("a picked type near a system is sorted by distance")
+    return True
+
+
 def build_ranked_query(
     spec: dict[str, Any],
     *,
@@ -677,7 +830,21 @@ def build_ranked_query(
     ):
         raise ValueError("limit/offset exceed the ranking window")
     builder = _ParamBuilder()
-    if picked_archetype is not None:
+    if picked_archetype is not None and _picked_near(
+        reference_coords, hard_filters, sort
+    ):
+        sql = _picked_knn_page(
+            builder,
+            picked_archetype=picked_archetype,
+            min_score=min_score,
+            hard_filters=hard_filters,
+            reference_coords=reference_coords,  # type: ignore[arg-type]
+            limit=limit,
+            offset=offset,
+            hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
+        )
+    elif picked_archetype is not None:
         if hard_filters:
             raise ValueError("picked archetype ranking does not accept hard filters")
         sql = _picked_page_query(
@@ -743,6 +910,22 @@ def build_count_query(
     if cap is not None and (cap < 1 or cap > RANKING_WINDOW_LIMIT):
         raise ValueError("count cap exceeds the ranking window")
     builder = _ParamBuilder()
+    if picked_archetype is not None and _picked_near(
+        reference_coords, hard_filters, sort
+    ):
+        if cap is None:
+            raise ValueError("a picked type near a system needs a count cap")
+        sql = _picked_knn_count(
+            builder,
+            picked_archetype=picked_archetype,
+            min_score=min_score,
+            hard_filters=hard_filters,
+            reference_coords=reference_coords,  # type: ignore[arg-type]
+            sentinel=int(cap) + 1,
+            hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
+        )
+        return sql, builder.params
     if picked_archetype is not None:
         if hard_filters:
             raise ValueError("picked archetype ranking does not accept hard filters")

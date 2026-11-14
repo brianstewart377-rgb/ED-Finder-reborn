@@ -2631,11 +2631,15 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     let finishAny!: (
       page: Awaited<ReturnType<typeof api.searchExploreSystems>>,
     ) => void;
+    // The type search near the anchor answers at once; the Any search that
+    // follows waits, so the type's rows are what stays on screen meanwhile.
     vi.mocked(api.searchExploreSystems).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishAny = resolve;
-        }),
+      (request, _signal, _anchor, pageSize) =>
+        request.archetype
+          ? Promise.resolve(finderPage(request.from ?? 0, pageSize ?? 1))
+          : new Promise((resolve) => {
+              finishAny = resolve;
+            }),
     );
     renderEnabled(
       `archetype=manufacturing_hub&page_size=1&offset=1&near=${anchorA.id64}`,
@@ -2650,12 +2654,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedPage.state.anchor).toEqual(anchorA);
     expect(mockedPage.url.searchParams.get('offset')).toBe('1');
     expect(mockedGoto).not.toHaveBeenCalled();
-    expect(
-      screen.getByText(/choose Any to search around Anchor A/),
-    ).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
     await waitFor(() =>
-      expect(api.searchExploreSystems).toHaveBeenCalledWith(
+      expect(api.searchExploreSystems).toHaveBeenLastCalledWith(
         expect.objectContaining({
           reference_coords: { x: 10, y: 20, z: 30 },
           from: 0,
@@ -2665,6 +2666,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         1,
       ),
     );
+    expect(
+      vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
+    ).not.toHaveProperty('archetype');
     const retainedList = screen.getByRole('list', { name: 'System results' });
     expect(within(retainedList).getByText('Ranked 2')).toBeInTheDocument();
     expect(retainedList).not.toHaveTextContent(/fit/i);
@@ -2738,7 +2742,19 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedPage.url.search).toBe(
       '?archetype=manufacturing_hub&min-tier=A&page_size=1',
     );
-    expect(api.searchExploreSystems).not.toHaveBeenCalled();
+    // Near the anchor it was a type search near a system; without it, the
+    // galaxy-wide ranking for the same type and tier.
+    expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(api.getArchetypeRankings).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          archetype: 'manufacturing_hub',
+          min_score: 76,
+          offset: 0,
+        }),
+        expect.anything(),
+      ),
+    );
     expect(screen.getByRole('combobox', { name: 'Minimum tier' })).toHaveValue(
       'A',
     );
@@ -3386,7 +3402,11 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     const picker = screen.getByRole('radio', { name: 'Manufacturing Hub' });
     picker.focus();
     await fireEvent.click(picker);
-    await waitFor(() => expect(api.getArchetypeRankings).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
+      ).toMatchObject({ archetype: 'manufacturing_hub' }),
+    );
     expect(picker).toHaveFocus();
   });
 
@@ -3743,7 +3763,12 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     const picker = screen.getByRole('radio', { name: 'Manufacturing Hub' });
     picker.focus();
     await fireEvent.click(picker);
-    await waitFor(() => expect(api.getArchetypeRankings).toHaveBeenCalled());
+    // The type is searched near the same anchor, which supersedes the Any one.
+    await waitFor(() =>
+      expect(
+        vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
+      ).toMatchObject({ archetype: 'manufacturing_hub' }),
+    );
     finishAnchor(finderPage(0));
     await waitFor(() => expect(picker).toHaveFocus());
     mockRankedPages();
@@ -4271,7 +4296,7 @@ describe.each([false, true])(
       const radius = screen.getByRole('combobox', { name: 'Within' });
       expect(radius).toBeDisabled();
       expect(radius).toHaveAccessibleDescription(
-        'Search radius works when you search near a system with Any selected.',
+        'Search radius works when you search near a system.',
       );
     });
 
@@ -4799,7 +4824,7 @@ describe.each([false, true])(
       const trigger = screen.getByRole('button', { name: 'Body filters' });
       expect(trigger).toBeDisabled();
       expect(trigger).toHaveAccessibleDescription(
-        'Body filters work when you search near a system with Any selected.',
+        'Body filters work when you search near a system.',
       );
       expect(api.searchExploreSystems).not.toHaveBeenCalled();
       history.restore(`near=${anchorA.id64}&bodies=elw_count:1-`, {
@@ -4837,15 +4862,14 @@ describe('Explore body filters in archetype mode', () => {
   });
 
   it.each([
-    { tier: 'B', query: '', anchor: null },
-    { tier: 'A', query: '&min-tier=A', anchor: anchorA },
+    { tier: 'B', query: '' },
+    { tier: 'A', query: '&min-tier=A' },
   ])(
     'describes galaxy-wide archetype scope at tier $tier and disables the retained radius',
-    async ({ tier, query, anchor }) => {
-      renderEnabled(
-        `archetype=manufacturing_hub&radius=1000${query}${anchor ? `&near=${anchor.id64}` : ''}`,
-        { anchor },
-      );
+    async ({ tier, query }) => {
+      renderEnabled(`archetype=manufacturing_hub&radius=1000${query}`, {
+        anchor: null,
+      });
       await screen.findByText('Ranked 1');
       const scope = `Galaxy-wide · ranked by Manufacturing Hub fit · minimum tier ${tier}`;
       expect(document.getElementById('results-scope')).toHaveTextContent(scope);
@@ -4856,7 +4880,7 @@ describe('Explore body filters in archetype mode', () => {
       expect(radius).toBeDisabled();
       expect(radius).toHaveValue('1000');
       expect(radius).toHaveAccessibleDescription(
-        'Search radius works when you search near a system with Any selected.',
+        'Search radius works when you search near a system.',
       );
       expect(vi.mocked(api.getArchetypeRankings).mock.calls[0][0]).toEqual({
         archetype: 'manufacturing_hub',
@@ -4896,10 +4920,42 @@ describe('Explore body filters in archetype mode', () => {
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
   });
 
+  it('searches a type near a system nearest first, within the capped radius', async () => {
+    renderEnabled(
+      `archetype=manufacturing_hub&min-tier=A&radius=1000&near=${anchorA.id64}`,
+      { anchor: anchorA },
+    );
+    await screen.findByText('Ranked 1');
+    const scope =
+      'Within 500 LY of Anchor A · Manufacturing Hub fit, minimum tier A · sorted by distance';
+    expect(document.getElementById('results-scope')).toHaveTextContent(scope);
+    expect(
+      screen.getByRole('heading', { name: 'Manufacturing Hub near Anchor A' }),
+    ).toBeInTheDocument();
+    const radius = screen.getByRole('combobox', { name: 'Within' });
+    expect(radius).toBeEnabled();
+    expect(radius).toHaveValue('500');
+    expect(radius).toHaveAccessibleDescription(
+      'A colony type limits the search to 500 LY; your 1,000 LY radius resumes when Any is chosen again.',
+    );
+    expect(vi.mocked(api.searchExploreSystems).mock.calls[0][0]).toEqual({
+      reference_coords: { x: 10, y: 20, z: 30 },
+      filters: { distance: { min: 0, max: 500 }, economy: 'any' },
+      sort_by: 'distance',
+      size: 50,
+      from: 0,
+      reach_ly: 250,
+      archetype: 'manufacturing_hub',
+      min_score: 76,
+    });
+    expect(api.getArchetypeRankings).not.toHaveBeenCalled();
+    expect(mockedPage.url.searchParams.get('radius')).toBe('1000');
+  });
+
   it('keeps a ranking on its page when a paused chip is removed or cleared', async () => {
     renderEnabled(
-      `archetype=manufacturing_hub&page_size=1&offset=1&near=${anchorA.id64}&bodies=elw_count:1-,ww_count:2-`,
-      { anchor: anchorA },
+      'archetype=manufacturing_hub&page_size=1&offset=1&bodies=elw_count:1-,ww_count:2-',
+      { anchor: null },
     );
     await screen.findByText('Ranked 2');
     expect(screen.getAllByText('Paused')).toHaveLength(2);
@@ -4919,38 +4975,30 @@ describe('Explore body filters in archetype mode', () => {
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
   });
 
-  it('pauses filters for selected rankings and restores them on Any with one anchored request', async () => {
+  it('applies body filters to a type near a system and keeps them on Any', async () => {
     renderEnabled(
       `archetype=manufacturing_hub&near=${anchorA.id64}&bodies=elw_count:1-`,
       { anchor: anchorA },
     );
     await screen.findByText('Ranked 1');
     const trigger = screen.getByRole('button', { name: 'Body filters' });
-    expect(trigger).toBeDisabled();
-    expect(trigger).toHaveAccessibleDescription(
-      'Body filters work when you search near a system with Any selected.',
-    );
+    expect(trigger).toBeEnabled();
     expect(screen.getByText('Earth-like ≥ 1')).toBeInTheDocument();
-    expect(screen.getByText('Paused')).toBeInTheDocument();
-    expect(
-      screen
-        .getByRole('group', { name: 'Paused body filters' })
-        .querySelector('.kit-chip'),
-    ).toHaveTextContent('Paused');
-    expect(api.searchExploreSystems).not.toHaveBeenCalled();
-    expect(
-      vi.mocked(api.getArchetypeRankings).mock.calls[0][0],
-    ).not.toHaveProperty('body_filters');
+    expect(screen.queryByText('Paused')).not.toBeInTheDocument();
+    expect(api.getArchetypeRankings).not.toHaveBeenCalled();
+    expect(vi.mocked(api.searchExploreSystems).mock.calls[0][0]).toMatchObject({
+      archetype: 'manufacturing_hub',
+      min_score: 60,
+      body_filters: { elw_count: { min: 1 } },
+    });
     await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
     await waitFor(() =>
-      expect(api.searchExploreSystems).toHaveBeenCalledTimes(1),
+      expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
     );
-    expect(
-      vi.mocked(api.searchExploreSystems).mock.calls[0][0].body_filters,
-    ).toEqual({ elw_count: { min: 1 } });
+    const anyRequest = vi.mocked(api.searchExploreSystems).mock.calls[1][0];
+    expect(anyRequest.body_filters).toEqual({ elw_count: { min: 1 } });
+    expect(anyRequest).not.toHaveProperty('archetype');
     expect(mockedPage.url.searchParams.get('bodies')).toBe('elw_count:1-');
-    expect(trigger).toBeEnabled();
-    expect(screen.queryByText('Paused')).not.toBeInTheDocument();
     expect(
       screen
         .getByRole('group', { name: 'Applied body filters' })
@@ -5310,11 +5358,8 @@ describe.each([false, true])(
           enabled,
           applicationStores,
         );
-        const host = renderEnabled(
-          `page_size=3&near=${anchorA.id64}`,
-          { anchor: anchorA },
-          viewState,
-        );
+        // Galaxy-wide, so picking a type asks the rankings route.
+        const host = renderEnabled('page_size=3', { anchor: null }, viewState);
         await screen.findByText('Ranked 1');
         const list = screen.getByRole('list', {
           name: 'System results',
@@ -5364,7 +5409,7 @@ describe.each([false, true])(
         expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
       });
 
-      it('retains a selected archetype, tier and page with paused filters without repeating rankings', async () => {
+      it('retains a type near a system, its tier, page and filters without repeating the search', async () => {
         const viewState = new ExploreViewState(
           () => mockedPage,
           enabled,
@@ -5376,14 +5421,19 @@ describe.each([false, true])(
           viewState,
         );
         await screen.findByText('Ranked 2');
-        expect(api.getArchetypeRankings).toHaveBeenCalledTimes(1);
-        expect(vi.mocked(api.getArchetypeRankings).mock.calls[0][0]).toEqual({
+        expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(api.searchExploreSystems).mock.calls[0][0]).toEqual({
+          reference_coords: { x: 10, y: 20, z: 30 },
+          filters: { distance: { min: 0, max: 500 }, economy: 'any' },
+          body_filters: { elw_count: { min: 1 } },
+          sort_by: 'distance',
+          size: 2,
+          from: 1,
+          reach_ly: 250,
           archetype: 'manufacturing_hub',
           min_score: 76,
-          page_size: 2,
-          offset: 1,
-          reach_ly: 250,
         });
+        expect(api.getArchetypeRankings).not.toHaveBeenCalled();
         expect(screen.getByRole('combobox', { name: 'Within' })).toHaveValue(
           '500',
         );
@@ -5407,7 +5457,7 @@ describe.each([false, true])(
         const cachedRankings = queryClient
           .getQueryCache()
           .getAll()
-          .filter((cached) => cached.queryKey[2] === 'rankings');
+          .filter((cached) => cached.queryKey[2] === 'results');
         expect(cachedRankings).toHaveLength(1);
         for (const cached of cachedRankings) {
           queryClient.setQueryData(cached.queryKey, cached.state.data, {
@@ -5433,9 +5483,9 @@ describe.each([false, true])(
           '500',
         );
         expect(viewState.radius).toBe(1000);
-        expect(screen.getByRole('combobox', { name: 'Within' })).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: 'Within' })).toBeEnabled();
         expect(screen.getByText('Earth-like ≥ 1')).toBeInTheDocument();
-        expect(screen.getByText('Paused')).toBeInTheDocument();
+        expect(screen.queryByText('Paused')).not.toBeInTheDocument();
         expect(restoredList.scrollTop).toBe(128);
         expect(
           within(restoredList).getByRole('button', {
@@ -5445,17 +5495,18 @@ describe.each([false, true])(
         expect(viewState.rankingState).toEqual(ranking);
         expect(mockedPage.url.href).toBe(committedUrl);
         expect(document.querySelectorAll('canvas')).toHaveLength(1);
-        expect(api.getArchetypeRankings).toHaveBeenCalledTimes(1);
-        expect(api.searchExploreSystems).not.toHaveBeenCalled();
+        expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
+        expect(api.getArchetypeRankings).not.toHaveBeenCalled();
 
         await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
         await waitFor(() =>
-          expect(api.searchExploreSystems).toHaveBeenCalledTimes(1),
+          expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
         );
-        expect(api.getArchetypeRankings).toHaveBeenCalledTimes(1);
-        expect(
-          vi.mocked(api.searchExploreSystems).mock.lastCall?.[0].body_filters,
-        ).toEqual({ elw_count: { min: 1 } });
+        expect(api.getArchetypeRankings).not.toHaveBeenCalled();
+        const anyRequest = vi.mocked(api.searchExploreSystems).mock
+          .lastCall?.[0];
+        expect(anyRequest?.body_filters).toEqual({ elw_count: { min: 1 } });
+        expect(anyRequest).not.toHaveProperty('archetype');
       });
     }
   },

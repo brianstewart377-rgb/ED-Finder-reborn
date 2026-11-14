@@ -554,9 +554,57 @@ describe('request selection', () => {
     ).toEqual(selectFinderRequest(state, anchor, { enabled: true }));
   });
 
-  it('sends a selected archetype to rankings with the B default and facade page size', () => {
+  it('sends a selected archetype near a system as a nearest-first search, capped at 500 LY', () => {
     expect(
       selectFinderRequest(parse('archetype=flexible').state, anchor, {
+        enabled: true,
+      }),
+    ).toEqual({
+      kind: 'any',
+      request: {
+        reference_coords: { x: 1, y: 2, z: 3 },
+        filters: { distance: { min: 0, max: 500 }, economy: 'any' },
+        sort_by: 'distance',
+        size: 50,
+        from: 0,
+        reach_ly: 250,
+        archetype: 'flexible',
+        min_score: 60,
+      },
+      pageSize: 50,
+    });
+    for (const [radius, sent] of [
+      [100, 100],
+      [250, 250],
+      [500, 500],
+      [1000, 500],
+      [2000, 500],
+    ] as const) {
+      expect(
+        selectFinderRequest(
+          parse('archetype=mining_hub&min-tier=S&page_size=1&offset=2').state,
+          anchor,
+          { enabled: true, radius },
+        ).request,
+      ).toMatchObject({
+        filters: { distance: { min: 0, max: sent } },
+        size: 1,
+        from: 2,
+        archetype: 'mining_hub',
+        min_score: 88,
+      });
+    }
+    // The disabled build never asks for a type.
+    expect(
+      selectFinderRequest(parse('archetype=flexible').state, anchor, {
+        enabled: false,
+      }).request,
+    ).not.toHaveProperty('archetype');
+  });
+
+  it('sends a selected archetype without a system to rankings with the B default and facade page size', () => {
+    expect(
+      selectFinderRequest(parse('archetype=flexible').state, null, {
         enabled: true,
       }),
     ).toEqual({
