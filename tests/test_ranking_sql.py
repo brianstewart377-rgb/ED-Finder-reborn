@@ -226,18 +226,52 @@ def test_unknown_and_adversarial_archetype_keys_never_reach_sql():
             _picked_page(key=key)
 
 
-def test_picked_path_rejects_filters_instead_of_filtering_the_window():
-    with pytest.raises(ValueError):
-        build_ranked_query(
-            PROFILE_SPEC,
-            picked_archetype="paradise",
-            picked_economy=None,
-            hard_filters={"galaxy_region": 7},
-            reference_coords=None,
-            min_score=60,
-            limit=50,
-            offset=0,
-        )
+def test_picked_window_is_thinned_by_search_filters_never_widened():
+    """Body filters on a type galaxy-wide thin the type's window of the best
+    10,000: the window walk is byte-for-byte the unfiltered one, and the
+    filters are on the membership join after it, as bound parameters."""
+    plain, plain_params = _picked_page(key="paradise", floor=60, limit=50, offset=0)
+    sql, params = build_ranked_query(
+        PROFILE_SPEC,
+        picked_archetype="paradise",
+        picked_economy=None,
+        hard_filters={"galaxy_region": 7, "elw_count_min": 2},
+        reference_coords=None,
+        min_score=60,
+        limit=50,
+        offset=0,
+    )
+    window = sql.split("), ranked_page_keys AS (\n", 1)[0]
+    assert window == plain.split("), ranked_page_keys AS (\n", 1)[0]
+    keys = sql.split("), ranked_page_keys AS (\n", 1)[1].split("), ranked_page AS (\n", 1)[0]
+    assert "member.galaxy_region_id = $1" in keys
+    assert "member.elw_count >= $2" in keys
+    assert params == [7, 2, 50, 0]
+    assert len(plain_params) == 2
+    count_sql, count_params = build_count_query(
+        PROFILE_SPEC,
+        picked_archetype="paradise",
+        picked_economy=None,
+        hard_filters={"galaxy_region": 7},
+        reference_coords=None,
+        min_score=60,
+    )
+    # Filtered, the count is exact over the same 10,000-row window.
+    assert "LIMIT 10000\n" in count_sql and "LIMIT 10001" not in count_sql
+    assert "s.galaxy_region_id = $1" in count_sql
+    assert count_params == [7]
+    for refused in ({"min_development_score": 50}, {"max_distance_ly": 100.0}):
+        with pytest.raises(ValueError, match="does not accept"):
+            build_ranked_query(
+                PROFILE_SPEC,
+                picked_archetype="paradise",
+                picked_economy=None,
+                hard_filters=refused,
+                reference_coords=None,
+                min_score=60,
+                limit=50,
+                offset=0,
+            )
 
 
 def test_no_user_value_is_interpolated_into_picked_sql():

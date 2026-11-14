@@ -57,9 +57,10 @@ SHAPES: dict[str, tuple[dict, str, str, bool]] = {
     "galaxy_wide": (
         dict(picked_archetype=None, hard_filters={}, reference_coords=None),
         "sum", "sum", True),
+    # Filters thin the window, so the rule is inside the window walk.
     "galaxy_wide_filtered": (
         dict(picked_archetype=None, hard_filters={"main_star_class_in": ["K"]},
-             reference_coords=None), "s", "s", True),
+             reference_coords=None), "sum", "sum", True),
     "radius_by_score": (
         dict(picked_archetype=None, hard_filters=dict(RADIUS), reference_coords=ANCHOR,
              sort=SORT_SCORE), "candidates", "s", True),
@@ -343,7 +344,17 @@ def test_every_shape_returns_the_best_systems_in_reach(reach_database, shape, re
     if reach == 500:
         assert any(reach_of(i) == 500 for i in after), "the wider band must add systems"
 
-    if shape in UNANCHORED:
+    if shape == "galaxy_wide_filtered":
+        # Filters thin the window of the best 10,000 shown systems.
+        everything = _full_order(connection, "galaxy_wide")
+        star_k = {int(row[0]) for row in connection.execute(
+            "SELECT system_id64 FROM v3_app.system_search WHERE main_star_class = 'K'"
+        ).fetchall()}
+        visible = [i for i in everything if shown(i, reach)]
+        assert len(visible) > RANKING_WINDOW_LIMIT
+        assert after == [i for i in visible[:RANKING_WINDOW_LIMIT] if i in star_k]
+        expected = len(after)
+    elif shape in UNANCHORED:
         everything = _full_order(connection, shape)
         visible = [i for i in everything if shown(i, reach)]
         if shape != "picked_archetype":
