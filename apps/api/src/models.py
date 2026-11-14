@@ -265,6 +265,10 @@ class SystemRow(BaseModel):
     claim_station_seen_at: Optional[str] = Field(
         None, description='When a station in this system was last seen (ISO 8601), if any.',
     )
+    # Set when the search asked for a colony type near a system.
+    selected_archetype: Optional[str] = None
+    selected_archetype_score: Optional[int] = None
+    selected_archetype_tier: Optional[TierValue] = None
     # Body counts surfaced flat for filter pills (the search SQL
     # projects these from the ratings row).
     elw_count:            Optional[int] = None
@@ -597,6 +601,11 @@ class LocalSearchRequest(BaseModel):
     # Find's reach rule (`edfinder_api.reach_rule`): show systems within
     # 250 ly of inhabited space (the default) or within 500 ly.
     reach_ly:         Literal[250, 500]        = 250
+    # A colony type near a system: with reference_coords, nearest first, the
+    # systems whose score for this type reaches min_score (60, 76 or 88).
+    # A type galaxy-wide is ranked by GET /api/archetypes/rankings.
+    archetype:        Optional[str]            = None
+    min_score:        Optional[Literal[60, 76, 88]] = None
 
     model_config = {'populate_by_name': True}
 

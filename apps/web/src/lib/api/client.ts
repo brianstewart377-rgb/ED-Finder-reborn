@@ -852,6 +852,21 @@ export function normalizeAnySearchRow(
     overall !== null && system.archetype_score === overall && isTier(tier)
       ? tier
       : null;
+  // A colony type searched near a system: the row is ranked by that type's
+  // fit, carried exactly as a rankings row carries it.
+  const selected = system.selected_archetype;
+  const selectedFit =
+    typeof selected === 'string' &&
+    isArchetypeKey(selected) &&
+    finiteNumber(system.selected_archetype_score) &&
+    isTier(system.selected_archetype_tier)
+      ? {
+          ranking_score: system.selected_archetype_score,
+          ranking_tier: system.selected_archetype_tier,
+          score_kind: 'selected_fit' as const,
+          selected_archetype: selected,
+        }
+      : null;
   return {
     ...system,
     id64: losslessId64(system.id64),
@@ -859,6 +874,7 @@ export function normalizeAnySearchRow(
     ranking_tier: tierOfOverall,
     score_kind: 'overall_potential',
     selected_archetype: null,
+    ...selectedFit,
     distance_reference: finiteNumber(system.distance) ? reference : null,
     ranking_provenance: provenance,
   };

@@ -168,10 +168,25 @@
     // response and observer keep their existing query ownership.
     viewState.resolvedAnchor = anchor;
   });
-  // Body filters cap the anchored search at the API's filtered radius; the
-  // URL keeps the chosen radius so it resumes when the filters are cleared.
+  // A colony type searched near a system: nearest first, kept to the
+  // systems whose fit reaches the minimum tier.
+  const typeNearAnchor = $derived(
+    FINDER_F4_ENABLED &&
+      anchor !== null &&
+      viewState.rankingState.archetype !== 'any',
+  );
+  // Body filters and a picked type cap the anchored search at the API's
+  // filtered radius; the URL keeps the chosen radius so it resumes when the
+  // filters are cleared or Any is chosen again.
   const effectiveRadius = $derived(
-    effectiveSearchRadius(viewState.radius, viewState.bodyFilters),
+    effectiveSearchRadius(
+      viewState.radius,
+      viewState.bodyFilters,
+      typeNearAnchor,
+    ),
+  );
+  const radiusCapped = $derived(
+    typeNearAnchor || Object.keys(viewState.bodyFilters).length > 0,
   );
   const mapAnchorPoint = $derived<GalaxySystemPoint | null>(
     anchor &&
@@ -286,9 +301,8 @@
   }));
   const suggestionRows = $derived(suggestions.data?.results ?? []);
 
-  const bodyFiltersPaused = $derived(
-    !anchor || viewState.rankingState.archetype !== 'any',
-  );
+  // Body filters join every search near a system, with or without a type.
+  const bodyFiltersPaused = $derived(!anchor);
   const radiusCappedByFilters = $derived(
     !bodyFiltersPaused && effectiveRadius !== viewState.radius,
   );
@@ -459,11 +473,13 @@
     archetypeLabel(viewState.rankingState.archetype),
   );
   const resultsScope = $derived(
-    viewState.rankingState.archetype !== 'any'
-      ? `Galaxy-wide · ranked by ${activeArchetypeLabel} fit · minimum tier ${viewState.rankingState.minimumTier}`
-      : anchor
-        ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} · sorted by distance`
-        : 'Galaxy-wide · best colony potential',
+    typeNearAnchor && anchor
+      ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} · ${activeArchetypeLabel} fit, minimum tier ${viewState.rankingState.minimumTier} · sorted by distance`
+      : viewState.rankingState.archetype !== 'any'
+        ? `Galaxy-wide · ranked by ${activeArchetypeLabel} fit · minimum tier ${viewState.rankingState.minimumTier}`
+        : anchor
+          ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} · sorted by distance`
+          : 'Galaxy-wide · best colony potential',
   );
   const rankingDataNotReady = $derived.by(() => {
     const error = results.error;
@@ -2001,11 +2017,6 @@
             onclick={clearAnchor}>Clear</button
           >
         </p>
-        {#if FINDER_F4_ENABLED && viewState.rankingState.archetype !== 'any'}
-          <p>
-            Archetype ranking is galaxy-wide today; choose Any to search around {anchor.name}.
-          </p>
-        {/if}
       {/if}
       {#snippet finderTools()}
         <div class="finder-tools">
@@ -2054,13 +2065,16 @@
           <div>
             <p class="eyebrow">Catalogue results</p>
             <h2 id="results-title">
-              {FINDER_F4_ENABLED && viewState.rankingState.archetype !== 'any'
-                ? `Galaxy-wide ${activeArchetypeLabel} ranking`
-                : anchor
-                  ? `Near ${anchor.name}`
-                  : viewState.hasResultsIntent
-                    ? 'Galaxy-wide opportunities'
-                    : 'Systems'}
+              {typeNearAnchor && anchor
+                ? `${activeArchetypeLabel} near ${anchor.name}`
+                : FINDER_F4_ENABLED &&
+                    viewState.rankingState.archetype !== 'any'
+                  ? `Galaxy-wide ${activeArchetypeLabel} ranking`
+                  : anchor
+                    ? `Near ${anchor.name}`
+                    : viewState.hasResultsIntent
+                      ? 'Galaxy-wide opportunities'
+                      : 'Systems'}
             </h2>
           </div>
           {#if FINDER_F4_ENABLED && displayedResults}
@@ -2093,7 +2107,7 @@
               disabled={bodyFiltersPaused}
               aria-describedby={bodyFiltersPaused
                 ? 'search-radius-disabled'
-                : Object.keys(viewState.bodyFilters).length > 0
+                : radiusCapped
                   ? 'search-radius-capped'
                   : undefined}
               onchange={(event) =>
@@ -2103,7 +2117,7 @@
                 <option
                   value={option}
                   disabled={!bodyFiltersPaused &&
-                    Object.keys(viewState.bodyFilters).length > 0 &&
+                    radiusCapped &&
                     option > FILTERED_SEARCH_RADIUS_CAP_LY}
                   >{option.toLocaleString('en-US')} LY</option
                 >
@@ -2112,13 +2126,15 @@
           </label>
           {#if bodyFiltersPaused}
             <p id="search-radius-disabled" class="radius-hint">
-              Search radius works when you search near a system with Any
-              selected.
+              Search radius works when you search near a system.
             </p>
-          {:else if Object.keys(viewState.bodyFilters).length > 0}
+          {:else if radiusCapped}
             <p id="search-radius-capped" class="radius-hint">
-              Body filters limit the search to {FILTERED_SEARCH_RADIUS_CAP_LY} LY{radiusCappedByFilters
-                ? `; your ${viewState.radius.toLocaleString('en-US')} LY radius resumes when the filters are cleared`
+              {Object.keys(viewState.bodyFilters).length > 0
+                ? 'Body filters limit'
+                : 'A colony type limits'} the search to {FILTERED_SEARCH_RADIUS_CAP_LY}
+              LY{radiusCappedByFilters
+                ? `; your ${viewState.radius.toLocaleString('en-US')} LY radius resumes when ${Object.keys(viewState.bodyFilters).length > 0 ? 'the filters are cleared' : 'Any is chosen again'}`
                 : ''}.
             </p>
           {/if}

@@ -658,8 +658,9 @@ describe('Explore load and interaction work budget', () => {
         rendererScenes: next.rendererScenes + 1,
         loads: next.loads + 1,
       });
-      vi.mocked(api.getArchetypeRankings).mockRejectedValueOnce(
-        new api.ApiError(503, '/api/archetypes/rankings', {
+      // Near the anchor, a type is searched by the same nearest-first route.
+      vi.mocked(api.searchExploreSystems).mockRejectedValueOnce(
+        new api.ApiError(503, '/api/local/search', {
           detail: 'Fixture temporarily unavailable',
         }),
       );
@@ -687,8 +688,9 @@ describe('Explore load and interaction work budget', () => {
         api: {
           ...idleApi,
           autocomplete: 1,
-          finder: 6,
-          rankings: 1,
+          // The type picked near the anchor is one more search, not a ranking.
+          finder: 7,
+          rankings: 0,
           // The same local-view flight as above; the archetype steps in this
           // path add no catalogue or density requests of their own.
           catalogue: 13,

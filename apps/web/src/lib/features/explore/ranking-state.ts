@@ -27,6 +27,7 @@ import {
 import {
   DEFAULT_REACH,
   DEFAULT_SEARCH_RADIUS,
+  effectiveSearchRadius,
   normalizeReach,
   normalizeSearchRadius,
   type Reach,
@@ -527,11 +528,43 @@ export function selectFinderRequest(
         };
     return { kind: 'any', request, pageSize: state.pageSize };
   }
+  const minScore = minimumScoreForTier(
+    state.minimumTier ?? DEFAULT_MINIMUM_TIER,
+  );
+  const coords = anchoredCoordinates(anchor);
+  if (coords) {
+    // A colony type near a system: the nearest-first search, kept to the
+    // systems whose fit for the type reaches the minimum tier.
+    return {
+      kind: 'any',
+      request: {
+        reference_coords: coords,
+        filters: {
+          distance: {
+            min: 0,
+            max: effectiveSearchRadius(
+              normalizeSearchRadius(options.radius),
+              {},
+              true,
+            ),
+          },
+          economy: 'any',
+        },
+        sort_by: 'distance',
+        size: window.limit,
+        from: window.offset,
+        reach_ly: reach,
+        archetype: state.archetype,
+        min_score: minScore,
+      },
+      pageSize: state.pageSize,
+    };
+  }
   return {
     kind: 'rankings',
     request: {
       archetype: state.archetype,
-      min_score: minimumScoreForTier(state.minimumTier ?? DEFAULT_MINIMUM_TIER),
+      min_score: minScore,
       page_size: state.pageSize,
       offset: state.offset,
       reach_ly: reach,

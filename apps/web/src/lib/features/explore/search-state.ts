@@ -54,11 +54,16 @@ function boundedNear(value: unknown): Id64 | null {
  */
 export const FILTERED_SEARCH_RADIUS_CAP_LY: SearchRadius = 500;
 
+/**
+ * A picked colony type narrows the nearest-first search the same way body
+ * filters do, so the API gives it the same 500 LY cap.
+ */
 export function effectiveSearchRadius(
   radius: SearchRadius,
   bodyFilters: BodyFilterValues,
+  typePicked = false,
 ): SearchRadius {
-  return Object.keys(bodyFilters).length
+  return typePicked || Object.keys(bodyFilters).length
     ? (Math.min(radius, FILTERED_SEARCH_RADIUS_CAP_LY) as SearchRadius)
     : radius;
 }

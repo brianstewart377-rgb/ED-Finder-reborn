@@ -44,6 +44,9 @@ from edfinder_api.helpers import (
 from edfinder_api.claim_rule import apply_claim_notes, claim_notes
 from edfinder_api.reach_rule import checked_reach
 from edfinder_api.ranking.profile import (
+    ACCEPTED_ARCHETYPE_SCORE_FLOORS,
+    ARCHETYPE_KEYS,
+    ARCHETYPE_SCORE_FLOOR_DEFAULT,
     LOCAL_SEARCH_ANCHORED_RADIUS_REJECTION_REASON,
     LOCAL_SEARCH_FILTERED_ANCHORED_RADIUS_CAP_LY,
     LOCAL_SEARCH_FROM_MIN,
@@ -868,6 +871,8 @@ def _validate_v3_query_bound(
     ctx: LocalSearchContext,
     hard_filters: dict[str, Any],
     sort_mode: str,
+    *,
+    picked: bool = False,
 ) -> None:
     """Enforce the two bounded Any-mode access paths from the F2d design."""
     if ctx.galaxy_wide:
@@ -883,8 +888,10 @@ def _validate_v3_query_bound(
     # max_distance_ly is the anchored KNN path's intrinsic radius, not a hard
     # filter for access-path classification. Every other predicate is.
     classification_filters = set(hard_filters) - {'max_distance_ly'}
+    # A picked type's score floor narrows the nearest-first walk just as a
+    # hard filter does, so it takes the same radius cap.
     unfiltered_nearest_first = (
-        sort_mode == SORT_DISTANCE and not classification_filters
+        sort_mode == SORT_DISTANCE and not classification_filters and not picked
     )
     if (
         not unfiltered_nearest_first
@@ -985,6 +992,18 @@ def _build_v3_system_record(row: asyncpg.Record, reference_coords: tuple[float, 
         'galaxy_region':     row.get('region_name'),
         'tags':              [],
         'source':            'v3_app',
+        **_selected_fit(row),
+    }
+
+
+def _selected_fit(row: asyncpg.Record) -> dict:
+    """The picked type's score and stored tier, when the search named one."""
+    score = row.get('selected_archetype_score')
+    if score is None:
+        return {}
+    return {
+        'selected_archetype_score': int(score),
+        'selected_archetype_tier': row.get('selected_archetype_tier'),
     }
 
 
@@ -999,6 +1018,44 @@ def reach_from_body(body: dict) -> int | None:
         return checked_reach(value)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+def picked_from_body(body: dict) -> tuple[str | None, int | None]:
+    """The colony type asked for near a system, and its score floor.
+
+    ``(None, None)`` when the request names no type (or "any"). A type is
+    only accepted with a system to search near, nearest first, within the
+    filtered radius cap: a type galaxy-wide is ranked by
+    ``GET /api/archetypes/rankings``.
+    """
+    archetype = body.get('archetype')
+    min_score = body.get('min_score')
+    if archetype in (None, '', 'any'):
+        if min_score is not None:
+            raise HTTPException(422, 'min_score needs an archetype.')
+        return None, None
+    if archetype not in ARCHETYPE_KEYS:
+        raise HTTPException(
+            422, f"Unknown archetype {archetype!r}. Valid values: {sorted(ARCHETYPE_KEYS)}",
+        )
+    if min_score is None:
+        min_score = ARCHETYPE_SCORE_FLOOR_DEFAULT
+    if isinstance(min_score, bool) or min_score not in ACCEPTED_ARCHETYPE_SCORE_FLOORS:
+        raise HTTPException(
+            422, f'min_score must be one of {list(ACCEPTED_ARCHETYPE_SCORE_FLOORS)}',
+        )
+    if body.get('galaxy_wide') or not body.get('reference_coords'):
+        raise HTTPException(
+            422,
+            'archetype: a colony type needs a system to search near here; '
+            'rank a type galaxy-wide with GET /api/archetypes/rankings.',
+        )
+    sort_by = (body.get('sort_by') or 'development').strip().lower()
+    if _SORT_BY_TO_MODE.get(sort_by) != SORT_DISTANCE:
+        raise HTTPException(
+            422, 'archetype: a colony type near a system is sorted by distance (sort_by="distance").',
+        )
+    return str(archetype), int(min_score)
 
 
 def prepare_local_search_v3(
@@ -1068,7 +1125,8 @@ def prepare_local_search_v3(
     sort_mode = _SORT_BY_TO_MODE[sort_by]
 
     hard_filters = _v3_hard_filters(ctx)
-    _validate_v3_query_bound(body, ctx, hard_filters, sort_mode)
+    picked, _ = picked_from_body(body)
+    _validate_v3_query_bound(body, ctx, hard_filters, sort_mode, picked=picked is not None)
     reach_from_body(body)
     # Galaxy-wide mode is deliberately unanchored. A caller may still send
     # display/reference coordinates, but letting those reach the builder would
@@ -1095,11 +1153,13 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
     t0 = time.time()
     ctx, sort_mode, hard_filters, reference_coords = prepare_local_search_v3(body)
     reach_ly = reach_from_body(body)
+    picked_archetype, min_score = picked_from_body(body)
     picked_economy = None
 
     sql, params = build_ranked_query(
         PROFILE_SPEC,
-        picked_archetype=None,
+        picked_archetype=picked_archetype,
+        min_score=min_score,
         picked_economy=picked_economy,
         hard_filters=hard_filters,
         reference_coords=reference_coords,
@@ -1113,7 +1173,8 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
     )
     count_sql, count_params = build_count_query(
         PROFILE_SPEC,
-        picked_archetype=None,
+        picked_archetype=picked_archetype,
+        min_score=min_score,
         picked_economy=picked_economy,
         hard_filters=hard_filters,
         reference_coords=reference_coords,
@@ -1148,6 +1209,9 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         raise HTTPException(503, 'Finder search is unavailable') from exc
 
     results = [_build_v3_system_record(row, reference_coords) for row in rows]
+    if picked_archetype is not None:
+        for result in results:
+            result['selected_archetype'] = picked_archetype
     apply_claim_notes(results, notes)
     elapsed = round((time.time() - t0) * 1000)
     qualifying = int(qualifying) if qualifying is not None else 0

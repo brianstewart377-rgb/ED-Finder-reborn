@@ -1325,3 +1325,61 @@ describe('Any ranking score is the overall potential', () => {
     });
   });
 });
+
+describe('A type near a system ranks rows by that type', () => {
+  const row = {
+    id64: '9' as unknown as number,
+    name: 'Near',
+    distance: 12.5,
+    archetype_score: 70,
+    archetype_tier: 'B' as const,
+    overall_development_potential: 70,
+    selected_archetype: 'mining_hub',
+    selected_archetype_score: 91,
+    selected_archetype_tier: 'S' as const,
+  };
+  const request = {
+    reference_coords: { x: 0, y: 0, z: 0 },
+    filters: { distance: { min: 0, max: 250 } },
+    sort_by: 'distance',
+    size: 24,
+    from: 0,
+    archetype: 'mining_hub',
+    min_score: 88 as const,
+  };
+
+  it('carries the type score and tier as the selected fit', () => {
+    const page = normalizeAnySearchResponse(
+      { results: [row], total: 1, ranking: provenance },
+      request,
+      { id64: '1' as never, name: 'Anchor' },
+    );
+    expect(page.results[0]).toMatchObject({
+      ranking_score: 91,
+      ranking_tier: 'S',
+      score_kind: 'selected_fit',
+      selected_archetype: 'mining_hub',
+      // The overall potential is still there for the row's own facts.
+      overall_development_potential: 70,
+      distance: 12.5,
+    });
+  });
+
+  it('falls back to the overall potential when the fit is incomplete or unknown', () => {
+    for (const broken of [
+      { selected_archetype: 'not_a_type' },
+      { selected_archetype_score: null },
+      { selected_archetype_tier: null },
+    ]) {
+      const page = normalizeAnySearchResponse(
+        { results: [{ ...row, ...broken }], total: 1, ranking: provenance },
+        request,
+      );
+      expect(page.results[0]).toMatchObject({
+        ranking_score: 70,
+        score_kind: 'overall_potential',
+        selected_archetype: null,
+      });
+    }
+  });
+});
