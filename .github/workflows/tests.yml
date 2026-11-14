@@ -105,6 +105,11 @@ jobs:
       - name: Test the map recorder's own logic (no browser needed)
         working-directory: scripts/map-recorder
         run: node --test
+      # The trial page's tests check our colour names against the Cosmos
+      # library's own, so the library has to be there. No install scripts run.
+      - name: Install the Almanac trial page's packages
+        working-directory: scripts/almanac-trial
+        run: npm ci --ignore-scripts
       - name: Test the Almanac trial page's own logic (no browser needed)
         working-directory: scripts/almanac-trial
         run: node --test
