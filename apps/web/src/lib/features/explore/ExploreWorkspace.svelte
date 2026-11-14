@@ -301,10 +301,14 @@
   }));
   const suggestionRows = $derived(suggestions.data?.results ?? []);
 
-  // Body filters join every search near a system, with or without a type.
-  const bodyFiltersPaused = $derived(!anchor);
+  // Body filters join every search: near a system, and galaxy-wide, where
+  // they thin the window of the best 10,000. The radius needs a system.
+  const radiusDisabled = $derived(!anchor);
+  const galaxyFiltered = $derived(
+    !anchor && Object.keys(viewState.bodyFilters).length > 0,
+  );
   const radiusCappedByFilters = $derived(
-    !bodyFiltersPaused && effectiveRadius !== viewState.radius,
+    !radiusDisabled && effectiveRadius !== viewState.radius,
   );
   const resultsEnabled = $derived(
     viewState.rankingUrlReady &&
@@ -319,13 +323,10 @@
         enabled: FINDER_F4_ENABLED,
         radius: effectiveRadius,
         reach: viewState.reach,
+        filtered: Object.keys(viewState.bodyFilters).length > 0,
       },
     );
-    if (
-      selected.kind === 'any' &&
-      !bodyFiltersPaused &&
-      Object.keys(viewState.bodyFilters).length
-    )
+    if (selected.kind === 'any' && Object.keys(viewState.bodyFilters).length)
       return {
         ...selected,
         request: { ...selected.request, body_filters: viewState.bodyFilters },
@@ -472,14 +473,17 @@
   const activeArchetypeLabel = $derived(
     archetypeLabel(viewState.rankingState.archetype),
   );
+  const galaxyFilteredNote = $derived(
+    galaxyFiltered ? ' · body filters within the best 10,000' : '',
+  );
   const resultsScope = $derived(
     typeNearAnchor && anchor
       ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} · ${activeArchetypeLabel} fit, minimum tier ${viewState.rankingState.minimumTier} · sorted by distance`
       : viewState.rankingState.archetype !== 'any'
-        ? `Galaxy-wide · ranked by ${activeArchetypeLabel} fit · minimum tier ${viewState.rankingState.minimumTier}`
+        ? `Galaxy-wide · ranked by ${activeArchetypeLabel} fit · minimum tier ${viewState.rankingState.minimumTier}${galaxyFilteredNote}`
         : anchor
           ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} · sorted by distance`
-          : 'Galaxy-wide · best colony potential',
+          : `Galaxy-wide · best colony potential${galaxyFilteredNote}`,
   );
   const rankingDataNotReady = $derived.by(() => {
     const error = results.error;
@@ -676,7 +680,7 @@
 
   function commitRadius(value: number): void {
     const nextRadius = normalizeSearchRadius(value);
-    if (bodyFiltersPaused || nextRadius === viewState.radius) return;
+    if (radiusDisabled || nextRadius === viewState.radius) return;
     void commitSearchInputs(viewState.bodyFilters, nextRadius);
   }
 
@@ -695,9 +699,9 @@
     value: BodyFilterValues,
     nextRadius: SearchRadius,
     nextReach: Reach = viewState.reach,
-    // The reach applies in every mode, so a change of reach always starts
-    // the results again from the first page, even while body filters wait.
-    resultsChange = !bodyFiltersPaused,
+    // Filters, radius and reach all apply to the search, so any change
+    // starts the results again from the first page.
+    resultsChange = true,
   ): Promise<void> {
     viewState.focusedAnchorRevision = viewState.anchorSelectionRevision;
     const committed = normalizeBodyFilters(value);
@@ -735,15 +739,15 @@
         anchor,
         {
           enabled: FINDER_F4_ENABLED,
-          radius: effectiveSearchRadius(nextRadius, committed),
+          radius: effectiveSearchRadius(nextRadius, committed, typeNearAnchor),
           reach: nextReach,
+          filtered: Object.keys(committed).length > 0,
         },
       );
       if (next.kind === 'any') {
-        const request =
-          !bodyFiltersPaused && Object.keys(committed).length
-            ? { ...next.request, body_filters: committed }
-            : next.request;
+        const request = Object.keys(committed).length
+          ? { ...next.request, body_filters: committed }
+          : next.request;
         await queryClient.invalidateQueries({
           queryKey: queryKeys.explore(
             request,
@@ -1999,8 +2003,6 @@
       {#snippet bodyFilterTools()}
         <BodyFilters
           value={viewState.bodyFilters}
-          disabled={bodyFiltersPaused}
-          paused={bodyFiltersPaused}
           onapply={(value) => void commitBodyFilters(value)}
           onremove={removeBodyFilter}
           onclear={() => void commitBodyFilters({})}
@@ -2104,8 +2106,8 @@
             <select
               id="search-radius"
               value={effectiveRadius}
-              disabled={bodyFiltersPaused}
-              aria-describedby={bodyFiltersPaused
+              disabled={radiusDisabled}
+              aria-describedby={radiusDisabled
                 ? 'search-radius-disabled'
                 : radiusCapped
                   ? 'search-radius-capped'
@@ -2116,7 +2118,7 @@
               {#each SEARCH_RADIUS_OPTIONS as option (option)}
                 <option
                   value={option}
-                  disabled={!bodyFiltersPaused &&
+                  disabled={!radiusDisabled &&
                     radiusCapped &&
                     option > FILTERED_SEARCH_RADIUS_CAP_LY}
                   >{option.toLocaleString('en-US')} LY</option
@@ -2124,7 +2126,7 @@
               {/each}
             </select>
           </label>
-          {#if bodyFiltersPaused}
+          {#if radiusDisabled}
             <p id="search-radius-disabled" class="radius-hint">
               Search radius works when you search near a system.
             </p>

@@ -493,7 +493,13 @@ export function legacyExploreRequest(
 export function selectFinderRequest(
   input: Partial<FinderRankingState> | null | undefined,
   anchor: AnchorCoordinates | null | undefined,
-  options: { enabled: boolean; radius?: SearchRadius; reach?: Reach },
+  options: {
+    enabled: boolean;
+    radius?: SearchRadius;
+    reach?: Reach;
+    /** Body filters are set; they go with the request the caller sends. */
+    filtered?: boolean;
+  },
 ): FinderRequest {
   const reach = normalizeReach(options.reach);
   if (!options.enabled) {
@@ -551,6 +557,23 @@ export function selectFinderRequest(
           economy: 'any',
         },
         sort_by: 'distance',
+        size: window.limit,
+        from: window.offset,
+        reach_ly: reach,
+        archetype: state.archetype,
+        min_score: minScore,
+      },
+      pageSize: state.pageSize,
+    };
+  }
+  if (options.filtered) {
+    // A type galaxy-wide with body filters: the type's window of the best
+    // 10,000, thinned by the filters, through the search route.
+    return {
+      kind: 'any',
+      request: {
+        galaxy_wide: true,
+        sort_by: 'development',
         size: window.limit,
         from: window.offset,
         reach_ly: reach,

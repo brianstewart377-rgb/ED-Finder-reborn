@@ -116,15 +116,16 @@ def test_a_type_near_a_system_is_only_ever_nearest_first():
             PROFILE_SPEC, picked_archetype=PICKED, picked_economy=None,
             hard_filters={"max_distance_ly": RADIUS}, reference_coords=ANCHOR,
             sort=SORT_DISTANCE, min_score=60)
-    # Galaxy-wide, the type keeps its own window and still refuses filters.
-    with pytest.raises(ValueError, match="hard filters"):
+    # Galaxy-wide, the type keeps its own window; the overall-potential floor
+    # means nothing there.
+    with pytest.raises(ValueError, match="does not accept"):
         build_ranked_query(
             PROFILE_SPEC, picked_archetype=PICKED, picked_economy=None,
-            hard_filters={"main_star_class_in": ["K"]}, reference_coords=None,
+            hard_filters={"min_development_score": 50}, reference_coords=None,
             limit=50, offset=0, min_score=60)
 
 
-def test_the_request_takes_a_type_only_near_a_system():
+def test_the_request_takes_a_type_near_a_system_or_galaxy_wide():
     from edfinder_api.local_search import picked_from_body, prepare_local_search_v3
     from edfinder_api.models import LocalSearchRequest
 
@@ -138,13 +139,15 @@ def test_the_request_takes_a_type_only_near_a_system():
     assert picked_from_body({**anchored, "archetype": "any"}) == (None, None)
     assert picked_from_body(anchored) == (None, None)
     prepare_local_search_v3({**anchored, "archetype": PICKED, "min_score": 76})
+    # Galaxy-wide a type is ranked by its fit.
+    assert picked_from_body({"galaxy_wide": True, "archetype": PICKED}) == (PICKED, 60)
 
     refused = [
         {**anchored, "archetype": "nonsense"},
         {**anchored, "archetype": PICKED, "min_score": 70},
         {**anchored, "min_score": 60},
         {**anchored, "archetype": PICKED, "sort_by": "development"},
-        {"galaxy_wide": True, "archetype": PICKED},
+        {"galaxy_wide": True, "archetype": PICKED, "sort_by": "distance"},
         {"archetype": PICKED, "sort_by": "distance"},
     ]
     for body in refused:

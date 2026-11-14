@@ -4606,10 +4606,12 @@ describe.each([false, true])(
         expect(api.getSystem).not.toHaveBeenCalled();
         expect(api.searchExploreSystems).not.toHaveBeenCalled();
         expect(screen.getByText('Earth-like ≥ 1')).toBeInTheDocument();
-        expect(screen.getByText('Paused')).toBeInTheDocument();
+        // Filters are never paused now; with no anchor and no ranking asked
+        // for, there is simply no search to apply them to yet.
+        expect(screen.queryByText('Paused')).not.toBeInTheDocument();
         expect(
           screen.getByRole('button', { name: 'Body filters' }),
-        ).toBeDisabled();
+        ).toBeEnabled();
       },
     );
 
@@ -4635,7 +4637,7 @@ describe.each([false, true])(
         expect(mockedPage.url.searchParams.has('near')).toBe(false);
         expect(mockedPage.url.searchParams.get('bodies')).toBe('elw_count:1-');
         expect(api.searchExploreSystems).not.toHaveBeenCalled();
-        expect(screen.getByText('Paused')).toBeInTheDocument();
+        expect(screen.queryByText('Paused')).not.toBeInTheDocument();
       },
     );
 
@@ -4675,7 +4677,7 @@ describe.each([false, true])(
       expect(mockedPage.state.finderRequested).not.toBe(true);
       expect(api.searchExploreSystems).not.toHaveBeenCalled();
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
-      expect(screen.getByText('Paused')).toBeInTheDocument();
+      expect(screen.queryByText('Paused')).not.toBeInTheDocument();
     });
 
     it('accepts Sol as a real origin anchor', async () => {
@@ -4819,13 +4821,10 @@ describe.each([false, true])(
       ).toHaveTextContent('Earth-like ≥ 2');
     });
 
-    it('keeps body-only links paused with no request, and preserves filters when clearing the anchor', async () => {
+    it('runs no search from a body-only link, and keeps the filters when clearing the anchor', async () => {
       const history = renderEnabled('bodies=elw_count:1-');
       const trigger = screen.getByRole('button', { name: 'Body filters' });
-      expect(trigger).toBeDisabled();
-      expect(trigger).toHaveAccessibleDescription(
-        'Body filters work when you search near a system.',
-      );
+      expect(trigger).toBeEnabled();
       expect(api.searchExploreSystems).not.toHaveBeenCalled();
       history.restore(`near=${anchorA.id64}&bodies=elw_count:1-`, {
         anchor: anchorA,
@@ -4834,10 +4833,12 @@ describe.each([false, true])(
       await fireEvent.click(
         screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
       );
-      await waitFor(() => expect(trigger).toBeDisabled());
-      expect(mockedPage.url.searchParams.has('near')).toBe(false);
+      await waitFor(() =>
+        expect(mockedPage.url.searchParams.has('near')).toBe(false),
+      );
       expect(mockedPage.url.searchParams.get('bodies')).toBe('elw_count:1-');
-      expect(screen.getByText('Paused')).toBeInTheDocument();
+      expect(trigger).toBeEnabled();
+      expect(screen.queryByText('Paused')).not.toBeInTheDocument();
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
     });
   },
@@ -4952,27 +4953,71 @@ describe('Explore body filters in archetype mode', () => {
     expect(mockedPage.url.searchParams.get('radius')).toBe('1000');
   });
 
-  it('keeps a ranking on its page when a paused chip is removed or cleared', async () => {
+  it('thins a type ranking galaxy-wide with body filters and goes back to the ranking once they are cleared', async () => {
     renderEnabled(
       'archetype=manufacturing_hub&page_size=1&offset=1&bodies=elw_count:1-,ww_count:2-',
       { anchor: null },
     );
     await screen.findByText('Ranked 2');
-    expect(screen.getAllByText('Paused')).toHaveLength(2);
+    expect(screen.queryByText('Paused')).not.toBeInTheDocument();
+    expect(document.getElementById('results-scope')).toHaveTextContent(
+      'Galaxy-wide · ranked by Manufacturing Hub fit · minimum tier B · body filters within the best 10,000',
+    );
+    expect(vi.mocked(api.searchExploreSystems).mock.calls[0][0]).toEqual({
+      galaxy_wide: true,
+      sort_by: 'development',
+      size: 1,
+      from: 1,
+      reach_ly: 250,
+      archetype: 'manufacturing_hub',
+      min_score: 60,
+      body_filters: { elw_count: { min: 1 }, ww_count: { min: 2 } },
+    });
+    expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     await fireEvent.click(
       screen.getByRole('button', { name: 'Remove Earth-like filter' }),
     );
     await waitFor(() =>
       expect(mockedPage.url.searchParams.get('bodies')).toBe('ww_count:2-'),
     );
-    expect(mockedPage.url.searchParams.get('offset')).toBe('1');
+    // A change of filters starts the results again from the first page.
+    expect(mockedPage.url.searchParams.has('offset')).toBe(false);
+    await waitFor(() =>
+      expect(
+        vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
+      ).toMatchObject({ from: 0, body_filters: { ww_count: { min: 2 } } }),
+    );
     await fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     await waitFor(() =>
       expect(mockedPage.url.searchParams.has('bodies')).toBe(false),
     );
-    expect(mockedPage.url.searchParams.get('offset')).toBe('1');
-    expect(screen.getByText('Ranked 2')).toBeInTheDocument();
-    expect(api.searchExploreSystems).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(api.getArchetypeRankings).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          archetype: 'manufacturing_hub',
+          offset: 0,
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it('thins the galaxy-wide Any list with body filters', async () => {
+    renderEnabled('page_size=1&bodies=elw_count:1-', { anchor: null });
+    await screen.findByText('Ranked 1');
+    expect(document.getElementById('results-scope')).toHaveTextContent(
+      'Galaxy-wide · best colony potential · body filters within the best 10,000',
+    );
+    expect(vi.mocked(api.searchExploreSystems).mock.calls[0][0]).toEqual({
+      galaxy_wide: true,
+      sort_by: 'development',
+      size: 1,
+      from: 0,
+      reach_ly: 250,
+      body_filters: { elw_count: { min: 1 } },
+    });
+    expect(screen.getByRole('button', { name: 'Body filters' })).toBeEnabled();
+    expect(screen.getByRole('combobox', { name: 'Within' })).toBeDisabled();
   });
 
   it('applies body filters to a type near a system and keeps them on Any', async () => {

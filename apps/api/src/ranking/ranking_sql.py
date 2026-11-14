@@ -195,7 +195,10 @@ def _no_pick_filters(
     hard_filters: dict[str, Any],
     reference_coords: tuple[float, float, float] | None,
     omit_max_distance: bool = False,
+    search: str = "s",
 ) -> list[str]:
+    """Hard-filter clauses over the search row ``search`` (alias) and the
+    summary row ``sum``."""
     clauses: list[str] = []
     for key, value in hard_filters.items():
         if key not in HARD_FILTER_KEYS:
@@ -203,19 +206,19 @@ def _no_pick_filters(
         count_filter = _count_filter_column(key)
         if count_filter:
             column, operator = count_filter
-            clauses.append(f"s.{column} {operator} {builder.add(int(value))}")
+            clauses.append(f"{search}.{column} {operator} {builder.add(int(value))}")
         elif key in {"has_rings", "has_biologicals", "has_geologicals"}:
-            clauses.append(f"s.{key} = {builder.add(bool(value))}")
+            clauses.append(f"{search}.{key} = {builder.add(bool(value))}")
         elif key == "main_star_class_in":
             values = [builder.add(item) for item in value]
             if values:
-                clauses.append(f"s.main_star_class IN ({', '.join(values)})")
+                clauses.append(f"{search}.main_star_class IN ({', '.join(values)})")
         elif key == "min_development_score":
             clauses.append(
                 f"sum.best_colony_potential >= {builder.add(int(value))}"
             )
         elif key == "galaxy_region":
-            clauses.append(f"s.galaxy_region_id = {builder.add(int(value))}")
+            clauses.append(f"{search}.galaxy_region_id = {builder.add(int(value))}")
         elif key == "max_distance_ly":
             if reference_coords is None or omit_max_distance:
                 continue
@@ -264,6 +267,7 @@ def _picked_page_query(
     offset: int,
     hide_claimed: bool = False,
     reach_ly: int | None = None,
+    hard_filters: dict[str, Any] | None = None,
 ) -> str:
     columns = _picked_columns(picked_archetype)
     floor = _floor_literal(min_score)
@@ -271,6 +275,17 @@ def _picked_page_query(
     tier = columns["tier"]
     claim_filter = _and_lines(
         _rules("ar.system_id64", hide_claimed, reach_ly), "      "
+    )
+    # Body filters thin the type's window of the best 10,000; they never
+    # reach the window walk itself.
+    member_filters = _and_lines(
+        _no_pick_filters(
+            builder,
+            hard_filters=hard_filters or {},
+            reference_coords=None,
+            search="member",
+        ),
+        "      ",
     )
     confidence = columns["confidence"]
     weighted = columns["weighted_key"]
@@ -308,6 +323,7 @@ def _picked_page_query(
         "    FROM archetype_window aw\n"
         "    JOIN v3_app.system_search member ON member.system_id64 = aw.system_id64\n"
         f"    WHERE {_pinned('member')}\n"
+        f"{member_filters}"
         f"    ORDER BY {order}\n"
         f"    LIMIT {limit_param} OFFSET {offset_param}\n"
         "), ranked_page AS (\n"
@@ -342,6 +358,8 @@ def _picked_count_query(
     min_score: int | None,
     hide_claimed: bool = False,
     reach_ly: int | None = None,
+    builder: _ParamBuilder | None = None,
+    hard_filters: dict[str, Any] | None = None,
 ) -> str:
     columns = _picked_columns(picked_archetype)
     floor = _floor_literal(min_score)
@@ -350,6 +368,14 @@ def _picked_count_query(
     claim_filter = _and_lines(
         _rules("ar.system_id64", hide_claimed, reach_ly), "          "
     )
+    filters = _no_pick_filters(
+        builder or _ParamBuilder(),
+        hard_filters=hard_filters or {},
+        reference_coords=None,
+    )
+    # Filtered, the count is exact over the same 10,000-row window the page
+    # thins; unfiltered, the window walks to the sentinel as before.
+    window = RANKING_WINDOW_LIMIT if filters else RANKING_COUNT_SENTINEL
     # The count is taken over the same archetype window the page ranks (the
     # sentinel instead of the 10,000-row window), joined to search exactly as
     # the page joins it. The window walks the matching partial index in its
@@ -365,10 +391,11 @@ def _picked_count_query(
         f"          AND ar.{score} >= {floor}\n"
         f"{claim_filter}"
         f"        ORDER BY ar.{weighted} DESC, ar.system_id64 ASC\n"
-        f"        LIMIT {RANKING_COUNT_SENTINEL}\n"
+        f"        LIMIT {window}\n"
         "    ) aw\n"
         "    JOIN v3_app.system_search s ON s.system_id64 = aw.system_id64\n"
         f"    WHERE {_pinned('s')}\n"
+        f"{_and_lines(filters, '      ')}"
         ") t"
     )
 
@@ -686,7 +713,10 @@ def _no_pick_page(
         f"\n      AND {clause}"
         for clause in _rules("sum.system_id64", hide_claimed, reach_ly)
     )
-    if not filters and reference_coords is None:
+    if reference_coords is None:
+        # Galaxy-wide, filters thin the window of the best 10,000 systems:
+        # the walk is the same with or without them.
+        window_filters = "".join(f"\n  AND {clause}" for clause in filters)
         return (
             "WITH summary_window AS (\n"
             "    SELECT sum.*\n"
@@ -699,7 +729,7 @@ def _no_pick_page(
             f"{_NO_PICK_COLUMNS}"
             "FROM summary_window sum\n"
             "JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64\n"
-            f"WHERE {_pinned('s')}\n"
+            f"WHERE {_pinned('s')}{window_filters}\n"
             "ORDER BY sum.weighted_potential DESC NULLS LAST, s.system_id64 ASC\n"
             f"LIMIT {limit_param} OFFSET {offset_param}"
         )
@@ -779,6 +809,22 @@ def _no_pick_radius_score_page(
     )
 
 
+# Filters a picked type's galaxy-wide window can take: the ones over the
+# search row. The window is the type's own ranking, so the overall-potential
+# floor has no meaning there, and without a system there is no distance.
+_PICKED_WINDOW_REFUSED_FILTERS: Final[frozenset[str]] = frozenset(
+    {"min_development_score", "max_distance_ly", "min_distance_ly"}
+)
+
+
+def _check_picked_window_filters(hard_filters: dict[str, Any]) -> None:
+    refused = sorted(set(hard_filters) & _PICKED_WINDOW_REFUSED_FILTERS)
+    if refused:
+        raise ValueError(
+            "a picked type galaxy-wide does not accept " + ", ".join(refused)
+        )
+
+
 def _picked_near(
     reference_coords: tuple[float, float, float] | None,
     hard_filters: dict[str, Any],
@@ -845,8 +891,7 @@ def build_ranked_query(
             reach_ly=reach_ly,
         )
     elif picked_archetype is not None:
-        if hard_filters:
-            raise ValueError("picked archetype ranking does not accept hard filters")
+        _check_picked_window_filters(hard_filters)
         sql = _picked_page_query(
             builder,
             picked_archetype=picked_archetype,
@@ -855,6 +900,7 @@ def build_ranked_query(
             offset=offset,
             hide_claimed=hide_claimed,
             reach_ly=reach_ly,
+            hard_filters=hard_filters,
         )
     elif (
         sort == SORT_DISTANCE
@@ -927,13 +973,14 @@ def build_count_query(
         )
         return sql, builder.params
     if picked_archetype is not None:
-        if hard_filters:
-            raise ValueError("picked archetype ranking does not accept hard filters")
+        _check_picked_window_filters(hard_filters)
         sql = _picked_count_query(
             picked_archetype=picked_archetype,
             min_score=min_score,
             hide_claimed=hide_claimed,
             reach_ly=reach_ly,
+            builder=builder,
+            hard_filters=hard_filters,
         )
         return sql, builder.params
 
@@ -966,6 +1013,26 @@ def build_count_query(
         f"\n          AND {clause}"
         for clause in _rules("sum.system_id64", hide_claimed, reach_ly)
     )
+    if reference_coords is None and filters:
+        # Filtered galaxy-wide: exact over the 10,000-row window the page
+        # thins, so it can never be cut off.
+        sql = (
+            "SELECT count(*) FROM (\n"
+            "    SELECT 1\n"
+            "    FROM (\n"
+            "        SELECT sum.system_id64, sum.best_colony_potential\n"
+            "        FROM v3_app.system_archetype_summary sum\n"
+            f"        WHERE {_pinned('sum')}{window_claim_filter}\n"
+            "        ORDER BY sum.weighted_potential DESC NULLS LAST, "
+            "sum.system_id64 ASC\n"
+            f"        LIMIT {RANKING_WINDOW_LIMIT}\n"
+            "    ) sum\n"
+            "    JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64\n"
+            f"    WHERE {_pinned('s')}\n"
+            f"{_and_lines(filters, '      ')}"
+            ") bounded"
+        )
+        return sql, builder.params
     if sentinel is not None and not filters:
         # The galaxy-wide count is taken over the same summary window the
         # galaxy page ranks (the sentinel instead of the 10,000-row window),

@@ -55,9 +55,10 @@ SHAPES: dict[str, tuple[dict, str, str, bool]] = {
     "galaxy_wide": (
         dict(picked_archetype=None, hard_filters={}, reference_coords=None),
         "sum", "sum", True),
+    # Filters thin the window, so the rule is inside the window walk.
     "galaxy_wide_filtered": (
         dict(picked_archetype=None, hard_filters={"main_star_class_in": ["K"]},
-             reference_coords=None), "s", "s", True),
+             reference_coords=None), "sum", "sum", True),
     "radius_by_score": (
         dict(picked_archetype=None, hard_filters=dict(RADIUS), reference_coords=ANCHOR,
              sort=SORT_SCORE), "candidates", "s", True),
@@ -291,6 +292,12 @@ def _full_order(connection, shape: str) -> list[int]:
     return [int(row[0]) for row in connection.execute(statement).fetchall()]
 
 
+def _star_k(connection) -> set[int]:
+    return {int(row[0]) for row in connection.execute(
+        "SELECT system_id64 FROM v3_app.system_search WHERE main_star_class = 'K'"
+    ).fetchall()}
+
+
 @pytest.mark.db
 @pytest.mark.parametrize("shape", SHAPES)
 def test_every_shape_returns_the_best_systems_that_can_still_be_claimed(finder_database, shape):
@@ -303,7 +310,21 @@ def test_every_shape_returns_the_best_systems_that_can_still_be_claimed(finder_d
     assert sum(hidden(i) for i in before) > 20, "the shape must meet hidden systems"
     assert {expected_status(i) for i in after} == {"free", "claim_ended_unknown"}
 
-    if shape in UNANCHORED:
+    if shape == "galaxy_wide_filtered":
+        # Filters thin the window of the best 10,000 claimable systems; the
+        # window itself is refilled past the hidden ones, as unfiltered.
+        everything = _full_order(connection, "galaxy_wide")
+        visible = [i for i in everything if not hidden(i)]
+        star_k = _star_k(connection)
+        expected = {
+            False: [i for i in everything[:RANKING_WINDOW_LIMIT] if i in star_k],
+            True: [i for i in visible[:RANKING_WINDOW_LIMIT] if i in star_k],
+        }
+        assert before == expected[False]
+        assert after == expected[True]
+        # The count is exact over the window, never cut off.
+        expected_counts = {hide: len(ids) for hide, ids in expected.items()}
+    elif shape in UNANCHORED:
         # There are more matches than a caller can page through: with the rule
         # the 10,000 must be refilled from further down the ranking, not left
         # short by the hidden systems.

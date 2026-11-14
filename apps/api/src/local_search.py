@@ -876,7 +876,13 @@ def _validate_v3_query_bound(
 ) -> None:
     """Enforce the two bounded Any-mode access paths from the F2d design."""
     if ctx.galaxy_wide:
-        requested = set(hard_filters) | _explicit_galaxy_wide_distance_filters(body)
+        # Galaxy-wide, filters thin the window of the best 10,000 systems (or
+        # of the picked type's best 10,000). Only what needs a system to
+        # measure from, and the overall-potential floor for a picked type,
+        # cannot be applied there.
+        requested = _explicit_galaxy_wide_distance_filters(body)
+        if picked and 'min_development_score' in hard_filters:
+            requested = requested | {'min_development_score'}
         if requested:
             names = ', '.join(sorted(requested))
             raise HTTPException(
@@ -939,8 +945,16 @@ def _v3_distance(row: asyncpg.Record, reference_coords: tuple[float, float, floa
     return round(math.sqrt(dx * dx + dy * dy + dz * dz), 2)
 
 
-def _build_v3_system_record(row: asyncpg.Record, reference_coords: tuple[float, float, float] | None) -> dict:
-    primary_score = row.get('primary_score')
+def _build_v3_system_record(
+    row: asyncpg.Record,
+    reference_coords: tuple[float, float, float] | None,
+    *,
+    picked_window: bool = False,
+) -> dict:
+    # `archetype_score` is the overall potential. Every Any shape selects it
+    # as primary_score; a picked type's galaxy window selects the type's
+    # score there instead, and the overall potential as the summary column.
+    primary_score = row.get('summary_best_colony_potential', row.get('primary_score'))
     return {
         'id64':              row['system_id64'],
         'id':                str(row['system_id64']),
@@ -992,13 +1006,13 @@ def _build_v3_system_record(row: asyncpg.Record, reference_coords: tuple[float, 
         'galaxy_region':     row.get('region_name'),
         'tags':              [],
         'source':            'v3_app',
-        **_selected_fit(row),
+        **_selected_fit(row, picked_window=picked_window),
     }
 
 
-def _selected_fit(row: asyncpg.Record) -> dict:
+def _selected_fit(row: asyncpg.Record, *, picked_window: bool = False) -> dict:
     """The picked type's score and stored tier, when the search named one."""
-    score = row.get('selected_archetype_score')
+    score = row.get('primary_score') if picked_window else row.get('selected_archetype_score')
     if score is None:
         return {}
     return {
@@ -1021,12 +1035,14 @@ def reach_from_body(body: dict) -> int | None:
 
 
 def picked_from_body(body: dict) -> tuple[str | None, int | None]:
-    """The colony type asked for near a system, and its score floor.
+    """The colony type asked for, and its score floor.
 
-    ``(None, None)`` when the request names no type (or "any"). A type is
-    only accepted with a system to search near, nearest first, within the
-    filtered radius cap: a type galaxy-wide is ranked by
-    ``GET /api/archetypes/rankings``.
+    ``(None, None)`` when the request names no type (or "any"). Near a system
+    a type is searched nearest first, within the filtered radius cap;
+    galaxy-wide it is ranked by its fit (``sort_by="development"``), in the
+    type's window of the best 10,000, which body filters can thin.
+    ``GET /api/archetypes/rankings`` answers the same galaxy-wide ranking
+    without filters.
     """
     archetype = body.get('archetype')
     min_score = body.get('min_score')
@@ -1044,16 +1060,15 @@ def picked_from_body(body: dict) -> tuple[str | None, int | None]:
         raise HTTPException(
             422, f'min_score must be one of {list(ACCEPTED_ARCHETYPE_SCORE_FLOORS)}',
         )
-    if body.get('galaxy_wide') or not body.get('reference_coords'):
-        raise HTTPException(
-            422,
-            'archetype: a colony type needs a system to search near here; '
-            'rank a type galaxy-wide with GET /api/archetypes/rankings.',
-        )
     sort_by = (body.get('sort_by') or 'development').strip().lower()
-    if _SORT_BY_TO_MODE.get(sort_by) != SORT_DISTANCE:
+    near = not body.get('galaxy_wide') and bool(body.get('reference_coords'))
+    if near and _SORT_BY_TO_MODE.get(sort_by) != SORT_DISTANCE:
         raise HTTPException(
             422, 'archetype: a colony type near a system is sorted by distance (sort_by="distance").',
+        )
+    if not near and _SORT_BY_TO_MODE.get(sort_by) == SORT_DISTANCE:
+        raise HTTPException(
+            422, 'archetype: a colony type galaxy-wide is ranked by its fit (sort_by="development").',
         )
     return str(archetype), int(min_score)
 
@@ -1208,7 +1223,11 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
                   exc, getattr(exc, 'sqlstate', None))
         raise HTTPException(503, 'Finder search is unavailable') from exc
 
-    results = [_build_v3_system_record(row, reference_coords) for row in rows]
+    picked_window = picked_archetype is not None and reference_coords is None
+    results = [
+        _build_v3_system_record(row, reference_coords, picked_window=picked_window)
+        for row in rows
+    ]
     if picked_archetype is not None:
         for result in results:
             result['selected_archetype'] = picked_archetype
