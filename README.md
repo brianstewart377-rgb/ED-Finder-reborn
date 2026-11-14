@@ -362,12 +362,15 @@ To set one up:
 1. On healthchecks.io, add a check for the job with the period and grace time
    above, and copy its address (it starts `https://hc-ping.com/`).
 2. On the machine, make the folder, then save the address in the job's file.
-   The second command waits for you to paste the address; press Enter, then
-   Ctrl+D. Done this way the address is not left in the shell's history.
+   The second command waits, showing nothing, for you to paste the address;
+   press Enter and it is saved. Done this way the address is not left in the
+   shell's history. (It finishes on Enter on purpose: from PowerShell on
+   Windows, Ctrl+D does not reach the Pi, so a command that waits for Ctrl+D
+   never ends.)
 
    ```bash
    sudo install -d -m 700 /etc/edfinder/report
-   sudo sh -c 'umask 077; cat > /etc/edfinder/report/galaxy-update.url'
+   sudo sh -c 'umask 077; read -r line; printf "%s\n" "$line" > /etc/edfinder/report/galaxy-update.url'
    ```
 
 3. Try it. This sends one "it worked" and says whether healthchecks.io took it:

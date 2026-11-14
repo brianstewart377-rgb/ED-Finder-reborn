@@ -470,7 +470,7 @@ In order:
       when `backup.py` is fetched again.
       (14 Nov) The first full backup finished: 133.5 GB, 120 tables,
       3 hours 25 minutes.
-- [ ] (11 Nov) **Hearing about failures.** Today a nightly job that fails
+- [x] (11 Nov) **Hearing about failures.** Today a nightly job that fails
       tells nobody. Each night's jobs report in when they finish, and
       something off the Pi notices when they have not.
       (12 Nov) Built: `deploy/report_in.py`. systemd runs it when the galaxy
@@ -480,6 +480,11 @@ In order:
       the script with the units, add the two checks on healthchecks.io and
       save their addresses (README, "Hearing when a nightly job fails").
       Backups report the same way once they are built.
+      (14 Nov) Done on the Pi: four checks on healthchecks.io (galaxy
+      update, state refresh, small backup, full backup), each address saved
+      in its root-only file, and each one's test taken by healthchecks.io.
+      The README's way of saving an address waited for Ctrl+D, which does
+      not reach the Pi from PowerShell; it now finishes on Enter.
 
 ## 7. Switch over
 
