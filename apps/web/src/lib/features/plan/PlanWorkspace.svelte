@@ -13,6 +13,7 @@
     type PlanInvalidV1,
     type PlanIssueV1,
   } from '$lib/api';
+  import { queryKeys } from '$lib/api/query';
   import type { Id64 } from '$lib/domain/id64';
   import { colonyProjects } from '$lib/persistence/stores';
   import { resolvePlanLocations } from './locations';
@@ -73,7 +74,7 @@
     retry: false,
   }));
   const bodies = createQuery(() => ({
-    queryKey: ['ed-finder', 'plan-bodies', systemId],
+    queryKey: queryKeys.planBodies(systemId),
     queryFn: ({ signal }) => listV3PlanBodies(systemId, signal),
     retry: false,
   }));

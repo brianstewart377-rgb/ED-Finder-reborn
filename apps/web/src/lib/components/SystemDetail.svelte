@@ -4,20 +4,26 @@
   import {
     ApiError,
     getSystem,
+    listV3PlanBodies,
     type SystemDetailBody,
     type SystemDetailRing,
     type SystemDetailStation,
   } from '$lib/api/client';
   import { queryKeys } from '$lib/api/query';
   import type { Id64 } from '$lib/domain/id64';
-  import SpatialCanvas from '$lib/spatial/SpatialCanvas.svelte';
-  import type { RuntimeEvent } from '$lib/spatial/contracts';
   import {
     bodyTypeLabel,
-    buildSystemScene,
     stellarClassification,
-    systemBodyLayout,
   } from '$lib/spatial/system-scene';
+  import SystemMap from '$lib/system-map/SystemMap.svelte';
+  import SystemMapLegend from '$lib/system-map/SystemMapLegend.svelte';
+  import { buildTree, systemFromDetail } from '$lib/system-map/tree';
+  import {
+    builtHere,
+    groundSlotsInWords,
+    orbitsInWords,
+    stationInWords,
+  } from '$lib/system-map/words';
   import { INSPECT_TABS, type InspectTab } from './inspect-tabs';
   import SystemRatings from './SystemRatings.svelte';
   import SourcesFreshness from './SourcesFreshness.svelte';
@@ -111,7 +117,7 @@
   let lastFocusedId: Id64 | null = null;
   let selection = $state<{
     systemId: Id64;
-    bodyId: number;
+    bodyKey: string;
     name: string;
   }>();
   const selectionAnnouncement = $derived(
@@ -119,7 +125,6 @@
       ? `Selected ${selection.name}`
       : '',
   );
-  let systemMapRevision = $state(0);
   let ratingsSource = $state<RatingsSourceState | null>(null);
   const currentRatingsSource = $derived(
     ratingsSource?.id64 === id64 ? ratingsSource : null,
@@ -136,11 +141,11 @@
       !(error instanceof ApiError && isAbsent(error.status)) &&
       failureCount < 1,
   }));
-  // Frontier BodyIDs are local to a system. Guard both consumers before any
+  // A selection belongs to one system. Guard every consumer before any
   // render, including while the query is switching to the next system.
-  const selectedBodyId = $derived(
+  const selectedBodyKey = $derived(
     selection && selection.systemId === id64 && detail.data?.id64 === id64
-      ? selection.bodyId
+      ? selection.bodyKey
       : undefined,
   );
   // 404: no such system in the published catalogue. 422: an id64 beyond the
@@ -179,29 +184,38 @@
           date,
         );
   });
-  const systemScene = $derived(
-    detail.data
-      ? buildSystemScene(
-          detail.data,
-          detail.dataUpdatedAt + systemMapRevision,
-          selectedBodyId,
-        )
+  // The builder's list of the same bodies adds each one's temperature and
+  // predicted ground slots. It is asked for once the Bodies tab is opened;
+  // the map is drawn without it until it comes, and without it if it fails.
+  const planBodies = createQuery(() => ({
+    queryKey: queryKeys.planBodies(String(id64)),
+    queryFn: ({ signal }) => listV3PlanBodies(String(id64), signal),
+    enabled: tab === 'bodies',
+    retry: false,
+  }));
+  const mapTree = $derived.by(() => {
+    const system = detail.data;
+    if (!system || system.id64 !== id64) return null;
+    const plan =
+      planBodies.data?.system_id64 === String(id64) ? planBodies.data : null;
+    return buildTree(systemFromDetail(system, plan));
+  });
+  const selectedBody = $derived(
+    detail.data?.bodies.find((body) => body.bodyKey === selectedBodyKey) ??
+      null,
+  );
+  const selectedNode = $derived(
+    selectedBodyKey && mapTree
+      ? (mapTree.nodes.get(selectedBodyKey) ?? null)
       : null,
   );
-  const selectedBody = $derived(
-    detail.data?.bodies.find((body) => body.id === selectedBodyId) ?? null,
-  );
-  const unplacedBodies = $derived(
-    systemScene
-      ? systemBodyLayout(systemScene.bodies).filter(
-          (layout) => layout.placement === 'unplaced',
+  /** Bodies the map placed by their name or distance: our data gives no parent. */
+  const guessedBodies = $derived(
+    mapTree
+      ? [...mapTree.nodes.values()].filter(
+          (node) => node.guessedParent !== false && node.type !== 'barycentre',
         )
       : [],
-  );
-  const unmappedBodies = $derived(
-    (detail.data?.bodies ?? []).filter(
-      (body) => typeof body.id !== 'number' || !Number.isSafeInteger(body.id),
-    ),
   );
   const selectedRings = $derived(
     selectedBody?.rings.filter((ring) => ring.kind === 'RING').length ?? 0,
@@ -308,24 +322,13 @@
       .join(' · ');
   }
 
-  function selectBody(bodyId: number): void {
+  function selectBody(bodyKey: string): void {
     const system = detail.data;
     if (!system || system.id64 !== id64) return;
-    const body = system.bodies.find((body) => body.id === bodyId);
+    const body = system.bodies.find((body) => body.bodyKey === bodyKey);
     if (!body) return;
     // Capture the announcement on selection, not on catalogue refetches.
-    selection = { systemId: id64, bodyId, name: body.name };
-    systemMapRevision += 1;
-  }
-
-  function handleSystemMapEvent(event: RuntimeEvent): void {
-    if (
-      event.type === 'TARGET_PICKED' &&
-      event.target?.kind === 'body' &&
-      event.target.ref.systemId64 === id64
-    ) {
-      selectBody(event.target.ref.bodyId);
-    }
+    selection = { systemId: id64, bodyKey, name: body.name };
   }
 </script>
 
@@ -500,60 +503,55 @@
       hidden={tab !== 'bodies'}
       inert={tab !== 'bodies'}
     >
-      {#if systemScene && systemScene.bodies.length > 0}
+      {#if detail.data.bodies.length > 0}
         <section class="system-map-panel" aria-labelledby={`${headingId}-map`}>
           <div class="system-map-heading">
             <div>
-              <p class="eyebrow">3D system map</p>
+              <p class="eyebrow">System map</p>
               <h2 id={`${headingId}-map`}>Explore {detail.data.name}</h2>
             </div>
-            <span>{systemScene.bodies.length} mapped catalogue bodies</span>
+            <span>{integer(detail.data.bodies.length)} catalogue bodies</span>
           </div>
           <p class="system-map-truth-note">
-            Layout: schematic; order by known orbital distance; moons grouped by
-            known parent. Planet classes come from the published Ratings V4
-            derived catalogue; colours group those classes for display. Radii,
-            parent links, arrival distances, and known ring state come from the
-            canonical catalogue. Display sizes and positions are schematic;
-            physical scale and present orbital phase are not shown.
+            Laid out as the game's own map: each star heads a row, its planets
+            follow it going outward, and each planet's moons hang below it. A
+            body whose parent our data does not give is placed by its name or
+            its distance, and marked so. Sizes are for reading, not to scale.
+            Planet classes come from the catalogue, or from the published
+            Ratings V4 derived catalogue where it has none.
           </p>
-          <SpatialCanvas
-            scene={systemScene}
-            onRuntimeEvent={handleSystemMapEvent}
-          />
+          {#if mapTree}
+            <SystemMap
+              tree={mapTree}
+              selectedKey={selectedBodyKey ?? null}
+              onSelect={selectBody}
+            />
+          {/if}
           <aside class="system-map-legend" aria-label="System map legend">
-            <p>
-              Faint circles guide known child orbits around each parent; unknown
-              distances have no circle. Crosses mark barycentres. Amber
-              diamonds: position unknown. Links appear for selected or hovered
-              bodies.
-            </p>
-            {#if unplacedBodies.length > 0}
-              <h3>Unplaced bodies — position unknown</h3>
-              <p>
-                Position unknown markers identify gaps in parent links or
-                distances. The unattached group keeps unresolved parent links
-                visible.
-              </p>
-              <ul aria-label="Unplaced bodies">
-                {#each unplacedBodies as layout (layout.body.ref.bodyId)}
-                  <li data-unplaced-body-id={layout.body.ref.bodyId}>
-                    <strong>{layout.body.name}</strong>
-                    — position unknown{#if layout.positionUnknownReason}: {layout.positionUnknownReason}{/if}{#if layout.group === 'unattached'}
-                      · Unattached group{/if}
+            <SystemMapLegend />
+            {#if guessedBodies.length > 0}
+              <h3>Placed by name or distance</h3>
+              <p>Our data does not say what these bodies orbit.</p>
+              <ul aria-label="Bodies placed by name or distance">
+                {#each guessedBodies as node (node.id)}
+                  <li data-guessed-body-key={node.id}>
+                    <strong>{node.name}</strong> — {node.guessedParent ===
+                    'name'
+                      ? 'placed by its name'
+                      : 'placed by its distance from the arrival point'}
                   </li>
                 {/each}
               </ul>
             {/if}
-            {#if unmappedBodies.length > 0}
-              <h3>Bodies without a map identity</h3>
+            {#if mapTree && mapTree.notPlaced.length > 0}
+              <h3>Stations not placed at any body</h3>
               <p>
-                These catalogue bodies have no usable Frontier BodyID and cannot
-                be selected or positioned in this map.
+                Our data does not say which body these are at, and none is near
+                enough to their distance from the arrival point.
               </p>
-              <ul aria-label="Bodies without a map identity">
-                {#each unmappedBodies as body (body.bodyKey)}
-                  <li>{body.name}</li>
+              <ul aria-label="Stations not placed at any body">
+                {#each mapTree.notPlaced as station (station.id)}
+                  <li>{station.name}, {station.kind}</li>
                 {/each}
               </ul>
             {/if}
@@ -561,25 +559,24 @@
           <div class="system-map-browser">
             <ol aria-label="System bodies">
               {#each detail.data.bodies as body (body.bodyKey)}
-                {#if typeof body.id === 'number' && Number.isSafeInteger(body.id)}
-                  <li>
-                    <button
-                      type="button"
-                      class:active={body.id === selectedBodyId}
-                      aria-pressed={body.id === selectedBodyId}
-                      onclick={() => selectBody(body.id as number)}
-                    >
-                      <strong>{body.name}</strong>
-                      <span>{bodyClass(body)}</span>
-                    </button>
-                  </li>
-                {/if}
+                <li>
+                  <button
+                    type="button"
+                    class:active={body.bodyKey === selectedBodyKey}
+                    aria-pressed={body.bodyKey === selectedBodyKey}
+                    onclick={() => selectBody(body.bodyKey)}
+                  >
+                    <strong>{body.name}</strong>
+                    <span>{bodyClass(body)}</span>
+                  </button>
+                </li>
               {/each}
             </ol>
             {#if selectedBody}
               <article
                 class="system-body-card"
                 data-selected-body-id={selectedBody.id}
+                data-selected-body-key={selectedBody.bodyKey}
               >
                 <p class="eyebrow">Selected body</p>
                 <h3>{selectedBody.name}</h3>
@@ -588,6 +585,15 @@
                     <dt>Class</dt>
                     <dd>{bodyClass(selectedBody)}</dd>
                   </div>
+                  {#if mapTree && selectedNode}
+                    {@const orbits = orbitsInWords(mapTree, selectedNode)}
+                    {#if orbits}
+                      <div>
+                        <dt>Orbits</dt>
+                        <dd>{orbits}</dd>
+                      </div>
+                    {/if}
+                  {/if}
                   {#if selectedBody.bodyType === 'planet' && selectedBody.bodyClass != null && selectedBody.bodyClassSource === 'ratings-v4-derived'}
                     <div>
                       <dt>Class source</dt>
@@ -633,6 +639,31 @@
                         'None recorded'}
                     </dd>
                   </div>
+                  {#if selectedNode}
+                    {@const slots = groundSlotsInWords(selectedNode)}
+                    {#if slots}
+                      <div>
+                        <dt>Ground slots</dt>
+                        <dd>{slots}</dd>
+                      </div>
+                    {/if}
+                    {@const built = builtHere(selectedNode)}
+                    {#if built.length > 0}
+                      <div class="body-ring-list">
+                        <dt>Built here</dt>
+                        <dd>
+                          {#each built as group (group.where)}
+                            <p class="ring-name">{group.where}</p>
+                            <ul>
+                              {#each group.stations as station (station.id)}
+                                <li>{stationInWords(station)}</li>
+                              {/each}
+                            </ul>
+                          {/each}
+                        </dd>
+                      </div>
+                    {/if}
+                  {/if}
                   {#if selectedBody.rings.length > 0}
                     <div class="body-ring-list">
                       <dt>Rings, belts and hotspots</dt>
@@ -656,21 +687,11 @@
               </article>
             {:else}
               <p class="system-body-empty">
-                Select a body in the 3D map or the catalogue list for details.
+                Select a body in the map or the list for details.
               </p>
             {/if}
           </div>
         </section>
-      {:else if unmappedBodies.length > 0}
-        <p class="state-copy">
-          These catalogue bodies have no usable Frontier BodyID and cannot be
-          selected or positioned in this map.
-        </p>
-        <ul aria-label="Bodies without a map identity">
-          {#each unmappedBodies as body (body.bodyKey)}
-            <li>{body.name}</li>
-          {/each}
-        </ul>
       {:else}
         <p class="state-copy">No bodies are recorded for this system.</p>
       {/if}

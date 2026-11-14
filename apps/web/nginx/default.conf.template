@@ -45,7 +45,8 @@ server {
     # frame-ancestors/X-Frame-Options stop other sites framing ED-Finder
     # (including the signed-in account page). HSTS belongs to the TLS
     # terminator, not this plain-http hop. A full CSP comes later, report-only
-    # first: the SvelteKit bootstrap, Babylon and the journal worker need it.
+    # first: the SvelteKit bootstrap, Babylon and the journal worker need it,
+    # and the System Map's pictures are blob: images (img-src blob:).
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Content-Security-Policy "frame-ancestors 'self'" always;
     add_header X-Content-Type-Options "nosniff" always;

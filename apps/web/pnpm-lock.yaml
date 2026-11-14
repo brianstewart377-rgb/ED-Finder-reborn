@@ -17,6 +17,9 @@ importers:
       '@ed-finder/planner-core':
         specifier: file:../../packages/planner-core
         version: file:../../packages/planner-core(@ed-finder/api-client@file:../../packages/api-client)
+      '@eluvade/cosmos':
+        specifier: 1.3.0
+        version: 1.3.0
       '@lucide/svelte':
         specifier: 1.37.0
         version: 1.37.0(svelte@5.56.10(@typescript-eslint/types@8.69.0))
@@ -202,6 +205,9 @@ packages:
     resolution: {directory: ../../packages/planner-core, type: directory}
     peerDependencies:
       '@ed-finder/api-client': 0.1.0
+
+  '@eluvade/cosmos@1.3.0':
+    resolution: {integrity: sha512-3TISb5wnCtgO2owk+MVOrUclWZjjzBw+QMTX3IJwRVUWr9fShJryznZNayWiqneU4Sejsl3MQm1tkYRwMyTDnQ==}
 
   '@eslint-community/eslint-utils@4.10.1':
     resolution: {integrity: sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg==}
@@ -2625,6 +2631,8 @@ snapshots:
     dependencies:
       '@ed-finder/api-client': file:../../packages/api-client
       json-with-bigint: 3.5.11
+
+  '@eluvade/cosmos@1.3.0': {}
 
   '@eslint-community/eslint-utils@4.10.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))':
     dependencies:
