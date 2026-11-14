@@ -523,12 +523,17 @@ export type FinderPageEnvelope = Readonly<{
   truncation: FinderPageTruncation;
 }>;
 
+/** Find shows systems within this many light years of inhabited space. */
+export type ReachLy = 250 | 500;
+
 export type ArchetypeRankingsRequest = Readonly<{
   archetype: ArchetypeKey;
   min_score: MinimumScore;
   /** Facade page size 1..50, mapped to the endpoint's wire `limit`. */
   page_size: number;
   offset: number;
+  /** Omitted means the API's default, 250. */
+  reach_ly?: ReachLy;
 }>;
 
 export type ArchetypeRankingsPage = Readonly<{
@@ -1087,7 +1092,13 @@ export async function getArchetypeRankings(
   const { archetype, limit, offset } = validateRankingsRequest(request);
   const { data } = await getArchetypeRankingsApiArchetypesRankingsGet({
     throwOnError: true,
-    query: { archetype, min_score: request.min_score, limit, offset },
+    query: {
+      archetype,
+      min_score: request.min_score,
+      limit,
+      offset,
+      ...(request.reach_ly !== undefined ? { reach_ly: request.reach_ly } : {}),
+    },
     signal,
   });
   return normalizeRankingsResponse(data, request);

@@ -594,6 +594,9 @@ class LocalSearchRequest(BaseModel):
     # region predicate was unreachable through the public endpoint.
     galaxy_region_id: Optional[int] = Field(default=None, ge=1, le=42)
     galaxy_wide:      bool                     = False
+    # Find's reach rule (`edfinder_api.reach_rule`): show systems within
+    # 250 ly of inhabited space (the default) or within 500 ly.
+    reach_ly:         Literal[250, 500]        = 250
 
     model_config = {'populate_by_name': True}
 
@@ -634,6 +637,8 @@ class GalaxySearchRequest(BaseModel):
     # answers 422 (v3_app.system_search has no population column); `true` or
     # omitted ranks every system in the published generation.
     include_colonised: Optional[bool] = None
+    # Find's reach rule, as on `LocalSearchRequest`.
+    reach_ly: Literal[250, 500] = 250
 
 
 class ClusterRequirement(BaseModel):

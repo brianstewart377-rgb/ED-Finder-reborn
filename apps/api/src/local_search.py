@@ -42,6 +42,7 @@ from edfinder_api.helpers import (
     status_failure_reason_code_for_exception,
 )
 from edfinder_api.claim_rule import apply_claim_notes, claim_notes
+from edfinder_api.reach_rule import checked_reach
 from edfinder_api.ranking.profile import (
     LOCAL_SEARCH_ANCHORED_RADIUS_REJECTION_REASON,
     LOCAL_SEARCH_FILTERED_ANCHORED_RADIUS_CAP_LY,
@@ -987,6 +988,19 @@ def _build_v3_system_record(row: asyncpg.Record, reference_coords: tuple[float, 
     }
 
 
+def reach_from_body(body: dict) -> int | None:
+    """The request's reach (250 or 500 ly from inhabited space), or None when
+    it names none. The routes always send one; a direct caller that sends
+    none gets no reach rule."""
+    value = body.get('reach_ly')
+    if value is None:
+        return None
+    try:
+        return checked_reach(value)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 def prepare_local_search_v3(
     body: dict,
 ) -> tuple[LocalSearchContext, str, dict[str, Any], tuple[float, float, float] | None]:
@@ -1055,6 +1069,7 @@ def prepare_local_search_v3(
 
     hard_filters = _v3_hard_filters(ctx)
     _validate_v3_query_bound(body, ctx, hard_filters, sort_mode)
+    reach_from_body(body)
     # Galaxy-wide mode is deliberately unanchored. A caller may still send
     # display/reference coordinates, but letting those reach the builder would
     # bypass the bounded no-pick summary window without changing semantics.
@@ -1079,6 +1094,7 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
     """
     t0 = time.time()
     ctx, sort_mode, hard_filters, reference_coords = prepare_local_search_v3(body)
+    reach_ly = reach_from_body(body)
     picked_economy = None
 
     sql, params = build_ranked_query(
@@ -1090,8 +1106,10 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         limit=ctx.size,
         offset=ctx.from_idx,
         sort=sort_mode,
-        # Find shows only systems that can still be claimed (claim_rule).
+        # Find shows only systems that can still be claimed (claim_rule),
+        # within the asked reach of inhabited space (reach_rule).
         hide_claimed=True,
+        reach_ly=reach_ly,
     )
     count_sql, count_params = build_count_query(
         PROFILE_SPEC,
@@ -1104,6 +1122,7 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
         cap=LOCAL_SEARCH_RESULT_CAP,
         sort=sort_mode,
         hide_claimed=True,
+        reach_ly=reach_ly,
     )
 
     try:
@@ -1250,6 +1269,7 @@ def prepare_galaxy_search_v3(body: dict) -> dict:
         'size': limit,
         'from': offset,
         'galaxy_region_id': body.get('galaxy_region_id'),
+        'reach_ly': body.get('reach_ly'),
     }
     # The shared validator enforces the window, the concrete-economy
     # rejection and the galaxy-wide hard-filter rule (region) in one place.

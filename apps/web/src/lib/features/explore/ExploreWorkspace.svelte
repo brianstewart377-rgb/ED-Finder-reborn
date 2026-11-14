@@ -53,9 +53,12 @@
   import {
     effectiveSearchRadius,
     FILTERED_SEARCH_RADIUS_CAP_LY,
+    normalizeReach,
     normalizeSearchRadius,
+    REACH_OPTIONS,
     SEARCH_RADIUS_OPTIONS,
     serializeExploreSearchParams,
+    type Reach,
     type SearchRadius,
   } from './search-state';
   import type { ExploreResultCache } from './explore-result-cache';
@@ -298,7 +301,11 @@
     const selected = selectFinderRequest(
       viewState.rankingState,
       anchor ? { x: anchor.x, y: anchor.y, z: anchor.z } : null,
-      { enabled: FINDER_F4_ENABLED, radius: effectiveRadius },
+      {
+        enabled: FINDER_F4_ENABLED,
+        radius: effectiveRadius,
+        reach: viewState.reach,
+      },
     );
     if (
       selected.kind === 'any' &&
@@ -551,6 +558,7 @@
         near: null,
         bodyFilters: viewState.bodyFilters,
         radius: viewState.radius,
+        reach: viewState.reach,
       },
       page.url.searchParams,
     );
@@ -632,6 +640,7 @@
           near: null,
           bodyFilters: viewState.bodyFilters,
           radius: viewState.radius,
+          reach: viewState.reach,
         },
         page.url.searchParams,
       ),
@@ -655,22 +664,42 @@
     void commitSearchInputs(viewState.bodyFilters, nextRadius);
   }
 
+  function commitReach(value: number): void {
+    const nextReach = normalizeReach(value);
+    if (nextReach === viewState.reach) return;
+    void commitSearchInputs(
+      viewState.bodyFilters,
+      viewState.radius,
+      nextReach,
+      true,
+    );
+  }
+
   async function commitSearchInputs(
     value: BodyFilterValues,
     nextRadius: SearchRadius,
+    nextReach: Reach = viewState.reach,
+    // The reach applies in every mode, so a change of reach always starts
+    // the results again from the first page, even while body filters wait.
+    resultsChange = !bodyFiltersPaused,
   ): Promise<void> {
     viewState.focusedAnchorRevision = viewState.anchorSelectionRevision;
     const committed = normalizeBodyFilters(value);
     const params = serializeExploreSearchParams(
-      { near: viewState.nearId, bodyFilters: committed, radius: nextRadius },
+      {
+        near: viewState.nearId,
+        bodyFilters: committed,
+        radius: nextRadius,
+        reach: nextReach,
+      },
       page.url.searchParams,
     );
     // Paused chips do not take part in the active search, so clearing them
     // must not move a ranking off its current page.
-    const nextRankingState = bodyFiltersPaused
-      ? viewState.rankingState
-      : { ...viewState.rankingState, offset: 0 };
-    if (!bodyFiltersPaused) params.delete('offset');
+    const nextRankingState = resultsChange
+      ? { ...viewState.rankingState, offset: 0 }
+      : viewState.rankingState;
+    if (resultsChange) params.delete('offset');
     const destination = exploreDestination(
       FINDER_F4_ENABLED
         ? serializeRankingSearchParams(nextRankingState, params)
@@ -681,22 +710,24 @@
     if (
       destination === `${page.url.pathname}${page.url.search}${page.url.hash}`
     ) {
-      if (resultsEnabled && !bodyFiltersPaused) await results.refetch();
+      if (resultsEnabled && resultsChange) await results.refetch();
       return;
     }
-    if (!bodyFiltersPaused) {
+    if (resultsChange) {
       const next = selectFinderRequest(
         { ...viewState.rankingState, offset: 0 },
         anchor,
         {
           enabled: FINDER_F4_ENABLED,
           radius: effectiveSearchRadius(nextRadius, committed),
+          reach: nextReach,
         },
       );
       if (next.kind === 'any') {
-        const request = Object.keys(committed).length
-          ? { ...next.request, body_filters: committed }
-          : next.request;
+        const request =
+          !bodyFiltersPaused && Object.keys(committed).length
+            ? { ...next.request, body_filters: committed }
+            : next.request;
         await queryClient.invalidateQueries({
           queryKey: queryKeys.explore(
             request,
@@ -1341,6 +1372,7 @@
         near: committedAnchor?.id64 ?? null,
         bodyFilters: viewState.bodyFilters,
         radius: viewState.radius,
+        reach: viewState.reach,
       },
       page.url.searchParams,
     );
@@ -2090,6 +2122,28 @@
                 : ''}.
             </p>
           {/if}
+          <label class="search-radius" for="search-reach">
+            Up to
+            <select
+              id="search-reach"
+              data-search-reach
+              aria-label="Distance from inhabited space"
+              value={viewState.reach}
+              aria-describedby="search-reach-hint"
+              onchange={(event) =>
+                commitReach(Number(event.currentTarget.value))}
+            >
+              {#each REACH_OPTIONS as option (option)}
+                <option value={option}
+                  >{option.toLocaleString('en-US')} LY</option
+                >
+              {/each}
+            </select>
+            from inhabited space
+          </label>
+          <p id="search-reach-hint" class="radius-hint">
+            Every search keeps to systems this close to an inhabited system.
+          </p>
         </div>
 
         {#if FINDER_F4_ENABLED && viewState.hasResultsIntent}

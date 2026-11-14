@@ -20,7 +20,7 @@ import {
   serializeRankingSearchParams,
   stripRankingSearchParams,
 } from './ranking-state';
-import { SEARCH_RADIUS_OPTIONS } from './search-state';
+import { REACH_OPTIONS, SEARCH_RADIUS_OPTIONS } from './search-state';
 import { BODY_FILTER_OPTIONS } from './body-filters';
 
 const params = (query: string) => new URLSearchParams(query);
@@ -413,6 +413,7 @@ describe('request selection', () => {
         sort_by: 'development',
         size: 24,
         from: 0,
+        reach_ly: 250,
       },
       pageSize: 24,
     });
@@ -425,6 +426,7 @@ describe('request selection', () => {
           sort_by: 'distance',
           size: 24,
           from: 0,
+          reach_ly: 250,
         },
         pageSize: 24,
       },
@@ -435,6 +437,7 @@ describe('request selection', () => {
       sort_by: 'development',
       size: 24,
       from: 0,
+      reach_ly: 250,
     });
   });
 
@@ -448,6 +451,7 @@ describe('request selection', () => {
         sort_by: 'development',
         size: 50,
         from: 0,
+        reach_ly: 250,
       },
       pageSize: 50,
     });
@@ -464,6 +468,7 @@ describe('request selection', () => {
         sort_by: 'distance',
         size: 1,
         from: 2,
+        reach_ly: 250,
       },
       pageSize: 1,
     });
@@ -490,12 +495,39 @@ describe('request selection', () => {
             sort_by: 'distance',
             size: enabled ? 1 : 24,
             from: enabled ? 2 : 0,
+            reach_ly: 250,
           },
           pageSize: enabled ? 1 : 24,
         });
       }
     },
   );
+
+  it('sends the chosen reach with every kind of request', () => {
+    for (const reach of REACH_OPTIONS) {
+      for (const enabled of [false, true]) {
+        for (const at of [null, anchor]) {
+          expect(
+            selectFinderRequest(parse('').state, at, { enabled, reach })
+              .request,
+          ).toMatchObject({ reach_ly: reach });
+        }
+      }
+      expect(
+        selectFinderRequest(parse('archetype=flexible').state, anchor, {
+          enabled: true,
+          reach,
+        }).request,
+      ).toMatchObject({ reach_ly: reach });
+    }
+    // Anything else falls back to the default, 250.
+    expect(
+      selectFinderRequest(parse('').state, null, {
+        enabled: true,
+        reach: 1000 as never,
+      }).request,
+    ).toMatchObject({ reach_ly: 250 });
+  });
 
   it('uses the default radius for invalid runtime input', () => {
     for (const enabled of [false, true]) {
@@ -534,6 +566,7 @@ describe('request selection', () => {
         min_score: 60,
         page_size: 50,
         offset: 0,
+        reach_ly: 250,
       },
     });
     expect(
@@ -549,6 +582,7 @@ describe('request selection', () => {
         min_score: 88,
         page_size: 1,
         offset: 2,
+        reach_ly: 250,
       },
     });
   });
@@ -583,6 +617,7 @@ describe('request selection', () => {
         sort_by: 'development',
         size: 24,
         from: 0,
+        reach_ly: 250,
       });
       expect(
         selectFinderRequest(parse('').state, bad, { enabled: true }).request,
@@ -591,6 +626,7 @@ describe('request selection', () => {
         sort_by: 'development',
         size: 50,
         from: 0,
+        reach_ly: 250,
       });
     }
   });
@@ -608,6 +644,7 @@ describe('request selection', () => {
         sort_by: 'development',
         size: 25,
         from: 9_975,
+        reach_ly: 250,
       },
       pageSize: 50,
     });
@@ -623,6 +660,7 @@ describe('request selection', () => {
         min_score: 60,
         page_size: 50,
         offset: 9_975,
+        reach_ly: 250,
       },
     });
   });

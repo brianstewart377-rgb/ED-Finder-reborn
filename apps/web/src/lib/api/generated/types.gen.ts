@@ -3043,6 +3043,10 @@ export type GalaxySearchRequest = {
      * Include Colonised
      */
     include_colonised?: boolean | null;
+    /**
+     * Reach Ly
+     */
+    reach_ly?: 250 | 500;
 };
 
 /**
@@ -3612,6 +3616,10 @@ export type LocalSearchRequest = {
      * Galaxy Wide
      */
     galaxy_wide?: boolean;
+    /**
+     * Reach Ly
+     */
+    reach_ly?: 250 | 500;
 };
 
 /**
@@ -12465,6 +12473,12 @@ export type GetArchetypeRankingsApiArchetypesRankingsGetData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Reach Ly
+         *
+         * Show systems within this many light years of inhabited space: 250 (the default) or 500.
+         */
+        reach_ly?: 250 | 500;
     };
     url: '/api/archetypes/rankings';
 };

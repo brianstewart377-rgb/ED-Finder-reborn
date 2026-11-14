@@ -97,7 +97,11 @@ describe('Finder ranking query keys', () => {
       60,
       1,
       0,
+      null,
     ]);
+    expect(queryKeys.rankings({ ...base, reach_ly: 500 })).not.toEqual(
+      queryKeys.rankings({ ...base, reach_ly: 250 }),
+    );
     expect(queryKeys.rankings({ ...base, page_size: 50 })).not.toEqual(
       queryKeys.rankings(base),
     );

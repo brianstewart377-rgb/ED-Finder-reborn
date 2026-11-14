@@ -4441,6 +4441,12 @@ export interface components {
             offset: number;
             /** Include Colonised */
             include_colonised?: boolean | null;
+            /**
+             * Reach Ly
+             * @default 250
+             * @enum {integer}
+             */
+            reach_ly: 250 | 500;
         };
         /** GenerationResponse */
         GenerationResponse: {
@@ -4814,6 +4820,12 @@ export interface components {
              * @default false
              */
             galaxy_wide: boolean;
+            /**
+             * Reach Ly
+             * @default 250
+             * @enum {integer}
+             */
+            reach_ly: 250 | 500;
         };
         /** MapHeatmapBounds */
         MapHeatmapBounds: {
@@ -11315,6 +11327,8 @@ export interface operations {
                 max_contamination?: number | null;
                 limit?: number;
                 offset?: number;
+                /** @description Show systems within this many light years of inhabited space: 250 (the default) or 500. */
+                reach_ly?: 250 | 500;
             };
             header?: never;
             path?: never;
