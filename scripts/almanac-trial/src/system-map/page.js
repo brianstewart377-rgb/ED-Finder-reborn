@@ -7,6 +7,8 @@ import { layoutOf } from './layout.mjs';
 import { RING_COLOURS, lookOf, pictureOf } from './draw.mjs';
 import { familyOf } from './body-look.mjs';
 import { pixelsFor, seedOf, surface } from './surface.mjs';
+import { cosmosAsk, cosmosPixels } from './cosmos-look.mjs';
+import { CelestialGenerator } from '@eluvade/cosmos';
 
 const stage = document.querySelector('#stage');
 const about = document.querySelector('#about');
@@ -184,15 +186,68 @@ function select(target) {
   }
 }
 
-// Each body's surface is painted once and kept, by the body and its size.
+// How the bodies are drawn, chosen on the page: by the Cosmos library, by
+// our own painting (surface.mjs), or as plain shaded balls.
+const looks = document.querySelector('#look');
+const asked = new URLSearchParams(location.search);
+looks.value = asked.get('plain') === '1' ? 'plain'
+  : ['cosmos', 'painted', 'plain'].includes(asked.get('look')) ? asked.get('look') : 'cosmos';
+
+// Each body's picture is made once and kept, by the look, the body and its size.
 const painted = new Map();
 const easel = document.createElement('canvas');
 
-/** The address of a body's painted picture, or null where painting is off. */
+// Cosmos draws with WebGL. It is started on first use; where the browser
+// has no WebGL the page says so and paints the bodies itself.
+let cosmos = null;
+function cosmosOrNothing() {
+  if (cosmos === null) {
+    try {
+      cosmos = new CelestialGenerator();
+    } catch {
+      cosmos = false;
+      const option = looks.querySelector('option[value="cosmos"]');
+      option.disabled = true;
+      option.textContent = 'Cosmos (this browser has no WebGL)';
+      looks.value = 'painted';
+    }
+  }
+  return cosmos || null;
+}
+
+/** A body's picture from Cosmos, or null where Cosmos cannot draw it. */
+function cosmosPicture(item, look) {
+  const generator = cosmosOrNothing();
+  if (!generator) return null;
+  const ask = cosmosAsk({
+    family: familyOf(item.node.bodyClass), star: look.star, dark: look.dark,
+    colour: look.colour, halo: look.halo, surfaceK: item.node.surfaceK,
+  });
+  const size = cosmosPixels(item.r, ask.width);
+  const key = `cosmos/${item.id}/${size}`;
+  if (!painted.has(key)) {
+    try {
+      const canvas = generator.render({
+        type: ask.kind, seed: seedOf(item.id), resolution: size, ...(ask.colours ? { colors: ask.colours } : {}),
+      }, 0);
+      painted.set(key, canvas.toDataURL('image/png'));
+    } catch {
+      painted.set(key, null);
+    }
+  }
+  const href = painted.get(key);
+  return href ? { href, width: ask.width, whole: ask.whole } : null;
+}
+
+/** A body's picture in the chosen look, or null for a plain ball. */
 function pictureFor(item, look) {
-  if (new URLSearchParams(location.search).get('plain') === '1') return null;
+  if (looks.value === 'plain') return null;
+  if (looks.value === 'cosmos') {
+    const drawn = cosmosPicture(item, look);
+    if (drawn) return drawn;
+  }
   const size = pixelsFor(item.r);
-  const key = `${item.id}/${size}`;
+  const key = `painted/${item.id}/${size}`;
   if (!painted.has(key)) {
     const made = surface({
       seed: seedOf(item.id), size, family: familyOf(item.node.bodyClass),
@@ -210,7 +265,7 @@ function draw(raw) {
   tree = buildTree(readSystem(raw));
   const began = performance.now();
   stage.innerHTML = pictureOf(layoutOf(tree), 28, pictureFor);
-  window.systemTrial = { ...(window.systemTrial ?? {}), paintedIn: Math.round(performance.now() - began) };
+  window.systemTrial = { ...(window.systemTrial ?? {}), paintedIn: Math.round(performance.now() - began), look: looks.value };
   const [x, y, w, h] = stage.querySelector('svg').dataset.box.split(' ').map(Number);
   whole = { x, y, w, h };
   setView(opening());
@@ -279,6 +334,7 @@ async function start() {
   if (data.systems.some((raw) => raw.system.id64 === wanted)) chooser.value = wanted;
   const show = () => draw(data.systems.find((raw) => raw.system.id64 === chooser.value));
   chooser.addEventListener('change', show);
+  looks.addEventListener('change', show);
   show();
   // For looking in from the browser's console.
   window.systemTrial = { ...(window.systemTrial ?? {}), data, tree: () => tree };

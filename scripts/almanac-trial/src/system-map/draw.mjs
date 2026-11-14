@@ -166,14 +166,19 @@ function bodyOf(item, pictureFor) {
   const look = lookOf(node);
   // A painted surface, where the page can make one (surface.mjs); else the
   // plain shaded ball below, which needs nothing but the browser's shapes.
-  const painted = pictureFor ? pictureFor(item, look) : null;
+  const given = pictureFor ? pictureFor(item, look) : null;
+  // A picture comes as its address, or with how wide to draw it (in body
+  // radii) and whether it is whole: a whole one brings its own glow or edge.
+  const painted = typeof given === 'string' ? { href: given, width: 2, whole: false } : given;
   let shape;
-  if (painted) {
-    const glow = look.star
+  if (painted?.href) {
+    const half = r * (painted.width ?? 2) / 2;
+    const glow = look.star && !painted.whole
       ? `<circle r="${n(r * 1.3)}" fill="${rgb1(look.halo)}" opacity="${look.dark ? 0.35 : 0.55}" filter="url(#sm-glow)"/>`
       : '';
-    const edge = look.dark ? `<circle r="${n(r)}" fill="none" stroke="${rgb1(look.halo)}" stroke-width="${n(Math.max(1.5, r * 0.08))}"/>` : '';
-    shape = `${glow}<image class="sm-surface" href="${safe(painted)}" x="${n(-r)}" y="${n(-r)}" width="${n(2 * r)}" height="${n(2 * r)}"/>`
+    const edge = look.dark && !painted.whole
+      ? `<circle r="${n(r)}" fill="none" stroke="${rgb1(look.halo)}" stroke-width="${n(Math.max(1.5, r * 0.08))}"/>` : '';
+    shape = `${glow}<image class="sm-surface" href="${safe(painted.href)}" x="${n(-half)}" y="${n(-half)}" width="${n(2 * half)}" height="${n(2 * half)}"/>`
       + `${edge}${look.star ? '' : ringShadowOf(item)}`;
   } else if (look.star && look.dark) {
     shape = `<circle r="${n(r * 1.25)}" fill="${rgb1(look.halo)}" opacity="0.35" filter="url(#sm-glow)"/>`
@@ -253,9 +258,9 @@ function stationOf(item) {
 
 /**
  * The whole picture, as SVG text, with a margin around what is drawn.
- * `pictureFor(item, look)` may give the address of a painted picture for a
- * body (the page makes them with surface.mjs); without it, or where it gives
- * nothing, the body is a plain shaded ball.
+ * `pictureFor(item, look)` may give a picture for a body: its address, or
+ * `{ href, width, whole }` (the page makes them with Cosmos or surface.mjs).
+ * Without it, or where it gives nothing, the body is a plain shaded ball.
  */
 export function pictureOf(layout, margin = 28, pictureFor = null) {
   const { box } = layout;

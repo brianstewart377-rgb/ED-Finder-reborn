@@ -16,6 +16,8 @@ import {
   RING_COLOURS, lookOf, pictureOf, ringBandsOf, safe, spokenOf, spokenOfStation,
 } from './src/system-map/draw.mjs';
 import { patternOf, pixelsFor, seedOf, surface } from './src/system-map/surface.mjs';
+import { KINDS, MOLTEN_FROM_K, WIDTHS, cosmosAsk, cosmosPixels, shadesFor } from './src/system-map/cosmos-look.mjs';
+import { CelestialGenerator, CelestialType } from '@eluvade/cosmos';
 import { LICENCE_FILES, addLicences, noticesMissingFrom, requiredNotices } from './licence-files.mjs';
 import { copyWorkerFiles, filesAskedFor } from './worker-files.mjs';
 import { readFileSync } from 'node:fs';
@@ -852,4 +854,115 @@ test('the page may give each body a painted picture; without one the plain ball 
   assert.ok(withPictures.includes('aria-label="Earth, Earth-like world; 2 in orbit"'));
   // An address from anywhere cannot break out of the picture.
   assert.ok(!pictureOf(layout, 28, () => '"><script>x</script>').includes('<script>'));
+});
+
+// ---------------------------------------------------------------------------
+// The Cosmos look: what the library is asked to draw for each body.
+// ---------------------------------------------------------------------------
+
+const ROCK = FAMILIES.rocky.colour;
+
+test('every class we name is asked for as a kind Cosmos can draw, in colours it knows', () => {
+  const drawable = new Set(Object.values(CelestialType));
+  for (const family of Object.keys(FAMILIES)) {
+    const ask = cosmosAsk({ family, colour: FAMILIES[family].colour });
+    assert.ok(drawable.has(ask.kind), `${family}: ${ask.kind}`);
+    // Our colours go in under Cosmos's own names for them, each a full colour.
+    const slots = new Set(CelestialGenerator.getColorSlots(ask.kind));
+    for (const [name, colour] of Object.entries(ask.colours ?? {})) {
+      assert.ok(slots.has(name), `${ask.kind} has no colour called ${name}`);
+      assert.equal(colour.length, 4);
+      assert.ok(colour.every((part) => part >= 0 && part <= 1), `${family} ${name}: ${colour}`);
+    }
+  }
+  // Worlds with seas and ice keep Cosmos's own colours.
+  assert.deepEqual(['earth-like', 'water-world', 'icy'].map((family) => cosmosAsk({ family, colour: ROCK }).colours),
+    [null, null, null]);
+  assert.equal(cosmosAsk({ family: 'earth-like', colour: ROCK }).kind, 'terrain_wet');
+  assert.equal(cosmosAsk({ family: 'water-world', colour: ROCK }).kind, 'aquatic');
+  assert.equal(cosmosAsk({ family: 'a class not seen before', colour: ROCK }).kind, 'barren');
+  assert.equal(KINDS.unknown, 'barren');
+});
+
+test('a gas giant is banded, and Cosmos\'s own ring is switched off: ours are the ones in our data', () => {
+  for (const family of Object.keys(FAMILIES)) {
+    const ask = cosmosAsk({ family, colour: FAMILIES[family].colour });
+    assert.equal(ask.kind === 'gas_giant_ringed', isBanded(family), family);
+    if (!isBanded(family)) continue;
+    for (const ring of ['ring1', 'ring2', 'ring3', 'ring4']) assert.deepEqual(ask.colours[ring], [0, 0, 0, 0]);
+    // Every colour Cosmos has for this kind is given, so none of its own shows through.
+    assert.deepEqual(Object.keys(ask.colours).sort(), [...CelestialGenerator.getColorSlots('gas_giant_ringed')].sort());
+    // The body is half its picture's width, so the picture is drawn four radii wide.
+    assert.equal(ask.width, 4);
+    // Lightest band first, and all of them shades of the class's own colour.
+    const bands = ['gas1', 'gas2', 'gas3', 'gas4', 'gas_dark1', 'gas_dark2', 'gas_dark3', 'gas_dark4'].map((name) => ask.colours[name]);
+    const bright = (colour) => colour[0] + colour[1] + colour[2];
+    for (let index = 1; index < bands.length; index += 1) assert.ok(bright(bands[index]) <= bright(bands[index - 1]));
+  }
+});
+
+test('bare rock and metal hot enough to melt is drawn molten; nothing else is', () => {
+  assert.equal(MOLTEN_FROM_K, 1300);
+  for (const family of ['rocky', 'high-metal-content', 'metal-rich', 'rocky-ice']) {
+    assert.equal(cosmosAsk({ family, colour: ROCK, surfaceK: 1299 }).kind, 'barren');
+    assert.equal(cosmosAsk({ family, colour: ROCK, surfaceK: null }).kind, 'barren', 'no temperature, no claim');
+    const hot = cosmosAsk({ family, colour: ROCK, surfaceK: 1300 });
+    assert.equal(hot.kind, 'molten');
+    assert.equal(hot.colours, null, 'molten keeps Cosmos\'s own colours');
+  }
+  for (const family of ['earth-like', 'water-world', 'icy', 'gas-giant-I']) {
+    assert.notEqual(cosmosAsk({ family, colour: ROCK, surfaceK: 5000 }).kind, 'molten', family);
+  }
+  // On the real Sol: Mercury (about 400 K) and Venus are not molten.
+  for (const node of solTree().nodes.values()) {
+    if (node.type === 'star') continue;
+    const ask = cosmosAsk({ family: familyOf(node.bodyClass), colour: ROCK, surfaceK: node.surfaceK });
+    assert.notEqual(ask.kind, 'molten', node.name);
+  }
+});
+
+test('a star keeps its class colour and brings its own glow; a black hole its own disc', () => {
+  const sun = lookOf([...solTree().nodes.values()].find((node) => node.name === 'Sol'));
+  const ask = cosmosAsk({ family: 'unknown', star: true, colour: sun.colour, halo: sun.halo });
+  assert.deepEqual([ask.kind, ask.whole, ask.width], ['star', true, WIDTHS.star]);
+  assert.deepEqual(Object.keys(ask.colours).sort(), [...CelestialGenerator.getColorSlots('star')].sort());
+  assert.deepEqual(ask.colours.glow, [...sun.halo, 1]);
+  assert.deepEqual(shadesFor('star', [0.2, 0.4, 1], [0.1, 0.2, 0.9]).glow, [0.1, 0.2, 0.9, 1]);
+  const hole = cosmosAsk({ family: 'unknown', star: true, dark: true, colour: [0, 0, 0], halo: [1, 0.5, 0.2] });
+  assert.deepEqual([hole.kind, hole.whole, hole.colours], ['black_hole', true, null]);
+});
+
+test('Cosmos is asked for four times the pixels the screen needs, within bounds', () => {
+  assert.deepEqual([[3.5, 2], [8, 2], [24, 2], [46, 4], [78, 3.5]].map(([r, width]) => cosmosPixels(r, width)),
+    [128, 128, 192, 512, 512]);
+});
+
+test('a picture may come wider than its body, and whole: then nothing of ours is drawn round it', () => {
+  const layout = layoutOf(solTree());
+  const drawn = pictureOf(layout, 28, (item, look) => (look.star
+    ? { href: 'data:image/png;base64,STAR', width: 3.5, whole: true }
+    : { href: 'data:image/png;base64,BODY', width: item.node.name === 'Jupiter' ? 4 : 2, whole: false }));
+  const sun = layout.items.find((item) => item.kind === 'body' && item.node.name === 'Sol');
+  const jupiter = layout.items.find((item) => item.kind === 'body' && item.node.name === 'Jupiter');
+  // Every picture's left edge and width, as drawn, by its address.
+  const pictures = [...drawn.matchAll(/href="([^"]+)" x="(-?[\d.]+)" y="-?[\d.]+" width="([\d.]+)"/gu)]
+    .map(([, href, x, width]) => ({ href, x: Number(x), width: Number(width) }));
+  assert.equal(pictures.length, 40);
+  const near = (one, other) => Math.abs(one - other) < 0.02;
+  const star = pictures.find((picture) => picture.href.endsWith('STAR'));
+  assert.ok(near(star.width, sun.r * 3.5) && near(star.x, -sun.r * 1.75), 'the star is 3.5 radii wide, centred');
+  assert.ok(pictures.some((picture) => near(picture.width, jupiter.r * 4) && near(picture.x, -jupiter.r * 2)),
+    'the banded giant is 4 radii wide, centred');
+  assert.ok(!drawn.includes('filter="url(#sm-glow)"'), 'a whole star picture brings its own glow');
+  assert.ok(pictureOf(layout, 28, () => 'data:image/png;base64,OURS').includes('filter="url(#sm-glow)"'));
+  // Rings are still ours, drawn round the picture.
+  assert.equal(drawn.match(/class="sm-ring"/gu).length, pictureOf(layout).match(/class="sm-ring"/gu).length);
+});
+
+test('both licences of the Cosmos look go beside the page', async () => {
+  assert.ok(LICENCE_FILES.some(([from, to]) => from === '@eluvade/cosmos/LICENSE' && to === 'cosmos-LICENSE.txt'));
+  const upstream = await readFile(new URL('./public/licences/pixel-planets-LICENSE.txt', import.meta.url), 'utf8');
+  assert.ok(upstream.startsWith('MIT License') && upstream.includes('Deep-Fold'));
+  const page = await readFile(new URL('./system-map.html', import.meta.url), 'utf8');
+  for (const link of ['./licences/cosmos-LICENSE.txt', './licences/pixel-planets-LICENSE.txt']) assert.ok(page.includes(link), link);
 });

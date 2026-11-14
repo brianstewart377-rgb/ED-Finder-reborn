@@ -106,6 +106,7 @@ function readBody(found) {
     type: found.body_type,
     bodyClass: found.body_class ?? null,
     spectral: found.spectral_class ?? null,
+    surfaceK: number(found.surface_temperature_k),
     luminosity: found.luminosity_class ?? null,
     mainStar: found.is_main_star === true,
     radiusKm: number(found.radius_km),
