@@ -171,7 +171,7 @@ def test_run_downloads_the_file_and_runs_the_update_from_the_live_image(spansh, 
     assert chosen.path(FILE).read_bytes() == b"night one" * 100
     (run,) = docker.calls("run")
     assert run == [
-        "run", "--rm", "--name", "edfinder-galaxy-update",
+        "run", "--rm", "--init", "--name", "edfinder-galaxy-update",
         "--network", "container:edfinder-v3-phase4c-full-20260827_r5-postgres",
         "--env", "PGHOST=127.0.0.1", "--env", "PGPORT=5432",
         "--env", "PGUSER=edfinder_v3", "--env", "PGDATABASE=edfinder_v3_phase4c_full_20260827_r5",
@@ -385,7 +385,7 @@ def test_if_the_database_refuses_a_local_client_the_apps_own_settings_are_used(
     local, app = docker.calls("run")
     assert "container:edfinder-v3-phase4c-full-20260827_r5-postgres" in local
     assert app == [
-        "run", "--rm", "--name", "edfinder-galaxy-update",
+        "run", "--rm", "--init", "--name", "edfinder-galaxy-update",
         "--network", "edfinder-v3-production", "--env-file", chosen.api_env_file,
         "--env", "EDFINDER_GALAXY_USE_DATABASE_URL=1",
         "--env", "PYTHONDONTWRITEBYTECODE=1", "--env", "PYTHONUNBUFFERED=1",
