@@ -123,7 +123,7 @@ def test_only_setting_names_are_taken_from_an_env_file(tmp_path):
 
 # -- health and smoke checks against a tiny local server -----------------------------
 
-RANKINGS = "/api/archetypes/rankings?archetype=flexible&limit=5"
+RANKINGS = "/api/archetypes/rankings?archetype=flexible&min_score=60&limit=5&offset=0&reach_ly=250"
 
 
 class FakeSite:
@@ -199,9 +199,10 @@ def test_find_check_runs_three_real_searches(fake_site):
     assert [(path, kind) for path, kind, _ in site.posted] == [
         ("/api/local/search", "application/json")] * 2
     galaxy, nearest = (body for _, _, body in site.posted)
-    assert galaxy == {"galaxy_wide": True, "size": 5, "from": 0}
+    assert galaxy == {"galaxy_wide": True, "size": 5, "from": 0, "reach_ly": 250}
     assert nearest["sort_by"] == "distance"
     assert nearest["reference_coords"] == {"x": 0.0, "y": 0.0, "z": 0.0}
+    assert nearest["reach_ly"] == 250
 
 
 def test_find_check_accepts_a_build_from_before_the_claim_rule(fake_site):

@@ -43,7 +43,7 @@ import math
 from pathlib import Path as FilePath
 import re
 import time
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Optional
 import uuid
 
 import asyncpg
@@ -91,6 +91,7 @@ from edfinder_api.ranking.profile import (
     ranking_sha256,
 )
 from edfinder_api.claim_rule import apply_claim_notes, claim_notes
+from edfinder_api.reach_rule import DEFAULT_REACH_LY, REACH_CHOICES, checked_reach
 from edfinder_api.ranking.ranking_sql import build_count_query, build_ranked_query
 from edfinder_api.ranking.rerank import (
     PPM,
@@ -519,13 +520,19 @@ async def get_archetype_rankings(
     offset:          int            = Query(
         RANKING_OFFSET_MIN, ge=RANKING_OFFSET_MIN, le=RANKING_OFFSET_MAX
     ),
-    reach_ly: Literal[250, 500] = Query(
-        250,
-        description=(
-            'Show systems within this many light years of inhabited space: '
-            '250 (the default) or 500.'
+    # Read as a number first, then checked, as min_score is: a web address
+    # carries "250" as text, which a Literal[250, 500] refuses.
+    reach_ly: Annotated[
+        int,
+        AfterValidator(checked_reach),
+        Query(
+            description=(
+                'Show systems within this many light years of inhabited space: '
+                '250 (the default) or 500.'
+            ),
+            json_schema_extra={'enum': list(REACH_CHOICES)},
         ),
-    ),
+    ] = DEFAULT_REACH_LY,
 ):
     if offset + limit > RANKING_OFFSET_PLUS_LIMIT_MAX:
         raise HTTPException(
