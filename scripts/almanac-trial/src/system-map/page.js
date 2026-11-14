@@ -215,6 +215,9 @@ function cosmosOrNothing() {
   return cosmos || null;
 }
 
+// What each body on the page was asked of Cosmos, by the body: for spinning.
+const asks = new Map();
+
 /** A body's picture from Cosmos, or null where Cosmos cannot draw it. */
 function cosmosPicture(item, look) {
   const generator = cosmosOrNothing();
@@ -225,6 +228,7 @@ function cosmosPicture(item, look) {
   });
   const size = cosmosPixels(item.r, ask.width);
   const key = `cosmos/${item.id}/${size}`;
+  asks.set(String(item.id), { ask, seed: seedOf(item.id) });
   if (!painted.has(key)) {
     try {
       const canvas = generator.render({
@@ -261,7 +265,107 @@ function pictureFor(item, look) {
   return painted.get(key);
 }
 
+// Spinning. Cosmos can draw a body as it is a moment later, so the bodies
+// turn and the stars seethe. Each body's still picture stays where it is; a
+// small canvas is laid over it and drawn afresh some twenty times a second,
+// all from Cosmos's one drawing surface. It is off where the person's system
+// asks for less motion, where Cosmos is not the look, and by the "Spin" box.
+const spinBox = document.querySelector('#spin');
+const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+spinBox.checked = asked.get('spin') === '0' ? false : !calm.matches;
+const SPIN_PIXELS = 256;
+// Twelve times a second: the bodies turn slowly, so more would not show.
+const SPIN_EVERY_MS = 1000 / 12;
+// Nothing is drawn while nobody is using the page: after this long without
+// the mouse, the wheel or a key, the bodies rest until the next movement.
+const SPIN_RESTS_AFTER_MS = 20000;
+let lastStir = performance.now();
+for (const kind of ['pointermove', 'pointerdown', 'wheel', 'keydown']) {
+  window.addEventListener(kind, () => { lastStir = performance.now(); }, { passive: true });
+}
+// Spinning is a nicety and must cost next to nothing (the owner, 14 Nov:
+// "only if it's negliable"). A frame of the whole system may take 8 ms on
+// average, a tenth of the time between frames. Where it takes more, the
+// machine has no graphics card to speak of or the system is very large:
+// spinning stops by itself and the still pictures stay.
+const SPIN_TOO_SLOW_MS = 8;
+let spinning = 0;
+
+function stopSpinning() {
+  cancelAnimationFrame(spinning);
+  spinning = 0;
+  for (const cover of stage.querySelectorAll('foreignObject.sm-spin')) cover.remove();
+  // The still pictures were hidden beneath the moving ones: show them again.
+  for (const picture of stage.querySelectorAll('image.sm-surface')) picture.style.visibility = '';
+}
+
+function startSpinning() {
+  stopSpinning();
+  const generator = looks.value === 'cosmos' && spinBox.checked ? cosmosOrNothing() : null;
+  if (!generator) return;
+  const covers = [];
+  for (const body of stage.querySelectorAll('.sm-body')) {
+    const picture = body.querySelector('image.sm-surface');
+    const found = asks.get(body.dataset.id);
+    if (!picture || !found) continue;
+    const cover = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    for (const side of ['x', 'y', 'width', 'height']) cover.setAttribute(side, picture.getAttribute(side));
+    cover.setAttribute('class', 'sm-spin');
+    cover.style.pointerEvents = 'none';
+    const canvas = document.createElement('canvas');
+    canvas.width = SPIN_PIXELS;
+    canvas.height = SPIN_PIXELS;
+    canvas.style.cssText = 'display:block;width:100%;height:100%';
+    cover.append(canvas);
+    picture.after(cover);
+    covers.push({ ...found, picture, pen: canvas.getContext('2d') });
+  }
+  let last = -Infinity;
+  let frames = 0;
+  let spent = 0;
+  const turn = (now) => {
+    spinning = requestAnimationFrame(turn);
+    if (now - last < SPIN_EVERY_MS) return;
+    if (frames > 0 && performance.now() - lastStir > SPIN_RESTS_AFTER_MS) return;
+    last = now;
+    const started = performance.now();
+    // Each frame is one step on, so the bodies do not jump after a rest.
+    const seconds = frames * SPIN_EVERY_MS / 1000;
+    try {
+      for (const { ask, seed, pen } of covers) {
+        const drawn = generator.render({
+          type: ask.kind, seed, resolution: SPIN_PIXELS, ...(ask.colours ? { colors: ask.colours } : {}),
+        }, seconds);
+        pen.clearRect(0, 0, SPIN_PIXELS, SPIN_PIXELS);
+        pen.drawImage(drawn, 0, 0);
+      }
+    } catch {
+      // Cosmos could not go on (the graphics card was taken away, say): the still pictures remain.
+      stopSpinning();
+      return;
+    }
+    // Once the first moving frame is there, the still picture beneath is hidden.
+    if (frames === 0) for (const { picture } of covers) picture.style.visibility = 'hidden';
+    frames += 1;
+    spent += performance.now() - started;
+    const msEach = Math.round(spent / frames * 10) / 10;
+    window.systemTrial = { ...(window.systemTrial ?? {}), spin: { bodies: covers.length, frames, msEach, stopped: false } };
+    if (frames >= 5 && msEach > SPIN_TOO_SLOW_MS) {
+      spinBox.checked = false;
+      spinBox.parentElement.title = 'Switched off by itself: this machine takes too long to draw the bodies moving.';
+      window.systemTrial.spin.stopped = true;
+      stopSpinning();
+    }
+  };
+  spinning = requestAnimationFrame(turn);
+}
+
+spinBox.addEventListener('change', startSpinning);
+calm.addEventListener('change', () => { if (calm.matches) { spinBox.checked = false; startSpinning(); } });
+
 function draw(raw) {
+  stopSpinning();
+  asks.clear();
   tree = buildTree(readSystem(raw));
   const began = performance.now();
   stage.innerHTML = pictureOf(layoutOf(tree), 28, pictureFor);
@@ -270,6 +374,7 @@ function draw(raw) {
   whole = { x, y, w, h };
   setView(opening());
   showSystem();
+  startSpinning();
 }
 
 // Moving about: drag to pan, wheel to zoom about the pointer.
