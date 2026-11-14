@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { parseId64 } from '$lib/domain/id64';
 import { BODY_FILTER_OPTIONS, type BodyFilterValues } from './body-filters';
 import {
+  DEFAULT_REACH,
   DEFAULT_SEARCH_RADIUS,
   MAX_BODIES_PARAMETER_LENGTH,
+  REACH_OPTIONS,
   SEARCH_RADIUS_OPTIONS,
   effectiveSearchRadius,
+  normalizeReach,
   normalizeSearchRadius,
   parseExploreSearchParams,
   serializeExploreSearchParams,
@@ -19,9 +22,50 @@ describe('Explore search URL', () => {
     const result = parse('');
     expect(result.near).toBeNull();
     expect(result.radius).toBe(500);
+    expect(result.reach).toBe(250);
     expect(result.bodyFilters).toEqual({});
     expect(result.issues).toEqual([]);
     expect(result.canonical.toString()).toBe('');
+  });
+
+  it.each(REACH_OPTIONS)('round-trips the reach %s', (reach) => {
+    expect(DEFAULT_REACH).toBe(250);
+    const result = parse(`reach=${reach}`);
+    expect(result.reach).toBe(reach);
+    expect(result.issues).toEqual([]);
+    // The default is left out of the link.
+    expect(result.canonical.get('reach')).toBe(
+      reach === DEFAULT_REACH ? null : String(reach),
+    );
+    expect(parse(result.canonical.toString()).reach).toBe(reach);
+    expect(serializeExploreSearchParams(result).toString()).toBe(
+      result.canonical.toString(),
+    );
+  });
+
+  it.each(['', '100', '300', '1000', '500.0', '0500', 'far', 'reach=500'])(
+    'clears the unknown reach %j with one notice',
+    (raw) => {
+      const result = parse(`near=42&reach=${encodeURIComponent(raw)}`);
+      expect(result.reach).toBe(250);
+      expect(result.near).toBe('42');
+      expect(result.issues).toEqual([
+        'Invalid reach in this link has been cleared.',
+      ]);
+      expect(result.canonical.has('reach')).toBe(false);
+    },
+  );
+
+  it('clears a repeated reach and keeps other parameters', () => {
+    const result = parse('reach=500&reach=500&view=cards');
+    expect(result.reach).toBe(250);
+    expect(result.issues).toEqual([
+      'Invalid reach in this link has been cleared.',
+    ]);
+    expect(result.canonical.toString()).toBe('view=cards');
+    expect(normalizeReach(500)).toBe(500);
+    expect(normalizeReach('500')).toBe(250);
+    expect(normalizeReach(undefined)).toBe(250);
   });
 
   it.each(SEARCH_RADIUS_OPTIONS)(

@@ -43,7 +43,7 @@ import math
 from pathlib import Path as FilePath
 import re
 import time
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional
 import uuid
 
 import asyncpg
@@ -256,6 +256,7 @@ async def _archetype_rankings_v3(
     limit: int,
     offset: int,
     pool: asyncpg.Pool,
+    reach_ly: Optional[int] = None,
 ) -> dict:
     t0 = time.monotonic()
 
@@ -324,8 +325,10 @@ async def _archetype_rankings_v3(
         limit=limit,
         offset=offset,
         min_score=min_score,
-        # Find shows only systems that can still be claimed (claim_rule).
+        # Find shows only systems that can still be claimed (claim_rule),
+        # within the asked reach of inhabited space (reach_rule).
         hide_claimed=True,
+        reach_ly=reach_ly,
     )
     count_sql, count_params = build_count_query(
         PROFILE_SPEC,
@@ -335,6 +338,7 @@ async def _archetype_rankings_v3(
         reference_coords=None,
         min_score=min_score,
         hide_claimed=True,
+        reach_ly=reach_ly,
     )
 
     try:
@@ -515,6 +519,13 @@ async def get_archetype_rankings(
     offset:          int            = Query(
         RANKING_OFFSET_MIN, ge=RANKING_OFFSET_MIN, le=RANKING_OFFSET_MAX
     ),
+    reach_ly: Literal[250, 500] = Query(
+        250,
+        description=(
+            'Show systems within this many light years of inhabited space: '
+            '250 (the default) or 500.'
+        ),
+    ),
 ):
     if offset + limit > RANKING_OFFSET_PLUS_LIMIT_MAX:
         raise HTTPException(
@@ -534,6 +545,7 @@ async def get_archetype_rankings(
         limit=limit,
         offset=offset,
         pool=pool,
+        reach_ly=reach_ly,
     )
 
 

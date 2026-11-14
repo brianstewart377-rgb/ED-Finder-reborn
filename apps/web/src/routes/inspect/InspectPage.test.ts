@@ -403,7 +403,13 @@ describe('Inspect Explore navigation', () => {
     renderExplore();
     await waitFor(() =>
       expect(api.getArchetypeRankings).toHaveBeenCalledWith(
-        { archetype: 'flexible', min_score: 76, page_size: 1, offset: 2 },
+        {
+          archetype: 'flexible',
+          min_score: 76,
+          page_size: 1,
+          offset: 2,
+          reach_ly: 250,
+        },
         expect.any(AbortSignal),
       ),
     );
@@ -425,6 +431,7 @@ describe('Inspect Explore navigation', () => {
           sort_by: 'distance',
           size: 1,
           from: 0,
+          reach_ly: 250,
         },
         expect.any(AbortSignal),
         { id64: anchor.id64, name: anchor.name },

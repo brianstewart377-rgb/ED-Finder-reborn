@@ -57,13 +57,16 @@ AUTOCOMPLETE_CACHE_VERSION = 'v4'
 # identity) and must never be served after the repoint.
 # Bumped v5 -> v6 with Find's claim rule: `search:v5:*` pages were computed
 # before inhabited and being-claimed systems were left out.
-SEARCH_CACHE_VERSION = 'v6'
+# Bumped v6 -> v7 with Find's reach rule: a v6 page holds systems out to any
+# distance from inhabited space.
+SEARCH_CACHE_VERSION = 'v7'
 # Bumped v4 -> v5 at the F3 slice-2b V3 cutover of `/api/search/galaxy`:
 # pre-cutover `galaxy:v4:*` entries were written by the legacy economy-ranked
 # path and must never be served after the repoint. The cluster route carries
 # no cache any more (see `cluster_search`).
 # Bumped v5 -> v6 with Find's claim rule, for the same reason as the search key.
-GALAXY_CACHE_VERSION = 'v6'
+# Bumped v6 -> v7 with Find's reach rule, for the same reason as the search key.
+GALAXY_CACHE_VERSION = 'v7'
 
 
 def _search_cache_key(body_dict: dict, generation_row) -> str:
@@ -204,6 +207,7 @@ async def local_search_endpoint(
         'sort_by':        req.sort_by or 'development',
         'galaxy_wide':    req.galaxy_wide,
         'galaxy_region_id': req.galaxy_region_id,
+        'reach_ly':       req.reach_ly,
     }
 
     # Reject a disallowed request shape (422) before any database access, so
@@ -351,6 +355,7 @@ async def galaxy_search(
         # Forwarded so an explicit legacy uncolonised-only request reaches the
         # V3 validator (422) instead of being silently widened to all systems.
         'include_colonised': req.include_colonised,
+        'reach_ly':  req.reach_ly,
     }
 
     # Reject a disallowed request shape (422) before any database access, so

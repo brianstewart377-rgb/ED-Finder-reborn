@@ -62,7 +62,7 @@ export const queryKeys = {
       anchorIdentity(anchor),
       pageSize ?? request.size ?? null,
     ] as const,
-  /** Selected-archetype rankings: archetype, floor, facade page size, offset. */
+  /** Selected-archetype rankings: archetype, floor, facade page size, offset, reach. */
   rankings: (request: ArchetypeRankingsRequest) =>
     [
       ...queryKeys.all,
@@ -72,6 +72,7 @@ export const queryKeys = {
       request.min_score,
       request.page_size,
       request.offset,
+      request.reach_ly ?? null,
     ] as const,
   /** Every identity sent to the explanation gate, including hash-only rebuilds. */
   archetypeExplanation: (

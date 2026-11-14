@@ -10,6 +10,14 @@ import {
 export const NEAR_URL_PARAMETER = 'near';
 export const RADIUS_URL_PARAMETER = 'radius';
 export const BODIES_URL_PARAMETER = 'bodies';
+export const REACH_URL_PARAMETER = 'reach';
+/**
+ * How far from inhabited space Find looks: within 250 ly (the default) or the
+ * whole 500 ly band that has scores.
+ */
+export const REACH_OPTIONS = [250, 500] as const;
+export type Reach = (typeof REACH_OPTIONS)[number];
+export const DEFAULT_REACH: Reach = 250;
 export const SEARCH_RADIUS_OPTIONS = [100, 250, 500, 1000, 2000] as const;
 export type SearchRadius = (typeof SEARCH_RADIUS_OPTIONS)[number];
 export const DEFAULT_SEARCH_RADIUS: SearchRadius = 500;
@@ -20,6 +28,7 @@ export type ExploreSearchState = Readonly<{
   near: Id64 | null;
   radius: SearchRadius;
   bodyFilters: BodyFilterValues;
+  reach: Reach;
 }>;
 
 export type ParsedExploreSearch = ExploreSearchState &
@@ -54,6 +63,10 @@ export function effectiveSearchRadius(
     : radius;
 }
 
+export function normalizeReach(value: unknown): Reach {
+  return REACH_OPTIONS.find((reach) => reach === value) ?? DEFAULT_REACH;
+}
+
 export function normalizeSearchRadius(value: unknown): SearchRadius {
   return (
     SEARCH_RADIUS_OPTIONS.find((radius) => radius === value) ??
@@ -70,6 +83,7 @@ export function serializeExploreSearchParams(
   output.delete(NEAR_URL_PARAMETER);
   output.delete(RADIUS_URL_PARAMETER);
   output.delete(BODIES_URL_PARAMETER);
+  output.delete(REACH_URL_PARAMETER);
   const near = boundedNear(input.near);
   if (near !== null) output.set(NEAR_URL_PARAMETER, near);
   const radius = normalizeSearchRadius(input.radius);
@@ -81,6 +95,8 @@ export function serializeExploreSearchParams(
     return range ? [`${key}:${range.min ?? ''}-${range.max ?? ''}`] : [];
   }).join(',');
   if (bodies) output.set(BODIES_URL_PARAMETER, bodies);
+  const reach = normalizeReach(input.reach);
+  if (reach !== DEFAULT_REACH) output.set(REACH_URL_PARAMETER, String(reach));
   return output;
 }
 
@@ -145,7 +161,17 @@ export function parseExploreSearchParams(
   }
   if (invalidBodies)
     issues.push('Invalid body filters in this link have been cleared.');
-  const state = { near, radius, bodyFilters };
+
+  const reachValues = params.getAll(REACH_URL_PARAMETER);
+  const parsedReach =
+    reachValues.length === 1
+      ? REACH_OPTIONS.find((reach) => String(reach) === reachValues[0])
+      : undefined;
+  const reach = parsedReach ?? DEFAULT_REACH;
+  if (reachValues.length && parsedReach === undefined)
+    issues.push('Invalid reach in this link has been cleared.');
+
+  const state = { near, radius, bodyFilters, reach };
   return {
     ...state,
     issues,

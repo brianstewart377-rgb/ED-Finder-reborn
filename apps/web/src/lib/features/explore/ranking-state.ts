@@ -25,8 +25,11 @@ import {
   type SelectedMinimumTier,
 } from './archetypes';
 import {
+  DEFAULT_REACH,
   DEFAULT_SEARCH_RADIUS,
+  normalizeReach,
   normalizeSearchRadius,
+  type Reach,
   type SearchRadius,
 } from './search-state';
 
@@ -456,6 +459,7 @@ export function rankingWireWindow(
 export function legacyExploreRequest(
   anchor: AnchorCoordinates | null | undefined,
   radius: SearchRadius = DEFAULT_SEARCH_RADIUS,
+  reach: Reach = DEFAULT_REACH,
 ): ExploreSearchRequest {
   const coords = anchoredCoordinates(anchor);
   if (coords) {
@@ -468,6 +472,7 @@ export function legacyExploreRequest(
       sort_by: 'distance',
       size: LEGACY_EXPLORE_PAGE_SIZE,
       from: 0,
+      reach_ly: normalizeReach(reach),
     };
   }
   return {
@@ -475,6 +480,7 @@ export function legacyExploreRequest(
     sort_by: 'development',
     size: LEGACY_EXPLORE_PAGE_SIZE,
     from: 0,
+    reach_ly: normalizeReach(reach),
   };
 }
 
@@ -486,12 +492,13 @@ export function legacyExploreRequest(
 export function selectFinderRequest(
   input: Partial<FinderRankingState> | null | undefined,
   anchor: AnchorCoordinates | null | undefined,
-  options: { enabled: boolean; radius?: SearchRadius },
+  options: { enabled: boolean; radius?: SearchRadius; reach?: Reach },
 ): FinderRequest {
+  const reach = normalizeReach(options.reach);
   if (!options.enabled) {
     return {
       kind: 'any',
-      request: legacyExploreRequest(anchor, options.radius),
+      request: legacyExploreRequest(anchor, options.radius, reach),
       pageSize: LEGACY_EXPLORE_PAGE_SIZE,
     };
   }
@@ -509,12 +516,14 @@ export function selectFinderRequest(
           sort_by: 'distance',
           size: window.limit,
           from: window.offset,
+          reach_ly: reach,
         }
       : {
           galaxy_wide: true,
           sort_by: 'development',
           size: window.limit,
           from: window.offset,
+          reach_ly: reach,
         };
     return { kind: 'any', request, pageSize: state.pageSize };
   }
@@ -525,6 +534,7 @@ export function selectFinderRequest(
       min_score: minimumScoreForTier(state.minimumTier ?? DEFAULT_MINIMUM_TIER),
       page_size: state.pageSize,
       offset: state.offset,
+      reach_ly: reach,
     },
   };
 }

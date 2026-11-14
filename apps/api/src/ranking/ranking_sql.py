@@ -18,6 +18,11 @@ keeps the window's index order. The score-ordered radius page is the one
 exception in placement only: its candidates subquery already returns every
 system in the radius, so the rule is applied to the candidates and the GiST
 walk inside is planned as before.
+
+``reach_ly`` applies Find's reach rule (``edfinder_api.reach_rule``): it keeps
+only systems within 250 ly (or 500 ly) of inhabited space. It is placed exactly
+where the claim rule is, right after it, for the same reasons: one primary-key
+probe per row a window reads. ``None`` leaves it out.
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ from __future__ import annotations
 from typing import Any, Final
 
 from edfinder_api.claim_rule import not_claimed_sql
+from edfinder_api.reach_rule import checked_reach, in_reach_sql
 
 from .profile import (
     ACCEPTED_ARCHETYPE_SCORE_FLOORS,
@@ -224,6 +230,21 @@ def _no_pick_filters(
     return clauses
 
 
+def _rules(system_id_sql: str, hide_claimed: bool, reach_ly: int | None) -> list[str]:
+    """The claim rule, then the reach rule, as asked for."""
+    clauses: list[str] = []
+    if hide_claimed:
+        clauses.append(not_claimed_sql(system_id_sql))
+    if reach_ly is not None:
+        clauses.append(in_reach_sql(system_id_sql, reach_ly))
+    return clauses
+
+
+def _and_lines(clauses: list[str], indent: str) -> str:
+    """Each clause as its own ``AND`` line after a WHERE, or nothing."""
+    return "".join(f"{indent}AND {clause}\n" for clause in clauses)
+
+
 def _pinned(alias: str) -> str:
     return f"{alias}.derived_generation_id = {CURRENT_GENERATION_PIN}"
 
@@ -236,13 +257,14 @@ def _picked_page_query(
     limit: int,
     offset: int,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> str:
     columns = _picked_columns(picked_archetype)
     floor = _floor_literal(min_score)
     score = columns["score"]
     tier = columns["tier"]
-    claim_filter = (
-        f"      AND {not_claimed_sql('ar.system_id64')}\n" if hide_claimed else ""
+    claim_filter = _and_lines(
+        _rules("ar.system_id64", hide_claimed, reach_ly), "      "
     )
     confidence = columns["confidence"]
     weighted = columns["weighted_key"]
@@ -313,13 +335,14 @@ def _picked_count_query(
     picked_archetype: str,
     min_score: int | None,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> str:
     columns = _picked_columns(picked_archetype)
     floor = _floor_literal(min_score)
     score = columns["score"]
     weighted = columns["weighted_key"]
-    claim_filter = (
-        f"          AND {not_claimed_sql('ar.system_id64')}\n" if hide_claimed else ""
+    claim_filter = _and_lines(
+        _rules("ar.system_id64", hide_claimed, reach_ly), "          "
     )
     # The count is taken over the same archetype window the page ranks (the
     # sentinel instead of the 10,000-row window), joined to search exactly as
@@ -369,6 +392,7 @@ def _no_pick_knn_page(
     limit: int,
     offset: int,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> str:
     radius = float(hard_filters["max_distance_ly"])
     anchor, bounding_cube, radius_param = _radius_geometry(
@@ -383,8 +407,7 @@ def _no_pick_knn_page(
             omit_max_distance=True,
         )
     )
-    if hide_claimed:
-        clauses.append(not_claimed_sql("s.system_id64"))
+    clauses.extend(_rules("s.system_id64", hide_claimed, reach_ly))
     inner_limit = builder.add(int(offset + limit))
     limit_param = builder.add(int(limit))
     offset_param = builder.add(int(offset))
@@ -424,6 +447,7 @@ def _no_pick_knn_count(
     reference_coords: tuple[float, float, float],
     sentinel: int,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> str:
     radius = float(hard_filters["max_distance_ly"])
     anchor, bounding_cube, radius_param = _radius_geometry(
@@ -435,8 +459,7 @@ def _no_pick_knn_count(
         reference_coords=reference_coords,
         omit_max_distance=True,
     )
-    if hide_claimed:
-        filters.append(not_claimed_sql("s.system_id64"))
+    filters.extend(_rules("s.system_id64", hide_claimed, reach_ly))
     sentinel_param = builder.add(int(sentinel))
     search_clauses = [_pinned("s"), f"s.position_ly <@ {bounding_cube}"]
     if any(key in hard_filters for key in _SUMMARY_FILTER_KEYS):
@@ -495,6 +518,7 @@ def _no_pick_page(
     limit: int,
     offset: int,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> str:
     if (
         reference_coords is not None
@@ -507,6 +531,7 @@ def _no_pick_page(
             limit=limit,
             offset=offset,
             hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
         )
     filters = _no_pick_filters(
         builder,
@@ -515,11 +540,13 @@ def _no_pick_page(
     )
     limit_param = builder.add(int(limit))
     offset_param = builder.add(int(offset))
-    claim_filter = (
-        f"\n  AND {not_claimed_sql('s.system_id64')}" if hide_claimed else ""
+    claim_filter = "".join(
+        f"\n  AND {clause}"
+        for clause in _rules("s.system_id64", hide_claimed, reach_ly)
     )
-    window_claim_filter = (
-        f"\n      AND {not_claimed_sql('sum.system_id64')}" if hide_claimed else ""
+    window_claim_filter = "".join(
+        f"\n      AND {clause}"
+        for clause in _rules("sum.system_id64", hide_claimed, reach_ly)
     )
     if not filters and reference_coords is None:
         return (
@@ -556,6 +583,7 @@ def _no_pick_radius_score_page(
     limit: int,
     offset: int,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> str:
     """Score-ordered page inside a radius.
 
@@ -587,8 +615,9 @@ def _no_pick_radius_score_page(
     columns = _NO_PICK_COLUMNS.replace("\n", "\n    ").rstrip()
     # The candidates subquery keeps its LIMIT, so PostgreSQL plans it on its
     # own: the claim rule out here cannot change the GiST walk inside.
+    outside_rules = _rules("candidates.system_id64", hide_claimed, reach_ly)
     claim_where = (
-        f"WHERE {not_claimed_sql('candidates.system_id64')}\n" if hide_claimed else ""
+        "WHERE " + "\n  AND ".join(outside_rules) + "\n" if outside_rules else ""
     )
     # NULLIF(x, x) is always NULL, i.e. LIMIT ALL: no candidate is ever
     # dropped. Written over a parameter it stays unknown to a generic plan,
@@ -624,13 +653,17 @@ def build_ranked_query(
     sort: str = SORT_SCORE,
     min_score: int | None = None,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> tuple[str, list[Any]]:
     """Build a bounded ranked-page query and its asyncpg parameters.
 
-    ``hide_claimed`` leaves out inhabited systems and systems being claimed
-    (see the module docstring for where each query shape applies it)."""
+    ``hide_claimed`` leaves out inhabited systems and systems being claimed,
+    and ``reach_ly`` (250 or 500) systems further than that from inhabited
+    space (see the module docstring for where each query shape applies them)."""
 
     _require_spec(spec)
+    if reach_ly is not None:
+        reach_ly = checked_reach(reach_ly)
     if picked_economy:
         raise ValueError("picked_economy has no V3 projection")
     if sort not in SUPPORTED_SORTS:
@@ -654,6 +687,7 @@ def build_ranked_query(
             limit=limit,
             offset=offset,
             hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
         )
     elif (
         sort == SORT_DISTANCE
@@ -667,6 +701,7 @@ def build_ranked_query(
             limit=limit,
             offset=offset,
             hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
         )
     else:
         sql = _no_pick_page(
@@ -676,6 +711,7 @@ def build_ranked_query(
             limit=limit,
             offset=offset,
             hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
         )
     return sql, builder.params
 
@@ -691,12 +727,15 @@ def build_count_query(
     sort: str = SORT_SCORE,
     min_score: int | None = None,
     hide_claimed: bool = False,
+    reach_ly: int | None = None,
 ) -> tuple[str, list[Any]]:
     """Build a count query; ``cap`` means a ``cap + 1`` sentinel limit.
 
-    ``hide_claimed`` must match the page query it counts for."""
+    ``hide_claimed`` and ``reach_ly`` must match the page query it counts for."""
 
     _require_spec(spec)
+    if reach_ly is not None:
+        reach_ly = checked_reach(reach_ly)
     if picked_economy:
         raise ValueError("picked_economy has no V3 projection")
     if sort not in SUPPORTED_SORTS:
@@ -711,6 +750,7 @@ def build_count_query(
             picked_archetype=picked_archetype,
             min_score=min_score,
             hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
         )
         return sql, builder.params
 
@@ -730,6 +770,7 @@ def build_count_query(
             reference_coords=reference_coords,
             sentinel=sentinel,
             hide_claimed=hide_claimed,
+            reach_ly=reach_ly,
         )
         return sql, builder.params
 
@@ -738,8 +779,9 @@ def build_count_query(
         hard_filters=hard_filters,
         reference_coords=reference_coords,
     )
-    window_claim_filter = (
-        f"\n          AND {not_claimed_sql('sum.system_id64')}" if hide_claimed else ""
+    window_claim_filter = "".join(
+        f"\n          AND {clause}"
+        for clause in _rules("sum.system_id64", hide_claimed, reach_ly)
     )
     if sentinel is not None and not filters:
         # The galaxy-wide count is taken over the same summary window the
@@ -766,8 +808,7 @@ def build_count_query(
         )
         return sql, builder.params
     clauses = [_pinned("sum"), _pinned("s"), *filters]
-    if hide_claimed:
-        clauses.append(not_claimed_sql("s.system_id64"))
+    clauses.extend(_rules("s.system_id64", hide_claimed, reach_ly))
     where_sql = "\n  AND ".join(clauses)
     base = (
         "SELECT 1\n"

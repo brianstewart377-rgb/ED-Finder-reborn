@@ -154,6 +154,7 @@ export class ExploreViewState {
   );
   readonly bodyFilters = $derived(this.parsedSearch.bodyFilters);
   readonly radius = $derived(this.parsedSearch.radius);
+  readonly reach = $derived(this.parsedSearch.reach);
   readonly parsedRanking = $derived.by(() =>
     this.finderEnabled
       ? parseRankingSearchParams(this.readLocation().url.searchParams)
@@ -241,7 +242,12 @@ export class ExploreViewState {
   /** Only the already-persisted URL subset; no camera/draft/new storage keys. */
   serialize(): URLSearchParams {
     let params = serializeExploreSearchParams(
-      { near: this.nearId, bodyFilters: this.bodyFilters, radius: this.radius },
+      {
+        near: this.nearId,
+        bodyFilters: this.bodyFilters,
+        radius: this.radius,
+        reach: this.reach,
+      },
       this.readLocation().url.searchParams,
     );
     if (this.finderEnabled) {

@@ -2026,6 +2026,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 50 : 24,
         from: 0,
+        reach_ly: 250,
       });
       await waitFor(() =>
         expect(scenePointIds()).toContain(rankedRows[0].id64),
@@ -2175,6 +2176,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         min_score: 76,
         page_size: 50,
         offset: 0,
+        reach_ly: 250,
       },
       expect.anything(),
     );
@@ -2434,6 +2436,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
             min_score: 60,
             page_size: 1,
             offset,
+            reach_ly: 250,
           })),
         );
         expect(api.searchExploreSystems).not.toHaveBeenCalled();
@@ -2486,6 +2489,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
           min_score: 88,
           page_size: 1,
           offset: 0,
+          reach_ly: 250,
         },
         expect.anything(),
       ),
@@ -2502,6 +2506,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         min_score: 88,
         page_size: 2,
         offset: 0,
+        reach_ly: 250,
       },
       expect.anything(),
     );
@@ -4285,6 +4290,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 1 : 24,
         from: 0,
+        reach_ly: 250,
       });
       expect(document.getElementById('results-scope')).toHaveTextContent(
         'Within 1,000 LY of Anchor A · sorted by distance',
@@ -4312,6 +4318,58 @@ describe.each([false, true])(
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     });
 
+    it('commits one reach search, resets pagination and restores its URL on reload', async () => {
+      renderEnabled(
+        `${enabled ? 'page_size=1&offset=1&' : ''}view=cards&near=${anchorA.id64}`,
+        { anchor: anchorA },
+      );
+      await screen.findByText(enabled ? 'Ranked 2' : 'Ranked 1');
+      const reach = screen.getByRole('combobox', {
+        name: 'Distance from inhabited space',
+      });
+      expect(reach).toBeEnabled();
+      expect(reach).toHaveValue('250');
+      expect(reach).toHaveAccessibleDescription(
+        'Every search keeps to systems this close to an inhabited system.',
+      );
+      expect(
+        vi.mocked(api.searchExploreSystems).mock.lastCall?.[0].reach_ly,
+      ).toBe(250);
+
+      await fireEvent.change(reach, { target: { value: '500' } });
+      await waitFor(() =>
+        expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
+      );
+      await tick();
+      expect(mockedGoto).toHaveBeenCalledTimes(1);
+      expect(mockedPage.url.searchParams.get('reach')).toBe('500');
+      expect(mockedPage.url.searchParams.has('offset')).toBe(false);
+      expect(mockedPage.url.searchParams.get('view')).toBe('cards');
+      expect(vi.mocked(api.searchExploreSystems).mock.lastCall?.[0]).toEqual({
+        reference_coords: { x: 10, y: 20, z: 30 },
+        filters: { distance: { min: 0, max: 500 }, economy: 'any' },
+        sort_by: 'distance',
+        size: enabled ? 1 : 24,
+        from: 0,
+        reach_ly: 500,
+      });
+
+      const reloadQuery = mockedPage.url.search.slice(1);
+      cleanup();
+      queryClient.clear();
+      vi.mocked(api.searchExploreSystems).mockClear();
+      mockedGoto.mockClear();
+      renderEnabled(reloadQuery);
+      await screen.findByText('Ranked 1');
+      expect(mockedGoto).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole('combobox', { name: 'Distance from inhabited space' }),
+      ).toHaveValue('500');
+      expect(
+        vi.mocked(api.searchExploreSystems).mock.lastCall?.[0].reach_ly,
+      ).toBe(500);
+    });
+
     it('caps a filtered search at the API radius and resumes the chosen radius once filters clear', async () => {
       // The API rejects anchored searches with body filters beyond 500 LY, so
       // the wider options are disabled and a wider URL radius is applied as 500.
@@ -4328,6 +4386,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 1 : 24,
         from: 0,
+        reach_ly: 250,
       });
       const radius = screen.getByRole('combobox', { name: 'Within' });
       expect(radius).toHaveValue('500');
@@ -4462,6 +4521,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 50 : 24,
         from: 0,
+        reach_ly: 250,
       });
       expect(mockedPage.url.searchParams.get('near')).toBe(anchorA.id64);
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
@@ -4789,10 +4849,38 @@ describe('Explore body filters in archetype mode', () => {
         min_score: tier === 'B' ? 60 : 76,
         page_size: 50,
         offset: 0,
+        reach_ly: 250,
       });
       expect(api.searchExploreSystems).not.toHaveBeenCalled();
     },
   );
+
+  it('sends the reach with a type ranking and starts it again from the first page', async () => {
+    renderEnabled('archetype=manufacturing_hub&page_size=1&offset=1');
+    await screen.findByText('Ranked 2');
+    expect(
+      vi.mocked(api.getArchetypeRankings).mock.lastCall?.[0].reach_ly,
+    ).toBe(250);
+    await fireEvent.change(
+      screen.getByRole('combobox', { name: 'Distance from inhabited space' }),
+      { target: { value: '500' } },
+    );
+    await waitFor(() =>
+      expect(api.getArchetypeRankings).toHaveBeenLastCalledWith(
+        {
+          archetype: 'manufacturing_hub',
+          min_score: 60,
+          page_size: 1,
+          offset: 0,
+          reach_ly: 500,
+        },
+        expect.anything(),
+      ),
+    );
+    expect(mockedPage.url.searchParams.get('reach')).toBe('500');
+    expect(mockedPage.url.searchParams.has('offset')).toBe(false);
+    expect(api.searchExploreSystems).not.toHaveBeenCalled();
+  });
 
   it('keeps a ranking on its page when a paused chip is removed or cleared', async () => {
     renderEnabled(
@@ -5028,6 +5116,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 3 : 24,
         from: 0,
+        reach_ly: 250,
       });
       const list = screen.getByRole('list', { name: 'System results' });
       await fireEvent.click(
@@ -5185,6 +5274,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 3 : 24,
         from: 0,
+        reach_ly: 250,
       });
       await host.rerender({ mounted: false });
       expect(firstRuntime.dispose).toHaveBeenCalledTimes(1);
@@ -5278,6 +5368,7 @@ describe.each([false, true])(
           min_score: 76,
           page_size: 2,
           offset: 1,
+          reach_ly: 250,
         });
         expect(screen.getByRole('combobox', { name: 'Within' })).toHaveValue(
           '500',
