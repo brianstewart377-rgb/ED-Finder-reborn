@@ -180,6 +180,18 @@ describe('shared system detail', () => {
     expect(
       within(bodies).getByRole('list', { name: 'System bodies' }),
     ).toBeVisible();
+    // The key is folded away under the map until it is asked for.
+    const key = within(bodies).getByText(
+      'What the marks mean, and where the layout comes from',
+    );
+    expect(key).toBeVisible();
+    expect(
+      within(bodies).getByRole('complementary', {
+        name: 'System map legend',
+        hidden: true,
+      }),
+    ).not.toBeVisible();
+    await fireEvent.click(key);
     expect(
       within(bodies).getByRole('complementary', { name: 'System map legend' }),
     ).toBeVisible();
@@ -865,6 +877,11 @@ describe('shared system detail', () => {
     });
 
     await openTab('Bodies');
+    await fireEvent.click(
+      await screen.findByText(
+        'What the marks mean, and where the layout comes from',
+      ),
+    );
     const legend = await screen.findByRole('complementary', {
       name: 'System map legend',
     });

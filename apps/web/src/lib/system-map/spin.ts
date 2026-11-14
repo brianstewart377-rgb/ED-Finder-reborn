@@ -17,8 +17,6 @@
 import type { CelestialGenerator, CelestialType } from '@eluvade/cosmos';
 import type { CosmosAsk } from './cosmos-look';
 
-/** How many pixels across each moving picture is drawn. */
-export const SPIN_PIXELS = 256;
 /** Twelve times a second: the bodies turn slowly, so more would not show. */
 export const SPIN_EVERY_MS = 1000 / 12;
 /** How long without the mouse, the wheel or a key before the bodies rest. */
@@ -32,6 +30,8 @@ export type SpinTarget = Readonly<{
   id: string;
   ask: CosmosAsk;
   seed: number;
+  /** How many pixels across: the same as the body's still picture. */
+  pixels: number;
   pen: CanvasRenderingContext2D;
 }>;
 
@@ -95,7 +95,7 @@ export function startSpinning(
           {
             type: target.ask.kind as CelestialType,
             seed: target.seed,
-            resolution: SPIN_PIXELS,
+            resolution: target.pixels,
             ...(target.ask.colours
               ? {
                   colors: target.ask.colours as Record<
@@ -107,7 +107,7 @@ export function startSpinning(
           },
           seconds,
         );
-        target.pen.clearRect(0, 0, SPIN_PIXELS, SPIN_PIXELS);
+        target.pen.clearRect(0, 0, target.pixels, target.pixels);
         target.pen.drawImage(drawn, 0, 0);
         if (!seen.has(target.id)) {
           seen.add(target.id);

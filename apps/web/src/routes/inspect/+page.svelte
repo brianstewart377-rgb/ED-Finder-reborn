@@ -63,7 +63,7 @@
 
 <svelte:head><title>Inspect — ED-Finder V3</title></svelte:head>
 <WorkspaceHeader />
-<main class="inspect-page product-page">
+<main class="inspect-page product-page" class:inspect-wide={tab === 'bodies'}>
   {#if systemId}
     <!-- The actions sit above the system card, as in the concept: Back to
          Explore at the left, the forward actions at the right. -->

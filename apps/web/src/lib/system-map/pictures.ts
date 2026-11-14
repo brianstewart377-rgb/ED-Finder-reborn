@@ -16,9 +16,9 @@
  * not carry it. One Cosmos drawing surface serves the whole app.
  */
 import type { CelestialGenerator, CelestialType } from '@eluvade/cosmos';
-import { cosmosAsk, cosmosPixels, type CosmosAsk } from './cosmos-look';
+import { cosmosAsk, type CosmosAsk } from './cosmos-look';
 import { seedOf, type Look } from './draw';
-import { pixelsFor, surface } from './surface';
+import { surface } from './surface';
 
 export type Picture = Readonly<{
   href: string;
@@ -26,10 +26,12 @@ export type Picture = Readonly<{
   width: number;
   /** A whole picture brings its own glow or edge. */
   whole: boolean;
+  /** How many pixels across it was made. */
+  pixels: number;
 }>;
 
-/** One body's picture to make. */
-export type PictureJob = Readonly<{
+/** One body, as its picture needs it. */
+export type PictureBody = Readonly<{
   /** The body's key. */
   id: string;
   look: Look;
@@ -37,6 +39,54 @@ export type PictureJob = Readonly<{
   r: number;
   surfaceK: number | null;
 }>;
+
+/** One body's picture to make, and how many pixels across to make it. */
+export type PictureJob = PictureBody & Readonly<{ pixels: number }>;
+
+/** The fewest pixels across a picture is made with, and the most. */
+export const PICTURE_PIXELS_MIN = 32;
+export const PICTURE_PIXELS_MAX = 512;
+/** Painting by arithmetic costs more for each pixel, so it stops sooner. */
+export const PAINTED_PIXELS_MAX = 256;
+
+/**
+ * How many pixels across a picture is made, from how many it covers on the
+ * screen: the next power of two up, so it is never made smaller than it is
+ * shown (that would blur it) and never shrunk by more than half. On 14
+ * November every picture was made at 128 pixels or more, and a planet shown
+ * 20 pixels wide lost its detail in the shrinking: "a bit meh" zoomed out,
+ * as the owner put it. The map makes its pictures again as its view settles.
+ */
+export function picturePixels(shownPixels: number): number {
+  const wanted = Math.min(
+    PICTURE_PIXELS_MAX,
+    Math.max(PICTURE_PIXELS_MIN, shownPixels),
+  );
+  return Math.min(PICTURE_PIXELS_MAX, 2 ** Math.ceil(Math.log2(wanted)));
+}
+
+/** How wide a body's picture is drawn, in body radii, in the way pictures are made here. */
+export function pictureWidth(maker: PictureMaker, body: PictureBody): number {
+  return maker === 'cosmos' ? askOf(body).width : 2;
+}
+
+/**
+ * A body's picture to make, for a view showing `devicePixelsPerUnit` of the
+ * screen's own pixels for each of the map's units.
+ */
+export function jobAt(
+  maker: PictureMaker,
+  body: PictureBody,
+  devicePixelsPerUnit: number,
+): PictureJob {
+  const pixels = picturePixels(
+    body.r * pictureWidth(maker, body) * devicePixelsPerUnit,
+  );
+  return {
+    ...body,
+    pixels: maker === 'painted' ? Math.min(pixels, PAINTED_PIXELS_MAX) : pixels,
+  };
+}
 
 export type PictureMaker = 'cosmos' | 'painted' | 'none';
 
@@ -86,7 +136,7 @@ export function cosmos(): Promise<CelestialGenerator | null> {
 }
 
 /** What Cosmos is asked for, for one body. */
-export function askOf(job: PictureJob): CosmosAsk {
+export function askOf(job: Pick<PictureBody, 'look' | 'surfaceK'>): CosmosAsk {
   return cosmosAsk({
     family: job.look.family,
     star: job.look.star,
@@ -100,14 +150,13 @@ export function askOf(job: PictureJob): CosmosAsk {
 /**
  * A name for one body's picture: the same name for the same picture, so a
  * picture is kept while the system is refreshed and made again only when
- * what it shows changes (a temperature arriving can make rock molten).
+ * what it shows changes (a temperature arriving can make rock molten) or the
+ * size it is wanted at does.
  */
 export function pictureName(maker: PictureMaker, job: PictureJob): string {
-  if (maker === 'cosmos') {
-    const ask = askOf(job);
-    return `cosmos/${job.id}/${ask.kind}/${cosmosPixels(job.r, ask.width)}/${job.look.colour.join(',')}`;
-  }
-  return `painted/${job.id}/${job.look.family}/${pixelsFor(job.r)}/${job.look.colour.join(',')}`;
+  if (maker === 'cosmos')
+    return `cosmos/${job.id}/${askOf(job).kind}/${job.pixels}/${job.look.colour.join(',')}`;
+  return `painted/${job.id}/${job.look.family}/${job.pixels}/${job.look.colour.join(',')}`;
 }
 
 /** Which way pictures will be made in this browser: by Cosmos, by painting, or not at all. */
@@ -144,7 +193,7 @@ async function cosmosPicture(
     {
       type: ask.kind as CelestialType,
       seed: seedOf(job.id),
-      resolution: cosmosPixels(job.r, ask.width),
+      resolution: job.pixels,
       ...(ask.colours
         ? {
             colors: ask.colours as Record<
@@ -158,14 +207,19 @@ async function cosmosPicture(
   );
   const blob = await blobOf(canvas);
   return blob
-    ? { href: URL.createObjectURL(blob), width: ask.width, whole: ask.whole }
+    ? {
+        href: URL.createObjectURL(blob),
+        width: ask.width,
+        whole: ask.whole,
+        pixels: job.pixels,
+      }
     : null;
 }
 
 const easel = { canvas: null as HTMLCanvasElement | null };
 
 async function paintedPicture(job: PictureJob): Promise<Picture | null> {
-  const size = pixelsFor(job.r);
+  const size = job.pixels;
   const made = surface({
     seed: seedOf(job.id),
     size,
@@ -188,7 +242,7 @@ async function paintedPicture(job: PictureJob): Promise<Picture | null> {
   );
   const blob = await blobOf(canvas);
   return blob
-    ? { href: URL.createObjectURL(blob), width: 2, whole: false }
+    ? { href: URL.createObjectURL(blob), width: 2, whole: false, pixels: size }
     : null;
 }
 

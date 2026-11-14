@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cosmosAsk, cosmosPixels, MOLTEN_FROM_K, WIDTHS } from './cosmos-look';
+import { cosmosAsk, MOLTEN_FROM_K, WIDTHS } from './cosmos-look';
 import { lookOf, ringBandsOf, RING_COLOURS } from './draw';
 import { askOf } from './pictures';
 import { nodeNamed, treeOf, type RecordedName } from './recorded-systems';
@@ -8,12 +8,7 @@ const SYSTEMS: RecordedName[] = ['sol', 'lhs3447', 'polaris', 'altair'];
 
 function askFor(name: RecordedName, body: string) {
   const node = nodeNamed(treeOf(name), body);
-  return askOf({
-    id: node.id,
-    look: lookOf(node),
-    r: 10,
-    surfaceK: node.surfaceK,
-  });
+  return askOf({ look: lookOf(node), surfaceK: node.surfaceK });
 }
 
 describe('how each body looks, from its class', () => {
@@ -50,10 +45,9 @@ describe('how each body looks, from its class', () => {
   it('cannot draw rock molten without a temperature', () => {
     // The same world, with the builder's list not fetched.
     const node = nodeNamed(treeOf('altair', false), 'Altair 2');
-    expect(
-      askOf({ id: node.id, look: lookOf(node), r: 10, surfaceK: node.surfaceK })
-        .kind,
-    ).toBe('barren');
+    expect(askOf({ look: lookOf(node), surfaceK: node.surfaceK }).kind).toBe(
+      'barren',
+    );
   });
 
   it('tells two stars of different classes apart', () => {
@@ -71,11 +65,6 @@ describe('how each body looks, from its class', () => {
     for (const ring of ['ring1', 'ring2', 'ring3', 'ring4'])
       expect(ask.colours?.[ring]?.[3]).toBe(0);
     expect(ask.width).toBe(WIDTHS.gas_giant);
-  });
-
-  it('asks Cosmos for enough pixels to stay sharp when zoomed, within bounds', () => {
-    expect(cosmosPixels(5, WIDTHS.planet)).toBe(128);
-    expect(cosmosPixels(78, WIDTHS.star)).toBe(512);
   });
 });
 

@@ -848,6 +848,12 @@ footer {
 .inspect-page {
   max-width: 74rem;
 }
+/* The Bodies tab's System Map takes the whole window: a system with many
+   bodies runs wide, and every bit of width shows more of it at once. */
+.inspect-page.inspect-wide {
+  width: calc(100% - 2rem);
+  max-width: none;
+}
 .system-detail {
   padding: clamp(1.4rem, 4vw, 3rem);
 }
@@ -884,6 +890,14 @@ footer {
 .system-map-panel {
   margin-top: 2rem;
 }
+/* In Inspect's Bodies tab the map is the first thing, and its height is what
+   is left of the tab's own height after the heading, the note and the
+   toolbar, so the whole map, and the column beside it, show without
+   scrolling. */
+[role='tabpanel'] > .system-map-panel {
+  --system-map-height: clamp(18rem, calc(min(70dvh, 54rem) - 16.5rem), 44rem);
+  margin-top: 0;
+}
 .system-map-heading {
   display: flex;
   align-items: end;
@@ -919,24 +933,42 @@ footer {
   border-width: 1px 0;
   border-radius: 0;
 }
-.system-map-browser {
+/* The map, with the chosen body's details and the list of bodies in a column
+   beside it, the same height as the map, so neither is missed below it. */
+.system-map-layout {
   display: grid;
-  grid-template-columns: minmax(13rem, 0.9fr) minmax(16rem, 1.2fr);
-  min-height: 11rem;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 24rem);
   border-top: 1px solid var(--line);
 }
-.system-map-browser > ol {
-  max-height: 18rem;
+.system-map-main {
+  min-width: 0;
+}
+.system-map-side {
+  position: relative;
+  min-height: 20rem;
+  border-left: 1px solid var(--line);
+}
+.system-map-side-inner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, max-content) minmax(8rem, 1fr);
+}
+.system-map-side-inner > .system-body-card,
+.system-map-side-inner > .system-body-empty {
+  overflow: auto;
+  border-bottom: 1px solid var(--line);
+}
+.system-map-side-inner > ol {
   overflow: auto;
   margin: 0;
   padding: 0;
-  border-right: 1px solid var(--line);
   list-style: none;
 }
-.system-map-browser li + li {
+.system-map-side li + li {
   border-top: 1px solid var(--line);
 }
-.system-map-browser li button {
+.system-map-side li button {
   display: grid;
   width: 100%;
   gap: 0.25rem;
@@ -947,15 +979,15 @@ footer {
   text-align: left;
   cursor: pointer;
 }
-.system-map-browser li button span {
+.system-map-side li button span {
   overflow: hidden;
   color: var(--text-dim);
   font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.system-map-browser li button:hover,
-.system-map-browser li button.active {
+.system-map-side li button:hover,
+.system-map-side li button.active {
   background: var(--neon-soft);
   box-shadow: inset 3px 0 var(--neon);
 }
@@ -963,6 +995,22 @@ footer {
 .system-body-empty {
   margin: 0;
   padding: 1rem;
+}
+.system-map-side .system-body-card dl {
+  grid-template-columns: minmax(0, 1fr);
+}
+.system-map-key {
+  border-top: 1px solid var(--line);
+}
+.system-map-key > summary {
+  padding: 0.6rem 1rem;
+  color: var(--neon-hi);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.system-map-key > summary:focus-visible {
+  outline: 2px solid var(--neon);
+  outline-offset: -2px;
 }
 /* Screen-reader only: the "Selected <body>" announcement. */
 .system-detail-announcement {
@@ -1218,6 +1266,26 @@ footer {
 .dialog > .detail-actions {
   padding: 0 1.5rem 1.5rem;
 }
+/* Below this the map needs the whole width: the body's details and the list
+   go under it. */
+@media (max-width: 1000px) {
+  .system-map-layout {
+    grid-template-columns: 1fr;
+  }
+  .system-map-side {
+    position: static;
+    min-height: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .system-map-side-inner {
+    position: static;
+    display: block;
+  }
+  .system-map-side-inner > ol {
+    max-height: 18rem;
+  }
+}
 @media (max-width: 700px) {
   .status-panel {
     align-items: flex-start;
@@ -1278,13 +1346,6 @@ footer {
   }
   .detail-grid {
     grid-template-columns: 1fr 1fr;
-  }
-  .system-map-browser {
-    grid-template-columns: 1fr;
-  }
-  .system-map-browser > ol {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
   }
   .detail-actions {
     justify-content: stretch;

@@ -513,184 +513,198 @@
             <span>{integer(detail.data.bodies.length)} catalogue bodies</span>
           </div>
           <p class="system-map-truth-note">
-            Laid out as the game's own map: each star heads a row, its planets
-            follow it going outward, and each planet's moons hang below it. A
-            body whose parent our data does not give is placed by its name or
-            its distance, and marked so. Sizes are for reading, not to scale.
-            Planet classes come from the catalogue, or from the published
-            Ratings V4 derived catalogue where it has none.
+            Laid out like the game's own map; sizes are for reading, not to
+            scale. A body whose parent our data does not give is placed by its
+            name or its distance, and marked so.
           </p>
-          {#if mapTree}
-            <SystemMap
-              tree={mapTree}
-              selectedKey={selectedBodyKey ?? null}
-              onSelect={selectBody}
-            />
-          {/if}
-          <aside class="system-map-legend" aria-label="System map legend">
-            <SystemMapLegend />
-            {#if guessedBodies.length > 0}
-              <h3>Placed by name or distance</h3>
-              <p>Our data does not say what these bodies orbit.</p>
-              <ul aria-label="Bodies placed by name or distance">
-                {#each guessedBodies as node (node.id)}
-                  <li data-guessed-body-key={node.id}>
-                    <strong>{node.name}</strong> — {node.guessedParent ===
-                    'name'
-                      ? 'placed by its name'
-                      : 'placed by its distance from the arrival point'}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-            {#if mapTree && mapTree.notPlaced.length > 0}
-              <h3>Stations not placed at any body</h3>
-              <p>
-                Our data does not say which body these are at, and none is near
-                enough to their distance from the arrival point.
-              </p>
-              <ul aria-label="Stations not placed at any body">
-                {#each mapTree.notPlaced as station (station.id)}
-                  <li>{station.name}, {station.kind}</li>
-                {/each}
-              </ul>
-            {/if}
-          </aside>
-          <div class="system-map-browser">
-            <ol aria-label="System bodies">
-              {#each detail.data.bodies as body (body.bodyKey)}
-                <li>
-                  <button
-                    type="button"
-                    class:active={body.bodyKey === selectedBodyKey}
-                    aria-pressed={body.bodyKey === selectedBodyKey}
-                    onclick={() => selectBody(body.bodyKey)}
+          <div class="system-map-layout">
+            <div class="system-map-main">
+              {#if mapTree}
+                <SystemMap
+                  tree={mapTree}
+                  selectedKey={selectedBodyKey ?? null}
+                  onSelect={selectBody}
+                />
+              {/if}
+            </div>
+            <div class="system-map-side">
+              <div class="system-map-side-inner">
+                {#if selectedBody}
+                  <article
+                    class="system-body-card"
+                    data-selected-body-id={selectedBody.id}
+                    data-selected-body-key={selectedBody.bodyKey}
                   >
-                    <strong>{body.name}</strong>
-                    <span>{bodyClass(body)}</span>
-                  </button>
-                </li>
-              {/each}
-            </ol>
-            {#if selectedBody}
-              <article
-                class="system-body-card"
-                data-selected-body-id={selectedBody.id}
-                data-selected-body-key={selectedBody.bodyKey}
-              >
-                <p class="eyebrow">Selected body</p>
-                <h3>{selectedBody.name}</h3>
-                <dl>
-                  <div>
-                    <dt>Class</dt>
-                    <dd>{bodyClass(selectedBody)}</dd>
-                  </div>
-                  {#if mapTree && selectedNode}
-                    {@const orbits = orbitsInWords(mapTree, selectedNode)}
-                    {#if orbits}
+                    <p class="eyebrow">Selected body</p>
+                    <h3>{selectedBody.name}</h3>
+                    <dl>
                       <div>
-                        <dt>Orbits</dt>
-                        <dd>{orbits}</dd>
+                        <dt>Class</dt>
+                        <dd>{bodyClass(selectedBody)}</dd>
                       </div>
-                    {/if}
-                  {/if}
-                  {#if selectedBody.bodyType === 'planet' && selectedBody.bodyClass != null && selectedBody.bodyClassSource === 'ratings-v4-derived'}
-                    <div>
-                      <dt>Class source</dt>
-                      <dd>Ratings V4 derived catalogue</dd>
-                    </div>
-                  {/if}
-                  {#if selectedBody.distanceFromArrivalLs != null}
-                    <div>
-                      <dt>Arrival distance</dt>
-                      <dd>{integer(selectedBody.distanceFromArrivalLs)} ls</dd>
-                    </div>
-                  {/if}
-                  {#if selectedBody.radiusKm != null}
-                    <div>
-                      <dt>Radius</dt>
-                      <dd>{integer(selectedBody.radiusKm)} km</dd>
-                    </div>
-                  {/if}
-                  <div>
-                    <dt>Rings</dt>
-                    <dd>
-                      {selectedRings > 0
-                        ? `${selectedRings} known`
-                        : 'None recorded'}
-                    </dd>
-                  </div>
-                  {#if selectedBelts > 0}
-                    <div>
-                      <dt>Belts</dt>
-                      <dd>{selectedBelts} known</dd>
-                    </div>
-                  {/if}
-                  {#if selectedBody.isLandable != null}
-                    <div>
-                      <dt>Landable</dt>
-                      <dd>{selectedBody.isLandable ? 'Yes' : 'No'}</dd>
-                    </div>
-                  {/if}
-                  <div>
-                    <dt>Signals</dt>
-                    <dd>
-                      {bodySignalSummary(selectedBody.signals) ??
-                        'None recorded'}
-                    </dd>
-                  </div>
-                  {#if selectedNode}
-                    {@const slots = groundSlotsInWords(selectedNode)}
-                    {#if slots}
+                      {#if mapTree && selectedNode}
+                        {@const orbits = orbitsInWords(mapTree, selectedNode)}
+                        {#if orbits}
+                          <div>
+                            <dt>Orbits</dt>
+                            <dd>{orbits}</dd>
+                          </div>
+                        {/if}
+                      {/if}
+                      {#if selectedBody.bodyType === 'planet' && selectedBody.bodyClass != null && selectedBody.bodyClassSource === 'ratings-v4-derived'}
+                        <div>
+                          <dt>Class source</dt>
+                          <dd>Ratings V4 derived catalogue</dd>
+                        </div>
+                      {/if}
+                      {#if selectedBody.distanceFromArrivalLs != null}
+                        <div>
+                          <dt>Arrival distance</dt>
+                          <dd>
+                            {integer(selectedBody.distanceFromArrivalLs)} ls
+                          </dd>
+                        </div>
+                      {/if}
+                      {#if selectedBody.radiusKm != null}
+                        <div>
+                          <dt>Radius</dt>
+                          <dd>{integer(selectedBody.radiusKm)} km</dd>
+                        </div>
+                      {/if}
                       <div>
-                        <dt>Ground slots</dt>
-                        <dd>{slots}</dd>
-                      </div>
-                    {/if}
-                    {@const built = builtHere(selectedNode)}
-                    {#if built.length > 0}
-                      <div class="body-ring-list">
-                        <dt>Built here</dt>
+                        <dt>Rings</dt>
                         <dd>
-                          {#each built as group (group.where)}
-                            <p class="ring-name">{group.where}</p>
-                            <ul>
-                              {#each group.stations as station (station.id)}
-                                <li>{stationInWords(station)}</li>
-                              {/each}
-                            </ul>
-                          {/each}
+                          {selectedRings > 0
+                            ? `${selectedRings} known`
+                            : 'None recorded'}
                         </dd>
                       </div>
-                    {/if}
-                  {/if}
-                  {#if selectedBody.rings.length > 0}
-                    <div class="body-ring-list">
-                      <dt>Rings, belts and hotspots</dt>
-                      <dd>
-                        <ul>
-                          {#each selectedBody.rings as ring (ring.ringKey)}
-                            {@const facts = ringFacts(ring)}
-                            <li data-ring-key={ring.ringKey}>
-                              <p class="ring-name">{ring.name}</p>
-                              {#if facts}
-                                <p>{facts}</p>
-                              {/if}
-                              <p>{ringHotspots(ring)}</p>
-                            </li>
-                          {/each}
-                        </ul>
-                      </dd>
-                    </div>
-                  {/if}
-                </dl>
-              </article>
-            {:else}
-              <p class="system-body-empty">
-                Select a body in the map or the list for details.
-              </p>
-            {/if}
+                      {#if selectedBelts > 0}
+                        <div>
+                          <dt>Belts</dt>
+                          <dd>{selectedBelts} known</dd>
+                        </div>
+                      {/if}
+                      {#if selectedBody.isLandable != null}
+                        <div>
+                          <dt>Landable</dt>
+                          <dd>{selectedBody.isLandable ? 'Yes' : 'No'}</dd>
+                        </div>
+                      {/if}
+                      <div>
+                        <dt>Signals</dt>
+                        <dd>
+                          {bodySignalSummary(selectedBody.signals) ??
+                            'None recorded'}
+                        </dd>
+                      </div>
+                      {#if selectedNode}
+                        {@const slots = groundSlotsInWords(selectedNode)}
+                        {#if slots}
+                          <div>
+                            <dt>Ground slots</dt>
+                            <dd>{slots}</dd>
+                          </div>
+                        {/if}
+                        {@const built = builtHere(selectedNode)}
+                        {#if built.length > 0}
+                          <div class="body-ring-list">
+                            <dt>Built here</dt>
+                            <dd>
+                              {#each built as group (group.where)}
+                                <p class="ring-name">{group.where}</p>
+                                <ul>
+                                  {#each group.stations as station (station.id)}
+                                    <li>{stationInWords(station)}</li>
+                                  {/each}
+                                </ul>
+                              {/each}
+                            </dd>
+                          </div>
+                        {/if}
+                      {/if}
+                      {#if selectedBody.rings.length > 0}
+                        <div class="body-ring-list">
+                          <dt>Rings, belts and hotspots</dt>
+                          <dd>
+                            <ul>
+                              {#each selectedBody.rings as ring (ring.ringKey)}
+                                {@const facts = ringFacts(ring)}
+                                <li data-ring-key={ring.ringKey}>
+                                  <p class="ring-name">{ring.name}</p>
+                                  {#if facts}
+                                    <p>{facts}</p>
+                                  {/if}
+                                  <p>{ringHotspots(ring)}</p>
+                                </li>
+                              {/each}
+                            </ul>
+                          </dd>
+                        </div>
+                      {/if}
+                    </dl>
+                  </article>
+                {:else}
+                  <p class="system-body-empty">
+                    Select a body in the map or the list for details.
+                  </p>
+                {/if}
+                <ol aria-label="System bodies">
+                  {#each detail.data.bodies as body (body.bodyKey)}
+                    <li>
+                      <button
+                        type="button"
+                        class:active={body.bodyKey === selectedBodyKey}
+                        aria-pressed={body.bodyKey === selectedBodyKey}
+                        onclick={() => selectBody(body.bodyKey)}
+                      >
+                        <strong>{body.name}</strong>
+                        <span>{bodyClass(body)}</span>
+                      </button>
+                    </li>
+                  {/each}
+                </ol>
+              </div>
+            </div>
           </div>
+          <details class="system-map-key">
+            <summary
+              >What the marks mean, and where the layout comes from</summary
+            >
+            <aside class="system-map-legend" aria-label="System map legend">
+              <SystemMapLegend />
+              <p>
+                Planet classes come from the catalogue, or from the published
+                Ratings V4 derived catalogue where it has none.
+              </p>
+              {#if guessedBodies.length > 0}
+                <h3>Placed by name or distance</h3>
+                <p>Our data does not say what these bodies orbit.</p>
+                <ul aria-label="Bodies placed by name or distance">
+                  {#each guessedBodies as node (node.id)}
+                    <li data-guessed-body-key={node.id}>
+                      <strong>{node.name}</strong> — {node.guessedParent ===
+                      'name'
+                        ? 'placed by its name'
+                        : 'placed by its distance from the arrival point'}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+              {#if mapTree && mapTree.notPlaced.length > 0}
+                <h3>Stations not placed at any body</h3>
+                <p>
+                  Our data does not say which body these are at, and none is
+                  near enough to their distance from the arrival point.
+                </p>
+                <ul aria-label="Stations not placed at any body">
+                  {#each mapTree.notPlaced as station (station.id)}
+                    <li>{station.name}, {station.kind}</li>
+                  {/each}
+                </ul>
+              {/if}
+            </aside>
+          </details>
         </section>
       {:else}
         <p class="state-copy">No bodies are recorded for this system.</p>
