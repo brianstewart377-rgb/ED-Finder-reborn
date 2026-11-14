@@ -38,10 +38,10 @@ pyzmq==27.2.0
 # instead of raising, with no application code changes needed. A no-op on
 # Linux (production): this code path is only reached when the running
 # loop is an instance of asyncio.ProactorEventLoop, which is Windows-only.
-tornado==6.5.8
+tornado==6.6
 
 # OpenGraph share-card rendering (/api/share/og/{id64}).
-Pillow==12.3.0
+Pillow==13.0.0
 
 # Optional error tracking (GlitchTip/Sentry-API-compatible). Only active
 # when SENTRY_DSN is set — see config.py and docs/operations/glitchtip-error-tracking.md.
