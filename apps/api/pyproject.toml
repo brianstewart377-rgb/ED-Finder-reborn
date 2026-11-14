@@ -3,7 +3,7 @@ name = "ed-finder-api"
 version = "3.0.1"
 requires-python = ">=3.14,<3.15"
 dependencies = [
-  "Pillow==12.3.0",
+  "Pillow==13.0.0",
   "asyncpg==0.31.0",
   "defusedxml==0.7.1",
   "fastapi==0.141.1",
@@ -16,7 +16,7 @@ dependencies = [
   "redis==8.1.0",
   "sentry-sdk==2.68.1",
   "slowapi==0.1.10",
-  "tornado==6.5.8",
+  "tornado==6.6",
   "uvicorn[standard]==0.52.4",
 ]
 
