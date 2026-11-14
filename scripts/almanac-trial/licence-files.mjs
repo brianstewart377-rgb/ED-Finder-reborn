@@ -13,6 +13,10 @@ export const LICENCE_FILES = [
   ['@elite-dangerous-almanac/core/LICENSE', 'almanac-core-LICENSE.txt'],
   ['@elite-dangerous-almanac/core/THIRD_PARTY_NOTICES.md', 'almanac-core-THIRD_PARTY_NOTICES.md'],
   ['gl-matrix/LICENSE.md', 'gl-matrix-LICENSE.md'],
+  // The System Map's "Cosmos" look. Its planet shaders are ported from
+  // Deep-Fold's Pixel Planets, also MIT; that licence is not in the package,
+  // so its text is kept in public/licences/ and goes beside the page with it.
+  ['@eluvade/cosmos/LICENSE', 'cosmos-LICENSE.txt'],
 ];
 
 /**

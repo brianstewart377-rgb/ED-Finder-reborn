@@ -30,6 +30,7 @@
       #side dd { margin: 0; }
       #side ul { margin: 4px 0; padding-left: 18px; }
       #side .note { color: var(--muted); font-size: 12.5px; }
+      #side .note a { color: #ffb45a; }
       #problem { color: #ffb4a6; }
       #problem:empty { display: none; }
       .legend { display: grid; grid-template-columns: 22px 1fr; gap: 5px 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
@@ -58,6 +59,12 @@
       <h1>SYSTEM MAP TRIAL</h1>
       <label for="system">System</label>
       <select id="system"></select>
+      <label for="look">Look</label>
+      <select id="look">
+        <option value="cosmos">Cosmos</option>
+        <option value="painted">Painted by us</option>
+        <option value="plain">Plain</option>
+      </select>
       <button id="fit" type="button">Show the whole system</button>
       <span class="note" style="color: var(--muted)">Drag to move, wheel to zoom, click a body or a station.</span>
     </header>
@@ -78,6 +85,7 @@
       </div>
       <div class="legend" id="ring-legend" style="margin-top: 5px"></div>
       <p class="note">Sizes are for reading, not to scale. Colours are by class, as on our own map; they are not pictures of the real surface.</p>
+      <p class="note">The "Cosmos" look is drawn by <a href="https://github.com/Eluvade/cosmos">Cosmos</a> by Eluvade (<a href="./licences/cosmos-LICENSE.txt">MIT licence</a>), whose planets come from Deep-Fold's <a href="https://github.com/Deep-Fold/PixelPlanets">Pixel Planets</a> (<a href="./licences/pixel-planets-LICENSE.txt">MIT licence</a>). A rocky or metal body at 1,300 K or more is drawn molten.</p>
     </aside>
     <script type="module" src="./src/system-map/page.js"></script>
   </body>
