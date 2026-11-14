@@ -274,12 +274,21 @@ const spinBox = document.querySelector('#spin');
 const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
 spinBox.checked = asked.get('spin') === '0' ? false : !calm.matches;
 const SPIN_PIXELS = 256;
-const SPIN_EVERY_MS = 1000 / 20;
-// A frame of the whole system should take a small part of the time between
-// frames. Where it takes more than this on average, the machine is drawing
-// without a graphics card or with a weak one: spinning stops by itself and
-// the still pictures stay, rather than the page turning sluggish.
-const SPIN_TOO_SLOW_MS = 25;
+// Twelve times a second: the bodies turn slowly, so more would not show.
+const SPIN_EVERY_MS = 1000 / 12;
+// Nothing is drawn while nobody is using the page: after this long without
+// the mouse, the wheel or a key, the bodies rest until the next movement.
+const SPIN_RESTS_AFTER_MS = 20000;
+let lastStir = performance.now();
+for (const kind of ['pointermove', 'pointerdown', 'wheel', 'keydown']) {
+  window.addEventListener(kind, () => { lastStir = performance.now(); }, { passive: true });
+}
+// Spinning is a nicety and must cost next to nothing (the owner, 14 Nov:
+// "only if it's negliable"). A frame of the whole system may take 8 ms on
+// average, a tenth of the time between frames. Where it takes more, the
+// machine has no graphics card to speak of or the system is very large:
+// spinning stops by itself and the still pictures stay.
+const SPIN_TOO_SLOW_MS = 8;
 let spinning = 0;
 
 function stopSpinning() {
@@ -311,16 +320,17 @@ function startSpinning() {
     picture.after(cover);
     covers.push({ ...found, picture, pen: canvas.getContext('2d') });
   }
-  const began = performance.now();
   let last = -Infinity;
   let frames = 0;
   let spent = 0;
   const turn = (now) => {
     spinning = requestAnimationFrame(turn);
     if (now - last < SPIN_EVERY_MS) return;
+    if (frames > 0 && performance.now() - lastStir > SPIN_RESTS_AFTER_MS) return;
     last = now;
     const started = performance.now();
-    const seconds = (now - began) / 1000;
+    // Each frame is one step on, so the bodies do not jump after a rest.
+    const seconds = frames * SPIN_EVERY_MS / 1000;
     try {
       for (const { ask, seed, pen } of covers) {
         const drawn = generator.render({
