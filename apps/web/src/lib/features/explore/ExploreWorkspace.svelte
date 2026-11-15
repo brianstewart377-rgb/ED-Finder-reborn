@@ -13,6 +13,7 @@
     getCommanderJournalSummary,
     getArchetypeRankings,
     getSystem,
+    pageIsUncounted,
     searchExploreSystems,
     type AutocompleteSystem,
     type DistanceAnchor,
@@ -383,6 +384,66 @@
       viewState.hasResultsIntent &&
       !results.isError &&
       (results.isFetching || !currentResponse || pageCorrection !== null),
+  );
+  // The API answers a page before its matches are counted where counting
+  // them is slow, so that the rows do not wait for it (and a count that runs
+  // out of time cannot fail them). The count is then asked for on its own:
+  // the same search, told to wait for the count.
+  const pageToCount = $derived(
+    FINDER_F4_ENABLED &&
+      currentResponse &&
+      !results.isFetching &&
+      finderRequest.kind === 'any' &&
+      results.data !== undefined &&
+      pageIsUncounted(results.data.page)
+      ? finderRequest
+      : null,
+  );
+  const laterCount = FINDER_F4_ENABLED
+    ? createQuery(askForTheCountLater)
+    : undefined;
+  function askForTheCountLater() {
+    const request = pageToCount;
+    const reference = anchorReference;
+    const asked =
+      request?.kind === 'any'
+        ? { ...request.request, wait_for_count: true }
+        : null;
+    return {
+      queryKey: asked
+        ? queryKeys.explore(asked, reference, request!.pageSize)
+        : ([...queryKeys.all, 'explore', 'count', null] as const),
+      queryFn: ({ signal }: { signal: AbortSignal }) => {
+        if (!asked || !request) throw new Error('No count is asked for');
+        return searchExploreSystems(asked, signal, reference, request.pageSize);
+      },
+      enabled: asked !== null,
+      // A count that is in does not change until the search does.
+      staleTime: Infinity,
+      retry: 0,
+    };
+  }
+  // The page as the list's summary and its Next button read it: with the
+  // count that came later, once it is in.
+  const shownPage = $derived.by((): FinderPageEnvelope | undefined => {
+    const shown = displayedResults?.page;
+    if (!shown || pageToCount === null || shown !== results.data?.page)
+      return shown;
+    const counted = laterCount?.data?.page;
+    return counted &&
+      !pageIsUncounted(counted) &&
+      counted.offset === shown.offset &&
+      counted.page_size === shown.page_size
+      ? counted
+      : shown;
+  });
+  const countingMatches = $derived(
+    pageToCount !== null &&
+      shownPage !== undefined &&
+      pageIsUncounted(shownPage) &&
+      laterCount !== undefined &&
+      !laterCount.isError &&
+      !laterCount.isSuccess,
   );
   const activeArchetypeLabel = $derived(
     archetypeLabel(viewState.rankingState.archetype),
@@ -1393,8 +1454,9 @@
           {#if FINDER_F4_ENABLED && displayedResults}
             <FinderResultRanking
               variant="summary"
-              page={displayedResults.page}
+              page={shownPage ?? displayedResults.page}
               archetype={displayedResults.finderState!.archetype}
+              counting={countingMatches}
             />
           {:else}<span>{systems.length} shown</span>{/if}
         </div>
@@ -1689,7 +1751,7 @@
                 updatingResults ||
                 displayedResults.page.offset +
                   displayedResults.page.page_size >=
-                  displayedResults.page.navigable_total}
+                  (shownPage ?? displayedResults.page).navigable_total}
               onclick={() =>
                 commitRanking(
                   {

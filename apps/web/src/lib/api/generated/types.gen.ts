@@ -3628,6 +3628,10 @@ export type LocalSearchRequest = {
      * Min Score
      */
     min_score?: 60 | 76 | 88 | null;
+    /**
+     * Wait For Count
+     */
+    wait_for_count?: boolean;
 };
 
 /**
@@ -7137,6 +7141,10 @@ export type SearchResponse = {
      * Total Is Capped
      */
     total_is_capped?: boolean | null;
+    /**
+     * Total Is Counted
+     */
+    total_is_counted?: boolean | null;
     /**
      * Warning
      */

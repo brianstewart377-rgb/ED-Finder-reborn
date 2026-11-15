@@ -435,6 +435,12 @@ class SearchResponse(BaseModel):
     # as "X+" in the UI when set. Absent on local (distance-bounded)
     # searches where the precise count is cheap.
     total_is_capped:  Optional[bool] = None
+    # False when the matches could not be counted in the time given: the
+    # page is answered all the same, and `total` is then only how many
+    # matches the page itself shows there to be (its offset plus its rows),
+    # not a count. Ask again with `wait_for_count` for the count. True or
+    # absent: `total` is the count.
+    total_is_counted: Optional[bool] = None
     # Surfaces the radius-cap notice from `local_db_search`. UI can
     # render this as a small banner next to the results count.
     warning:          Optional[str] = None
@@ -606,6 +612,12 @@ class LocalSearchRequest(BaseModel):
     # A type galaxy-wide is ranked by GET /api/archetypes/rankings.
     archetype:        Optional[str]            = None
     min_score:        Optional[Literal[60, 76, 88]] = None
+    # Counting the matches is the costly half of a search. By default the
+    # page is answered after a short wait for the count, with
+    # `total_is_counted` false if the count is not in by then. True gives
+    # the count the whole time limit: asked by a page that already shows
+    # its rows and wants the count to go with them.
+    wait_for_count:   bool                     = False
 
     model_config = {'populate_by_name': True}
 

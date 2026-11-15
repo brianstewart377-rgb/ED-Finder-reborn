@@ -621,8 +621,10 @@ def warm_searches() -> List[Tuple[str, str, Optional[Dict[str, Any]]]]:
     for reach in WARM_REACHES:
         searches.append((
             "Any, galaxy-wide, %d ly" % reach, "/api/local/search",
+            # Find answers a page without its count where the count is
+            # slow; warming up means reading what the count reads too.
             {"galaxy_wide": True, "sort_by": "development", "size": WARM_PAGE,
-             "from": 0, "reach_ly": reach}))
+             "from": 0, "reach_ly": reach, "wait_for_count": True}))
         for colony_type in COLONY_TYPES:
             searches.append((
                 "%s, galaxy-wide, %d ly" % (colony_type, reach),
@@ -664,8 +666,11 @@ def command_warm(settings: Settings) -> None:
             continue
         total = answer.get("total")
         more = answer.get("total_is_capped") or answer.get("is_truncated")
-        found = ("%s%s found" % (format(total, ","), "+" if more else "")
-                 if isinstance(total, int) else "answered")
+        if answer.get("total_is_counted") is False:
+            found = "answered, but its matches were not counted in time"
+        else:
+            found = ("%s%s found" % (format(total, ","), "+" if more else "")
+                     if isinstance(total, int) else "answered")
         say("%-40s %7.0f ms  %s" % (name, took, found))
     if failed:
         raise DeployError("%d of %d searches failed" % (failed, len(searches)))

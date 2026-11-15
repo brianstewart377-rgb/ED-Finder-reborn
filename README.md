@@ -92,6 +92,13 @@ the database's memory has been emptied has to read it all from the drive.
 A search is counted once: the count is kept for an hour for its other pages,
 and a page that comes back short shows the count itself.
 
+The rows do not wait for a slow count, and a count cannot fail a search. The
+API waits one second for the count (`FIND_COUNT_FIRST_WAIT_MS`); if it is not
+in by then, the page is answered with `total_is_counted` false, and the web
+app asks the same search again with `wait_for_count`, which gives the count
+the whole statement time limit. If it still does not come, the page says
+"At least N matches; they could not be counted in time", and the rows stay.
+
 `warm` runs the searches visitors start with against the live site once:
 Find galaxy-wide, for Any and for each colony type, at 250 and 500 ly. It
 prints how long each took. A nightly job that reads a lot of the database

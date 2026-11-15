@@ -87,6 +87,12 @@ class Settings(BaseSettings):
     # (commit be6e2b8). Set higher in long-running ad-hoc psql sessions
     # via `SET statement_timeout = ...` per connection.
     statement_timeout_ms: int = 15000
+    # How long Find waits for a search's count before it answers the page
+    # without one (milliseconds). The page then asks again for the count
+    # alone, which is given the whole `statement_timeout_ms`. Most counts
+    # are in well within a second; one colony type near a system can take
+    # ten on the Pi, and the rows should not wait for that.
+    find_count_first_wait_ms: int = 1000
     # CORS: required in production. Default left as a sentinel that the
     # validator rejects so that an unset env in production fails closed.
     # Set CORS_ORIGINS=https://ed-finder.app,https://www.ed-finder.app in .env

@@ -966,11 +966,13 @@ def known_qualifying(
 def count_to_keep(response: dict[str, Any]) -> dict[str, Any] | None:
     """What to keep of a search's count for its other pages: the number of
     matches as the count query gives it (one past the limit when there are
-    more), with the generation it was counted on."""
+    more), with the generation it was counted on. Nothing is kept of a
+    search whose matches were not counted: its total is no count."""
     ranking = response.get('ranking') or {}
     total = response.get('total')
     if (
-        isinstance(total, bool)
+        response.get('total_is_counted') is False
+        or isinstance(total, bool)
         or not isinstance(total, int)
         or ranking.get('derived_generation_id') is None
         or ranking.get('publication_sequence') is None
@@ -981,6 +983,40 @@ def count_to_keep(response: dict[str, Any]) -> dict[str, Any] | None:
         'derived_generation_id': str(ranking['derived_generation_id']),
         'publication_sequence': ranking['publication_sequence'],
     }
+
+
+async def count_within(
+    conn: asyncpg.Connection,
+    count_sql: str,
+    count_params: list[Any],
+    budget_ms: int | None,
+) -> int | None:
+    """The number of matches, or None where counting them ran out of time.
+
+    The count is the costly half of a search, and the only part that can
+    run long: for one colony type near a system it walks outwards to the
+    1,001st match. PostgreSQL ends a statement that passes its time limit,
+    and inside a transaction that ends everything else in it too. Seen on
+    the Pi on 15 November 2026: the first "Manufacturing Hub near Sol" after
+    the weekly backup answered 503 after 18 s, though its page had been
+    read in under a second.
+
+    So the count is asked last, inside a savepoint of its own: a count that
+    runs out of time is given up, and the page is still answered.
+    ``budget_ms`` shortens the time it is given (never lengthens it: the
+    caller passes no more than the connection's own limit); None leaves the
+    connection's limit as it is.
+    """
+    try:
+        async with conn.transaction():
+            if budget_ms is not None:
+                await conn.execute(
+                    "SELECT set_config('statement_timeout', $1, true)",
+                    str(max(1, int(budget_ms))),
+                )
+            return await conn.fetchval(count_sql, *count_params)
+    except asyncpg.exceptions.QueryCanceledError:
+        return None
 
 
 def _v3_tier(score: Any) -> str | None:
@@ -1226,6 +1262,7 @@ async def local_db_search_v3(
     body: dict,
     pool: asyncpg.Pool,
     known_count: dict[str, Any] | None = None,
+    count_budget_ms: int | None = None,
 ) -> dict:
     """V3-native ranked search for `POST /api/local/search`.
 
@@ -1244,6 +1281,12 @@ async def local_db_search_v3(
     that is used before anything kept. Otherwise ``known_count``, the count
     kept from an earlier page (`count_to_keep`), is used if it was made on
     the generation this page is read from and the page does not disprove it.
+
+    A count that has to be asked is asked last and may run out of time
+    (`count_within`; ``count_budget_ms`` is how long it is given). The page
+    is answered all the same, with ``total_is_counted`` false and ``total``
+    the number of matches the page itself shows there to be: its offset
+    plus its rows.
     """
     t0 = time.time()
     ctx, sort_mode, hard_filters, reference_coords = prepare_local_search_v3(body)
@@ -1296,9 +1339,12 @@ async def local_db_search_v3(
                     qualifying = known_qualifying(
                         known_count, generation_row,
                         shown_to=ctx.from_idx + len(rows))
-                if qualifying is None:
-                    qualifying = await conn.fetchval(count_sql, *count_params)
                 notes = await claim_notes(conn, [row['system_id64'] for row in rows])
+                # Last, and in a savepoint: a count that runs out of time
+                # must not take the page with it.
+                if qualifying is None:
+                    qualifying = await count_within(
+                        conn, count_sql, count_params, count_budget_ms)
     except HTTPException:
         raise
     except (asyncpg.exceptions.UndefinedTableError,
@@ -1320,7 +1366,15 @@ async def local_db_search_v3(
             result['selected_archetype'] = picked_archetype
     apply_claim_notes(results, notes)
     elapsed = round((time.time() - t0) * 1000)
-    qualifying = int(qualifying) if qualifying is not None else 0
+    counted = qualifying is not None
+    if not counted:
+        # Not a count: how many matches this page shows there to be.
+        qualifying = ctx.from_idx + len(results)
+        log.warning(
+            'local_db_search_v3: the count ran out of time (budget=%s ms); '
+            'answering the page (from=%d, rows=%d) uncounted after %d ms',
+            count_budget_ms, ctx.from_idx, len(results), elapsed)
+    qualifying = int(qualifying)
     total, total_is_capped = _bounded_v3_total(qualifying)
     log.debug('local_db_search_v3: %d qualifying (reported=%d), returning %d (from=%d) in %dms',
               qualifying, total, len(results), ctx.from_idx, elapsed)
@@ -1330,6 +1384,7 @@ async def local_db_search_v3(
         'count':    len(results),
         'total':    total,
         'total_is_capped': total_is_capped,
+        'total_is_counted': counted,
         'source':   f'v3:{RANKING_VERSION}',
         'query_ms': elapsed,
         'display_economy': 'overall',  # only "any"/no-pick reaches here (concrete economy → 422 above)

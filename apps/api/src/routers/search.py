@@ -105,11 +105,22 @@ def _search_count_cache_key(body_dict: dict, generation_row) -> str:
     )
 
 
+def _count_budget_ms(wait_for_count: bool) -> int:
+    """How long a search's count is given: a short first wait, so the page
+    is not held up by a slow count, or the whole statement time limit where
+    the caller asked to wait for the count. Never more than that limit."""
+    limit = settings.statement_timeout_ms
+    if wait_for_count:
+        return limit
+    return max(1, min(settings.find_count_first_wait_ms, limit))
+
+
 async def _search_counting_once(
     body_dict: dict,
     generation_row,
     pool: asyncpg.Pool,
     redis: Optional[aioredis.Redis],
+    count_budget_ms: int | None = None,
 ) -> dict:
     """Run a search, asking for its count once however many pages are read.
 
@@ -123,12 +134,14 @@ async def _search_counting_once(
 
     A count is kept when it is new: there was none, or the page's answer
     differs from the one kept. A kept count that was simply used is not kept
-    again, so it cannot outlive its hour by being read.
+    again, so it cannot outlive its hour by being read. Nothing is kept of
+    a search whose count ran out of time (``count_budget_ms``).
     """
     known_count = await cache_get(
         _search_count_cache_key(body_dict, generation_row), redis)
     result = await _ls.local_db_search_v3(
-        body_dict, pool, known_count=known_count)
+        body_dict, pool, known_count=known_count,
+        count_budget_ms=count_budget_ms)
     kept_count = _ls.count_to_keep(result)
     if kept_count is not None and kept_count != known_count:
         await cache_set(
@@ -322,7 +335,9 @@ async def local_search_endpoint(
         return cached
 
     try:
-        result = await _search_counting_once(body_dict, generation_row, pool, redis)
+        result = await _search_counting_once(
+            body_dict, generation_row, pool, redis,
+            count_budget_ms=_count_budget_ms(req.wait_for_count))
     except HTTPException:
         # A deliberate 4xx from the V3 path (e.g. no published Ratings V4
         # generation yet) — let FastAPI handle it, don't mask it as a 503.
@@ -357,7 +372,10 @@ async def local_search_endpoint(
         and ranking_identity.get('publication_sequence') is not None
         else cache_key
     )
-    await cache_set(store_key, result, settings.ttl_search, redis)
+    # An answer whose matches were not counted is not kept: the next asking
+    # (the page's own follow-up for the count) must reach the database.
+    if result.get('total_is_counted') is not False:
+        await cache_set(store_key, result, settings.ttl_search, redis)
     background_tasks.add_task(log_slow, 'local_search', (time.time() - t0) * 1000)
     return result
 
@@ -472,7 +490,10 @@ async def galaxy_search(
         and ranking_identity.get('publication_sequence') is not None
         else cache_key
     )
-    await cache_set(store_key, result, settings.ttl_search, redis)
+    # As for /api/local/search: an answer whose matches were not counted in
+    # time is not kept for an hour.
+    if result.get('total_is_counted') is not False:
+        await cache_set(store_key, result, settings.ttl_search, redis)
     background_tasks.add_task(log_slow, 'galaxy_search', (time.time() - t0) * 1000)
     return result
 

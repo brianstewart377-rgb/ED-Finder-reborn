@@ -330,7 +330,10 @@ describe('Explore load and interaction work budget', () => {
         panelOpenings: 0,
         onTheMap: 0,
         // Watched but not asked: nobody is signed in and nothing is chosen.
-        activeQueries: 7,
+        // With the type picker on, one more is watched and not asked: the
+        // count of a page that the API answered before counting its
+        // matches, which no page here is.
+        activeQueries: enabled ? 8 : 7,
         api: { ...quiet, finder: 0, stars: 0, autocomplete: 0 },
       });
       // Choosing a star to search near: one search and one request for its
@@ -348,7 +351,7 @@ describe('Explore load and interaction work budget', () => {
         flights: 2,
         panelOpenings: 2,
         onTheMap: 1,
-        activeQueries: 7,
+        activeQueries: enabled ? 8 : 7,
         api: { ...quiet, finder: 1, stars: 1, autocomplete: 1 },
       });
       // Selecting a result: no new search. The map is emptied once, to take
@@ -361,8 +364,9 @@ describe('Explore load and interaction work budget', () => {
         flights: anchored.flights + 1,
         panelOpenings: anchored.panelOpenings + 1,
         onTheMap: 2,
-        // With the type picker on, the selected result is watched by id.
-        activeQueries: enabled ? 8 : 7,
+        // With the type picker on, the selected result is watched by id,
+        // and so is the count that may be asked for later.
+        activeQueries: enabled ? 9 : 7,
         api: { ...quiet, finder: 1, stars: 2, autocomplete: 1 },
       });
       // Everything on screen asked for once more, and the map untouched.

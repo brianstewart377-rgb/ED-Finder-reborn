@@ -873,6 +873,129 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     },
   );
 
+  /** A page as the API answers it before its matches are counted. */
+  function uncountedPage(offset: number, pageSize: number, total = 3) {
+    const counted = finderPage(offset, pageSize, total);
+    const reaches = offset + counted.page.count;
+    return {
+      ...counted,
+      page: {
+        ...counted.page,
+        // Not a count: how many matches the page shows there to be.
+        total: reaches,
+        navigable_total: counted.page.count >= pageSize ? reaches + 1 : reaches,
+        truncation: {
+          source: 'local-search' as const,
+          total_is_capped: false,
+          total_is_counted: false,
+        },
+      },
+    };
+  }
+  const countsAskedFor = () =>
+    vi
+      .mocked(api.searchExploreSystems)
+      .mock.calls.filter(([request]) => request.wait_for_count === true);
+
+  it('shows the rows before a slow count, asks for the count on its own, and puts it in when it comes', async () => {
+    // Seen on the live site on 15 Nov 2026: the first "Manufacturing Hub
+    // near Sol" after the weekly backup failed after 18 s, because its count
+    // passed the database's time limit, though its rows had been read in
+    // under a second. The API now answers the rows without the count.
+    let answerCount!: (page: ReturnType<typeof finderPage>) => void;
+    vi.mocked(api.searchExploreSystems).mockImplementation(
+      async (request, _signal, _anchor, pageSize) => {
+        const size = pageSize ?? request.size ?? 50;
+        if (request.wait_for_count)
+          return new Promise((resolve) => {
+            answerCount = () => resolve(finderPage(request.from ?? 0, size));
+          });
+        return uncountedPage(request.from ?? 0, size);
+      },
+    );
+    renderEnabled('page_size=1');
+    await screen.findByText('Showing results 1–1');
+    expect(screen.getByText('Counting the matches…')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'System results' })).getByText(
+        'Ranked 1',
+      ),
+    ).toBeInTheDocument();
+    // The page is full, so the next one can be asked for meanwhile.
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+    // The same search, told to wait for its count, once.
+    await waitFor(() => expect(countsAskedFor()).toHaveLength(1));
+    expect(countsAskedFor()[0][0]).toMatchObject({
+      size: 1,
+      from: 0,
+      wait_for_count: true,
+    });
+
+    answerCount(finderPage(0, 1));
+    await screen.findByText('Showing 1 of 3 (results 1–1)');
+    expect(screen.getByText('3 matches')).toBeInTheDocument();
+    expect(screen.queryByText('Counting the matches…')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+    expect(countsAskedFor()).toHaveLength(1);
+  });
+
+  it('says so when the matches could not be counted, and still pages to the end', async () => {
+    vi.mocked(api.searchExploreSystems).mockImplementation(
+      async (request, _signal, _anchor, pageSize) => {
+        const size = pageSize ?? request.size ?? 50;
+        // The count, given the whole time limit, still does not come.
+        if (request.wait_for_count)
+          return uncountedPage(request.from ?? 0, size);
+        return uncountedPage(request.from ?? 0, size);
+      },
+    );
+    renderEnabled('page_size=2');
+    await screen.findByText('Showing results 1–2');
+    await screen.findByText(
+      /^At least 2\s+matches; they could not be counted in\s+time\.$/u,
+    );
+    expect(screen.queryByText('Counting the matches…')).toBeNull();
+    const next = screen.getByRole('button', { name: 'Next' });
+    expect(next).toBeEnabled();
+    await fireEvent.click(next);
+    // The second page is short: it holds the last of the three matches,
+    // which the API reports as a count.
+    vi.mocked(api.searchExploreSystems).mockImplementation(
+      async (request, _signal, _anchor, pageSize) =>
+        finderPage(request.from ?? 0, pageSize ?? request.size ?? 50),
+    );
+    await screen.findByText('Showing 1 of 3 (results 3–3)');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
+  it('says so, and keeps the rows, when asking for the count fails', async () => {
+    vi.mocked(api.searchExploreSystems).mockImplementation(
+      async (request, _signal, _anchor, pageSize) => {
+        if (request.wait_for_count)
+          throw new api.ApiError(503, '/api/local/search', {});
+        return uncountedPage(request.from ?? 0, pageSize ?? request.size ?? 50);
+      },
+    );
+    renderEnabled('page_size=1');
+    await screen.findByText(
+      /^At least 1\s+match; they could not be counted in\s+time\.$/u,
+    );
+    expect(
+      within(screen.getByRole('list', { name: 'System results' })).getByText(
+        'Ranked 1',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(countsAskedFor()).toHaveLength(1);
+  });
+
+  it('asks for no count on its own where the page came with one', async () => {
+    renderEnabled('page_size=1');
+    await screen.findByText('Showing 1 of 3 (results 1–1)');
+    await new Promise((done) => setTimeout(done, 20));
+    expect(countsAskedFor()).toHaveLength(0);
+  });
+
   it('styles both paging buttons and keeps Previous disabled on the first page', async () => {
     renderEnabled('page_size=1');
     await screen.findByText('1 result on this page.');
