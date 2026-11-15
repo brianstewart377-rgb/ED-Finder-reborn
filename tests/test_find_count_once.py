@@ -28,11 +28,12 @@ import pytest
 os.environ.setdefault("CORS_ORIGINS", "https://find-count-once-test.invalid")
 
 from edfinder_api import local_search  # noqa: E402
-from edfinder_api.local_search import (  # noqa: E402
+from edfinder_api.find_count import (  # noqa: E402
     count_to_keep,
     known_qualifying,
     total_from_short_page,
 )
+from edfinder_api.find_generation import resolve_published_generation  # noqa: E402
 from edfinder_api.ranking.profile import FIND_COUNT_LIMIT  # noqa: E402
 from edfinder_api.routers import search as search_route  # noqa: E402
 from tests.test_find_reach import (  # noqa: E402,F401  (the shared fixture)
@@ -421,7 +422,7 @@ def test_through_the_route_only_the_first_page_read_is_counted(reach_database, m
     async def scenario():
         pool = await _api_pool(connection)
         try:
-            generation = await local_search.resolve_published_generation(pool)
+            generation = await resolve_published_generation(pool)
             run = search_route._search_counting_once
             first = await run(_request(), generation, pool, kept)
             # From here on a count that is asked for fails.

@@ -19,7 +19,7 @@ V3 `v3_app.system_search` / `v3_app.system_archetype` projections through
 `economy_pair_synergy`, `body_scan_facts`, `bodies`) are no longer referenced
 anywhere in this module; a static test pins that.
 
-Fail-closed availability: `local_search._current_derived_generation` answers
+Fail-closed availability: `find_generation._current_derived_generation` answers
 404 with no PUBLISHED generation and 503 until both Finder products
 (`system_search`, `system_archetype`) are READY and published (migration
 015's product gate). Request bodies and parameters are validated before any
@@ -61,10 +61,8 @@ from shared_contracts.v3_system_archetype_model import (
 )
 
 from edfinder_api.config import log, limiter
-from edfinder_api.local_search import (
-    _current_derived_generation,
-    total_from_short_page,
-)
+from edfinder_api.find_count import total_from_short_page
+from edfinder_api.find_generation import _current_derived_generation
 from edfinder_api.models import (
     ArchetypeRankingsResponse,
     ArchetypeRerankRequest,

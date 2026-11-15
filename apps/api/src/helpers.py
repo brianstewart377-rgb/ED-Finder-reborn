@@ -18,7 +18,7 @@ SOL_ID64 = 10477373803
 # ---------------------------------------------------------------------------
 # Bounded status-failure reason codes.
 #
-# `local_search.local_db_status()` swallows database errors and reports
+# `find_status.local_db_status()` swallows database errors and reports
 # `{available: False, reason: <code>}`; `routers/meta.py` serves that payload
 # from `/api/local/status`. The reason must be one of these fixed codes —
 # never the exception text, which can carry SQL, host names or DSN fragments.

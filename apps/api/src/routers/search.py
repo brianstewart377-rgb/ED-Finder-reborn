@@ -14,8 +14,8 @@ silently degrading.
 
 V3 (F3): `/api/local/search` (slice 1), `/api/search/galaxy` and
 `/api/search/cluster` (slice 2b) read only the published V3 projections
-through `local_search.local_db_search_v3` / `local_db_galaxy_search_v3` /
-`local_db_cluster_search_v3`, each behind the migration-015 Finder product
+through `local_search.local_db_search_v3` / `local_db_galaxy_search_v3` and
+`find_cluster.local_db_cluster_search_v3`, each behind the migration-015 Finder product
 gate (404 without a PUBLISHED generation, 503 until both Finder products
 are READY and published) with request validation before any database
 access. The legacy `cluster_summary` / `systems` / `ratings` readers are
@@ -43,8 +43,12 @@ from edfinder_api.models import (
 )
 from edfinder_api.ranking.profile import RANKING_VERSION, ranking_sha256
 
-# Single search implementation. If this import fails the app cannot
+# Single search implementation. If these imports fail the app cannot
 # serve search at all — fail loud at startup, not at request time.
+import edfinder_api.find_autocomplete as _autocomplete
+import edfinder_api.find_cluster as _cluster
+import edfinder_api.find_count as _count
+import edfinder_api.find_generation as _generation
 import edfinder_api.local_search as _ls
 
 router = APIRouter(tags=['search'])
@@ -142,7 +146,7 @@ async def _search_counting_once(
     result = await _ls.local_db_search_v3(
         body_dict, pool, known_count=known_count,
         count_budget_ms=count_budget_ms)
-    kept_count = _ls.count_to_keep(result)
+    kept_count = _count.count_to_keep(result)
     if kept_count is not None and kept_count != known_count:
         await cache_set(
             _search_count_cache_key(body_dict, kept_count),
@@ -198,8 +202,8 @@ async def autocomplete(
     try:
         # Resolve before consulting Redis, so an unpublished generation or
         # unavailable Finder product cannot be hidden by a warm cache entry.
-        generation_row = await _ls.resolve_published_generation(pool)
-        result_limit = max(0, min(limit, _ls.AUTOCOMPLETE_RESULT_LIMIT))
+        generation_row = await _generation.resolve_published_generation(pool)
+        result_limit = max(0, min(limit, _autocomplete.AUTOCOMPLETE_RESULT_LIMIT))
         query_hash = hashlib.sha256(q.lower().encode('utf-8')).hexdigest()
         cache_key = (
             f'ac:{AUTOCOMPLETE_CACHE_VERSION}:'
@@ -211,7 +215,7 @@ async def autocomplete(
         if cached:
             return cached
 
-        results = await _ls.local_db_autocomplete(q, pool, generation_row=generation_row)
+        results = await _autocomplete.local_db_autocomplete(q, pool, generation_row=generation_row)
     except Exception as exc:
         log.error('v3 autocomplete failed: %s', exc, exc_info=True)
         return _search_unavailable(f'autocomplete: {exc!r}',
@@ -304,7 +308,7 @@ async def local_search_endpoint(
     # ranking-formula change can never serve a stale/legacy entry. A pinned
     # generation lookup is a single-row indexed read on v3_meta.
     try:
-        generation_row = await _ls.resolve_published_generation(pool)
+        generation_row = await _generation.resolve_published_generation(pool)
     except HTTPException:
         # Deliberate 4xx (e.g. 404 no published generation, 503 products not
         # ready) — surface it, don't mask.
@@ -448,7 +452,7 @@ async def galaxy_search(
     # Pin the PUBLISHED generation before consulting the cache (see the
     # local-search route for why the key must be generation-scoped).
     try:
-        generation_row = await _ls.resolve_published_generation(pool)
+        generation_row = await _generation.resolve_published_generation(pool)
     except HTTPException:
         raise
     except Exception as exc:
@@ -510,7 +514,7 @@ async def cluster_search(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     # Multi-economy cluster search on the V3 cluster product.
-    # Reads only V3 relations (`local_search.local_db_cluster_search_v3`):
+    # Reads only V3 relations (`find_cluster.local_db_cluster_search_v3`):
     # the request is validated first (400/422), then the published generation
     # is pinned behind the Finder product gate (404/503), then the
     # Finder-owned `v3_spatial.cluster_run` state for that generation is
@@ -552,7 +556,7 @@ async def cluster_search(
     # 422 before any database access, so the 503 product gate can never
     # mask a malformed request.
     try:
-        _ls.prepare_cluster_search_v3(body_dict)
+        _cluster.prepare_cluster_search_v3(body_dict)
     except HTTPException:
         raise
     except Exception as exc:
@@ -563,7 +567,7 @@ async def cluster_search(
         return _search_unavailable(f'cluster search: {type(exc).__name__}: {exc}')
 
     try:
-        result = await _ls.local_db_cluster_search_v3(body_dict, pool)
+        result = await _cluster.local_db_cluster_search_v3(body_dict, pool)
     except HTTPException:
         # Deliberate 404/503 from the V3 product gate — surface it.
         raise

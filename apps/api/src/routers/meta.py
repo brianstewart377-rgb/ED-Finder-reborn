@@ -34,13 +34,13 @@ log = logging.getLogger('ed_finder')
 
 router = APIRouter(tags=['meta'])
 
-# Local_search may be unavailable in minimal deployments (CI, local dev).
+# The status reader may be unavailable in minimal deployments (CI, local dev).
 try:
-    import edfinder_api.local_search as _ls
-    _LS_AVAILABLE = True
+    import edfinder_api.find_status as _find_status
+    _STATUS_AVAILABLE = True
 except ImportError:
-    _ls = None  # type: ignore
-    _LS_AVAILABLE = False
+    _find_status = None  # type: ignore
+    _STATUS_AVAILABLE = False
 
 
 @router.get('/api/health', response_model=HealthResponse)
@@ -159,9 +159,9 @@ async def local_status(
     cached = await cache_get(cache_key, redis)
     if cached:
         return cached
-    if _LS_AVAILABLE:
+    if _STATUS_AVAILABLE:
         try:
-            result = await _ls.local_db_status(pool)
+            result = await _find_status.local_db_status(pool)
         except Exception as exc:
             log.warning('local_db_status error: %s', exc)
         else:

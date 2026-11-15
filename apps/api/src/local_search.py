@@ -1,13 +1,18 @@
 """
-Find: the searches behind the Finder, over the published V3 projections.
+Find: the search near a star, and galaxy-wide, over the published V3 projections.
 
   • `/api/local/search` (`local_db_search_v3`): the search near a star, or
     galaxy-wide, with the count of matches asked for within a time budget;
   • `/api/search/galaxy` (`local_db_galaxy_search_v3`): the galaxy-wide
-    Any-mode window, a validated call into the same search;
-  • `/api/search/cluster` (`local_db_cluster_search_v3`): fails closed
-    until a Finder cluster product is published and designed for;
-  • `/api/local/autocomplete` and `/api/local/status`.
+    Any-mode window, a validated call into the same search.
+
+The rest of Find lives beside this file:
+
+  • find_generation.py: the published data set every Finder read is pinned to;
+  • find_count.py: the count of matches, and keeping it for a search's other pages;
+  • find_cluster.py: `/api/search/cluster`, which fails closed for now;
+  • find_autocomplete.py: name suggestions for `/api/local/autocomplete`;
+  • find_status.py: the database status for `/api/local/status`.
 
 Every search reads only the published V3 projections behind the
 migration-015 Finder product gate. The V2 search and system-page readers
@@ -25,11 +30,14 @@ from typing import Any
 import asyncpg
 from fastapi import HTTPException
 
-from edfinder_api.helpers import (
-    safe_coords_from_row,
-    status_failure_reason_code_for_exception,
-)
 from edfinder_api.claim_rule import apply_claim_notes, claim_notes
+from edfinder_api.find_count import (
+    _bounded_v3_total,
+    count_within,
+    known_qualifying,
+    total_from_short_page,
+)
+from edfinder_api.find_generation import _current_derived_generation
 from edfinder_api.reach_rule import checked_reach
 from edfinder_api.ranking.profile import (
     ACCEPTED_ARCHETYPE_SCORE_FLOORS,
@@ -61,7 +69,6 @@ from edfinder_api.search_economies import (
     BODY_FILTER_COLS,
     BODY_FILTER_ALIASES,
     normalise_body_filters,
-    canonical_economy_key,
 )
 
 log = logging.getLogger("ed-finder.local_search")
@@ -76,10 +83,6 @@ DEFAULT_PAGE_SIZE = 50_000
 MAX_PAGE_SIZE     = 200_000
 CLUSTER_RADIUS_LY = float(os.getenv("CLUSTER_RADIUS_LY", "500"))
 V3_DEFAULT_PAGE_SIZE = 50
-
-
-def _safe_coords(row: Any) -> dict:
-    return safe_coords_from_row(row)
 
 
 @dataclass(frozen=True)
@@ -256,94 +259,6 @@ def _parse_local_search_context(body: dict) -> LocalSearchContext:
 # filter a caller explicitly asked for would return results the caller
 # would read as "no matches for that filter" when really the filter was
 # never applied.
-#
-# The derived products a V3 Finder ranked read depends on. A generation may be
-# published before either Finder product is attached, and a READY product stays
-# hidden until its separate publication audit commits. Requiring both products
-# to be READY and published keeps every unavailable state distinct from a valid
-# search with no matches.
-_REQUIRED_FINDER_PRODUCTS: frozenset[str] = frozenset({'system_search', 'system_archetype'})
-
-
-async def _current_derived_generation(connection: asyncpg.Connection) -> dict[str, Any]:
-    row = await connection.fetchrow('''
-        SELECT c.derived_generation_id, c.publication_sequence
-        FROM v3_meta.current_derived_generation c
-        JOIN v3_meta.derived_generation d USING(derived_generation_id)
-        WHERE d.lifecycle_state='PUBLISHED'
-    ''')
-    if row is None:
-        raise HTTPException(404, 'No published Ratings V4 generation')
-
-    # The v3_app views intentionally expose only published products. Inspect
-    # the product rows themselves so a 503 can name whether each dependency is
-    # missing, unfinished/failed, or READY but not yet published.
-    products = await connection.fetch(
-        '''
-        SELECT product_code,
-               lifecycle_state,
-               published_at,
-               product_version AS archetype_version,
-               encode(manifest_sha256, 'hex') AS archetype_manifest_sha256,
-               manifest ->> 'archetype_model_sha256' AS archetype_model_sha256,
-               manifest ->> 'model_file_sha256' AS model_file_sha256
-        FROM v3_meta.derived_product
-        WHERE derived_generation_id = $1
-          AND product_code = ANY($2::text[])
-        ''',
-        row['derived_generation_id'],
-        list(_REQUIRED_FINDER_PRODUCTS),
-    )
-    by_code = {product['product_code']: product for product in products}
-    unavailable: list[str] = []
-    for product_code in sorted(_REQUIRED_FINDER_PRODUCTS):
-        product = by_code.get(product_code)
-        if product is None:
-            unavailable.append(f'{product_code}=MISSING')
-        elif product['lifecycle_state'] != 'READY':
-            unavailable.append(f'{product_code}={product["lifecycle_state"]}')
-        elif product['published_at'] is None:
-            unavailable.append(f'{product_code}=READY-unpublished')
-    if unavailable:
-        raise HTTPException(
-            503,
-            'Finder ranking products are not available for the published '
-            f'generation ({", ".join(unavailable)}).',
-        )
-
-    archetype_product = next(
-        product for product in products if product['product_code'] == 'system_archetype'
-    )
-    identity = {
-        'archetype_version': archetype_product['archetype_version'],
-        'archetype_manifest_sha256': archetype_product['archetype_manifest_sha256'],
-        'archetype_model_sha256': archetype_product['archetype_model_sha256'],
-    }
-    if any(not value for value in identity.values()):
-        raise HTTPException(
-            503,
-            'Finder archetype product identity is incomplete for the published generation.',
-        )
-    return {
-        **dict(row),
-        **identity,
-        'model_file_sha256': archetype_product.get('model_file_sha256'),
-    }
-
-
-async def resolve_published_generation(pool: asyncpg.Pool) -> dict[str, Any]:
-    """Resolve the current PUBLISHED derived generation (id + sequence).
-
-    Public wrapper around `_current_derived_generation` for callers (the
-    search router's cache-key builder) that need the pinned generation
-    *before* entering the ranked read — so a warm cache entry can never be
-    served while no generation is published (404), and the cache key can be
-    scoped to the exact generation the results would be computed under.
-    """
-    async with pool.acquire() as conn:
-        return await _current_derived_generation(conn)
-
-
 # Body-filter request keys that resolve to a real `v3_app.system_search`
 # column: the canonical/short names (`BODY_FILTER_COLS`) plus the camelCase
 # aliases (`BODY_FILTER_ALIASES`). A body filter outside this set has no
@@ -526,116 +441,6 @@ def _validate_v3_query_bound(
             422,
             LOCAL_SEARCH_ANCHORED_RADIUS_REJECTION_REASON,
         )
-
-
-def _bounded_v3_total(qualifying: int | None) -> tuple[int, bool]:
-    """Turn the cap+1 sentinel count into the public total contract."""
-    count = int(qualifying) if qualifying is not None else 0
-    return min(count, LOCAL_SEARCH_RESULT_CAP), count > LOCAL_SEARCH_RESULT_CAP
-
-
-def total_from_short_page(row_count: int, limit: int, offset: int) -> int | None:
-    """The number of matches, where the page itself shows it.
-
-    A page that came back with fewer rows than it asked for has reached the
-    end of the matches, so there are ``offset + row_count`` of them and the
-    count need not be asked. An empty page past the first says only that
-    there are no more than ``offset``, so it is no answer.
-    """
-    if row_count >= limit:
-        return None
-    if row_count == 0 and offset > 0:
-        return None
-    return offset + row_count
-
-
-def known_qualifying(
-    known_count: Any, generation_row: Any, shown_to: int = 0,
-) -> int | None:
-    """A count kept from an earlier page of the same search, if it was made
-    on the generation this page is read from, and this page does not show it
-    to be too small. Anything else is no answer: the count is then asked
-    again.
-
-    ``shown_to`` is how far this page reaches (its offset plus its rows).
-    Which systems can be claimed changes each night with no new generation
-    (the claim rule reads the state tables), so a count kept across the
-    night's load can be a few out. A page that reaches past the kept count
-    proves it too small.
-    """
-    if not isinstance(known_count, dict):
-        return None
-    qualifying = known_count.get('qualifying')
-    if isinstance(qualifying, bool) or not isinstance(qualifying, int):
-        return None
-    if not 0 <= qualifying <= LOCAL_SEARCH_RESULT_CAP + 1:
-        return None
-    if qualifying < shown_to:
-        return None
-    if (
-        str(known_count.get('derived_generation_id'))
-        != str(generation_row['derived_generation_id'])
-        or known_count.get('publication_sequence')
-        != generation_row['publication_sequence']
-    ):
-        return None
-    return qualifying
-
-
-def count_to_keep(response: dict[str, Any]) -> dict[str, Any] | None:
-    """What to keep of a search's count for its other pages: the number of
-    matches as the count query gives it (one past the limit when there are
-    more), with the generation it was counted on. Nothing is kept of a
-    search whose matches were not counted: its total is no count."""
-    ranking = response.get('ranking') or {}
-    total = response.get('total')
-    if (
-        response.get('total_is_counted') is False
-        or isinstance(total, bool)
-        or not isinstance(total, int)
-        or ranking.get('derived_generation_id') is None
-        or ranking.get('publication_sequence') is None
-    ):
-        return None
-    return {
-        'qualifying': total + (1 if response.get('total_is_capped') else 0),
-        'derived_generation_id': str(ranking['derived_generation_id']),
-        'publication_sequence': ranking['publication_sequence'],
-    }
-
-
-async def count_within(
-    conn: asyncpg.Connection,
-    count_sql: str,
-    count_params: list[Any],
-    budget_ms: int | None,
-) -> int | None:
-    """The number of matches, or None where counting them ran out of time.
-
-    The count is the costly half of a search, and the only part that can
-    run long: for one colony type near a system it walks outwards to the
-    1,001st match. PostgreSQL ends a statement that passes its time limit,
-    and inside a transaction that ends everything else in it too. Seen on
-    the Pi on 15 November 2026: the first "Manufacturing Hub near Sol" after
-    the weekly backup answered 503 after 18 s, though its page had been
-    read in under a second.
-
-    So the count is asked last, inside a savepoint of its own: a count that
-    runs out of time is given up, and the page is still answered.
-    ``budget_ms`` shortens the time it is given (never lengthens it: the
-    caller passes no more than the connection's own limit); None leaves the
-    connection's limit as it is.
-    """
-    try:
-        async with conn.transaction():
-            if budget_ms is not None:
-                await conn.execute(
-                    "SELECT set_config('statement_timeout', $1, true)",
-                    str(max(1, int(budget_ms))),
-                )
-            return await conn.fetchval(count_sql, *count_params)
-    except asyncpg.exceptions.QueryCanceledError:
-        return None
 
 
 def _v3_tier(score: Any) -> str | None:
@@ -1132,394 +937,5 @@ async def local_db_galaxy_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
     """
     local_body = prepare_galaxy_search_v3(body)
     return await local_db_search_v3(local_body, pool)
-
-
-# ---------------------------------------------------------------------------
-# V3 cluster search (F3 slice 2b) — POST /api/search/cluster ONLY.
-# ---------------------------------------------------------------------------
-# The legacy cluster search read the V2 `cluster_summary` macro-grid table
-# (per-anchor counts of economy-viable systems inside a 500 LY bubble) plus
-# `systems`/`ratings` for slot detail. Its V3 successor is the independent
-# cluster product of migration 004 (`v3_spatial.cluster_run` ->
-# `v3_spatial.cluster` -> `v3_spatial.cluster_member`; decision doc §8):
-# clusters are domain-derived, versioned, generation-scoped outputs that a
-# builder publishes per owner domain and algorithm version.
-#
-# Flagged data gap (not silently degraded): no Finder cluster builder exists
-# in the tree, no `cluster_run` row has ever been published, and the
-# per-economy viability summary the legacy `ClusterResult` fields need is a
-# builder-defined `cluster.summary` contract that has not been designed. The
-# V3 route therefore fails closed: it validates the request, pins the
-# published generation behind the same Finder product gate as every other
-# Finder route, reads the Finder-owned cluster-run state for that generation
-# from `v3_spatial.cluster_run`, and answers 503 naming exactly what is
-# missing. It never reads a legacy relation and never fabricates clusters
-# from a request-time galaxy scan (decision doc §12: no request-time global
-# calculation; clusters are not the search index).
-FINDER_CLUSTER_OWNER_DOMAIN = 'finder'
-CLUSTER_SEARCH_LIMIT_DEFAULT = 50
-CLUSTER_SEARCH_LIMIT_MAX = 200
-CLUSTER_SEARCH_MAX_REQUIREMENTS = 6
-CLUSTER_SEARCH_MAX_SLOTS = 10
-CLUSTER_SEARCH_MAX_SLOT_ECONOMIES = 2
-CLUSTER_SEARCH_MIN_SCORE_DEFAULT = 40
-CLUSTER_SLOT_MIN_SCORE_DEFAULT = 65
-GALAXY_REGION_ID_MIN = 1
-GALAXY_REGION_ID_MAX = 42
-
-
-def _canonical_economy_or_422(value: Any, field: str) -> str:
-    key = canonical_economy_key(value) if isinstance(value, str) else None
-    if key is None:
-        raise HTTPException(422, f'{field}: unknown economy {value!r}')
-    return key
-
-
-def _score_or_422(value: Any, field: str, *, default: int) -> int:
-    score = _int_or_422(value, field, default=default)
-    if score < 0 or score > 100:
-        raise HTTPException(422, f'{field} must be between 0 and 100')
-    return score
-
-
-def prepare_cluster_search_v3(body: dict) -> dict[str, Any]:
-    """Validate a cluster-search request without touching the database.
-
-    Returns the normalised request (canonical economy keys, bounded window,
-    finite reference coordinates or None, bounded region id). Every
-    rejection is a 422 so an unavailable cluster product (503) can never
-    mask a malformed request.
-    """
-    requirements = body.get('requirements') or []
-    slots = body.get('slots') or []
-    if bool(requirements) == bool(slots):
-        raise HTTPException(422, 'provide exactly one of requirements or slots')
-    if len(requirements) > CLUSTER_SEARCH_MAX_REQUIREMENTS:
-        raise HTTPException(
-            422, f'at most {CLUSTER_SEARCH_MAX_REQUIREMENTS} economy requirements',
-        )
-    if len(slots) > CLUSTER_SEARCH_MAX_SLOTS:
-        raise HTTPException(422, f'at most {CLUSTER_SEARCH_MAX_SLOTS} slots')
-
-    normalised_requirements: list[dict[str, Any]] = []
-    for index, requirement in enumerate(requirements):
-        if not isinstance(requirement, dict):
-            raise HTTPException(422, f'requirements[{index}] must be an object')
-        min_count = _int_or_422(
-            requirement.get('min_count'), f'requirements[{index}].min_count', default=1,
-        )
-        if min_count < 1:
-            raise HTTPException(
-                422, f'requirements[{index}].min_count must be greater than or equal to 1',
-            )
-        normalised_requirements.append({
-            'economy': _canonical_economy_or_422(
-                requirement.get('economy'), f'requirements[{index}].economy',
-            ),
-            'min_count': min_count,
-            'min_score': _score_or_422(
-                requirement.get('min_score'), f'requirements[{index}].min_score',
-                default=CLUSTER_SEARCH_MIN_SCORE_DEFAULT,
-            ),
-        })
-
-    normalised_slots: list[dict[str, Any]] = []
-    for index, slot in enumerate(slots):
-        if not isinstance(slot, dict):
-            raise HTTPException(422, f'slots[{index}] must be an object')
-        economies = slot.get('economies') or []
-        if not isinstance(economies, list) or not economies:
-            raise HTTPException(422, f'slots[{index}].economies must name at least one economy')
-        if len(economies) > CLUSTER_SEARCH_MAX_SLOT_ECONOMIES:
-            raise HTTPException(
-                422,
-                f'slots[{index}].economies: at most {CLUSTER_SEARCH_MAX_SLOT_ECONOMIES} '
-                'economies per slot (same-world constraint)',
-            )
-        normalised_slots.append({
-            'economies': [
-                _canonical_economy_or_422(economy, f'slots[{index}].economies')
-                for economy in economies
-            ],
-            'min_score': _score_or_422(
-                slot.get('min_score'), f'slots[{index}].min_score',
-                default=CLUSTER_SLOT_MIN_SCORE_DEFAULT,
-            ),
-            'label': slot.get('label'),
-        })
-
-    limit = _int_or_422(body.get('limit'), 'limit', default=CLUSTER_SEARCH_LIMIT_DEFAULT)
-    if limit < 1 or limit > CLUSTER_SEARCH_LIMIT_MAX:
-        raise HTTPException(422, f'limit must be between 1 and {CLUSTER_SEARCH_LIMIT_MAX}')
-    offset = _int_or_422(body.get('offset'), 'offset', default=0)
-    if offset < 0:
-        raise HTTPException(422, 'offset must be greater than or equal to 0')
-
-    reference_coords: tuple[float, float, float] | None = None
-    ref = body.get('reference_coords') or {}
-    if not isinstance(ref, dict):
-        raise HTTPException(422, 'reference_coords must be an object')
-    present = [axis for axis in ('x', 'y', 'z') if ref.get(axis) is not None]
-    if present and len(present) != 3:
-        raise HTTPException(422, 'reference_coords must include x, y, z')
-    if present:
-        try:
-            coords = tuple(float(ref[axis]) for axis in ('x', 'y', 'z'))
-        except (TypeError, ValueError) as exc:
-            raise HTTPException(422, 'reference_coords must be numeric') from exc
-        if not all(math.isfinite(value) for value in coords):
-            raise HTTPException(422, 'reference_coords must be finite numbers')
-        reference_coords = coords  # type: ignore[assignment]
-
-    galaxy_region_id: int | None = None
-    if body.get('galaxy_region_id') is not None:
-        galaxy_region_id = _int_or_422(body.get('galaxy_region_id'), 'galaxy_region_id')
-        if not GALAXY_REGION_ID_MIN <= galaxy_region_id <= GALAXY_REGION_ID_MAX:
-            raise HTTPException(
-                422,
-                f'galaxy_region_id must be between {GALAXY_REGION_ID_MIN} '
-                f'and {GALAXY_REGION_ID_MAX}',
-            )
-
-    return {
-        'requirements': normalised_requirements,
-        'slots': normalised_slots,
-        'limit': limit,
-        'offset': offset,
-        'reference_coords': reference_coords,
-        'galaxy_region_id': galaxy_region_id,
-    }
-
-
-async def _finder_cluster_runs(
-    connection: asyncpg.Connection, derived_generation_id: Any,
-) -> list[asyncpg.Record]:
-    """Read the Finder-owned cluster runs attached to the pinned generation."""
-    return await connection.fetch(
-        '''
-        SELECT cluster_run_id, algorithm, algorithm_version, lifecycle_state, published_at
-        FROM v3_spatial.cluster_run
-        WHERE derived_generation_id = $1
-          AND owner_domain = $2
-        ORDER BY created_at DESC, cluster_run_id
-        ''',
-        derived_generation_id,
-        FINDER_CLUSTER_OWNER_DOMAIN,
-    )
-
-
-async def local_db_cluster_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
-    """V3 cluster search for `POST /api/search/cluster` — fail-closed.
-
-    Validates the request (422), pins the published generation behind the
-    Finder product gate (404 / 503, `_current_derived_generation`), then
-    reads the Finder-owned cluster-run state for that generation from
-    `v3_spatial.cluster_run` inside the same REPEATABLE READ snapshot and
-    answers 503 naming what is missing. See the section comment above for
-    the flagged data gap: until a Finder cluster builder publishes a run
-    and defines the `cluster.summary` viability contract, no V3 read can
-    honestly produce the `ClusterResult` fields, so this never returns 200
-    and never falls back to a legacy relation.
-    """
-    prepare_cluster_search_v3(body)
-    try:
-        async with pool.acquire() as conn:
-            async with conn.transaction(isolation='repeatable_read', readonly=True):
-                generation_row = await _current_derived_generation(conn)
-                runs = await _finder_cluster_runs(conn, generation_row['derived_generation_id'])
-    except HTTPException:
-        raise
-    except (asyncpg.exceptions.UndefinedTableError,
-            asyncpg.exceptions.InvalidSchemaNameError) as exc:
-        log.error('local_db_cluster_search_v3 missing relation: %r (sqlstate=%s)',
-                  exc, getattr(exc, 'sqlstate', None))
-        raise HTTPException(503, 'Finder cluster search is unavailable') from exc
-
-    published = [run for run in runs if run['lifecycle_state'] == 'PUBLISHED']
-    generation_id = generation_row['derived_generation_id']
-    if not published:
-        state = ', '.join(
-            f"{run['algorithm']}@{run['algorithm_version']}={run['lifecycle_state']}"
-            for run in runs
-        ) or 'none'
-        raise HTTPException(
-            503,
-            'Finder cluster product is not published for the current generation '
-            f'{generation_id} (v3_spatial.cluster_run owner_domain='
-            f'{FINDER_CLUSTER_OWNER_DOMAIN}: {state}); the Finder cluster builder '
-            'and its cluster summary contract are a pending V3 derived product.',
-        )
-    newest = published[0]
-    raise HTTPException(
-        503,
-        f"Finder cluster run {newest['algorithm']}@{newest['algorithm_version']} "
-        f'({newest["cluster_run_id"]}) is published for generation {generation_id}, '
-        'but no Finder cluster read contract exists for it yet; cluster search '
-        'stays unavailable until that contract is designed and implemented.',
-    )
-
-
-# ---------------------------------------------------------------------------
-# Autocomplete
-# ---------------------------------------------------------------------------
-AUTOCOMPLETE_CANDIDATE_LIMIT = 100
-AUTOCOMPLETE_RESULT_LIMIT = 10
-AUTOCOMPLETE_SQL = f"""
-    SELECT system_id64 AS id64, name,
-           public.cube_ll_coord(position_ly, 1) AS x,
-           public.cube_ll_coord(position_ly, 2) AS y,
-           public.cube_ll_coord(position_ly, 3) AS z,
-           galaxy_region_id
-    FROM v3_derived.system_search
-    WHERE derived_generation_id = $1 AND lower(name) LIKE $2
-    LIMIT {AUTOCOMPLETE_CANDIDATE_LIMIT}
-"""
-
-
-def _autocomplete_prefix_pattern(q: str) -> str:
-    """A literal, case-insensitive prefix using PostgreSQL's LIKE escape."""
-    return q.lower().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
-
-
-async def local_db_autocomplete(
-    q: str,
-    pool: asyncpg.Pool,
-    *,
-    generation_row: dict[str, Any] | None = None,
-) -> list:
-    """Read a bounded prefix window from the published V3 search projection.
-
-    Migration 023's generation + text_pattern_ops index supports this LIKE
-    range even under en_US.utf8. Sort only the bounded candidates in Python:
-    an SQL ORDER BY name would sort every matching prefix before the LIMIT.
-    The route may supply its resolved generation to keep a cache entry tied
-    to the same immutable rows when a publication lands during the request.
-    """
-    if len(q) < 2:
-        return []
-
-    async with pool.acquire() as conn:
-        async with conn.transaction(isolation='repeatable_read', readonly=True):
-            if generation_row is None:
-                try:
-                    generation_row = await _current_derived_generation(conn)
-                except HTTPException as exc:
-                    if exc.status_code == 404:
-                        raise HTTPException(503, 'No published Ratings V4 generation') from exc
-                    raise
-            # A generic prepared plan cannot derive LIKE bounds from $2. The
-            # API disables its statement cache, but enforce a custom plan here
-            # too so alternate pools keep the same bounded index read.
-            await conn.execute('SET LOCAL plan_cache_mode = force_custom_plan')
-            rows = await conn.fetch(
-                AUTOCOMPLETE_SQL,
-                generation_row['derived_generation_id'],
-                _autocomplete_prefix_pattern(q),
-            )
-
-    results = []
-    for r in sorted(rows, key=lambda row: row['name'])[:AUTOCOMPLETE_RESULT_LIMIT]:
-        coords = _safe_coords(r)
-        results.append({
-            "name":              r["name"],
-            "id64":              r["id64"],
-            "x":                 coords["x"],
-            "y":                 coords["y"],
-            "z":                 coords["z"],
-            "galaxy_region_id":  r["galaxy_region_id"],
-            "record": {
-                "id64": r["id64"],
-                "name": r["name"],
-                "x":    coords["x"],
-                "y":    coords["y"],
-                "z":    coords["z"],
-            },
-        })
-    return results
-
-
-# ---------------------------------------------------------------------------
-# Status
-# ---------------------------------------------------------------------------
-async def local_db_status(pool: asyncpg.Pool) -> dict:
-    """Return info about the PostgreSQL database and import progress."""
-    try:
-        async with pool.acquire() as conn:
-            # Use pg_class.reltuples (PG's ANALYZE-derived row estimate) instead of
-            # COUNT(*) — returns in ~1ms per table vs 30+ seconds for COUNT(*) FROM
-            # bodies on the 1B+ row table. Estimates are plenty accurate for a
-            # status display and refresh on every autovac/analyze cycle.
-            #
-            # Why: build_grid.py was being starved of disk I/O by repeated polls
-            # of /api/local/status from the V2 Admin tab (every 30s). Each poll
-            # triggered 8 sequential COUNT(*) full scans through pgbouncer.
-            counts = await conn.fetchrow("""
-                SELECT
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='systems'),         0) AS sys_count,
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='bodies'),          0) AS body_count,
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='stations'),        0) AS station_count,
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='cluster_summary'), 0) AS cluster_count,
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='spatial_grid'),    0) AS grid_count,
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='macro_grid'),      0) AS macro_count,
-                  COALESCE((SELECT reltuples::bigint FROM pg_class WHERE relname='ratings'),         0) AS rated_count,
-                  COALESCE((SELECT count(*)         FROM galaxy_regions),                            0) AS region_count
-            """)
-            sys_count     = int(counts["sys_count"])
-            body_count    = int(counts["body_count"])
-            station_count = int(counts["station_count"])
-            cluster_count = int(counts["cluster_count"])
-            grid_count    = int(counts["grid_count"])
-            macro_count   = int(counts["macro_count"])
-            rated_count   = int(counts["rated_count"])
-            region_count  = int(counts["region_count"])
-
-            import_rows = await conn.fetch("""
-                SELECT dump_file, status, rows_processed, errors_encountered,
-                       started_at, completed_at
-                FROM import_meta ORDER BY id
-            """)
-            import_status = {
-                r["dump_file"]: {
-                    "status":             str(r["status"]),
-                    "rows_processed":     r["rows_processed"],
-                    "errors_encountered": r["errors_encountered"],
-                    "started_at":         r["started_at"].isoformat() if r["started_at"] else None,
-                    "completed_at":       r["completed_at"].isoformat() if r["completed_at"] else None,
-                }
-                for r in import_rows
-            }
-
-            db_size_bytes = await conn.fetchval(
-                "SELECT pg_database_size(current_database())"
-            )
-            pg_version = await conn.fetchval("SELECT version()")
-
-        return {
-            "available":            True,
-            "backend":              "postgresql",
-            "pg_version":           pg_version,
-            "systems_count":        sys_count,
-            "rated_count":          rated_count,
-            "body_count":           body_count,
-            "station_count":        station_count,
-            "cluster_count":        cluster_count,
-            "grid_cells":           grid_count,
-            "macro_grid_cells":     macro_count,
-            "galaxy_regions":       region_count,
-            "db_size_mb":           round(db_size_bytes / 1_048_576, 1) if db_size_bytes else 0,
-            "import_status":        import_status,
-            "max_search_radius_ly": int(MAX_SEARCH_RADIUS),
-            "cluster_radius_ly":    int(CLUSTER_RADIUS_LY),
-            "has_bodies":           True,
-            "has_cluster_summary":  cluster_count > 0,
-        }
-    except Exception as exc:
-        # The raw exception text (which can carry SQL, host names or DSN
-        # fragments) stays in the server log; the caller only ever sees one
-        # of the fixed STATUS_REASON_CODES. Callers must not cache this
-        # branch — a cached failure hides recovery for the whole TTL.
-        reason = status_failure_reason_code_for_exception(exc)
-        log.warning("local_db_status error (%s): %s: %s", reason, type(exc).__name__, exc)
-        return {"available": False, "reason": reason}
 
 
