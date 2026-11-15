@@ -3,10 +3,9 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { tick, untrack } from 'svelte';
-  import { ArrowRight, Search, Sparkles } from '@lucide/svelte';
+  import { ArrowRight, Sparkles } from '@lucide/svelte';
   import {
     ApiError,
-    autocompleteSystems,
     getSystem,
     type AutocompleteSystem,
     type ExploreSystem,
@@ -65,6 +64,7 @@
   import SystemActions from './SystemActions.svelte';
   import WatchlistPanel from './WatchlistPanel.svelte';
   import ComparePanel from './ComparePanel.svelte';
+  import SystemSearchBox from './SystemSearchBox.svelte';
   import { createFinderResults } from './finder-results.svelte';
   import { createMyJourneys } from './my-journeys.svelte';
   import { createSelectedSystem } from './selected-system.svelte';
@@ -83,8 +83,6 @@
     viewState.hasMounted = true;
   });
   const reviewLabRun = import.meta.env.VITE_REVIEW_LAB === '1';
-  let activeSuggestion = $state(-1);
-  let autocompleteOpen = $state(false);
   const anchorDetail = createQuery(() => {
     const id64 = viewState.nearId;
     return {
@@ -123,7 +121,8 @@
   const radiusCapped = $derived(
     typeNearAnchor || Object.keys(viewState.bodyFilters).length > 0,
   );
-  let searchInput = $state<HTMLInputElement>();
+  // The system-name box, which lives in a file of its own.
+  let searchBox = $state<ReturnType<typeof SystemSearchBox>>();
   let mapSection = $state<HTMLDivElement>();
   // The control that hid the Finder panel gets focus back when it reopens.
   let panelToggleOrigin: HTMLElement | null = null;
@@ -183,15 +182,6 @@
     }
   });
   const showTravelHeatmap = $derived($layerPreferences.value.journeys);
-
-  const normalizedQuery = $derived(viewState.query.trim());
-  const suggestions = createQuery(() => ({
-    queryKey: queryKeys.autocomplete(normalizedQuery.toLocaleLowerCase()),
-    queryFn: ({ signal }) => autocompleteSystems(normalizedQuery, signal),
-    enabled: normalizedQuery.length >= 2,
-    staleTime: 60_000,
-  }));
-  const suggestionRows = $derived(suggestions.data?.results ?? []);
 
   // Body filters join every search: near a system, and galaxy-wide, where
   // they thin the window of the best 10,000. The radius needs a system.
@@ -395,7 +385,7 @@
   }
 
   async function clearAnchor(): Promise<void> {
-    autocompleteOpen = false;
+    searchBox?.close();
     viewState.query = '';
     const params = serializeRankingSearchParams(
       { ...viewState.rankingState, offset: 0 },
@@ -415,7 +405,7 @@
     viewState.rankingNotice = viewState.hasResultsIntent
       ? 'Anchor cleared; searching galaxy-wide.'
       : '';
-    searchInput?.focus();
+    searchBox?.focus();
   }
 
   function commitBodyFilters(value: BodyFilterValues): Promise<void> {
@@ -568,9 +558,8 @@
     );
   });
 
+  // The box has already written the chosen name and closed its suggestions.
   function chooseSuggestion(hit: AutocompleteSystem): void {
-    viewState.query = hit.name;
-    autocompleteOpen = false;
     viewState.rankingNotice = '';
     const committedAnchor = readExploreAnchor({ anchor: hit });
     const params = serializeExploreSearchParams(
@@ -596,49 +585,6 @@
       { state: { anchor: committedAnchor } },
     );
     if (committedAnchor && !FINDER_F4_ENABLED) selectedSystem.set(hit.id64);
-  }
-
-  function handleQueryInput(event: Event): void {
-    if (!(event.currentTarget as HTMLInputElement).value.trim() && anchor)
-      void clearAnchor();
-    autocompleteOpen =
-      (event.currentTarget as HTMLInputElement).value.trim().length >= 2;
-    activeSuggestion = -1;
-  }
-
-  function handleQueryKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && autocompleteOpen) {
-      autocompleteOpen = false;
-      event.preventDefault();
-      return;
-    }
-    if (!autocompleteOpen || !suggestionRows.length) {
-      if (event.key === 'ArrowDown' && suggestionRows.length) {
-        autocompleteOpen = true;
-        event.preventDefault();
-      }
-      return;
-    }
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      activeSuggestion = (activeSuggestion + 1) % suggestionRows.length;
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      activeSuggestion =
-        activeSuggestion <= 0
-          ? suggestionRows.length - 1
-          : activeSuggestion - 1;
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      activeSuggestion = 0;
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      activeSuggestion = suggestionRows.length - 1;
-    } else if (event.key === 'Enter') {
-      event.preventDefault();
-      const hit = suggestionRows[Math.max(0, activeSuggestion)];
-      if (hit) chooseSuggestion(hit);
-    }
   }
 
   function selectResult(system: ExploreSystem): void {
@@ -686,9 +632,8 @@
       // The results keep their scroll position, and focus returns to the
       // control that hid the panel (or the search box).
       if (resultList) viewState.restoreResultScroll(resultList);
-      const target = panelToggleOrigin?.isConnected
-        ? panelToggleOrigin
-        : searchInput;
+      const target: { focus(options?: FocusOptions): void } | undefined =
+        panelToggleOrigin?.isConnected ? panelToggleOrigin : searchBox;
       target?.focus({
         preventScroll: !window.matchMedia(PHONE_STAGE_QUERY).matches,
       });
@@ -800,66 +745,14 @@
           <p class="eyebrow">Discovery anchor</p>
           <h2 id="finder-title">Find systems near a known star</h2>
         </div>
-        <div class="combobox-wrap">
-          <label for="system-search">System name</label>
-          <div class="search-control">
-            <Search aria-hidden="true" size={19} />
-            <input
-              id="system-search"
-              type="search"
-              placeholder="Try Sol, Achenar, Lave…"
-              autocomplete="off"
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded={autocompleteOpen && normalizedQuery.length >= 2}
-              aria-controls="system-suggestions"
-              aria-activedescendant={autocompleteOpen &&
-              suggestionRows[activeSuggestion]
-                ? `suggestion-${activeSuggestion}`
-                : undefined}
-              bind:this={searchInput}
-              bind:value={viewState.query}
-              oninput={handleQueryInput}
-              onfocus={() => (autocompleteOpen = normalizedQuery.length >= 2)}
-              onkeydown={handleQueryKeydown}
-            />
-          </div>
-          {#if autocompleteOpen && normalizedQuery.length >= 2}
-            <div
-              id="system-suggestions"
-              class="suggestions"
-              role="listbox"
-              aria-label="System suggestions"
-            >
-              {#if suggestions.isPending}
-                <p role="status">Searching catalogue…</p>
-              {:else if suggestions.isError}
-                <div role="alert">
-                  <p>Typeahead is unavailable.</p>
-                  <button type="button" onclick={() => suggestions.refetch()}
-                    >Retry</button
-                  >
-                </div>
-              {:else if suggestionRows.length === 0}
-                <p>No matching systems.</p>
-              {:else}
-                {#each suggestionRows as hit, index (hit.id64)}
-                  <button
-                    id={`suggestion-${index}`}
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeSuggestion}
-                    class:active={index === activeSuggestion}
-                    onmousedown={(event) => event.preventDefault()}
-                    onclick={() => chooseSuggestion(hit)}
-                  >
-                    <span>{hit.name}</span><code>{hit.id64}</code>
-                  </button>
-                {/each}
-              {/if}
-            </div>
-          {/if}
-        </div>
+        <SystemSearchBox
+          bind:this={searchBox}
+          bind:query={viewState.query}
+          onchoose={chooseSuggestion}
+          onemptied={() => {
+            if (anchor) void clearAnchor();
+          }}
+        />
       </section>
 
       {#snippet bodyFilterTools()}
