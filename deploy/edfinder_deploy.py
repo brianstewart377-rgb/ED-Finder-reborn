@@ -79,6 +79,9 @@ DEFAULTS: Dict[str, str] = {
     # server), "cf_connecting_ip" when only a Cloudflare Tunnel reaches it (the
     # Pi). The API limits each visitor's searches by that address.
     "EDFINDER_CLIENT_ADDRESS_FROM": "x_real_ip",
+    # After going live, the site's images that neither the live build nor the
+    # one before it uses are removed from this machine. Set to 1 to keep them.
+    "EDFINDER_KEEP_OLD_IMAGES": "0",
 }
 
 CLIENT_ADDRESS_HEADERS = ("x_real_ip", "cf_connecting_ip")
@@ -139,6 +142,9 @@ class Settings:
             raise DeployError("EDFINDER_CLIENT_ADDRESS_FROM must be one of: %s"
                               % ", ".join(CLIENT_ADDRESS_HEADERS))
         self.find_check = values["EDFINDER_FIND_CHECK"] == "1"
+        if values["EDFINDER_KEEP_OLD_IMAGES"] not in ("0", "1"):
+            raise DeployError("EDFINDER_KEEP_OLD_IMAGES must be 0 or 1")
+        self.keep_old_images = values["EDFINDER_KEEP_OLD_IMAGES"] == "1"
         try:
             self.ready_seconds = float(values["EDFINDER_READY_SECONDS"])
         except ValueError as error:
@@ -911,6 +917,71 @@ def public_report(settings: Settings, sha: str) -> None:
             "somewhere else or cached." % (settings.public_origin, seen[:12], sha[:12]))
 
 
+# -- old images -----------------------------------------------------------------
+
+def image_id(reference: str) -> str:
+    """What an image is, whatever it is called; empty if it is not on this machine."""
+    return docker("image", "inspect", "--format", "{{.Id}}", reference, check=False).strip()
+
+
+def old_images(settings: Settings, kept: Sequence[str]) -> List[str]:
+    """The names of the site's images on this machine that are not one of `kept`.
+
+    Compared by what an image is, not by what it is called: a second name for
+    a kept image (the moving tag it was fetched by, say) is kept with it.
+    """
+    names: List[str] = []
+    for repository in (settings.api_repository, settings.web_repository):
+        listing = docker("image", "ls", "--no-trunc", "--format", "{{.Repository}}:{{.Tag}} {{.ID}}",
+                         repository, check=False)
+        for line in listing.splitlines():
+            name, _, identity = line.strip().partition(" ")
+            if name and identity and not name.endswith(":<none>") and identity not in kept:
+                names.append(name)
+    return names
+
+
+def remove_old_images(settings: Settings, state: State) -> None:
+    """After going live: remove the site's images that no release needs any more.
+
+    Every deploy fetches two images, and nothing used to remove any, so the
+    drive filled a little with each one. The live build's images are kept, and
+    so are those of the build before it, which "rollback" starts without
+    fetching. Only images of the site's own two repositories are looked at.
+
+    Nothing is forced: Docker refuses to remove an image that a container
+    still uses (the containers kept by a take-over, say), and that is left as
+    it is. Nothing here can fail a deploy: the site is already live.
+    """
+    if settings.keep_old_images:
+        return
+    try:
+        releases = [release for release in (state.current, state.previous) if release]
+        kept = [image_id(reference) for release in releases
+                for reference in (release.api, release.web)]
+        if not releases or not all(kept):
+            # Without knowing every image to keep, none is removed.
+            say("Older images were left alone: an image of the live build or the one "
+                "before it could not be read.")
+            return
+        removed = left = 0
+        for name in old_images(settings, kept):
+            if run(["docker", "image", "rm", name], check=False).returncode == 0:
+                removed += 1
+            else:
+                left += 1
+    except DeployError as error:
+        say("Older images were left alone: %s" % str(error).splitlines()[0])
+        return
+    if removed:
+        say("Removed %d older image%s of the site from this machine. The live build's "
+            "and the one before it are kept." % (removed, "" if removed == 1 else "s"))
+        state.log("REMOVED %d older images" % removed)
+    if left:
+        say("%d older image%s still in use and left as %s." % (
+            left, " is" if left == 1 else "s are", "it is" if left == 1 else "they are"))
+
+
 # -- commands -------------------------------------------------------------------
 
 def command_try(settings: Settings, tag: str, pull: bool) -> None:
@@ -939,6 +1010,7 @@ def command_live(settings: Settings, tag: str, pull: bool, take_over: bool,
     state.log("LIVE %s" % release.tag)
     say("LIVE: the site is now running %s." % release.describe())
     public_report(settings, release.sha)
+    remove_old_images(settings, state)
 
 
 def command_rollback(settings: Settings) -> None:

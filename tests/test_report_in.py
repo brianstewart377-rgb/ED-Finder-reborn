@@ -375,6 +375,9 @@ def test_a_real_fetch_arrives_as_one_post_with_what_was_said(monkeypatch):
 @pytest.mark.parametrize("unit, job", [
     ("edfinder-galaxy-update.service", "galaxy-update"),
     ("edfinder-state-refresh.service", "state-refresh"),
+    # Neither of these stops anything when it fails, so each could fail unseen.
+    ("edfinder-find-warmup.service", "find-warmup"),
+    ("edfinder-eddn-check.service", "eddn-check"),
 ])
 def test_each_nightly_job_reports_in_when_it_ends_and_cannot_be_failed_by_it(unit, job):
     lines = (ROOT / "deploy" / unit).read_text(encoding="utf-8").splitlines()

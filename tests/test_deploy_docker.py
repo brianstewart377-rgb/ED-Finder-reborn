@@ -157,6 +157,10 @@ class Site:
             "EDFINDER_STATE_DIR": str(self.state_dir),
             "EDFINDER_READY_SECONDS": str(ready_seconds),
             "EDFINDER_PUBLIC_ORIGIN": "",
+            # These tests share one set of stand-in images between them, so
+            # going live must not remove any. The one test of that removal
+            # works on names of its own.
+            "EDFINDER_KEEP_OLD_IMAGES": "1",
         })
         env.update(environ or {})
         return subprocess.run([sys.executable, str(TOOL), "--no-pull", *args],
@@ -423,6 +427,58 @@ def test_newer_release_replaces_the_live_one_and_rollback_returns(site):
     assert result.returncode == 0, result.stdout + result.stderr
     assert site.serving() == SHA_A and site.page_build() == SHA_A
     assert (site.state()["current"]["sha"], site.state()["previous"]["sha"]) == (SHA_A, SHA_B)
+
+
+def test_going_live_removes_the_images_no_release_needs_any_more(site):
+    """Every deploy fetches two images, and nothing used to remove any, so the
+    Pi's drive filled a little with each deploy. The live build's images are
+    kept, and those of the build before it, which rollback starts without
+    fetching. Here under names of this test's own, because the other tests
+    share their images."""
+    own = {role: "%s-tidy-%s" % (getattr(site.images, role), site.suffix) for role in ("api", "web")}
+    shas = (SHA_OLD, SHA_A, SHA_B)
+
+    def name(role: str, sha: str) -> str:
+        return "%s:git-%s" % (own[role], sha)
+
+    def on_the_machine() -> set[str]:
+        return {line for role in ("api", "web")
+                for line in docker("image", "ls", "--format", "{{.Repository}}:{{.Tag}}", own[role]).split()}
+
+    def both(*wanted: str) -> set[str]:
+        return {name(role, sha) for role in ("api", "web") for sha in wanted}
+
+    environ = {"EDFINDER_KEEP_OLD_IMAGES": "0",
+               "EDFINDER_API_REPOSITORY": own["api"], "EDFINDER_WEB_REPOSITORY": own["web"]}
+
+    def go_live(sha: str) -> str:
+        # As a fetch would leave it: the build's two images under their names.
+        for role in ("api", "web"):
+            docker("tag", "%s:git-%s" % (getattr(site.images, role), sha), name(role, sha))
+        result = site.tool("live", tag(sha), environ=environ)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert site.serving() == sha
+        return result.stdout
+
+    try:
+        # One release, then two: the live one and the one before it. Nothing to remove.
+        assert "Removed" not in go_live(SHA_OLD)
+        assert on_the_machine() == both(SHA_OLD)
+        assert "Removed" not in go_live(SHA_A)
+        assert on_the_machine() == both(SHA_OLD, SHA_A)
+        # A third: the oldest is no longer the one before, and its two images go.
+        said = go_live(SHA_B)
+        assert "Removed 2 older images of the site from this machine" in said
+        assert on_the_machine() == both(SHA_A, SHA_B)
+        # The one before is still here, so rollback needs nothing fetched.
+        result = site.tool("rollback", environ=environ)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert site.serving() == SHA_A
+        assert on_the_machine() == both(SHA_A, SHA_B)
+    finally:
+        for sha in shas:
+            for role in ("api", "web"):
+                docker("rmi", "-f", name(role, sha), check=False)
 
 
 def test_broken_release_is_caught_on_the_spare_address_and_the_site_is_untouched(site):

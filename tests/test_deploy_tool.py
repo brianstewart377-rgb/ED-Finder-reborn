@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import socket
+import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -336,6 +337,148 @@ def test_warm_is_a_command_that_needs_no_lock(fake_site, monkeypatch, capsys):
     monkeypatch.setattr(tool, "single_run", no_lock)
     assert tool.main(["warm"]) == 0
     assert capsys.readouterr().out.endswith("OK: Find is warmed up. Nothing was changed.\n")
+
+
+# -- older images ---------------------------------------------------------------
+
+API, WEB = "ghcr.io/example/site/api", "ghcr.io/example/site/web"
+
+
+class FakeDocker:
+    """Docker's list of images, as far as the tidy-up after going live uses it:
+    each name and the image it is a name for."""
+
+    def __init__(self, images: dict[str, str]) -> None:
+        self.images = dict(images)
+        self.in_use: set[str] = set()
+        self.unreadable: set[str] = set()
+        self.asked: list[tuple[str, ...]] = []
+
+    def docker(self, *args: str, check: bool = True, timeout: float = 900) -> str:
+        self.asked.append(args)
+        if args[:2] == ("image", "inspect"):
+            return "" if args[-1] in self.unreadable else self.images.get(args[-1], "")
+        if args[:2] == ("image", "ls"):
+            return "\n".join("%s %s" % (name, identity) for name, identity in self.images.items()
+                             if name.rsplit(":", 1)[0] == args[-1])
+        raise AssertionError("not expected of the tidy-up: docker %s" % " ".join(args))
+
+    def run(self, command, *, check: bool = True, **_) -> subprocess.CompletedProcess:
+        assert command[:3] == ["docker", "image", "rm"] and len(command) == 4, command
+        self.asked.append(tuple(command[1:]))
+        if command[3] in self.in_use:
+            return subprocess.CompletedProcess(command, 1, "", "image is being used by a container")
+        del self.images[command[3]]
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+
+def release(letter: str) -> "tool.Release":
+    sha = letter * 40
+    return tool.Release("git-" + sha, sha, "%s:git-%s" % (API, sha), "%s:git-%s" % (WEB, sha))
+
+
+def images_of(*letters: str) -> dict[str, str]:
+    return {"%s:git-%s" % (repository, letter * 40): "sha256:%s-%s" % (role, letter)
+            for letter in letters for role, repository in (("api", API), ("web", WEB))}
+
+
+@pytest.fixture
+def fake_docker(monkeypatch):
+    def install(images: dict[str, str]) -> FakeDocker:
+        fake = FakeDocker(images)
+        monkeypatch.setattr(tool, "docker", fake.docker)
+        monkeypatch.setattr(tool, "run", fake.run)
+        return fake
+    return install
+
+
+def tidy_settings(**environ) -> "tool.Settings":
+    return settings(EDFINDER_API_REPOSITORY=API, EDFINDER_WEB_REPOSITORY=WEB, **environ)
+
+
+def test_going_live_removes_images_that_neither_the_live_build_nor_the_one_before_uses(
+        fake_docker, tmp_path, capsys):
+    fake = fake_docker({
+        **images_of("a", "b", "c", "d"),
+        # A second name for the live build's API image: the tag it was fetched by.
+        API + ":main": "sha256:api-d",
+        # Not the site's: the database, and the listener.
+        "postgres:18.6-trixie": "sha256:postgres",
+        "ghcr.io/example/site/eddn:main": "sha256:eddn",
+    })
+    state = tool.State(tmp_path)
+    state.current, state.previous = release("d"), release("c")
+
+    tool.remove_old_images(tidy_settings(), state)
+
+    assert fake.images == {**images_of("c", "d"), API + ":main": "sha256:api-d",
+                           "postgres:18.6-trixie": "sha256:postgres",
+                           "ghcr.io/example/site/eddn:main": "sha256:eddn"}
+    said = capsys.readouterr().out
+    assert "Removed 4 older images of the site from this machine." in said
+    assert "REMOVED 4 older images" in (tmp_path / "deploy.log").read_text()
+
+
+def test_with_nothing_older_on_the_machine_nothing_is_removed_or_said(fake_docker, tmp_path, capsys):
+    fake = fake_docker(images_of("c", "d"))
+    state = tool.State(tmp_path)
+    state.current, state.previous = release("d"), release("c")
+    tool.remove_old_images(tidy_settings(), state)
+    assert fake.images == images_of("c", "d")
+    assert capsys.readouterr().out == ""
+
+
+def test_the_first_release_keeps_its_own_images_only(fake_docker, tmp_path):
+    fake = fake_docker(images_of("a", "d"))
+    state = tool.State(tmp_path)
+    state.current = release("d")
+    tool.remove_old_images(tidy_settings(), state)
+    assert fake.images == images_of("d")
+
+
+def test_no_image_is_removed_unless_every_image_to_keep_can_be_read(fake_docker, tmp_path, capsys):
+    """If Docker cannot say what the build before is, comparing against the
+    rest would remove it. So nothing is removed at all."""
+    fake = fake_docker(images_of("a", "c", "d"))
+    fake.unreadable.add("%s:git-%s" % (WEB, "c" * 40))
+    state = tool.State(tmp_path)
+    state.current, state.previous = release("d"), release("c")
+    tool.remove_old_images(tidy_settings(), state)
+    assert fake.images == images_of("a", "c", "d")
+    assert "Older images were left alone" in capsys.readouterr().out
+
+
+def test_an_image_a_container_still_uses_is_left_and_said(fake_docker, tmp_path, capsys):
+    fake = fake_docker(images_of("a", "b", "d"))
+    fake.in_use.add("%s:git-%s" % (API, "a" * 40))
+    state = tool.State(tmp_path)
+    state.current = release("d")
+    tool.remove_old_images(tidy_settings(), state)
+    assert set(fake.images) == set(images_of("d")) | {"%s:git-%s" % (API, "a" * 40)}
+    said = capsys.readouterr().out
+    assert "Removed 3 older images of the site" in said
+    assert "1 older image is still in use and left as it is." in said
+
+
+def test_the_tidy_up_cannot_fail_a_deploy_that_is_already_live(monkeypatch, tmp_path, capsys):
+    def docker_is_stuck(*args, **kwargs):
+        raise tool.DeployError("timed out after 900 s: docker image inspect")
+    monkeypatch.setattr(tool, "docker", docker_is_stuck)
+    state = tool.State(tmp_path)
+    state.current = release("d")
+    tool.remove_old_images(tidy_settings(), state)
+    assert "Older images were left alone: timed out after 900 s" in capsys.readouterr().out
+
+
+def test_old_images_can_be_kept_and_only_0_or_1_says_so(fake_docker, tmp_path):
+    assert settings().keep_old_images is False
+    fake = fake_docker(images_of("a", "d"))
+    state = tool.State(tmp_path)
+    state.current = release("d")
+    tool.remove_old_images(tidy_settings(EDFINDER_KEEP_OLD_IMAGES="1"), state)
+    assert fake.images == images_of("a", "d") and fake.asked == []
+    with pytest.raises(tool.DeployError, match="EDFINDER_KEEP_OLD_IMAGES must be 0 or 1"):
+        settings(EDFINDER_KEEP_OLD_IMAGES="yes")
 
 
 def unit_lines(name: str) -> dict[str, list[str]]:

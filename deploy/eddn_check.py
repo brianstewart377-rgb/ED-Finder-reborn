@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Look at the EDDN listener, and start it afresh if it has stopped working.
+
+    python3 eddn_check.py          what the timer runs: look, and restart it if unwell
+    python3 eddn_check.py --look   only look and say; change nothing
+
+The listener (deploy/pi/eddn.yml) keeps station sightings from the live feed.
+They can only be gathered as they happen: whatever it misses is gone for
+good. Docker starts the listener again when it stops, and it stops itself
+after five failed writes in a row. But Docker does nothing about a container
+that is still running and no longer working, and nobody was told about one.
+The listener has a health check of its own, which Docker runs every 30
+seconds: it is "unhealthy" while a write has failed and not yet been made
+good, or when no message has come from the feed for five minutes.
+
+So every half hour (edfinder-eddn-check.timer) this asks Docker how the
+listener is:
+
+    running and healthy     all is well
+    running and just started   all is well; its first health check is not in yet
+    running and unhealthy   it is started afresh, and this run counts as failed
+    not running, or absent  this run counts as failed; nothing is started, since
+                            it may have been stopped on purpose
+
+A failed run is reported like any nightly job's (deploy/report_in.py), so an
+email follows. The feed is silent for a while during the game's weekly
+maintenance; a failed run then is expected, and the next run that finds the
+listener healthy clears it. If the listener is stopped on purpose, stop the
+timer too:
+
+    sudo systemctl disable --now edfinder-eddn-check.timer
+
+Standard library only; needs Python 3.8 or newer and to run as root (Docker).
+"""
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from typing import Callable, List, Optional, Sequence, Tuple
+
+CONTAINER = "edfinder-eddn"
+# How long Docker waits for the listener to write what it holds before
+# stopping it: the same as stop_grace_period in deploy/pi/eddn.yml.
+STOP_SECONDS = 30
+COMMAND_SECONDS = 120
+
+# What Docker is asked: whether the container runs, what its health check
+# says, and how many times in a row that check has failed.
+FORMAT = ("{{.State.Status}} "
+          "{{if .State.Health}}{{.State.Health.Status}} {{.State.Health.FailingStreak}}"
+          "{{else}}none 0{{end}}")
+
+Docker = Callable[[Sequence[str]], Tuple[int, str]]
+
+
+def docker(arguments: Sequence[str]) -> Tuple[int, str]:
+    """Run one Docker command. Its exit code, and what it printed (both streams)."""
+    try:
+        result = subprocess.run(["docker", *arguments], capture_output=True, text=True,
+                                timeout=COMMAND_SECONDS)
+    except FileNotFoundError:
+        return 127, "docker is not installed"
+    except subprocess.TimeoutExpired:
+        return 124, "docker did not answer within %d seconds" % COMMAND_SECONDS
+    except PermissionError:
+        return 126, "docker could not be run; this needs sudo"
+    return result.returncode, (result.stdout + result.stderr).strip()
+
+
+def look(ask: Docker) -> Tuple[str, str, int]:
+    """How the listener is: (whether it runs, its health, failed checks in a row).
+
+    Whether it runs is Docker's own word: "running", "exited", "restarting"
+    and so on, or "absent" when there is no such container, or "unknown" when
+    Docker could not be asked.
+    """
+    code, printed = ask(["inspect", "--type", "container", "--format", FORMAT, CONTAINER])
+    if code != 0:
+        if "no such" in printed.lower():
+            return "absent", "none", 0
+        return "unknown", printed.splitlines()[-1] if printed else "docker gave no reason", 0
+    parts = printed.split()
+    if len(parts) != 3 or not parts[2].isdigit():
+        return "unknown", "docker's answer was not understood: %r" % printed[:80], 0
+    return parts[0], parts[1], int(parts[2])
+
+
+def check(ask: Docker, restart: bool) -> Tuple[bool, List[str]]:
+    """Look, restart the listener if it is running and unhealthy, and say what was found.
+
+    Returns whether all is well, and the lines to print.
+    """
+    running, health, failed = look(ask)
+    if running == "unknown":
+        return False, ["Could not ask Docker about the listener: %s" % health]
+    if running == "absent":
+        return False, [
+            "The listener's container (%s) is not on this machine." % CONTAINER,
+            "To start it: sudo docker compose -f /opt/edfinder/eddn.yml up -d"]
+    if running != "running":
+        return False, [
+            "The listener is not running (Docker says: %s)." % running,
+            "It was not started from here, in case it was stopped on purpose.",
+            "To start it: sudo docker compose -f /opt/edfinder/eddn.yml up -d"]
+    if health in ("healthy", "starting"):
+        return True, ["The listener is running and %s." % (
+            "healthy" if health == "healthy" else "has just started")]
+    if health == "none":
+        return False, ["The listener is running, but its image has no health check, "
+                       "so nothing can say whether it is working."]
+    lines = ["The listener is running but not working: its own health check has failed "
+             "%d time%s in a row." % (failed, "" if failed == 1 else "s"),
+             "That means a write to the database failed and has not been made good, or "
+             "no message has come from the feed for five minutes."]
+    if not restart:
+        return False, lines + ["Nothing was changed (--look)."]
+    code, printed = ask(["restart", "-t", str(STOP_SECONDS), CONTAINER])
+    if code == 0:
+        lines.append("It has been started afresh. The next check, in half an hour, "
+                     "says whether that helped.")
+    else:
+        lines.append("Starting it afresh failed: %s" % (
+            printed.splitlines()[-1] if printed else "docker gave no reason"))
+    return False, lines
+
+
+def main(argv: Optional[Sequence[str]] = None, ask: Docker = docker) -> int:
+    parser = argparse.ArgumentParser(
+        description="Look at the EDDN listener, and start it afresh if it has stopped working.")
+    parser.add_argument("--look", action="store_true",
+                        help="only look and say; change nothing")
+    arguments = parser.parse_args(argv)
+    well, lines = check(ask, restart=not arguments.look)
+    for line in lines:
+        print(line, flush=True)
+    return 0 if well else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

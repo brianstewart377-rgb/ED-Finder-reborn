@@ -28,6 +28,12 @@
 #   sudo docker compose -f /opt/edfinder/eddn.yml up -d
 # Stop it (nothing else depends on it):
 #   sudo docker compose -f /opt/edfinder/eddn.yml down
+#
+# Docker starts it again when it stops, but not when it is running and no
+# longer working. deploy/eddn_check.py looks every half hour
+# (edfinder-eddn-check.timer), starts an unwell one afresh and reports it.
+# If you stop the listener on purpose, stop that timer too:
+#   sudo systemctl disable --now edfinder-eddn-check.timer
 name: edfinder-eddn
 
 services:
