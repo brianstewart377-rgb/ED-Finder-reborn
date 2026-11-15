@@ -17,6 +17,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -371,6 +372,44 @@ def test_the_web_server_says_what_a_browser_may_keep_and_packs_text(site):
         assert headers["x-frame-options"] == "SAMEORIGIN", path
         assert headers["x-content-type-options"] == "nosniff", path
         assert headers["content-security-policy"] == "frame-ancestors 'self'", path
+
+
+def test_the_web_servers_log_keeps_no_sign_in_code_and_no_watchlist_key(site):
+    """Two kinds of address carry something that must not be kept. Frontier's
+    sign-in sends its one-time code in the query of the callback address, and
+    a watchlist address carries the browser's own key. The log has the rest
+    of each line, and every other address whole."""
+    assert site.tool("live", tag(SHA_A)).returncode == 0
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    asked = (
+        "/api/v1/auth/frontier/callback?code=one-time-code&state=its-state",
+        "/api/auth/frontier/callback?code=one-time-code",
+        "/api/v2/watchlist/the-browsers-key",
+        "/api/v2/watchlist/the-browsers-key/changes?since=5",
+        "/api/stub/visitor-address?kept=yes",
+    )
+    for path in asked:
+        try:
+            opener.open("http://127.0.0.1:%d%s" % (site.live_port, path), timeout=5).close()
+        except urllib.error.HTTPError as error:
+            # The stand-in API need not know the address: the web server
+            # writes its line whatever the answer was.
+            error.close()
+
+    last_line = '"GET /api/stub/visitor-address?kept=yes HTTP/1.1"'
+    log = ""
+    for _ in range(25):
+        log = docker("logs", site.project + "-web")
+        if last_line in log:
+            break
+        time.sleep(0.2)
+    assert last_line in log, "an address with nothing to hide is written whole:\n" + log
+    for secret in ("one-time-code", "its-state", "the-browsers-key"):
+        assert secret not in log, secret
+    assert '"GET /api/v1/auth/frontier/callback HTTP/1.1"' in log
+    assert '"GET /api/auth/frontier/callback HTTP/1.1"' in log
+    assert '"GET /api/v2/watchlist/(hidden) HTTP/1.1"' in log
+    assert '"GET /api/v2/watchlist/(hidden)/changes?since=5 HTTP/1.1"' in log
 
 
 def test_newer_release_replaces_the_live_one_and_rollback_returns(site):

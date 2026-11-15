@@ -32,9 +32,32 @@ map $sent_http_content_type $edfinder_keep_for {
     ~^text/html  -1;
 }
 
+# What the access log writes in place of the address asked for. Two kinds of
+# address carry something that must not be kept:
+#   - Frontier's sign-in sends its one-time code in the query of the callback
+#     address, so the query is left off those two addresses;
+#   - a watchlist address carries the browser's own key, so the key is
+#     replaced.
+# The API hides the same two in its own log (apps/api/src/request_logging.py).
+# The error log cannot be shaped this way: a line there about a failed
+# request still names the address in full.
+map $request_uri $edfinder_logged_address {
+    default                                                   $request_uri;
+    ~^(?<edfinder_callback>/api/(?:v1/)?auth/frontier/callback)  $edfinder_callback;
+    ~^/api/v2/watchlist/[^/?]+(?<edfinder_watchlist_rest>.*)$    "/api/v2/watchlist/(hidden)$edfinder_watchlist_rest";
+}
+
+# nginx's own "main" line, with the address above in place of the request.
+log_format edfinder '$remote_addr - $remote_user [$time_local] '
+                    '"$request_method $edfinder_logged_address $server_protocol" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
 server {
     listen 8080;
     server_name _;
+
+    access_log /var/log/nginx/access.log edfinder;
 
     root /usr/share/nginx/html;
     index index.html;
