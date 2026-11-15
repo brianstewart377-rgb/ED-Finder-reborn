@@ -266,10 +266,24 @@ def test_warm_runs_the_searches_visitors_start_with_on_the_live_address(fake_sit
     assert printed[1].endswith("1,000+ found")
     assert printed[9].startswith("Any, galaxy-wide, 500 ly")
     assert all(re.search(r" \d+ ms  ", line) for line in printed[:-1])
-    # Any as the web app asks for it, at each reach.
+    # Any as the web app asks for it, at each reach, and waiting for its
+    # count: Find otherwise answers the page without a slow count, and what
+    # the count reads would stay cold.
     assert [body for _, _, body in site.posted] == [
-        {"galaxy_wide": True, "sort_by": "development", "size": 50, "from": 0, "reach_ly": reach}
+        {"galaxy_wide": True, "sort_by": "development", "size": 50, "from": 0, "reach_ly": reach,
+         "wait_for_count": True}
         for reach in (250, 500)]
+
+
+def test_warm_says_so_when_a_search_answered_without_its_count(fake_site, capsys):
+    site = warm_site(fake_site, **{"/api/local/search": (200, json.dumps(
+        {"results": [], "total": 50, "total_is_capped": False, "total_is_counted": False}))})
+    tool.command_warm(warm_settings(site))
+    printed = capsys.readouterr().out.splitlines()
+    # Not "50 found": 50 is how many rows the page showed, not a count.
+    assert printed[0].endswith("answered, but its matches were not counted in time")
+    assert "found" not in printed[0]
+    assert printed[-1] == "OK: Find is warmed up. Nothing was changed."
 
 
 def test_warm_asks_for_the_apis_own_colony_types_tier_and_reaches():

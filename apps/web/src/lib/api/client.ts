@@ -506,6 +506,14 @@ export type FinderPageTruncation =
       source: 'local-search';
       /** Sentinel-backed: true only when a 1,001st matching row existed. */
       total_is_capped: boolean;
+      /**
+       * False where the API answered the page before its matches were
+       * counted (a slow count must not hold up the rows, nor fail them).
+       * `total` is then only how many matches the page shows there to be:
+       * its offset plus its rows. The count is asked for again with
+       * `wait_for_count`. Absent or true: `total` is the count.
+       */
+      total_is_counted?: boolean;
     }>
   | Readonly<{
       source: 'rankings';
@@ -519,7 +527,11 @@ export type FinderPageEnvelope = Readonly<{
   count: number;
   /** Raw response total (never above 1,000 from either route). */
   total: number;
-  /** `min(total, navigation_limit)`. */
+  /**
+   * `min(total, navigation_limit)`. For a full page whose matches were not
+   * counted it is one more than the page reaches, so that the next page can
+   * be asked for: whether there is one is not known.
+   */
   navigable_total: number;
   offset: number;
   navigation_limit: number;
@@ -819,13 +831,18 @@ function pageEnvelope(
   count: number,
   total: number | undefined,
   truncation: FinderPageTruncation,
+  /** An uncounted page that came back full: more may follow it. */
+  moreMayFollow = false,
 ): FinderPageEnvelope {
   const rawTotal = nonNegativeInteger(total) ? total : count;
   return {
     page_size: pageSize,
     count,
     total: rawTotal,
-    navigable_total: Math.min(rawTotal, FINDER_NAVIGATION_LIMIT),
+    navigable_total: Math.min(
+      moreMayFollow ? Math.max(rawTotal, offset + count) + 1 : rawTotal,
+      FINDER_NAVIGATION_LIMIT,
+    ),
     offset,
     navigation_limit: FINDER_NAVIGATION_LIMIT,
     truncation,
@@ -928,6 +945,8 @@ export function normalizeAnySearchResponse(
   const results = data.results.map((system) =>
     normalizeAnySearchRow(system, distanceReference, provenance),
   );
+  // The API answered the page before its matches were counted.
+  const uncounted = data.total_is_counted === false;
   return {
     ...data,
     results,
@@ -939,9 +958,21 @@ export function normalizeAnySearchResponse(
       {
         source: 'local-search',
         total_is_capped: data.total_is_capped === true,
+        ...(uncounted ? { total_is_counted: false } : {}),
       },
+      uncounted &&
+        results.length > 0 &&
+        results.length >= finderPageSize(request.size, facadePageSize),
     ),
   };
+}
+
+/** True where a page's matches were not counted: its total is no count. */
+export function pageIsUncounted(page: FinderPageEnvelope): boolean {
+  return (
+    page.truncation.source === 'local-search' &&
+    page.truncation.total_is_counted === false
+  );
 }
 
 export async function searchExploreSystems(

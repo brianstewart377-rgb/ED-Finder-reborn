@@ -170,7 +170,7 @@ def test_the_route_asks_for_the_count_on_the_first_page_and_keeps_it_for_the_oth
     kept = _Kept()
     asked: list[dict | None] = []
 
-    async def search(body, pool, known_count=None):
+    async def search(body, pool, known_count=None, count_budget_ms=None):
         asked.append(known_count)
         # As local_db_search_v3 does: the kept count if there is one.
         return _answer(known_count["qualifying"] - 1, True) if known_count else _answer(1000, True)
@@ -198,7 +198,7 @@ def test_the_route_asks_for_the_count_on_the_first_page_and_keeps_it_for_the_oth
 def test_a_count_that_was_read_is_not_kept_again_so_it_ends_with_its_hour(monkeypatch):
     kept = _Kept()
 
-    async def search(body, pool, known_count=None):
+    async def search(body, pool, known_count=None, count_budget_ms=None):
         return _answer(37, False)
 
     monkeypatch.setattr(search_route._ls, "local_db_search_v3", search)
@@ -220,7 +220,7 @@ def test_a_page_that_shows_another_count_replaces_the_kept_one(monkeypatch):
     kept = _Kept()
     totals = iter([37, 36])
 
-    async def search(body, pool, known_count=None):
+    async def search(body, pool, known_count=None, count_budget_ms=None):
         # The second page came back short: 36 matches, whatever was kept.
         return _answer(next(totals), False)
 
@@ -243,7 +243,7 @@ def test_a_count_is_kept_under_the_generation_it_was_counted_on(monkeypatch):
     kept = _Kept()
     newer = {**GENERATION, "publication_sequence": 5}
 
-    async def search(body, pool, known_count=None):
+    async def search(body, pool, known_count=None, count_budget_ms=None):
         # A publish landed between the route's look-up and the read.
         return _answer(12, False, newer)
 
@@ -256,7 +256,7 @@ def test_a_count_is_kept_under_the_generation_it_was_counted_on(monkeypatch):
 def test_with_no_cache_every_page_is_counted_as_before(monkeypatch):
     asked: list[dict | None] = []
 
-    async def search(body, pool, known_count=None):
+    async def search(body, pool, known_count=None, count_budget_ms=None):
         asked.append(known_count)
         return _answer(1000, True)
 

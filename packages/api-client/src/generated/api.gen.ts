@@ -4830,6 +4830,11 @@ export interface components {
             archetype?: string | null;
             /** Min Score */
             min_score?: (60 | 76 | 88) | null;
+            /**
+             * Wait For Count
+             * @default false
+             */
+            wait_for_count: boolean;
         };
         /** MapHeatmapBounds */
         MapHeatmapBounds: {
@@ -6920,6 +6925,8 @@ export interface components {
             display_economy?: string | null;
             /** Total Is Capped */
             total_is_capped?: boolean | null;
+            /** Total Is Counted */
+            total_is_counted?: boolean | null;
             /** Warning */
             warning?: string | null;
             ranking: components["schemas"]["RankingIdentity"];

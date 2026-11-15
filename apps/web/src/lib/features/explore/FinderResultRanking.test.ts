@@ -282,6 +282,42 @@ describe('ranking page count copy', () => {
     },
   );
 
+  it('gives no total for a page whose matches were not counted, and says whether the count is on its way', async () => {
+    const uncounted = page(53, {
+      source: 'local-search',
+      total_is_capped: false,
+      total_is_counted: false,
+    });
+    const { rerender, container } = render(FinderResultRanking, {
+      variant: 'summary',
+      archetype: 'manufacturing_hub',
+      page: uncounted,
+      counting: true,
+    });
+    // 53 is how far the page reaches, not how many matches there are.
+    expect(screen.getByText('Showing results 51–53')).toBeInTheDocument();
+    expect(screen.getByText('Counting the matches…')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('of 53');
+    expect(container.textContent).not.toContain('53 matches');
+    // The count did not come.
+    await rerender({ page: uncounted, counting: false });
+    expect(
+      screen.getByText(
+        /^At least 53\s+matches; they could not be counted in\s+time\.$/u,
+      ),
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toContain('Counting');
+    // The count came: the usual words.
+    await rerender({
+      page: page(153, { source: 'local-search', total_is_capped: false }),
+      counting: false,
+    });
+    expect(
+      screen.getByText('Showing 3 of 153 (results 51–53)'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('153 matches')).toBeInTheDocument();
+  });
+
   it('qualifies the selected ranking window only when the API marks it truncated', async () => {
     const { rerender } = render(FinderResultRanking, {
       variant: 'summary',

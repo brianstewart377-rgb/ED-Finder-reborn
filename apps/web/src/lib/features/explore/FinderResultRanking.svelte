@@ -18,15 +18,24 @@
         system: ExploreSystem & { best_tier?: Tier | null };
         archetype: Archetype;
         page?: never;
+        counting?: never;
       }
     | {
         variant: 'summary';
         page: FinderPageEnvelope;
         archetype: Archetype;
         system?: never;
+        /** The page's matches were not counted, and the count is on its way. */
+        counting?: boolean;
       };
 
-  let { variant, system, page: incomingPage, archetype }: Props = $props();
+  let {
+    variant,
+    system,
+    page: incomingPage,
+    archetype,
+    counting = false,
+  }: Props = $props();
   const id = $props.id();
   const descriptionId = `${id}-evidence`;
   const page = $derived.by(() => {
@@ -38,6 +47,12 @@
       throw new TypeError('A truncated ranking cannot have no qualifying rows');
     return incomingPage;
   });
+  // The API answered this page before its matches were counted: its total
+  // is only how many matches the page shows there to be.
+  const uncounted = $derived(
+    page?.truncation.source === 'local-search' &&
+      page.truncation.total_is_counted === false,
+  );
   const mode = $derived(archetype === ANY_ARCHETYPE ? 'any' : 'selected');
   const badge = $derived(
     evidenceBadge(mode, system?.confidence, system?.completeness),
@@ -77,7 +92,24 @@
     typeof value === 'number' && Number.isFinite(value);
 </script>
 
-{#if variant === 'summary' && page}
+{#if variant === 'summary' && page && uncounted}
+  <span class="ranking-summary" data-matches-counted="false">
+    <span>
+      Showing results {number(page.count === 0 ? 0 : page.offset + 1)}–{number(
+        page.count === 0 ? 0 : page.offset + page.count,
+      )}
+    </span>
+    <span>
+      {#if counting}
+        Counting the matches…
+      {:else}
+        At least {number(page.total)}
+        {page.total === 1 ? 'match' : 'matches'}; they could not be counted in
+        time.
+      {/if}
+    </span>
+  </span>
+{:else if variant === 'summary' && page}
   <span class="ranking-summary">
     <span>
       Showing {number(page.count)} of {number(page.total)} (results {number(

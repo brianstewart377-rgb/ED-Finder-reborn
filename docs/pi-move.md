@@ -1183,6 +1183,20 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
   shows the count itself and none is asked. A kept count is used only on
   the generation it was made on, and not where a page reaches past it (the
   claim rule's tables are loaded each night with no new generation).
+- (15 Nov) A slow count failed a whole search. Seen through the live site:
+  the first "Manufacturing Hub near Sol" (tier B, 500 ly) after the weekly
+  backup answered 503 after 18 s. The count had passed PostgreSQL's 15 s
+  statement limit, and inside a transaction that ends everything in it,
+  though the page had been read in under a second. The same search again
+  took 5.6 s. Now the count is asked last, in a savepoint of its own, and
+  waited for only one second. If it is not in, the page is answered
+  uncounted and the web app asks again for the count alone, which gets the
+  whole limit; if that runs out too, the page says "At least N matches;
+  they could not be counted in time" and keeps its rows. The time already
+  spent is not wasted work for the Pi: what the count read stays in memory,
+  which is why the second asking is quick. `edfinder_deploy.py warm` asks
+  with `wait_for_count`, so that warming up still reads what the count
+  reads.
 - (13 Nov) Not planned for the current map unless the Almanac trial fails:
   asking for stars without waiting for Find, smaller first-round boxes, the
   half-second freezes.

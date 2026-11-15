@@ -545,6 +545,7 @@ import {
   getArchetypeRankings,
   getArchetypeExplanation,
   normalizeAnySearchResponse,
+  pageIsUncounted,
   normalizeRankingProvenance,
   normalizeRankingsResponse,
   type ArchetypeRankingsPage,
@@ -1106,6 +1107,83 @@ describe('Any (local search) page envelope normalization', () => {
       source: 'local-search',
       total_is_capped: false,
     });
+  });
+
+  it('reads a page answered before its matches were counted as no count, and lets the next page be asked for', () => {
+    // The API answers the rows without waiting for a slow count: `total` is
+    // then only what the page shows there to be, its offset plus its rows.
+    const request = { ...anchored, size: 2, from: 4 };
+    const full = normalizeAnySearchResponse(
+      searchEnvelope([anyRow('42'), anyRow('43')], {
+        total: 6,
+        total_is_capped: false,
+        total_is_counted: false,
+      }),
+      request,
+      star,
+    );
+    expect(full.page).toMatchObject({
+      offset: 4,
+      count: 2,
+      total: 6,
+      // One past what the page reaches: whether more follows is not known.
+      navigable_total: 7,
+      truncation: {
+        source: 'local-search',
+        total_is_capped: false,
+        total_is_counted: false,
+      },
+    });
+    expect(pageIsUncounted(full.page)).toBe(true);
+    // Never past the 1,000 the API pages to.
+    const atTheLimit = normalizeAnySearchResponse(
+      searchEnvelope([anyRow('42'), anyRow('43')], {
+        total: 1_000,
+        total_is_counted: false,
+      }),
+      { ...anchored, size: 2, from: 998 },
+      star,
+    );
+    expect(atTheLimit.page.navigable_total).toBe(1_000);
+
+    // A counted answer, and one from before the API said either way, are
+    // counts: nothing is added to them.
+    for (const counted of [{ total_is_counted: true }, {}]) {
+      const page = normalizeAnySearchResponse(
+        searchEnvelope([anyRow('42'), anyRow('43')], { total: 6, ...counted }),
+        request,
+        star,
+      ).page;
+      expect(page.navigable_total).toBe(6);
+      expect(page.truncation).toEqual({
+        source: 'local-search',
+        total_is_capped: false,
+      });
+      expect(pageIsUncounted(page)).toBe(false);
+    }
+  });
+
+  it('asks the API to wait for the count where the request says so', async () => {
+    const answer = searchEnvelope([anyRow('42')], { total: 312 });
+    const asked: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: Request) => {
+        asked.push(await input.clone().json());
+        return new Response(JSON.stringify(answer), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }),
+    );
+    const page = await searchExploreSystems(
+      { ...anchored, wait_for_count: true },
+      undefined,
+      star,
+    );
+    expect(asked).toEqual([{ ...anchored, wait_for_count: true }]);
+    expect(page.page.total).toBe(312);
+    vi.unstubAllGlobals();
   });
 
   it('lists rows without provenance when the envelope lacks the ranking identity', () => {
