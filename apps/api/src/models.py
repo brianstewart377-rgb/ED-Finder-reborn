@@ -521,7 +521,7 @@ class ClusterResult(BaseModel):
     # projections legitimately carry enriched fields). Fields typed here drive
     # the generated api.gen.ts. The shape is the retained legacy
     # `cluster_summary` row contract; F3 slice 2b repointed the route onto
-    # the V3 cluster product (`local_search.local_db_cluster_search_v3`),
+    # the V3 cluster product (`find_cluster.local_db_cluster_search_v3`),
     # which fails closed (503) until a Finder cluster run and its summary
     # contract exist -- the reshape onto V3 fields happens with that
     # product, not before.

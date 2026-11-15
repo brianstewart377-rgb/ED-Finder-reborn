@@ -31,7 +31,8 @@ import pytest
 os.environ.setdefault("CORS_ORIGINS", "https://find-count-cannot-fail-test.invalid")
 
 from edfinder_api import local_search  # noqa: E402
-from edfinder_api.local_search import count_to_keep, count_within  # noqa: E402
+from edfinder_api.find_count import count_to_keep, count_within  # noqa: E402
+from edfinder_api.find_generation import resolve_published_generation  # noqa: E402
 from edfinder_api.models import LocalSearchRequest, SearchResponse  # noqa: E402
 from edfinder_api.routers import search as search_route  # noqa: E402
 from tests.test_find_count_once import (  # noqa: E402
@@ -278,7 +279,7 @@ def test_through_the_route_a_slow_count_is_asked_again_and_then_kept(reach_datab
     async def scenario():
         pool = await _api_pool(connection)
         try:
-            generation = await local_search.resolve_published_generation(pool)
+            generation = await resolve_published_generation(pool)
             run = search_route._search_counting_once
             _make_the_count_slow(monkeypatch)
             first = await run(_request(), generation, pool, kept, count_budget_ms=BUDGET_MS)
