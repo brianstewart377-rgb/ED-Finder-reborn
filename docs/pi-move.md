@@ -951,6 +951,15 @@ nearly every body paid for a new surface. Measured in that PC's Chrome with
 Cosmos as the site ships it, 30 bodies a step: 54 ms in mixed order, 18 ms
 with bodies of one size drawn together. Each step now draws them that way.
 
+That alone was not enough: on the real page Maia came down to 8.7 ms, still
+over the limit. So the rule changed. A step spends about 6 ms drawing at
+most, and the bodies that do not fit turn on the next step: a large system
+turns a little less smoothly instead of not at all, and a step's cost is
+capped whatever the system's size. Spinning still stops itself where turning
+every body on screen once takes more than four steps' worth of drawing
+(24 ms), which is a machine with no graphics card to speak of. The first
+five steps are left out of that judging: they are always the slowest.
+
 (15 Nov) The map is in the app (#72, #73). Going back over it with more real
 systems found that pairs were put in the wrong place. Our data never says
 what a pair (two bodies that circle each other) orbits. In Maia, three pairs

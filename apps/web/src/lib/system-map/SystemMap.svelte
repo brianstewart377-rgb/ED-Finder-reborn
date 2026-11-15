@@ -49,7 +49,11 @@
     type PictureJob,
     type PictureMaker,
   } from './pictures';
-  import { startSpinning, type SpinTarget } from './spin';
+  import {
+    SPIN_ROUND_TOO_SLOW_MS,
+    startSpinning,
+    type SpinTarget,
+  } from './spin';
   import type { MapTree } from './tree';
   import {
     centredOn,
@@ -571,9 +575,9 @@
         },
         lastStir: () => lastStir,
         drew: (id) => turned.add(id),
-        tooSlow: (msEach) => {
+        tooSlow: (msARound) => {
           spinWanted = false;
-          spinNote = `Spinning switched itself off: this computer took ${msEach} ms to draw each step, and the limit is 8 ms.`;
+          spinNote = `Spinning switched itself off: this computer took ${msARound} ms to turn every body on screen once, and the limit is ${SPIN_ROUND_TOO_SLOW_MS} ms.`;
         },
         failed: () => {
           spinWanted = false;
