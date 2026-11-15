@@ -15,8 +15,9 @@
  *   stars               bright grain, darker toward the edge; not shaded
  *
  * Pure arithmetic on numbers, so it runs and is tested without a browser.
- * Ported from the System Map trial (scripts/almanac-trial/src/system-map/
- * surface.mjs).
+ * Ported from the System Map trial page (`surface.mjs` in
+ * `scripts/almanac-trial`, removed once it was in the site: git history has
+ * it).
  */
 import { isBanded, type FamilyKey, type Rgb } from './look';
 

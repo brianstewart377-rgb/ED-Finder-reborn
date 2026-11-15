@@ -647,6 +647,33 @@ test browser that name can be replaced, and the map then draws, slowly (about
 a second a frame up close). That is how the rules above were found. How it
 looks and moves on a real card is still for the owner's gaming PC to say.
 
+**Babylon is gone** (the change after). `@babylonjs/core`, everything under
+`apps/web/src/lib/spatial` that drew or fed the old map, the two test pages
+(`/map-review-lab`, `/spatial-foundation`), our own nebula and region files,
+and `scripts/almanac-trial` are removed. The built site went from 13 MB to
+5.5 MB. Three files stay in `src/lib/spatial`, because the System Map's model
+is made from them: `system-scene.ts`, `stellar-presentation.ts` and the types
+in `contracts.ts`.
+
+`scripts/map-recorder` stays, with a tour of the new map
+(`tours/explore.json`) and a step that holds a key down, which is how
+Almanac's map is moved from the keyboard.
+
+Found on the way, and left for later:
+
+- **The Cypress journeys do not run, and never have in this repo.** They
+  came from the old repo. The seeded test stack they need was not brought
+  over, and CI does not run them. Two were for the pages removed here and
+  went with them. `product-journey.cy.ts` and `review-lab.cy.ts` stay, marked
+  at the top as not run and out of date: their map steps describe the Babylon
+  map. Rebuilding them is its own job. The renderer-name trick above would
+  let a journey draw Almanac's map in CI, slowly.
+- **The density map's route and client call are now unused**
+  (`GET /api/map/heatmap`, `getMapHeatmap`), with the `v3_spatial` tables
+  that feed it. They belong with the dead API routes already on the list.
+- The saved map preference still holds a `density` switch that nothing
+  reads. It is left so that nobody's saved "My journeys" choice is lost.
+
 ### The System Map: is Babylon still right? (13 November, open)
 
 The owner, once the galaxy map was settled: "is Babylon still the right

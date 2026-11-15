@@ -7,8 +7,9 @@
  * Sizes are for reading, not to scale. A real scale would make every moon a
  * dot beside its planet and every planet a dot beside its star.
  *
- * Ported from the System Map trial (scripts/almanac-trial/src/system-map/
- * layout.mjs).
+ * Ported from the System Map trial page (`layout.mjs` in
+ * `scripts/almanac-trial`, removed once it was in the site: git history has
+ * it).
  */
 import {
   ringKind,

@@ -23,8 +23,6 @@
     "shared:lint": "node scripts/lint-shared.mjs",
     "shared:test": "cd ../.. && apps/web/node_modules/.bin/vitest run --config apps/web/vitest.shared.config.ts",
     "test:e2e": "cypress run --browser chrome",
-    "test:map-diagnostics": "cypress run --browser chrome --config-file cypress.map-diagnostics.config.ts",
-    "map:nebulae": "node scripts/build-nebula-asset.mjs",
     "generate:api": "svelte-kit sync && node scripts/capture-openapi.mjs && openapi-ts && openapi-typescript .svelte-kit/openapi.json -o ../../packages/api-client/src/generated/api.gen.ts"
   },
   "devDependencies": {
@@ -55,7 +53,6 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
-    "@babylonjs/core": "9.23.0",
     "@ed-finder/api-client": "file:../../packages/api-client",
     "@ed-finder/planner-core": "file:../../packages/planner-core",
     "@elite-dangerous-almanac/galaxy-map": "0.7.1",

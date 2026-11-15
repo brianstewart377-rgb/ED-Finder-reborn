@@ -7,8 +7,7 @@ Tests in CI run with no graphics card, so they cannot say how the map looks or
 how smoothly it moves. The old repo's lesson was "tests passed while the map
 looked broken". This gives something to look at instead: the same tour, flown
 the same way every time, saved as a video and pictures with frame timings.
-Fly it on our own map and on a trial of another map, and the two can be put
-side by side.
+Fly it before and after a change, and the two can be put side by side.
 
 The plan's rule holds: Playwright is used only for these recordings. Pass/fail
 journeys are Cypress's job, in CI.
@@ -27,18 +26,18 @@ One command opens the map in a window and flies the steps of a tour file
 | `timeline.txt` | What happened when: every data request, every change the map reported, every freeze. |
 
 The report says which graphics card drew the map, and warns in red if the
-browser drew it in software. It also says which drawing method the map itself
-chose (ours says `WEBGPU` or `WEBGL2`): they are two different paths through
-the map's code, so a recording of one says nothing about the other.
+browser drew it in software. Almanac's map, which Explore uses, will not
+start at all in a browser that draws in software: the tour then stops at
+"the map never said it was ready". A map with more than one drawing method
+can say which it chose (`drawnWith`, below); Almanac's has one, WebGL2.
 
 For each step it gives frames a second, the slowest frame, and how often the
 picture hung. It lists every error the page or the browser's console gave,
 and every request that failed, each with the step it happened in.
 
 Requests the page dropped itself are listed apart and are not failures. The
-map drops its request for the stars of a view once the view has moved on, and
-the search box drops its question for "So" when "Sol" is typed. A tour of 30
-steps gives about 30 of these.
+page drops its request for a system's stars when another system is chosen
+first, and the search box drops its question for "So" when "Sol" is typed.
 
 ### What happened when
 
@@ -112,7 +111,7 @@ driven by the tour.
 ## Tours
 
 A tour is a file in `tours/`. It says which page to open, how to tell that the
-map is ready, and the steps to fly. `tours/explore.json` is the tour of our own
+map is ready, and the steps to fly. `tours/explore.json` is the tour of the
 Explore map.
 
 Places on the screen are fractions of the window, `[across, down]`, so a tour
@@ -126,6 +125,7 @@ works at any size. `[0.5, 0.5]` is the middle.
 | `click` | clicks a place or a thing on the page | `at` or `selector` |
 | `focus` | puts the keyboard on something | `selector` |
 | `keys` | presses a key several times | `key`, `times`, `seconds` |
+| `hold` | holds a key down for a time (Almanac's map moves while W A S D R F Q or E is held, and only while the mouse or the keyboard is on the map) | `key`, `seconds` |
 | `wheel` | turns the mouse wheel (below 0 is forward) | `deltaY`, `ticks`, `seconds` |
 | `drag` | drags the mouse (`"button": "right"` for the right button) | `from`, `to`, `seconds` |
 | `move` | moves the mouse | `at` |

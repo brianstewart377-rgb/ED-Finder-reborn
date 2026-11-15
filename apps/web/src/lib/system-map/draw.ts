@@ -11,8 +11,9 @@
  * The colours are illustrative, by class, exactly as on the app's other maps:
  * no surface picture or observed weather is implied.
  *
- * Ported from the System Map trial (scripts/almanac-trial/src/system-map/
- * draw.mjs).
+ * Ported from the System Map trial page (`draw.mjs` in
+ * `scripts/almanac-trial`, removed once it was in the site: git history has
+ * it).
  */
 import { stellarPresentation } from '$lib/spatial/stellar-presentation';
 import type { BeltItem, BodyItem } from './layout';

@@ -3,8 +3,9 @@
  * there are, and what is built at each body. Built from Inspect's own system
  * detail (`getSystem`). No drawing here.
  *
- * Ported from the System Map trial (scripts/almanac-trial/src/system-map/
- * tree.mjs), which the owner tried on 14 November 2026.
+ * Ported from the System Map trial page (`tree.mjs` in
+ * `scripts/almanac-trial`, removed once it was in the site: git history has
+ * it), which the owner tried on 14 November 2026.
  *
  * Two things our data does not always say, and how the map handles them.
  * Both are marked, so the page can say "placed by distance" and never pass a

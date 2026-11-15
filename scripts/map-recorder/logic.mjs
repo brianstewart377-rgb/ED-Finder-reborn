@@ -94,6 +94,8 @@ const STEP_KINDS = Object.freeze({
   wheel: ['deltaY', 'ticks', 'seconds'],
   drag: ['from', 'to', 'seconds'],
   keys: ['key', 'times', 'seconds'],
+  // Hold one key down for a time: a map that moves while a key is held.
+  hold: ['key', 'seconds'],
   // A click on a place in the window ("at") or on something on the page
   // ("selector"); one of the two.
   click: [],
@@ -125,7 +127,7 @@ export function validateTour(tour) {
     throw new Error('The tour\'s "ready" needs a "selector".');
   }
   // "drawnWith" names an attribute, on the same thing, that says which
-  // drawing method the map chose (ours says WEBGPU or WEBGL2).
+  // drawing method the map chose, for a map that has more than one.
   if (ready !== null && ready.drawnWith !== undefined && (typeof ready.drawnWith !== 'string' || ready.drawnWith === '')) {
     throw new Error('The tour\'s "ready" has a "drawnWith" that is not the name of an attribute.');
   }
@@ -490,6 +492,7 @@ export function describeStep(step) {
     case 'wheel': return `turned the mouse wheel ${step.ticks} notches ${step.deltaY < 0 ? 'forward' : 'back'} over ${step.seconds} s`;
     case 'drag': return `dragged with the ${step.button} button from ${step.from.join(', ')} to ${step.to.join(', ')} over ${step.seconds} s`;
     case 'keys': return step.times === 1 ? `pressed ${step.key}` : `pressed ${step.key} ${step.times} times over ${step.seconds} s`;
+    case 'hold': return `held ${step.key} down for ${step.seconds} s`;
     case 'click': return step.selector ? `clicked ${step.selector}` : `clicked at ${step.at.join(', ')}`;
     case 'move': return `moved the mouse to ${step.at.join(', ')}`;
     case 'type': return `typed "${step.text}" into ${step.selector}${step.enter ? ' and pressed Enter' : ''}`;

@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildExploreGalaxyScene,
-  mapExploreSystemPoint,
-} from '$lib/spatial/explore-scene';
+import { chosenFromFind } from '$lib/galaxy-map/map-content';
 
 const finderFeature = vi.hoisted(() => ({ enabled: false }));
 
@@ -112,22 +109,15 @@ describe('getSystem F4 canonical origin guard', () => {
       expect(detail.y).toBeUndefined();
       expect(detail.z).toBeUndefined();
 
-      // Use the ordinary mapper, which trusts facade coordinates, rather than
-      // the selected-point mapper's independent defensive origin guard.
-      const selectedPoint = mapExploreSystemPoint({
-        id64: detail.id64,
-        name: detail.name,
-        coords: { x: detail.x, y: detail.y, z: detail.z },
-      });
-      expect(selectedPoint).toBeNull();
-      const scene = buildExploreGalaxyScene([], id64, 1, { selectedPoint });
-      expect(scene.selection).toEqual([{ kind: 'system', systemId64: id64 }]);
-      expect(scene.contributions.map(({ id }) => id)).toEqual([
-        'finder-results',
-      ]);
-      expect(scene.contributions[0]?.layers[0]?.payload).toEqual({
-        systems: [],
-      });
+      // With no position there is nothing for the map to show: the system
+      // is not put on it at all, and never on top of Sol.
+      expect(
+        chosenFromFind({
+          id64: detail.id64,
+          name: detail.name,
+          coords: { x: detail.x, y: detail.y, z: detail.z },
+        }),
+      ).toBeNull();
     },
   );
 
@@ -137,18 +127,14 @@ describe('getSystem F4 canonical origin guard', () => {
 
     const detail = await getSystem(id64);
     expect(detail).toMatchObject({ id64, x: 0, y: 0, z: 0 });
-    const selectedPoint = mapExploreSystemPoint({
-      id64: detail.id64,
-      name: detail.name,
-      coords: { x: detail.x, y: detail.y, z: detail.z },
-    });
-    expect(selectedPoint?.positionLy).toEqual({ x: 0, y: 0, z: 0 });
-    const scene = buildExploreGalaxyScene([], id64, 1, { selectedPoint });
-    expect(scene.selection).toEqual([{ kind: 'system', systemId64: id64 }]);
-    expect(scene.contributions[1]?.id).toBe('finder-selection');
-    expect(scene.contributions[1]?.layers[0]?.payload).toEqual({
-      systems: [selectedPoint],
-    });
+    // Sol really is at the origin, so the map shows it there.
+    expect(
+      chosenFromFind({
+        id64: detail.id64,
+        name: detail.name,
+        coords: { x: detail.x, y: detail.y, z: detail.z },
+      }),
+    ).toMatchObject({ id64, name: 'Sol', x: 0, y: 0, z: 0 });
   });
 
   it.each([

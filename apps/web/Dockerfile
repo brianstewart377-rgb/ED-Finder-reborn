@@ -21,8 +21,6 @@ RUN case "$VITE_FINDER_F4_ENABLED" in \
 
 RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
 COPY apps/web/package.json apps/web/pnpm-lock.yaml apps/web/pnpm-workspace.yaml ./
-COPY apps/importer/src/data/region_map.json /workspace/apps/importer/src/data/region_map.json
-COPY assets/PROVENANCE.json /workspace/assets/PROVENANCE.json
 # The frozen graph contains a file: dependency on api-client, so its complete
 # package must exist at the repository-relative path while pnpm installs it.
 # shared:build also compiles both packages, in api-client -> planner-core order.

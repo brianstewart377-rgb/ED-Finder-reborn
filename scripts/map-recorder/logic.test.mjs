@@ -75,6 +75,14 @@ test('a tour fills in what its steps leave out', () => {
   assert.equal(describeStep(tour.steps[2]), 'clicked button.go');
 });
 
+test('a key can be held down for a time, for a map that moves while a key is held', () => {
+  const tour = validateTour({ steps: [{ do: 'hold', name: 'forward', key: 'w', seconds: 2 }] });
+  assert.equal(describeStep(tour.steps[0]), 'held w down for 2 s');
+  assert.throws(() => validateTour({ steps: [{ do: 'hold', name: 'forward', key: 'w' }] }), /\(hold\) needs "seconds"/);
+  assert.throws(() => validateTour({ steps: [{ do: 'hold', name: 'forward', seconds: 2 }] }), /\(hold\) needs "key"/);
+  assert.throws(() => validateTour({ steps: [{ do: 'hold', name: 'forward', key: 'w', seconds: 0 }] }), /"seconds" must be more than 0/);
+});
+
 test('a tour with a mistake is refused, naming the step', () => {
   const step = (extra) => ({ steps: [{ do: 'wait', name: 'first', seconds: 1 }, extra] });
   const refused = (tour, words) => assert.throws(() => validateTour(tour), (error) => error.message.includes(words), words);
@@ -114,22 +122,26 @@ test('a tour can probe one thing on the page or several, and can say which reque
     [{ selector: '.map', attributes: ['a'] }, { selector: '.count', attributes: ['n'] }],
   );
   assert.deepEqual(validateTour({ requests: { under: '/api/' }, steps }).requests, { under: '/api/' });
-  // Our own tour watches the camera, the number of stars drawn, and /api/.
+  // Our own tour watches which system the map shows, whether its stars are
+  // in, which of the map's own drawers is open, and /api/.
   const explore = validateTour(JSON.parse(await readFile(path.join(HERE, 'tours', 'explore.json'), 'utf8')));
   assert.deepEqual(explore.requests, { under: '/api/' });
   const watched = explore.probe.flatMap((probe) => probe.attributes);
-  assert.ok(watched.includes('data-camera-transition-active'));
-  assert.ok(watched.includes('data-catalogue-star-count'));
+  assert.ok(watched.includes('data-map-showing'));
+  assert.ok(watched.includes('data-map-stars'));
+  assert.ok(watched.includes('data-panel'));
 });
 
 test('a tour can say where the map tells which drawing method it chose', async () => {
   const steps = [{ do: 'shot', name: 'a' }];
   assert.equal(validateTour({ ready: { selector: '.map' }, steps }).ready.drawnWith, null);
   assert.equal(validateTour({ ready: { selector: '.map', drawnWith: 'data-backend' }, steps }).ready.drawnWith, 'data-backend');
-  // Our own map's tour asks: WebGPU and WebGL2 are two different drawing
-  // paths, and a recording has to say which one it is a recording of.
+  // The Explore map has one drawing method (WebGL2), so its tour names none.
   const explore = validateTour(JSON.parse(await readFile(path.join(HERE, 'tours', 'explore.json'), 'utf8')));
-  assert.equal(explore.ready.drawnWith, 'data-renderer-backend');
+  assert.equal(explore.ready.selector, '[data-galaxy-map="ready"]');
+  assert.equal(explore.ready.drawnWith, null);
+  // It moves the map with the keys the map hears while they are held down.
+  assert.deepEqual(explore.steps.filter((step) => step.do === 'hold').map((step) => step.key), ['d', 'w', 'q']);
 });
 
 // -- frame times -------------------------------------------------------------------
