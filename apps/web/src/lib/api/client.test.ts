@@ -9,22 +9,6 @@ vi.mock('$lib/config', () => ({
   },
 }));
 
-// Partial mock (preserving every other real export via loadOriginal, per the
-// $lib/api/client mocking convention in SystemDetail.test.ts /
-// SystemOverlay.test.ts) so this file's other tests keep exercising the real
-// generated SDK/transport while getMapHeatmap's test stubs only the one
-// heatmap operation.
-vi.mock('$lib/api/generated/sdk.gen', async (loadOriginal) => {
-  const original =
-    await loadOriginal<typeof import('$lib/api/generated/sdk.gen')>();
-  return {
-    ...original,
-    mapHeatmapApiMapHeatmapGet: vi.fn(async () => ({
-      data: { source: 'pyramid', cells: [] },
-    })),
-  };
-});
-
 import {
   ADMIN_TOKEN_SESSION_KEY,
   ApiError,
@@ -38,7 +22,6 @@ import {
   getHealth,
   getCommanderTravelHeatmap,
   getCommanderJournalSummary,
-  getMapHeatmap,
   getSystem,
   searchExploreSystems,
   startFrontierLink,
@@ -47,7 +30,6 @@ import {
 // Allowed only in a .test. file: exercise the generated client configuration
 // (interceptors) the facade installs, on a route the facade does not wrap.
 import { statusApiStatusGet } from './generated/sdk.gen';
-import * as sdk from './generated/sdk.gen';
 import { v3Body, v3System } from './v3-system-fixtures';
 
 const jsonResponse = (body: unknown, init: ResponseInit = {}) =>
@@ -496,41 +478,6 @@ describe('typed V3 API facade over the generated Hey API SDK', () => {
   it('re-exports the single shared transport inventory rather than duplicating it', () => {
     expect(LEGACY_ADMIN_ENDPOINTS).toHaveLength(28);
     expect(apiRequest).toBeTypeOf('function');
-  });
-});
-
-describe('getMapHeatmap', () => {
-  it('calls the heatmap SDK with query + throwOnError and returns data', async () => {
-    const out = await getMapHeatmap({ voxel_size: 500, max_cells: 40000 });
-    expect(out).toMatchObject({ source: 'pyramid' });
-    expect(vi.mocked(sdk.mapHeatmapApiMapHeatmapGet)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        query: { voxel_size: 500, max_cells: 40000 },
-        throwOnError: true,
-      }),
-    );
-  });
-
-  it('forwards complete coverage and the bounded viewport through the facade', async () => {
-    const query = {
-      coverage: 'complete' as const,
-      voxel_size: 640,
-      min_systems: 1,
-      max_cells: 40_000,
-      min_x: -4_000,
-      max_x: 4_000,
-      min_y: -2_000,
-      max_y: 2_000,
-      min_z: 12_000,
-      max_z: 20_000,
-    };
-    const signal = new AbortController().signal;
-    await getMapHeatmap(query, signal);
-    expect(vi.mocked(sdk.mapHeatmapApiMapHeatmapGet)).toHaveBeenLastCalledWith({
-      query,
-      signal,
-      throwOnError: true,
-    });
   });
 });
 

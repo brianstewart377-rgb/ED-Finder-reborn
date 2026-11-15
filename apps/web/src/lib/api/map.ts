@@ -3,15 +3,9 @@
 // Offered to the app through ./client, like everything in this folder.
 import { parseId64 } from '@ed-finder/api-client/id64';
 import type { Id64 } from '@ed-finder/api-client/id64';
-import type {
-  MapHeatmapApiMapHeatmapGetData,
-  MapHeatmapPyramidResponse,
-  MapViewportResponse,
-  V3TravelHeatmapResponse,
-} from './generated';
+import type { MapViewportResponse, V3TravelHeatmapResponse } from './generated';
 import {
   getV3JournalTravelHeatmap,
-  mapHeatmapApiMapHeatmapGet,
   mapSystemsApiMapSystemsGet,
 } from './generated/sdk.gen';
 import { losslessId64 } from './values';
@@ -38,15 +32,6 @@ export type CatalogueViewportResponse = Readonly<{
   }>[];
   truncated: boolean;
 }>;
-
-export type {
-  MapHeatmapPyramidCell,
-  MapHeatmapPyramidResponse,
-} from './generated';
-
-export type MapHeatmapResponse =
-  | MapHeatmapPyramidResponse
-  | { source: 'legacy-fallback'; [k: string]: unknown };
 
 export type CommanderTravelHeatmapResponse = Readonly<{
   mode: 'markers' | 'density';
@@ -98,17 +83,6 @@ export async function getCatalogueViewportSystems(
     truncated: response.truncated ?? false,
   };
 }
-
-export type MapHeatmapRequest = NonNullable<
-  MapHeatmapApiMapHeatmapGetData['query']
->;
-
-export const getMapHeatmap = async (
-  query: MapHeatmapRequest,
-  signal?: AbortSignal,
-): Promise<MapHeatmapResponse> =>
-  (await mapHeatmapApiMapHeatmapGet({ query, throwOnError: true, signal }))
-    .data as MapHeatmapResponse;
 
 /**
  * The signed-in account's imported journal travel (V3 journal store) inside
