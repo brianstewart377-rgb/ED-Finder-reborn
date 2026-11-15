@@ -86,6 +86,57 @@ def _search_cache_key(body_dict: dict, generation_row) -> str:
     )
 
 
+def _search_count_cache_key(body_dict: dict, generation_row) -> str:
+    """The key a search's count is kept under for its other pages.
+
+    The count of a search does not depend on which page is asked for, so
+    this is `_search_cache_key` without the page: the same ranking identity
+    and generation, and the request body less ``size`` and ``from``.
+    """
+    unpaged = {
+        name: value for name, value in body_dict.items()
+        if name not in ('size', 'from')
+    }
+    return (
+        f"search-count:{SEARCH_CACHE_VERSION}:{RANKING_VERSION}:{ranking_sha256()}:"
+        f"g{generation_row['derived_generation_id']}:"
+        f"s{generation_row['publication_sequence']}:"
+        f"{json.dumps(unpaged, sort_keys=True, default=str)}"
+    )
+
+
+async def _search_counting_once(
+    body_dict: dict,
+    generation_row,
+    pool: asyncpg.Pool,
+    redis: Optional[aioredis.Redis],
+) -> dict:
+    """Run a search, asking for its count once however many pages are read.
+
+    The count is the costly half of a search for one colony type near a
+    system: it walks outwards to the 1,001st match, and is the same for
+    every page. The first page read keeps it for an hour (``ttl_search``),
+    under the generation it was counted on; the other pages use it.
+    local_db_search_v3 takes a kept count only if it was made on the
+    generation it reads the page from, and only where the page does not
+    show the count itself or show the kept one to be wrong.
+
+    A count is kept when it is new: there was none, or the page's answer
+    differs from the one kept. A kept count that was simply used is not kept
+    again, so it cannot outlive its hour by being read.
+    """
+    known_count = await cache_get(
+        _search_count_cache_key(body_dict, generation_row), redis)
+    result = await _ls.local_db_search_v3(
+        body_dict, pool, known_count=known_count)
+    kept_count = _ls.count_to_keep(result)
+    if kept_count is not None and kept_count != known_count:
+        await cache_set(
+            _search_count_cache_key(body_dict, kept_count),
+            kept_count, settings.ttl_search, redis)
+    return result
+
+
 def _complete_coords(coords) -> dict | None:
     if not coords:
         return None
@@ -271,7 +322,7 @@ async def local_search_endpoint(
         return cached
 
     try:
-        result = await _ls.local_db_search_v3(body_dict, pool)
+        result = await _search_counting_once(body_dict, generation_row, pool, redis)
     except HTTPException:
         # A deliberate 4xx from the V3 path (e.g. no published Ratings V4
         # generation yet) — let FastAPI handle it, don't mask it as a 503.

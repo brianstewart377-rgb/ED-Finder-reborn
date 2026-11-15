@@ -1068,6 +1068,17 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
   order was tried and is no better (5.0 s, then 0.5 s): the database read
   the index for the whole cube, 922,417 systems. Not adopted. No change to
   Find for now.
+- (15 Nov) Find counts to 1,000 now, not 10,000 (#74), and the count is
+  still the slow half of a search for one colony type near a star. Measured
+  on the Pi through the live site: the first page of "Manufacturing Hub near
+  Sol" took 10 s and each further page 5 to 7 s, nearly all of it the same
+  count again. The count does not depend on the page, so it is now asked
+  once for a search: the first page read keeps it for an hour, beside the
+  cached pages, and the other pages use it. A page that comes back with
+  fewer rows than it asked for has reached the end of the matches, so it
+  shows the count itself and none is asked. A kept count is used only on
+  the generation it was made on, and not where a page reaches past it (the
+  claim rule's tables are loaded each night with no new generation).
 - (13 Nov) Not planned for the current map unless the Almanac trial fails:
   asking for stars without waiting for Find, smaller first-round boxes, the
   half-second freezes.
