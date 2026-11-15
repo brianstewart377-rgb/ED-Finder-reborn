@@ -61,18 +61,12 @@ from edfinder_api.routers.auth import (
 from edfinder_api.routers.archetypes import router as archetypes_router
 from edfinder_api.ingest.eddn_client import run_eddn_simulation_ingest
 from edfinder_api.routers.events import router as events_router, eddn_pubsub_bridge
-from edfinder_api.routers.exploration import router as exploration_router
 from edfinder_api.routers.map import router as map_router
 from edfinder_api.routers.meta import router as meta_router
-from edfinder_api.routers.news import router as news_router
-from edfinder_api.routers.notes import router as notes_router
 from edfinder_api.routers.operator import router as operator_router
 from edfinder_api.routers.profile import router as profile_router
 from edfinder_api.routers.ratings_v4 import router as ratings_v4_router
-from edfinder_api.routers.powerplay import router as powerplay_router
-from edfinder_api.routers.routes import router as routes_router
 from edfinder_api.routers.search import router as search_router
-from edfinder_api.routers.systems import router as systems_router
 from edfinder_api.routers.watchlist import router as watchlist_router
 from edfinder_api.routers.v3 import router as v3_router
 from edfinder_api.routers.plan import router as plan_router
@@ -369,18 +363,12 @@ app.include_router(share_router)
 app.include_router(auth_router)
 app.include_router(frontier_callback_compat_router)
 app.include_router(meta_router)
-app.include_router(news_router)
 app.include_router(watchlist_router)
-app.include_router(notes_router)
 app.include_router(profile_router)
 app.include_router(ratings_v4_router)
-app.include_router(powerplay_router)
 app.include_router(admin_router)
 app.include_router(events_router)
-app.include_router(exploration_router)
-app.include_router(routes_router)
 app.include_router(search_router)
-app.include_router(systems_router)
 app.include_router(map_router)
 app.include_router(archetypes_router)
 app.include_router(operator_router)
