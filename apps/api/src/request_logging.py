@@ -1,7 +1,19 @@
-"""Narrow redaction helpers for Frontier OAuth callback query secrets."""
+"""What is kept out of the logs and the error reports.
+
+Two kinds of address carry something that must not be written down:
+
+- Frontier's sign-in sends its one-time code in the query of the callback
+  address, so the whole query is left off;
+- a watchlist address carries the browser's own key as part of its path, so
+  the key is replaced.
+
+The web server hides the same two in its own log
+(apps/web/nginx/default.conf.template).
+"""
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -27,13 +39,32 @@ def redact_frontier_oauth_target(target: str) -> str:
     return parsed.path
 
 
+# A watchlist address: /api/v2/watchlist/<the browser's key>[/more].
+WATCHLIST_KEY_IN_PATH = re.compile(r'^(/api/v2/watchlist/)[^/]+')
+HIDDEN = '(hidden)'
+
+
+def redact_watchlist_key(target: str) -> str:
+    """Replace the browser's key in a watchlist address; leave any other alone."""
+    parsed = urlsplit(target)
+    path = WATCHLIST_KEY_IN_PATH.sub(lambda found: found.group(1) + HIDDEN, parsed.path)
+    if path == parsed.path:
+        return target
+    return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
+
+
+def redact_request_target(target: str) -> str:
+    """What may be written down in place of the address a request asked for."""
+    return redact_watchlist_key(redact_frontier_oauth_target(target))
+
+
 class FrontierOAuthAccessLogFilter(logging.Filter):
     """Redact the path-with-query argument emitted by Uvicorn access logging."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         args = record.args
         if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str):
-            redacted_target = redact_frontier_oauth_target(args[2])
+            redacted_target = redact_request_target(args[2])
             if redacted_target != args[2]:
                 redacted_args = list(args)
                 redacted_args[2] = redacted_target
@@ -58,7 +89,18 @@ def redact_frontier_oauth_sentry_event(
         return event
 
     raw_url = request.get('url')
-    if not isinstance(raw_url, str) or not is_frontier_oauth_callback(raw_url):
+    if not isinstance(raw_url, str):
+        return event
+    if not is_frontier_oauth_callback(raw_url):
+        # Any other address keeps its query and cookies as before; only a
+        # watchlist key is replaced.
+        request['url'] = redact_watchlist_key(raw_url)
+        env = request.get('env')
+        if isinstance(env, dict):
+            for name in ('RAW_URI', 'REQUEST_URI', 'PATH_INFO'):
+                value = env.get(name)
+                if isinstance(value, str):
+                    env[name] = redact_watchlist_key(value)
         return event
 
     request['url'] = redact_frontier_oauth_target(raw_url)

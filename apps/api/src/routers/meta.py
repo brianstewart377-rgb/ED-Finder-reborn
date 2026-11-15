@@ -92,7 +92,10 @@ async def health(pool: asyncpg.Pool = Depends(get_pool)):
             detail='database probe timed out after 2s — pool likely exhausted',
         )
     except Exception as e:
-        raise HTTPException(503, detail=str(e))
+        # The reason goes to the log. The browser gets a fixed sentence: the
+        # database's own words can name tables, hosts and settings.
+        log.warning('health check: the database probe failed (%s: %s)', type(e).__name__, e)
+        raise HTTPException(503, detail='the database could not be reached') from e
 
 
 @router.get(
@@ -236,6 +239,9 @@ async def metrics_endpoint():
         '# HELP ed_finder_cache_misses_total Redis cache misses',
         '# TYPE ed_finder_cache_misses_total counter',
         f'ed_finder_cache_misses_total {metrics["cache_misses"]}',
+        '# HELP ed_finder_cache_errors_total Redis reads and writes that failed',
+        '# TYPE ed_finder_cache_errors_total counter',
+        f'ed_finder_cache_errors_total {metrics.get("cache_errors", 0)}',
         '# HELP ed_finder_errors_total Total unhandled errors',
         '# TYPE ed_finder_errors_total counter',
         f'ed_finder_errors_total {metrics["errors_total"]}',

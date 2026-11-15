@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections import Counter
 from datetime import datetime, timezone
@@ -26,6 +27,8 @@ from edfinder_api.routes.store import consume_journal_observations
 from edfinder_api.ring_facts import ring_rows_for_body
 from edfinder_api.source_precedence import BODY_SCAN_FACT_FIELDS, merge_body_scan_fact
 from shared_contracts.body_ring_association_status import BODY_RING_ASSOCIATION_STATUS_CASE_SQL
+
+log = logging.getLogger('ed_finder')
 
 MAX_DAILY_ROWS_PER_SYNC_KEY = 200_000
 DIRTY_MARK_BATCH_SIZE = 500
@@ -784,11 +787,15 @@ async def _mark_dirty_systems_incremental(
             result['marked'] = int(result['marked']) + int(row['marked'] or 0)
             result['already_dirty'] = int(result['already_dirty']) + int(row['already_dirty'] or 0)
             result['skipped_missing'] = int(result['skipped_missing']) + int(row['skipped_missing'] or 0)
-        except Exception:
-            failed_ids = result['failed_ids']
-            assert isinstance(failed_ids, list)
-            failed_ids.extend(chunk)
-            result['failed'] = int(result['failed']) + len(chunk)
+        except Exception as error:
+            # This runs inside the import's transaction, and PostgreSQL refuses
+            # every later statement of a transaction once one has failed. So a
+            # failed batch cannot be skipped and carried on from: the import was
+            # already lost. Say why, then let it fail with this reason and not
+            # with a later, misleading "transaction is aborted".
+            log.warning('marking %d systems for new scores failed (%s); the import cannot go on',
+                        len(chunk), type(error).__name__)
+            raise
     return result
 
 

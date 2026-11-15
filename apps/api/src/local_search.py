@@ -2054,21 +2054,29 @@ async def local_db_status(pool: asyncpg.Pool) -> dict:
 # ---------------------------------------------------------------------------
 # Body normalizer (for system detail modal)
 # ---------------------------------------------------------------------------
-def _normalize_body(row: asyncpg.Record) -> dict:
-    rings_raw = row.get("ring_types") or []
-    if isinstance(rings_raw, str):
+def _stored_list(row: asyncpg.Record, column: str) -> list:
+    """A body's stored list (its ring types, its signals), however it is kept.
+
+    Text that cannot be read counts as an empty list, and the log says so. A
+    body shown with no rings because its stored text is broken must not look
+    the same, to whoever runs the site, as a body that has none.
+    """
+    raw = row.get(column) or []
+    if isinstance(raw, str):
         try:
-            rings_raw = json.loads(rings_raw)
-        except Exception:
-            rings_raw = []
+            raw = json.loads(raw)
+        except ValueError:
+            log.warning("body %s: its stored %s could not be read, so it is shown with none",
+                        row.get("id"), column)
+            return []
+    return raw
+
+
+def _normalize_body(row: asyncpg.Record) -> dict:
+    rings_raw = _stored_list(row, "ring_types")
     rings = [{"type": t} for t in rings_raw if t]
 
-    signals_raw = row.get("signals") or []
-    if isinstance(signals_raw, str):
-        try:
-            signals_raw = json.loads(signals_raw)
-        except Exception:
-            signals_raw = []
+    signals_raw = _stored_list(row, "signals")
 
     if not signals_raw and row.get("has_signals"):
         volc = (row.get("volcanism") or "").strip()

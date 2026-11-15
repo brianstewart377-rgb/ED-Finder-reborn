@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import secrets
 import uuid
 from dataclasses import replace
@@ -36,6 +37,7 @@ from edfinder_api.journal.commanders import (
 )
 
 router = APIRouter(prefix='/api/v1/auth', tags=['auth'])
+log = logging.getLogger('ed_finder')
 # Frontier already has this exact callback registered for the live V2 app.
 # Keep only this compatibility alias; the permanent V3 contract is above.
 frontier_callback_compat_router = APIRouter(prefix='/api/auth', tags=['auth'])
@@ -267,8 +269,15 @@ async def _exchange_frontier_code(code: str, verifier: str) -> dict[str, Any]:
                 parsed = profile_response.json()
                 if isinstance(parsed, dict):
                     profile = parsed
-            # 204/4xx/5xx: fail open — login proceeds with no CAPI name.
-    except (httpx.HTTPError, ValueError):
+            else:
+                # 204/4xx/5xx: fail open — login proceeds with no CAPI name.
+                # Said in the log, with nothing about the person, so a run of
+                # sign-ins without names can be traced to Frontier's side.
+                log.warning('Frontier profile lookup answered %d; signing in with no commander name',
+                            profile_response.status_code)
+    except (httpx.HTTPError, ValueError) as error:
+        log.warning('Frontier profile lookup failed (%s); signing in with no commander name',
+                    type(error).__name__)
         profile = None
 
     return identity_from_frontier_payloads(decoded, account, profile).model_dump()

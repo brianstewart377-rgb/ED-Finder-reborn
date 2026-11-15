@@ -57,6 +57,7 @@ metrics: dict[str, Any] = {
     'requests_total':  0,
     'cache_hits':      0,
     'cache_misses':    0,
+    'cache_errors':    0,
     'db_queries':      0,
     'errors_total':    0,
     'startup_time':    time.time(),

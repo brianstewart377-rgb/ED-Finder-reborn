@@ -109,6 +109,10 @@ from edfinder_api.state import get_pool_singleton as get_pool
 
 router = APIRouter(prefix='/api/archetypes', tags=['archetypes'])
 
+# What the browser is told when the database fails. The database's own words
+# go to the log only: they can name tables, schemas and settings.
+DATABASE_TROUBLE = 'The database could not answer. Please try again.'
+
 # ---------------------------------------------------------------------------
 # Archetype metadata
 # ---------------------------------------------------------------------------
@@ -371,7 +375,7 @@ async def _archetype_rankings_v3(
         raise HTTPException(
             status_code=503,
             detail={'type': 'https://httpstatuses.com/503',
-                    'title': 'Database error', 'status': 503, 'detail': str(e)},
+                    'title': 'Database error', 'status': 503, 'detail': DATABASE_TROUBLE},
         )
 
     query_ms = int((time.monotonic() - t0) * 1000)
@@ -808,7 +812,7 @@ async def _read_system_archetype_rows(
         raise HTTPException(
             status_code=503,
             detail={'type': 'https://httpstatuses.com/503',
-                    'title': 'Database error', 'status': 503, 'detail': str(e)},
+                    'title': 'Database error', 'status': 503, 'detail': DATABASE_TROUBLE},
         )
     return generation_row, list(rows)
 

@@ -16,6 +16,7 @@ import asyncio
 import hmac
 import json
 import logging
+import time
 from typing import Any, Optional
 
 import asyncpg
@@ -34,6 +35,32 @@ log = logging.getLogger('ed_finder')
 # Cache is a latency optimization, not a correctness dependency. Keep Redis I/O
 # on a short leash so a slow cache does not dominate request time.
 _CACHE_IO_TIMEOUT_SECONDS = 0.1
+
+# A cache that cannot be reached must not go unnoticed: every answer is then
+# worked out afresh, and a Find count takes seconds instead of milliseconds.
+# Each failure is counted (/api/metrics) and said in the log, but at most once
+# a minute, so a cache that is away does not fill the log.
+_CACHE_WARNING_EVERY_SECONDS = 60.0
+_last_cache_warning: Optional[float] = None
+
+
+def _cache_failed(doing: str, error: BaseException) -> None:
+    """Count a cache failure and, at most once a minute, say so in the log.
+
+    The key is left out on purpose: some keys are made from what a person
+    searched for.
+    """
+    global _last_cache_warning
+    metrics['cache_errors'] = metrics.get('cache_errors', 0) + 1
+    now = time.monotonic()
+    if _last_cache_warning is not None and now - _last_cache_warning < _CACHE_WARNING_EVERY_SECONDS:
+        return
+    _last_cache_warning = now
+    log.warning(
+        'the cache could not be %s (%s); answers are worked out afresh until it can. '
+        '%d cache failures since the API started.',
+        doing, type(error).__name__, metrics['cache_errors'],
+    )
 
 
 # ── DB / cache providers for Depends() ──────────────────────────────────
@@ -128,10 +155,12 @@ async def cache_get(
     try:
         v = await asyncio.wait_for(r.get(key), timeout=_CACHE_IO_TIMEOUT_SECONDS)
         if v:
+            value = json.loads(v)
             metrics['cache_hits'] += 1
-            return json.loads(v)
-    except Exception:
-        pass
+            return value
+    except Exception as error:
+        # A miss as far as the caller is concerned, but not a silent one.
+        _cache_failed('read', error)
     metrics['cache_misses'] += 1
     return None
 
@@ -150,8 +179,8 @@ async def cache_set(
             r.setex(key, ttl, json.dumps(value, default=str)),
             timeout=_CACHE_IO_TIMEOUT_SECONDS,
         )
-    except Exception:
-        pass
+    except Exception as error:
+        _cache_failed('written', error)
 
 
 # ── Small metric / slow-query helpers. ──────────────────────────────────
