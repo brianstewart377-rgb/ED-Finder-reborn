@@ -1,6 +1,5 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { fromStore } from 'svelte/store';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { tick, untrack } from 'svelte';
@@ -9,8 +8,6 @@
     ApiError,
     autocompleteSystems,
     getCatalogueViewportSystems,
-    getCommanderTravelHeatmap,
-    getCommanderJournalSummary,
     getArchetypeRankings,
     getSystem,
     pageIsUncounted,
@@ -71,12 +68,9 @@
     boxAround,
     chosenFromFind,
     JOURNEY_LINES_IN_SHORT,
-    journeyLines,
-    JOURNEYS_ASKED_FOR,
     showingInWords,
     starClassInBox,
     starsInRange,
-    type Journey,
     type MapSystem,
     type Showing,
   } from '$lib/galaxy-map/map-content';
@@ -85,6 +79,7 @@
   import SystemActions from './SystemActions.svelte';
   import WatchlistPanel from './WatchlistPanel.svelte';
   import ComparePanel from './ComparePanel.svelte';
+  import { createMyJourneys } from './my-journeys.svelte';
 
   let { viewState, resultCache } = $props<{
     viewState: ExploreViewState;
@@ -99,12 +94,6 @@
   untrack(() => {
     viewState.hasMounted = true;
   });
-  const session = fromStore(auth);
-  // The travel heatmap is the signed-in account's own V3 journal travel; the
-  // cache key carries the account so a sign-out/switch never reuses rows.
-  const travelAccountId = $derived(
-    session.current.loading ? null : (session.current.user?.account_id ?? null),
-  );
   const reviewLabRun = import.meta.env.VITE_REVIEW_LAB === '1';
   let activeSuggestion = $state(-1);
   let autocompleteOpen = $state(false);
@@ -751,115 +740,8 @@
     void navigateWithAnchor(inspectHref(id64, page.url));
   }
 
-  // "My journeys": every system the signed-in account has visited, from its
-  // imported journals, asked for once as one marker for each system. When
-  // there are more than the API returns at once, it returns the most
-  // recently visited.
-  const JOURNEYS_REQUEST = {
-    minX: -100_000,
-    maxX: 100_000,
-    minY: -100_000,
-    maxY: 100_000,
-    minZ: -100_000,
-    maxZ: 100_000,
-    limit: JOURNEYS_ASKED_FOR,
-  } as const;
-  // At this zoom the API answers with one marker for each system, not cells.
-  const JOURNEYS_ZOOM = 1;
-  const commanderVisits = createQuery(() => ({
-    queryKey: queryKeys.commanderTravel(
-      travelAccountId ?? '',
-      JOURNEYS_REQUEST,
-    ),
-    queryFn: ({ signal }) =>
-      getCommanderTravelHeatmap(JOURNEYS_REQUEST, JOURNEYS_ZOOM, signal),
-    enabled: showTravelHeatmap && travelAccountId !== null,
-    staleTime: 5 * 60_000,
-    retry: (failureCount, error) =>
-      !(error instanceof ApiError && error.status === 401) && failureCount < 1,
-  }));
-  const journalSummary = createQuery(() => ({
-    queryKey: [...queryKeys.auth(), travelAccountId, 'journal-summary'],
-    queryFn: ({ signal }) => getCommanderJournalSummary(signal),
-    enabled: showTravelHeatmap && travelAccountId !== null,
-    staleTime: 20_000,
-    retry: (failureCount, error) =>
-      !(error instanceof ApiError && error.status === 401) && failureCount < 1,
-  }));
-  const travelHeatmapState = $derived.by(
-    ():
-      | 'checking'
-      | 'auth-error'
-      | 'summary-error'
-      | 'signed-out'
-      | 'off'
-      | 'no-journals'
-      | 'loading'
-      | 'error'
-      | 'empty'
-      | 'ready' => {
-      if (session.current.loading) return 'checking';
-      // A failed session check is not "signed out": the visitor may well be
-      // signed in, so offer a retry rather than a sign-in prompt.
-      if (travelAccountId === null)
-        return session.current.error ? 'auth-error' : 'signed-out';
-      if (!showTravelHeatmap) return 'off';
-      if (
-        journalSummary.isError &&
-        journalSummary.error instanceof ApiError &&
-        journalSummary.error.status === 401
-      )
-        return 'signed-out';
-      if (commanderVisits.isError)
-        return commanderVisits.error instanceof ApiError &&
-          commanderVisits.error.status === 401
-          ? 'signed-out'
-          : 'error';
-      if (!commanderVisits.data?.count && journalSummary.isError)
-        return 'summary-error';
-      if (
-        !commanderVisits.data?.count &&
-        !journalSummary.isError &&
-        journalSummary.data?.imported_files === 0
-      )
-        return 'no-journals';
-      if (!commanderVisits.data) return 'loading';
-      return commanderVisits.data.count === 0 ? 'empty' : 'ready';
-    },
-  );
-  const journeys = $derived.by((): Journey[] | null => {
-    // Never draw cached private travel once the query is failing (an expired
-    // session keeps the last data alongside a 401).
-    if (
-      !showTravelHeatmap ||
-      travelAccountId === null ||
-      travelHeatmapState === 'signed-out' ||
-      commanderVisits.isError ||
-      !commanderVisits.data
-    )
-      return null;
-    return commanderVisits.data.visits.flatMap((visit) =>
-      visit.kind === 'marker' && visit.systemId64
-        ? [
-            {
-              id64: visit.systemId64,
-              name: visit.systemName?.trim() || `System ${visit.systemId64}`,
-              x: visit.x,
-              y: visit.y,
-              z: visit.z,
-              visits: visit.visitCount,
-              firstVisit: visit.firstVisitedAt,
-              lastVisit: visit.lastVisitedAt,
-            },
-          ]
-        : [],
-    );
-  });
-  // The map draws only the longer trips as lines: the page says so wherever
-  // there is such a line, so that the lines are not taken for all the travel.
-  const journeysHaveLines = $derived(
-    journeys !== null && journeyLines(journeys).length > 0,
-  );
+  const myJourneys = createMyJourneys(() => showTravelHeatmap);
+
   const systems = $derived(
     viewState.hasResultsIntent ? (displayedResults?.results ?? []) : [],
   );
@@ -1810,45 +1692,46 @@
             <span
               role="status"
               aria-label="My journeys"
-              data-commander-history-count={travelHeatmapState === 'ready'
-                ? (commanderVisits.data?.count ?? 0)
+              data-commander-history-count={myJourneys.state === 'ready'
+                ? myJourneys.count
                 : 0}
-              data-commander-history-state={travelHeatmapState}
+              data-commander-history-state={myJourneys.state}
             >
-              {#if travelHeatmapState === 'checking'}
+              {#if myJourneys.state === 'checking'}
                 Checking your sign-in…
-              {:else if travelHeatmapState === 'auth-error'}
+              {:else if myJourneys.state === 'auth-error'}
                 Account check unavailable · <button
                   type="button"
                   onclick={() => void auth.bootstrap()}>Retry</button
                 >
-              {:else if travelHeatmapState === 'signed-out'}
+              {:else if myJourneys.state === 'signed-out'}
                 <a href={resolve('/account')}
                   >Sign in and import your journals</a
                 >
-              {:else if travelHeatmapState === 'summary-error'}
+              {:else if myJourneys.state === 'summary-error'}
                 Journal import status unavailable · <button
                   type="button"
-                  onclick={() => journalSummary.refetch()}>Retry</button
+                  onclick={() => myJourneys.retrySummary()}>Retry</button
                 >
-              {:else if travelHeatmapState === 'off'}
+              {:else if myJourneys.state === 'off'}
                 My journeys hidden
-              {:else if travelHeatmapState === 'no-journals'}
+              {:else if myJourneys.state === 'no-journals'}
                 No imported journals yet
-              {:else if travelHeatmapState === 'loading'}
+              {:else if myJourneys.state === 'loading'}
                 Reading imported journal visits…
-              {:else if travelHeatmapState === 'error'}
+              {:else if myJourneys.state === 'error'}
                 My journeys unavailable · <button
                   type="button"
-                  onclick={() => commanderVisits.refetch()}>Retry</button
+                  onclick={() => myJourneys.retryVisits()}>Retry</button
                 >
-              {:else if travelHeatmapState === 'empty'}
+              {:else if myJourneys.state === 'empty'}
                 No travel in your imported journals yet
               {:else}
-                {(commanderVisits.data?.count ?? 0).toLocaleString()} visited systems{commanderVisits
-                  .data?.truncated
+                {myJourneys.count.toLocaleString()} visited systems{myJourneys.truncated
                   ? ' · your most recent'
-                  : ''}{journeysHaveLines ? ` · ${JOURNEY_LINES_IN_SHORT}` : ''}
+                  : ''}{myJourneys.haveLines
+                  ? ` · ${JOURNEY_LINES_IN_SHORT}`
+                  : ''}
               {/if}
             </span>
           </div>
@@ -1879,7 +1762,7 @@
         bind:this={galaxyMap}
         bind:phase={mapPhase}
         {showing}
-        {journeys}
+        journeys={myJourneys.journeys}
         resume={untrack(
           () =>
             viewState.mapResume ??
