@@ -60,10 +60,7 @@ describe('shared lint launcher', () => {
       path.join(repoRoot, 'packages/api-client/src/core.ts'),
     );
     expect(paths).toContain(
-      path.join(repoRoot, 'packages/planner-core/src/index.ts'),
-    );
-    expect(paths).not.toContain(
-      path.join(repoRoot, 'packages/api-client/src/generated/api.gen.ts'),
+      path.join(repoRoot, 'packages/planner-core/src/journal/index.ts'),
     );
 
     const command = runLauncher(webRoot);

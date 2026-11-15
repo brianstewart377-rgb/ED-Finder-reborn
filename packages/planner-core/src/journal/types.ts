@@ -1,7 +1,31 @@
-import type {
-  JournalImportObservationInput,
-  PowerplayJournalEventInput,
-} from '@ed-finder/api-client/types';
+// The two shapes the reader hands on, as the API takes them. They were
+// borrowed from a second generated copy of the API's types; that copy is gone,
+// so they are written out here, beside the only code that uses them.
+/** One thing the journal recorded, ready to be sent. */
+export interface JournalImportObservationInput {
+  observation_key: string;
+  source_file: string;
+  source_offset?: number;
+  event_type: 'ApproachBody' | 'CarrierJump' | 'CodexEntry' | 'Commander' | 'Died' | 'Disembark' | 'Docked' | 'Embark' | 'Fileheader' | 'FSDJump' | 'FSDTarget' | 'FSSAllBodiesFound' | 'FSSBodySignals' | 'FSSDiscoveryScan' | 'LeaveBody' | 'Liftoff' | 'LoadGame' | 'Location' | 'MultiSellExplorationData' | 'NavRoute' | 'NavRouteClear' | 'Resurrect' | 'SAAScanComplete' | 'SAASignalsFound' | 'Scan' | 'ScanOrganic' | 'Screenshot' | 'SellExplorationData' | 'SellOrganicData' | 'Touchdown';
+  observed_at?: string | null;
+  system_id64?: string | null;
+  system_name?: string | null;
+  subject_type: 'system' | 'body' | 'route';
+  subject_id?: string | null;
+  summary?: string | null;
+  payload: Record<string, unknown>;
+  privacy_boundary: Record<string, unknown>;
+}
+
+/** A journal event kept whole for Powerplay: what the API takes for one. */
+export interface PowerplayJournalEventInput {
+  observation_key: string;
+  event_type: string;
+  /** A date and time, as the journal wrote it. */
+  observed_at: string;
+  game_build?: string | null;
+  source_payload: Record<string, unknown>;
+}
 
 export interface JournalParserState {
   system_id64: string | null;

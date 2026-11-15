@@ -1,1 +1,0 @@
-"""Colony Planner backend helpers."""

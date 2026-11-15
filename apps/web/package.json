@@ -23,7 +23,7 @@
     "shared:lint": "node scripts/lint-shared.mjs",
     "shared:test": "cd ../.. && apps/web/node_modules/.bin/vitest run --config apps/web/vitest.shared.config.ts",
     "test:e2e": "cypress run --browser chrome",
-    "generate:api": "svelte-kit sync && node scripts/capture-openapi.mjs && openapi-ts && openapi-typescript .svelte-kit/openapi.json -o ../../packages/api-client/src/generated/api.gen.ts"
+    "generate:api": "svelte-kit sync && node scripts/capture-openapi.mjs && openapi-ts"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",

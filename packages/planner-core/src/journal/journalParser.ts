@@ -1,16 +1,14 @@
-import type {
-  JournalImportObservationInput,
-  PowerplayJournalEventInput,
-} from '@ed-finder/api-client/types';
 import { decimalString, parseJournalJson, toJournalTransportValue } from './journalJson';
 import type {
   JournalFileCheckpoint,
   JournalFileInput,
   JournalFileManifestEntry,
   JournalFileSource,
+  JournalImportObservationInput,
   JournalImportParseResult,
   JournalParseFileProgress,
   JournalParserState,
+  PowerplayJournalEventInput,
 } from './types';
 
 export const JOURNAL_PARSER_VERSION = 'journal-import-worker-v3';
