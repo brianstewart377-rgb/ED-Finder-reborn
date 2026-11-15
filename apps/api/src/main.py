@@ -218,7 +218,7 @@ async def lifespan(app: FastAPI):
         _cache_reconnect_task.cancel()
         try:
             await _cache_reconnect_task
-        except (asyncio.CancelledError, Exception):
+        except (asyncio.CancelledError, Exception):  # noqa: S110 - it was just cancelled; shutting down
             pass
     if readonly_pool and readonly_pool is not pool:
         await readonly_pool.close()

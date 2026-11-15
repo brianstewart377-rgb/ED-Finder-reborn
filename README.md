@@ -457,8 +457,14 @@ again after, to see what the change did.
 
 ```bash
 python -m pip install -r tests/requirements-ci.txt
+python -m ruff check .
 python -m pytest -q tests
 ```
+
+The second line is the linter (settings in `pyproject.toml`). CI runs it
+before the tests. Among other things it refuses an error that is caught and
+then dropped without a word (`except: pass`): one that is meant has to say
+why, beside it.
 
 The database tests need `SYSTEM_STATE_TEST_DSN` pointing at a throwaway
 PostgreSQL database whose name ends in `_test`. CI runs them on PostgreSQL 18.

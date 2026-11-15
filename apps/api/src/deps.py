@@ -104,7 +104,7 @@ async def connect_redis() -> aioredis.Redis:
     except BaseException:
         try:
             await client.aclose()
-        except Exception:
+        except Exception:  # noqa: S110 - tidying up; the connect error below is the one that matters
             pass
         raise
     return client

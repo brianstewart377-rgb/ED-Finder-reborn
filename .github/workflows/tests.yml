@@ -62,6 +62,8 @@ jobs:
           docker compose version --short
       - name: Create the database the Finder tests connect to
         run: psql -X -q -v ON_ERROR_STOP=1 -d "$SYSTEM_STATE_TEST_DSN" -c "CREATE DATABASE ratings_v4_validation"
+      - name: Lint the Python (settings in pyproject.toml)
+        run: python -m ruff check .
       - name: Run tests
         run: python -m pytest -q tests
 
