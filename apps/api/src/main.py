@@ -13,7 +13,6 @@ Endpoint surface (see individual router docstrings for detail):
   routers/auth.py       Frontier sign-in, sessions, the invite list
   routers/profile.py    settings kept in step between one person's browsers
   routers/watchlist.py  watchlist CRUD + changelog
-  routers/events.py     EDDN SSE live feed + recent
   routers/ratings_v4.py sealed V4 generation and independent economy scores
   routers/search.py     autocomplete + local/galaxy/cluster search
   routers/v3.py         system, body and station pages (Inspect)
@@ -43,7 +42,7 @@ from slowapi.errors import RateLimitExceeded
 from edfinder_api.config import settings, log, limiter
 from edfinder_api.rate_limits import default_rate_limit, rate_limit_exceeded_handler
 from edfinder_api.request_logging import redact_request_target
-from edfinder_api.deps import connect_redis
+from edfinder_api.deps import connect_cache_when_it_is_back, connect_redis
 from edfinder_api.state import (
     get_redis_singleton,
     metrics as _metrics,
@@ -59,8 +58,6 @@ from edfinder_api.routers.auth import (
     router as auth_router,
 )
 from edfinder_api.routers.archetypes import router as archetypes_router
-from edfinder_api.ingest.eddn_client import run_eddn_simulation_ingest
-from edfinder_api.routers.events import router as events_router, eddn_pubsub_bridge
 from edfinder_api.routers.map import router as map_router
 from edfinder_api.routers.meta import router as meta_router
 from edfinder_api.routers.profile import router as profile_router
@@ -76,13 +73,12 @@ from edfinder_api.share_router import router as share_router
 # ---------------------------------------------------------------------------
 # Startup / shutdown
 # ---------------------------------------------------------------------------
-_sse_pubsub_task: Optional[asyncio.Task] = None
-_eddn_simulation_ingest_task: Optional[asyncio.Task] = None
+_cache_reconnect_task: Optional[asyncio.Task] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _sse_pubsub_task, _eddn_simulation_ingest_task
+    global _cache_reconnect_task
     log.info(f"ED Finder API backend v{settings.app_version} starting ...")
 
     async def _init_conn(conn: asyncpg.Connection) -> None:
@@ -182,19 +178,13 @@ async def lifespan(app: FastAPI):
         set_redis(None)
         redis = None
 
-    # The bridge always starts. When Redis was down at boot it keeps
-    # retrying the connection in the background with capped exponential
-    # backoff and installs the client (set_redis) once it succeeds, so the
-    # live feed — and the cache — recover without an API restart.
-    _sse_pubsub_task = asyncio.create_task(eddn_pubsub_bridge())
-    log.info(
-        "EDDN→SSE pub/sub bridge started ✓%s",
-        '' if redis is not None else ' (Redis unavailable at boot; bridge will retry in the background)',
-    )
-
-    if settings.eddn_simulation_ingest_enabled:
-        _eddn_simulation_ingest_task = asyncio.create_task(run_eddn_simulation_ingest(pool))
-        log.info("EDDN simulation ingest started ✓")
+    # A cache that was away when the API started is tried again in the
+    # background, so it is picked up without an API restart. On the Pi the
+    # API and the cache start side by side after a power cut, and the API can
+    # be first. (The live-events relay used to do this as a side effect.)
+    if redis is None:
+        _cache_reconnect_task = asyncio.create_task(connect_cache_when_it_is_back())
+        log.info("Trying the cache again in the background")
 
     # Load facility catalogue into memory (simulation engine domain layer)
     try:
@@ -224,22 +214,16 @@ async def lifespan(app: FastAPI):
     app.state.redis = redis
     yield
 
-    if _sse_pubsub_task:
-        _sse_pubsub_task.cancel()
+    if _cache_reconnect_task:
+        _cache_reconnect_task.cancel()
         try:
-            await _sse_pubsub_task
-        except (asyncio.CancelledError, Exception):
-            pass
-    if _eddn_simulation_ingest_task:
-        _eddn_simulation_ingest_task.cancel()
-        try:
-            await _eddn_simulation_ingest_task
+            await _cache_reconnect_task
         except (asyncio.CancelledError, Exception):
             pass
     if readonly_pool and readonly_pool is not pool:
         await readonly_pool.close()
     if pool:   await pool.close()
-    # The bridge may have connected Redis after boot; close whatever client
+    # The cache may have been reached after the start; close whatever client
     # is installed now, not only the one this function created.
     redis = get_redis_singleton() or redis
     if redis:  await redis.aclose()
@@ -349,7 +333,6 @@ app.include_router(meta_router)
 app.include_router(watchlist_router)
 app.include_router(profile_router)
 app.include_router(ratings_v4_router)
-app.include_router(events_router)
 app.include_router(search_router)
 app.include_router(map_router)
 app.include_router(archetypes_router)

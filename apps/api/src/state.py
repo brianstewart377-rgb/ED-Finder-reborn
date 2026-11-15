@@ -88,7 +88,3 @@ def observe_request_duration(duration_seconds: float) -> None:
 # ── Background job tracking (e.g. cluster rebuild). ─────────────────────
 active_jobs:       dict[str, Any] = {}
 active_jobs_lock:  asyncio.Lock   = asyncio.Lock()
-
-
-# ── Live-feed SSE clients, one queue per connection. ────────────────────
-sse_clients: list[asyncio.Queue] = []
