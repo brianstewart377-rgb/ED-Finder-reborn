@@ -98,11 +98,6 @@ class Settings(BaseSettings):
     # Set CORS_ORIGINS=https://ed-finder.app,https://www.ed-finder.app in .env
     cors_origins:       str  = '__unset__'
     expose_error_detail: bool = False
-    # Startup recovery for interrupted admin operations normally marks stale
-    # admin_job_runs as failed.  Keep that operational behaviour on by
-    # default; narrowly scoped read-only checkpoints can explicitly disable
-    # only this startup write while retaining the normal API surface.
-    admin_operation_startup_reap_enabled: bool = True
     # Optional error tracking (GlitchTip, Sentry-API-compatible). Blank
     # disables it entirely — sentry_sdk.init() below is only called when set.
     sentry_dsn:         Optional[str] = None

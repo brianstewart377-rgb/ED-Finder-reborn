@@ -10,14 +10,15 @@ in routers/ and helpers/.
 Endpoint surface (see individual router docstrings for detail):
 
   routers/meta.py       health, status, local/status, metrics
-  routers/operator.py   read-only source-run/operator visibility
+  routers/auth.py       Frontier sign-in, sessions, the invite list
+  routers/profile.py    settings kept in step between one person's browsers
   routers/watchlist.py  watchlist CRUD + changelog
-  routers/notes.py      per-system user notes
   routers/events.py     EDDN SSE live feed + recent
   routers/ratings_v4.py sealed V4 generation and independent economy scores
-  routers/admin.py      cache stats/clear + cluster-rebuild trigger
   routers/search.py     autocomplete + local/galaxy/cluster search
-  routers/systems.py    per-system / per-body detail + batch lookup
+  routers/v3.py         system, body and station pages (Inspect)
+  routers/plan.py       the Plan page
+  routers/v3_journal*.py  journal upload, travel and contributions
   routers/map.py        galaxy regions, cluster hulls, heatmap, timeline
   routers/archetypes.py archetype rankings, rerank, system detail, simulate, profiles
   share_router.py       /s/{id64} OG-tagged share preview + PNG
@@ -53,7 +54,6 @@ from edfinder_api.state import (
 )
 
 # Routers
-from edfinder_api.routers.admin import router as admin_router, reap_stale_admin_operation_runs
 from edfinder_api.routers.auth import (
     frontier_callback_compat_router,
     router as auth_router,
@@ -63,7 +63,6 @@ from edfinder_api.ingest.eddn_client import run_eddn_simulation_ingest
 from edfinder_api.routers.events import router as events_router, eddn_pubsub_bridge
 from edfinder_api.routers.map import router as map_router
 from edfinder_api.routers.meta import router as meta_router
-from edfinder_api.routers.operator import router as operator_router
 from edfinder_api.routers.profile import router as profile_router
 from edfinder_api.routers.ratings_v4 import router as ratings_v4_router
 from edfinder_api.routers.search import router as search_router
@@ -79,20 +78,6 @@ from edfinder_api.share_router import router as share_router
 # ---------------------------------------------------------------------------
 _sse_pubsub_task: Optional[asyncio.Task] = None
 _eddn_simulation_ingest_task: Optional[asyncio.Task] = None
-
-
-async def _reap_stale_admin_runs_on_startup(pool: asyncpg.Pool) -> None:
-    """Run the normal admin-operation recovery unless explicitly disabled."""
-    if not settings.admin_operation_startup_reap_enabled:
-        log.info('Startup admin operation reaping disabled by configuration')
-        return
-
-    try:
-        reaped = await reap_stale_admin_operation_runs(pool)
-        if reaped:
-            log.warning('Reaped %d stale admin operation runs during startup', reaped)
-    except asyncpg.exceptions.UndefinedTableError:
-        log.warning('admin_job_runs table missing during startup reap; skipping stale admin run cleanup')
 
 
 @asynccontextmanager
@@ -186,8 +171,6 @@ async def lifespan(app: FastAPI):
     else:
         log.info('PostgreSQL read-only pool not configured; reusing primary pool')
     set_readonly_pool(readonly_pool)
-
-    await _reap_stale_admin_runs_on_startup(pool)
 
     redis = None
     try:
@@ -366,12 +349,10 @@ app.include_router(meta_router)
 app.include_router(watchlist_router)
 app.include_router(profile_router)
 app.include_router(ratings_v4_router)
-app.include_router(admin_router)
 app.include_router(events_router)
 app.include_router(search_router)
 app.include_router(map_router)
 app.include_router(archetypes_router)
-app.include_router(operator_router)
 app.include_router(v3_router)
 app.include_router(plan_router)
 app.include_router(v3_journal_router)
