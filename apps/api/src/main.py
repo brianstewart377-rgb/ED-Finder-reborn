@@ -59,7 +59,6 @@ from edfinder_api.routers.auth import (
     router as auth_router,
 )
 from edfinder_api.routers.archetypes import router as archetypes_router
-from edfinder_api.routers.colony_planner import router as colony_planner_router
 from edfinder_api.routers.evidence import router as evidence_router
 from edfinder_api.ingest.eddn_client import run_eddn_simulation_ingest
 from edfinder_api.routers.events import router as events_router, eddn_pubsub_bridge
@@ -71,17 +70,13 @@ from edfinder_api.routers.news import router as news_router
 from edfinder_api.routers.notes import router as notes_router
 from edfinder_api.routers.observations import router as observations_router
 from edfinder_api.routers.operator import router as operator_router
-from edfinder_api.routers.optimiser import router as optimiser_router
 from edfinder_api.routers.profile import router as profile_router
 from edfinder_api.routers.ratings_v4 import router as ratings_v4_router
 from edfinder_api.routers.powerplay import router as powerplay_router
 from edfinder_api.routers.routes import router as routes_router
 from edfinder_api.routers.provenance_cockpit import router as provenance_cockpit_router
 from edfinder_api.routers.search import router as search_router
-from edfinder_api.routers.simulate import router as simulate_router
-from edfinder_api.routers.simulation import router as simulation_router
 from edfinder_api.routers.systems import router as systems_router
-from edfinder_api.routers.warehouse_planner_evidence import router as warehouse_planner_evidence_router
 from edfinder_api.routers.watchlist import router as watchlist_router
 from edfinder_api.routers.v3 import router as v3_router
 from edfinder_api.routers.plan import router as plan_router
@@ -395,13 +390,8 @@ app.include_router(search_router)
 app.include_router(systems_router)
 app.include_router(map_router)
 app.include_router(archetypes_router)
-app.include_router(simulate_router)
-app.include_router(simulation_router)
-app.include_router(optimiser_router)
 app.include_router(observations_router)
-app.include_router(colony_planner_router)
 app.include_router(provenance_cockpit_router)
-app.include_router(warehouse_planner_evidence_router)
 app.include_router(operator_router)
 app.include_router(v3_router)
 app.include_router(plan_router)

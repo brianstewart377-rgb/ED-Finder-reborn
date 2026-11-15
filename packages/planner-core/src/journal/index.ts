@@ -14,8 +14,10 @@ export type {
   JournalFileInput,
   JournalFileManifestEntry,
   JournalFileSource,
+  JournalImportObservationInput,
   JournalImportParseResult,
   JournalImportParseSummary,
   JournalParseFileProgress,
   JournalParserState,
+  PowerplayJournalEventInput,
 } from './types';
