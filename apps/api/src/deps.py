@@ -26,7 +26,7 @@ from fastapi import HTTPException, Request
 from edfinder_api.auth import get_request_user, require_same_origin
 from edfinder_api.config import settings
 from edfinder_api.state import (
-    get_pool_singleton, get_readonly_pool_singleton, get_redis_singleton, metrics,
+    get_pool_singleton, get_readonly_pool_singleton, get_redis_singleton, metrics, set_redis,
 )
 
 log = logging.getLogger('ed_finder')
@@ -108,6 +108,40 @@ async def connect_redis() -> aioredis.Redis:
             pass
         raise
     return client
+
+
+# How long to wait before trying the cache again, doubling each time up to
+# the longest wait.
+_CACHE_RETRY_FIRST_SECONDS = 1.0
+_CACHE_RETRY_LONGEST_SECONDS = 60.0
+
+
+async def connect_cache_when_it_is_back() -> None:
+    """Keep trying to reach the cache after the API has started without it.
+
+    The start-up connects once and carries on without a cache if that fails.
+    Without this, the API would then run uncached until it was next
+    restarted: right answers, but every Find count worked out afresh. This
+    tries again, waiting a little longer each time, and installs the client
+    once the cache answers. It ends as soon as a client is installed.
+
+    Only for a cache that was away at the start. One that goes away later
+    needs nothing: its client reconnects by itself, and the failures in
+    between are counted and logged by cache_get and cache_set.
+    The connection's address is never logged.
+    """
+    wait = _CACHE_RETRY_FIRST_SECONDS
+    while get_redis_singleton() is None:
+        await asyncio.sleep(wait)
+        try:
+            client = await connect_redis()
+        except Exception as error:
+            wait = min(wait * 2.0, _CACHE_RETRY_LONGEST_SECONDS)
+            log.warning('the cache is still away (%s); trying again in %.0f s',
+                        type(error).__name__, wait)
+            continue
+        set_redis(client)
+        log.info('the cache was reached after the API had started without it; answers are kept again')
 
 
 def secrets_equal(supplied: str, expected: str) -> bool:

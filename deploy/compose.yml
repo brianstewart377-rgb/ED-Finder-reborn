@@ -12,10 +12,6 @@ services:
     restart: ${EDFINDER_RESTART:?set by edfinder_deploy.py}
     env_file:
       - ${EDFINDER_API_ENV_FILE:?set by edfinder_deploy.py}
-    environment:
-      # No background writers start with the API; they are switched on
-      # separately when they are wanted.
-      EDDN_SIMULATION_INGEST_ENABLED: "false"
     expose:
       - "8000"
     networks:

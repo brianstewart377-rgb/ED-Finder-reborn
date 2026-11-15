@@ -4939,48 +4939,6 @@ export type SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetResponse
 
 export type SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetResponse = SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetResponses[keyof SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetResponses];
 
-export type LiveEventsApiEventsLiveGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/events/live';
-};
-
-export type LiveEventsApiEventsLiveGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type RecentEventsApiEventsRecentGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Limit
-         */
-        limit?: number;
-    };
-    url: '/api/events/recent';
-};
-
-export type RecentEventsApiEventsRecentGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RecentEventsApiEventsRecentGetError = RecentEventsApiEventsRecentGetErrors[keyof RecentEventsApiEventsRecentGetErrors];
-
-export type RecentEventsApiEventsRecentGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
 export type AutocompleteApiLocalAutocompleteGetData = {
     body?: never;
     path?: never;

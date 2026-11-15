@@ -4,8 +4,8 @@ Two kinds of address carry something that must not be written down:
 
 - Frontier's sign-in sends its one-time code in the query of the callback
   address, so the whole query is left off;
-- a watchlist address carries the browser's own key as part of its path, so
-  the key is replaced.
+- a watchlist address, and a settings-sync address, carries the browser's
+  own key as part of its path, so the key is replaced.
 
 The web server hides the same two in its own log
 (apps/web/nginx/default.conf.template).
@@ -39,15 +39,22 @@ def redact_frontier_oauth_target(target: str) -> str:
     return parsed.path
 
 
-# A watchlist address: /api/v2/watchlist/<the browser's key>[/more].
-WATCHLIST_KEY_IN_PATH = re.compile(r'^(/api/v2/watchlist/)[^/]+')
+# Addresses that carry the browser's own key as part of their path:
+#   /api/v2/watchlist/<key>[/more]     the watchlist
+#   /api/profile/sync/<key>            settings kept in step between browsers
+KEY_IN_PATH = (
+    re.compile(r'^(/api/v2/watchlist/)[^/]+'),
+    re.compile(r'^(/api/profile/sync/)[^/]+'),
+)
 HIDDEN = '(hidden)'
 
 
-def redact_watchlist_key(target: str) -> str:
-    """Replace the browser's key in a watchlist address; leave any other alone."""
+def redact_key_in_path(target: str) -> str:
+    """Replace the browser's key in an address that carries one; leave any other alone."""
     parsed = urlsplit(target)
-    path = WATCHLIST_KEY_IN_PATH.sub(lambda found: found.group(1) + HIDDEN, parsed.path)
+    path = parsed.path
+    for pattern in KEY_IN_PATH:
+        path = pattern.sub(lambda found: found.group(1) + HIDDEN, path)
     if path == parsed.path:
         return target
     return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
@@ -55,7 +62,7 @@ def redact_watchlist_key(target: str) -> str:
 
 def redact_request_target(target: str) -> str:
     """What may be written down in place of the address a request asked for."""
-    return redact_watchlist_key(redact_frontier_oauth_target(target))
+    return redact_key_in_path(redact_frontier_oauth_target(target))
 
 
 class FrontierOAuthAccessLogFilter(logging.Filter):
@@ -93,14 +100,14 @@ def redact_frontier_oauth_sentry_event(
         return event
     if not is_frontier_oauth_callback(raw_url):
         # Any other address keeps its query and cookies as before; only a
-        # watchlist key is replaced.
-        request['url'] = redact_watchlist_key(raw_url)
+        # browser's key in the path is replaced.
+        request['url'] = redact_key_in_path(raw_url)
         env = request.get('env')
         if isinstance(env, dict):
             for name in ('RAW_URI', 'REQUEST_URI', 'PATH_INFO'):
                 value = env.get(name)
                 if isinstance(value, str):
-                    env[name] = redact_watchlist_key(value)
+                    env[name] = redact_key_in_path(value)
         return event
 
     request['url'] = redact_frontier_oauth_target(raw_url)

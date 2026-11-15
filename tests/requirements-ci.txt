@@ -15,6 +15,10 @@ PyYAML==6.0.3
 # Release/checkpoint and importer synchronous PostgreSQL tooling.
 psycopg[binary]==3.3.4
 
+# The EDDN listener (apps/eddn_v3) has its own lock file; its worker test
+# imports zmq. The same version as in apps/eddn_v3/pyproject.toml.
+pyzmq==27.2.0
+
 # pytest-asyncio is deliberately absent: no test here is async yet, and the
 # old pin (0.24.0) printed three deprecation warnings per test on Python 3.14.
 # Add a current version back together with the first async test.

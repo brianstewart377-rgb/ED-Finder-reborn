@@ -390,6 +390,7 @@ def test_the_web_servers_log_keeps_no_sign_in_code_and_no_watchlist_key(site):
         "/api/auth/frontier/callback?code=one-time-code",
         "/api/v2/watchlist/the-browsers-key",
         "/api/v2/watchlist/the-browsers-key/changes?since=5",
+        "/api/profile/sync/the-browsers-key",
         "/api/stub/visitor-address?kept=yes",
     )
     for path in asked:
@@ -414,6 +415,7 @@ def test_the_web_servers_log_keeps_no_sign_in_code_and_no_watchlist_key(site):
     assert '"GET /api/auth/frontier/callback HTTP/1.1"' in log
     assert '"GET /api/v2/watchlist/(hidden) HTTP/1.1"' in log
     assert '"GET /api/v2/watchlist/(hidden)/changes?since=5 HTTP/1.1"' in log
+    assert '"GET /api/profile/sync/(hidden) HTTP/1.1"' in log
 
 
 def test_newer_release_replaces_the_live_one_and_rollback_returns(site):

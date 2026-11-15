@@ -257,6 +257,8 @@ def test_an_import_that_cannot_mark_its_systems_fails_with_the_real_reason(caplo
     ("/api/v2/watchlist/" + KEY + "/8216113749", "/api/v2/watchlist/(hidden)/8216113749"),
     ("/api/v2/watchlist/" + KEY + "/changes?since=5", "/api/v2/watchlist/(hidden)/changes?since=5"),
     ("https://ed-finder.app/api/v2/watchlist/" + KEY, "https://ed-finder.app/api/v2/watchlist/(hidden)"),
+    ("/api/profile/sync/" + KEY, "/api/profile/sync/(hidden)"),
+    ("/api/profile/sync/" + KEY + "?v=2", "/api/profile/sync/(hidden)?v=2"),
     # Frontier's one-time code is in the query, so the query goes.
     ("/api/v1/auth/frontier/callback?code=abc&state=def", "/api/v1/auth/frontier/callback"),
     # Every other address is written as it was asked.
@@ -304,3 +306,72 @@ def test_the_health_check_tells_the_browser_no_more_than_it_needs(caplog):
     assert refused.value.detail == "the database could not be reached"
     # The reason is still to be had: it is in the log, where the owner reads it.
     assert any("edfinder-postgres:5432" in record.getMessage() for record in caplog.records)
+
+
+# ── A cache that was away when the API started ─────────────────────────────
+
+def test_a_cache_that_was_away_at_the_start_is_picked_up_without_a_restart(monkeypatch, caplog):
+    """On the Pi the API and the cache start side by side after a power cut,
+    and the API can be first. It then runs without a cache, and used to stay
+    that way only by luck: an unrelated background task, removed since, was
+    what tried again. Now a task of its own does."""
+    caplog.set_level(logging.INFO, logger="ed_finder")
+    installed: list[object] = []
+    monkeypatch.setattr(deps, "get_redis_singleton", lambda: installed[-1] if installed else None)
+    monkeypatch.setattr(deps, "set_redis", installed.append)
+    waits: list[float] = []
+
+    async def no_waiting(seconds: float) -> None:
+        waits.append(seconds)
+    monkeypatch.setattr(deps.asyncio, "sleep", no_waiting)
+
+    tries = {"made": 0}
+    the_cache = object()
+
+    async def connect():
+        tries["made"] += 1
+        if tries["made"] <= 3:
+            raise ConnectionError("redis://user:secret@edfinder-redis:6379 refused")
+        return the_cache
+    monkeypatch.setattr(deps, "connect_redis", connect)
+
+    run(deps.connect_cache_when_it_is_back())
+
+    assert installed == [the_cache], "the client is installed once, when the cache answers"
+    assert tries["made"] == 4
+    # A little longer each time, so a cache that stays away is not hammered.
+    assert waits == [1.0, 2.0, 4.0, 8.0]
+    said = [record.getMessage() for record in caplog.records]
+    assert said[:3] == ["the cache is still away (ConnectionError); trying again in %d s" % wait
+                        for wait in (2, 4, 8)]
+    assert "the cache was reached after the API had started without it" in said[3]
+    assert not any("secret" in line for line in said), "the connection's address is never logged"
+
+
+def test_the_wait_between_tries_stops_growing_at_a_minute(monkeypatch):
+    installed: list[object] = []
+    monkeypatch.setattr(deps, "get_redis_singleton", lambda: installed[-1] if installed else None)
+    monkeypatch.setattr(deps, "set_redis", installed.append)
+    waits: list[float] = []
+
+    async def no_waiting(seconds: float) -> None:
+        waits.append(seconds)
+    monkeypatch.setattr(deps.asyncio, "sleep", no_waiting)
+
+    async def connect():
+        if len(waits) < 10:
+            raise TimeoutError
+        return object()
+    monkeypatch.setattr(deps, "connect_redis", connect)
+
+    run(deps.connect_cache_when_it_is_back())
+    assert waits == [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 60.0, 60.0, 60.0, 60.0]
+
+
+def test_with_the_cache_already_there_nothing_is_tried(monkeypatch):
+    monkeypatch.setattr(deps, "get_redis_singleton", lambda: object())
+
+    async def connect():
+        raise AssertionError("a cache that is there must not be connected to again")
+    monkeypatch.setattr(deps, "connect_redis", connect)
+    run(deps.connect_cache_when_it_is_back())

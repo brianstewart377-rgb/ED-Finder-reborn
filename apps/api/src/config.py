@@ -19,7 +19,7 @@ import sys
 from typing import Optional
 
 import sentry_sdk
-from pydantic import Field, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from slowapi import Limiter
 from starlette.requests import Request
@@ -101,30 +101,6 @@ class Settings(BaseSettings):
     # Optional error tracking (GlitchTip, Sentry-API-compatible). Blank
     # disables it entirely — sentry_sdk.init() below is only called when set.
     sentry_dsn:         Optional[str] = None
-    # EDDN simulation ingest (apps/api/src/ingest/eddn_client.py): a
-    # background task feeding journal_events/body_scan_facts from the
-    # live public EDDN relay, for the simulation/buildability engine —
-    # the same relay apps/eddn/eddn_listener.py already consumes
-    # continuously for systems/bodies/stations, just a narrower slice of
-    # events (Scan/FSSBodySignals/SAASignalsFound) into different tables.
-    # Defaults ON (decided 2026-08-07) as a deliberate, always-fresh
-    # complement to the client-side journal-import lane
-    # (journal_import/store.py), which only covers systems a user has
-    # actually uploaded a journal for. Kept as a flag, not unconditional,
-    # so it can be switched off via env var without a redeploy if it
-    # ever needs to be. See CLAUDE.md's roadmap boundaries section for
-    # why this is NOT the same thing as the still-deferred "journal-import
-    # canonical promotion" work.
-    eddn_simulation_ingest_enabled: bool = True
-    # Write-path breaker for the same task: after this many *consecutive*
-    # failed DB flushes the ingest loop raises, drops its socket and
-    # reconnects after RECONNECT_DELAY instead of continuing to receive
-    # events it cannot persist while reporting itself live. Bounded 1..1000
-    # (eddn_client.py clamps again) so an env typo cannot disable it.
-    eddn_simulation_ingest_max_consecutive_flush_failures: int = Field(
-        default=5, ge=1, le=1000,
-    )
-
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
     @field_validator(

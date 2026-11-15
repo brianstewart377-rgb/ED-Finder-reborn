@@ -26,20 +26,8 @@ from edfinder_api.helpers import (
     STATUS_REASON_TIMEOUT,
     STATUS_REASON_UNKNOWN,
 )
-from edfinder_api.ingest.eddn_client import (
-    consecutive_flush_failures as eddn_simulation_ingest_consecutive_flush_failures,
-    flush_failures_total as eddn_simulation_ingest_flush_failures_total,
-    last_flush_attempt_timestamp as eddn_simulation_ingest_last_flush_attempt_timestamp,
-    last_successful_flush_timestamp as eddn_simulation_ingest_last_successful_flush_timestamp,
-    max_consecutive_flush_failures as eddn_simulation_ingest_max_consecutive_flush_failures,
-    seconds_since_last_flush as eddn_simulation_ingest_seconds_since_flush,
-)
 from edfinder_api.models import HealthResponse, StatusResponse
 from edfinder_api.monitoring import data_invariants_receipt_metrics
-from edfinder_api.routers.events import (
-    bridge_reconnects_total as sse_bridge_reconnects_total,
-    bridge_state as sse_bridge_state,
-)
 from edfinder_api.state import metrics
 
 log = logging.getLogger('ed_finder')
@@ -272,32 +260,5 @@ async def metrics_endpoint():
         '# HELP ed_finder_uptime_seconds Seconds since startup',
         '# TYPE ed_finder_uptime_seconds gauge',
         f'ed_finder_uptime_seconds {uptime:.0f}',
-        '# HELP ed_finder_eddn_simulation_ingest_seconds_since_flush Seconds since the EDDN simulation ingest task last completed a flush cycle',
-        '# TYPE ed_finder_eddn_simulation_ingest_seconds_since_flush gauge',
-        f'ed_finder_eddn_simulation_ingest_seconds_since_flush {eddn_simulation_ingest_seconds_since_flush():.1f}',
-        '# HELP ed_finder_eddn_simulation_ingest_flush_failures_total Failed EDDN simulation ingest DB flushes since process start',
-        '# TYPE ed_finder_eddn_simulation_ingest_flush_failures_total counter',
-        f'ed_finder_eddn_simulation_ingest_flush_failures_total {eddn_simulation_ingest_flush_failures_total()}',
-        '# HELP ed_finder_eddn_simulation_ingest_consecutive_flush_failures Consecutive failed EDDN simulation ingest flushes since the last successful one',
-        '# TYPE ed_finder_eddn_simulation_ingest_consecutive_flush_failures gauge',
-        f'ed_finder_eddn_simulation_ingest_consecutive_flush_failures {eddn_simulation_ingest_consecutive_flush_failures()}',
-        '# HELP ed_finder_eddn_simulation_ingest_last_successful_flush_timestamp_seconds Unix time of the last successful EDDN simulation ingest DB flush (0 = none since process start)',
-        '# TYPE ed_finder_eddn_simulation_ingest_last_successful_flush_timestamp_seconds gauge',
-        f'ed_finder_eddn_simulation_ingest_last_successful_flush_timestamp_seconds {eddn_simulation_ingest_last_successful_flush_timestamp():.0f}',
-        '# HELP ed_finder_eddn_simulation_ingest_last_flush_attempt_timestamp_seconds Unix time at which the last non-empty EDDN simulation ingest DB flush started, success or failure (0 = none since process start)',
-        '# TYPE ed_finder_eddn_simulation_ingest_last_flush_attempt_timestamp_seconds gauge',
-        f'ed_finder_eddn_simulation_ingest_last_flush_attempt_timestamp_seconds {eddn_simulation_ingest_last_flush_attempt_timestamp():.0f}',
-        '# HELP ed_finder_eddn_simulation_ingest_enabled Whether the EDDN simulation ingest task is enabled in this process (EDDN_SIMULATION_INGEST_ENABLED)',
-        '# TYPE ed_finder_eddn_simulation_ingest_enabled gauge',
-        f'ed_finder_eddn_simulation_ingest_enabled {1 if settings.eddn_simulation_ingest_enabled else 0}',
-        '# HELP ed_finder_eddn_simulation_ingest_max_consecutive_flush_failures Consecutive flush failures at which the ingest loop drops its batch and reconnects (EDDN_SIMULATION_INGEST_MAX_CONSECUTIVE_FLUSH_FAILURES, clamped)',
-        '# TYPE ed_finder_eddn_simulation_ingest_max_consecutive_flush_failures gauge',
-        f'ed_finder_eddn_simulation_ingest_max_consecutive_flush_failures {eddn_simulation_ingest_max_consecutive_flush_failures()}',
-        '# HELP ed_finder_sse_bridge_state EDDN to SSE Redis pub/sub bridge state (0 not started, 1 connecting, 2 subscribed, 3 retrying, 4 stopped)',
-        '# TYPE ed_finder_sse_bridge_state gauge',
-        f'ed_finder_sse_bridge_state {sse_bridge_state()}',
-        '# HELP ed_finder_sse_bridge_reconnects_total EDDN to SSE bridge connect or subscribe attempts that followed a failure',
-        '# TYPE ed_finder_sse_bridge_reconnects_total counter',
-        f'ed_finder_sse_bridge_reconnects_total {sse_bridge_reconnects_total()}',
     ])
     return '\n'.join(lines) + '\n'
