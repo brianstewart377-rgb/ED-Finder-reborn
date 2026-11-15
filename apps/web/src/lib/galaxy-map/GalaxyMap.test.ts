@@ -128,6 +128,8 @@ describe('starting the map', () => {
     expect(map.options.systemNames).toBe(true);
     expect(map.options.startView).toBeUndefined();
     expect(map.options.hud).toMatchObject({ title: 'GALAXY MAP' });
+    // The map's own RANGE tile would read "0 LY" on every landed selection.
+    expect(map.options.hud).toMatchObject({ infoFields: { range: false } });
     expect(map.systemCount()).toBe(0);
     expect(map.flights).toHaveLength(0);
     expect(map.getView()).toEqual(FAKE_HOME);
@@ -183,6 +185,37 @@ describe('starting the map', () => {
     const { map, unmount } = await started();
     unmount();
     expect(map.disposed).toBe(true);
+  });
+
+  it('hands its graphics memory back when the page leaves, after the map is taken down', async () => {
+    // A browser with real graphics: the tests' own has none.
+    const order: string[] = [];
+    const loseContext = vi.fn(() => order.push('memory handed back'));
+    vi.stubGlobal('WebGL2RenderingContext', class {});
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(
+        () =>
+          ({
+            getExtension: (name: string) =>
+              name === 'WEBGL_lose_context' ? { loseContext } : null,
+          }) as unknown as RenderingContext,
+      );
+    try {
+      const { map, unmount } = await started();
+      const dispose = map.dispose.bind(map);
+      map.dispose = () => {
+        order.push('map taken down');
+        dispose();
+      };
+      expect(loseContext).not.toHaveBeenCalled();
+      unmount();
+      expect(order).toEqual(['map taken down', 'memory handed back']);
+      expect(getContext).toHaveBeenCalledWith('webgl2');
+    } finally {
+      getContext.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -524,6 +557,84 @@ describe('the camera buttons of the page', () => {
   });
 });
 
+describe('making sure what the map is handed gets drawn', () => {
+  // The real map rests when nothing moves, and a change wakes it for about a
+  // second only. On a page too busy to draw within that, the change was never
+  // drawn (seen in a browser: a map opened where it was left had no markers
+  // until the camera moved).
+  let frames: (() => void)[];
+  let cancelled: number[];
+  beforeEach(() => {
+    frames = [];
+    cancelled = [];
+    vi.stubGlobal('requestAnimationFrame', (run: () => void) => {
+      frames.push(run);
+      return frames.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => cancelled.push(id));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const nextFrame = () => {
+    const due = frames;
+    frames = [];
+    for (const run of due) run();
+  };
+
+  it('wakes the map from the next animation frame, without moving it or touching what is selected', async () => {
+    const { map } = await started({ showing: found() });
+    // Handed its systems, and not yet woken a second time.
+    expect(map.systemCount()).toBe(51);
+    expect(map.wakes).toBe(0);
+    const before = {
+      view: map.getView(),
+      flights: map.flights.length,
+      selected: map.getSelection()?.name,
+      names: map.areSystemNamesVisible(),
+    };
+    nextFrame();
+    expect(map.wakes).toBe(1);
+    // The wake is the map's names switch set to the value it already had.
+    expect(map.areSystemNamesVisible()).toBe(before.names);
+    expect(map.getView()).toEqual(before.view);
+    expect(map.flights).toHaveLength(before.flights);
+    expect(map.getSelection()?.name).toBe(before.selected);
+    // Nothing more is asked until the map is handed something again.
+    nextFrame();
+    expect(map.wakes).toBe(1);
+  });
+
+  it('asks for one wake however much is handed before the frame comes, and again after the next change', async () => {
+    const { map, rerender } = await started({ showing: looking() });
+    await rerender({ showing: found() });
+    await rerender({ showing: found(), journeys: [VISITED] });
+    expect(frames).toHaveLength(1);
+    nextFrame();
+    expect(map.wakes).toBe(1);
+    await rerender({ showing: found(), journeys: null });
+    expect(frames).toHaveLength(1);
+    nextFrame();
+    expect(map.wakes).toBe(2);
+  });
+
+  it('keeps a names switch the player turned off as it is', async () => {
+    const { map } = await started({ showing: found() });
+    map.namesVisible = false;
+    nextFrame();
+    expect(map.wakes).toBe(1);
+    expect(map.areSystemNamesVisible()).toBe(false);
+  });
+
+  it('drops a wake that is still waiting when the page leaves', async () => {
+    const { map, unmount } = await started({ showing: found() });
+    expect(frames).toHaveLength(1);
+    unmount();
+    expect(cancelled).toEqual([1]);
+    // Were the frame to come anyway, the map that was taken down is left alone.
+    nextFrame();
+    expect(map.wakes).toBe(0);
+  });
+});
+
 describe('leaving and coming back', () => {
   it('hands back where the camera was, and opens there again without a flight', async () => {
     const onLeave = vi.fn<(resume: MapResume) => void>();
@@ -548,6 +659,26 @@ describe('leaving and coming back', () => {
     // The whole-galaxy button still knows the view the map first opened on.
     second.component.wholeGalaxy();
     expect(second.map.flights[0].target).toEqual(FAKE_HOME);
+  });
+
+  it('left while still flying to a system, it opens there and flies the rest of the way', async () => {
+    const onLeave = vi.fn<(resume: MapResume) => void>();
+    const first = await started({ showing: found(), onLeave });
+    // The flight to Sol has not landed when the page is left.
+    expect(first.map.flights).toHaveLength(1);
+    first.unmount();
+    const resume = onLeave.mock.calls[0][0];
+    // Sol was not reached, so it is not handed back as shown.
+    expect(resume.shownId).toBeNull();
+
+    const second = await started({ showing: found(), resume });
+    expect(second.map.options.startView).toEqual(resume.view);
+    expect(second.map.flights).toHaveLength(1);
+    expect(second.map.flights[0].target).toMatchObject({
+      cursor: [0, 0, 0],
+      distance: 70,
+    });
+    expect(second.map.getSelection()?.name).toBe('Sol');
   });
 });
 

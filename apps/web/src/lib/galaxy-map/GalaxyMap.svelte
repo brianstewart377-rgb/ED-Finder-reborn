@@ -203,6 +203,30 @@
     });
   }
 
+  /**
+   * Make sure what the map is handed gets drawn.
+   *
+   * The map rests when nothing moves. A change wakes it, but only for about
+   * a second: if the page is busy for longer than that before its next
+   * frame (as it is just after opening, on a slow device), the map goes back
+   * to rest without drawing the change, and it stays undrawn until the
+   * camera moves. Seen on a map opened where it was left: no markers.
+   *
+   * An animation frame only comes once the page is free to draw, so the map
+   * is woken once more from the next one. Setting a switch to the value it
+   * already has is the map's wake with nothing else attached: it ends no
+   * flight and no zoom, as moving the camera would.
+   */
+  let wakeAsked = 0;
+  function wakeWhenFree(): void {
+    if (wakeAsked !== 0 || typeof requestAnimationFrame !== 'function') return;
+    wakeAsked = requestAnimationFrame(() => {
+      wakeAsked = 0;
+      const held = map;
+      held?.setSystemNamesVisible(held.areSystemNamesVisible());
+    });
+  }
+
   /** The groups the player has switched off in the map's own Filters panel. */
   function groupsSwitchedOff(held: GalaxyMap): string[] {
     const off: string[] = [];
@@ -240,6 +264,7 @@
   function give(next: typeof given, content: MapContent): void {
     const held = map;
     if (!held) return;
+    wakeWhenFree();
     const before = given;
     const chosen = next.showing?.chosen ?? null;
     const chosenChanged = (chosen?.id64 ?? null) !== shownId;
@@ -336,6 +361,25 @@
     map?.setInteraction({ keys: on });
   }
 
+  /**
+   * Hand a finished map's graphics memory back at once. A browser keeps the
+   * memory of a canvas that has left the page until it next tidies up, and
+   * allows only so many at a time: going to Inspect and back a couple of
+   * dozen times would otherwise pile them up.
+   */
+  function releaseGraphics(used: HTMLCanvasElement): void {
+    // Only where there are real graphics (not in the tests' browser).
+    if (typeof WebGL2RenderingContext === 'undefined') return;
+    try {
+      used
+        .getContext('webgl2')
+        ?.getExtension('WEBGL_lose_context')
+        ?.loseContext();
+    } catch {
+      // Nothing to hand back.
+    }
+  }
+
   onMount(() => {
     let gone = false;
     let made: GalaxyMap | null = null;
@@ -353,7 +397,15 @@
           // the page, so they are on only while the map is being used.
           interaction: { keys: false },
           ...(resume ? { startView: { ...resume.view } } : {}),
-          hud: { title: 'GALAXY MAP', details: panelFor },
+          hud: {
+            title: 'GALAXY MAP',
+            details: panelFor,
+            // The map's own RANGE tile measures from the camera's centre,
+            // which is on a selected system once the camera has landed: it
+            // would read "0 LY" on every panel. A star's panel gives its
+            // distance from the chosen system instead (`map-content`).
+            infoFields: { range: false },
+          },
         });
         home = resume?.home ?? made.getView();
         await made.ready;
@@ -374,11 +426,22 @@
         phase = 'failed';
       }
     })();
+    const used = canvas;
     return () => {
       gone = true;
-      if (map && home) onLeave?.({ view: map.getView(), home, shownId });
+      if (wakeAsked !== 0) cancelAnimationFrame(wakeAsked);
+      // A flight of ours that was still on its way has not shown its system
+      // yet: opening there again must fly the rest of the way.
+      if (map && home)
+        onLeave?.({
+          view: map.getView(),
+          home,
+          shownId: flyingTo === null ? shownId : null,
+        });
       map = null;
-      made?.dispose();
+      if (!made) return;
+      made.dispose();
+      if (used) releaseGraphics(used);
     };
   });
 </script>

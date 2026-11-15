@@ -22,6 +22,7 @@ import {
   type FakeMap,
 } from '$lib/galaxy-map/fake-almanac';
 import solBox from '$lib/galaxy-map/fixtures/map-systems-sol-box.json';
+import { forgetMapLeftAt } from '$lib/galaxy-map/left-at';
 import type { ExploreAnchor } from './navigation';
 import ExploreWorkspaceTestHost from './ExploreWorkspaceTestHost.svelte';
 import { ExploreViewState } from './explore-view-state.svelte';
@@ -112,6 +113,8 @@ const onTheMap = (map: FakeMap) => [...map.systems.keys()];
 
 function stubRuntime(): void {
   resetFakeMaps();
+  // Each test is a new visit to the site: the map was not left anywhere.
+  forgetMapLeftAt();
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -4056,6 +4059,93 @@ describe.each([false, true])(
         'Sol and the 50 real stars within 15 ly of it.',
       );
       expect(within(said).queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
+
+    it('shows a star in its own right when SHOW ON MAP is pressed in the map’s panel, though it is no result of Find', async () => {
+      const map = await chooseSol();
+      await waitFor(() => expect(map.systemCount()).toBe(51));
+      // Alpha Centauri is one of Sol's stars in range, and inhabited: Find
+      // does not list it.
+      const star = [...map.systems.values()].find(
+        (system) => system.name === 'Alpha Centauri',
+      )!;
+      const panel = (await map.panel(star.id64!))!;
+      expect(panel.actions!.map((action) => action.label)).toEqual([
+        'SHOW ON MAP',
+        'INSPECT',
+      ]);
+      panel.actions![0].onSelect(star);
+      // It is now the system shown: selected, flown to, and named.
+      await waitFor(() =>
+        expect(map.getSelection()?.name).toBe('Alpha Centauri'),
+      );
+      expect(map.flights.at(-1)!.target).toEqual({
+        cursor: star.position,
+        distance: 70,
+        pitch: 35,
+      });
+      await waitFor(() =>
+        expect(document.querySelector('.selection-status')).toHaveTextContent(
+          /^Alpha Centauri and the \d+ real stars within 15 ly of it\.$/u,
+        ),
+      );
+      expect(
+        screen.getByRole('region', { name: 'Alpha Centauri · Galaxy map' }),
+      ).toBeInTheDocument();
+      // Its own panel now has INSPECT only: it is the chosen system.
+      expect(
+        (await map.panel(star.id64!))!.actions!.map((action) => action.label),
+      ).toEqual(['INSPECT']);
+      // The map gave its position: the site is not asked for it again.
+      expect(api.getSystem).not.toHaveBeenCalledWith(
+        star.id64,
+        expect.anything(),
+      );
+    });
+
+    it('opens the map where it was left when the page is opened again on the same system, and flies only for another', async () => {
+      const first = await chooseSol();
+      await waitFor(() => expect(first.systemCount()).toBe(51));
+      first.land();
+      await tick();
+      first.playerMovesTo({ cursor: [4, 0, 4], distance: 120, yaw: 15 });
+      const address = mockedPage.url.search.replace(/^\?/u, '');
+      const state = mockedPage.state;
+
+      // To Inspect and back: the page, and its own state, are made anew.
+      cleanup();
+      expect(first.disposed).toBe(true);
+      renderEnabled(address, state);
+      await waitFor(() => expect(fakeMaps).toHaveLength(2));
+      const second = await theMap();
+      expect(second).not.toBe(first);
+      expect(second.options.startView).toMatchObject({
+        cursor: [4, 0, 4],
+        distance: 120,
+        yaw: 15,
+      });
+      // Sol and its stars are on the map again, and nothing is flown.
+      await waitFor(() => expect(second.systemCount()).toBe(51));
+      expect(second.flights).toHaveLength(0);
+      expect(second.getView()).toMatchObject({
+        cursor: [4, 0, 4],
+        distance: 120,
+      });
+
+      // Another system: the map flies to it, as ever.
+      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
+        systems: [],
+        truncated: false,
+      });
+      await fireEvent.click(
+        await screen.findByRole('button', {
+          name: /Ranked 2.*9007199254741002/,
+        }),
+      );
+      await waitFor(() =>
+        expect(second.getSelection()?.id64).toBe(rankedRows[1].id64),
+      );
+      expect(second.flights).toHaveLength(1);
     });
 
     it('moves on to a result when one is selected, and asks for that system’s stars', async () => {

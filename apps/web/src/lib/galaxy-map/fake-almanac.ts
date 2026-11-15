@@ -67,6 +67,12 @@ export class FakeMap {
     refreshed: 0,
     refresh: () => void (this.hud.refreshed += 1),
   };
+  /**
+   * How many times the map was woken by setting its names switch, and how
+   * many of those changed nothing else.
+   */
+  wakes = 0;
+  namesVisible = true;
   readonly ready: Promise<void>;
   private view: MapView;
   private selected: string | null = null;
@@ -224,6 +230,15 @@ export class FakeMap {
 
   isFlying(): boolean {
     return this.flights.at(-1)?.settle != null;
+  }
+
+  areSystemNamesVisible(): boolean {
+    return this.namesVisible;
+  }
+
+  setSystemNamesVisible(on: boolean): void {
+    this.wakes += 1;
+    this.namesVisible = on;
   }
 
   setInteraction(next: Partial<typeof this.interaction>): void {
