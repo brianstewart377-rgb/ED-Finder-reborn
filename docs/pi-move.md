@@ -942,6 +942,15 @@ Still to do: the 1.3 s pause on the first system drawn; temperatures in the
 trial's data, so hot rock and metal is drawn molten as the rule says; then
 the real System Map in the app.
 
+(15 Nov) Spinning switched itself off on the owner's gaming PC for a large
+system: Maia's 56 bodies took 9.7 and 11.1 ms a step against the 8 ms limit.
+The cost was not the drawing. Cosmos draws every body on one surface and
+makes that surface anew whenever the size asked for differs from the last;
+a system's bodies come in five sizes, mixed in the order they are listed, so
+nearly every body paid for a new surface. Measured in that PC's Chrome with
+Cosmos as the site ships it, 30 bodies a step: 54 ms in mixed order, 18 ms
+with bodies of one size drawn together. Each step now draws them that way.
+
 (15 Nov) The map is in the app (#72, #73). Going back over it with more real
 systems found that pairs were put in the wrong place. Our data never says
 what a pair (two bodies that circle each other) orbits. In Maia, three pairs
