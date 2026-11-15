@@ -96,6 +96,24 @@
   /** The chosen system a flight of ours is still on its way to. */
   let flyingTo: string | null = null;
   let flight = 0;
+  /**
+   * The system whose open panel says something older than what is now known
+   * of it, because that came in while the map was flying there. The map
+   * reads a panel once, when it opens, and opening one takes the camera: so
+   * the flight is left to finish, and the panel is opened again on landing.
+   */
+  let wordsOwed: string | null = null;
+
+  /**
+   * Open the map's panel again on the system it is open on, so that it asks
+   * what to say once more, and put the camera back where it was.
+   */
+  function readAgain(held: GalaxyMap, selected: string): void {
+    const viewBefore = held.getView();
+    held.setSelection(null);
+    held.setSelection(selected);
+    held.setView(viewBefore);
+  }
 
   function fly(chosen: MapSystem): void {
     if (!map) return;
@@ -110,7 +128,12 @@
       .then(() => {
         // Landed, or the player took the camera. A newer flight of ours
         // ending this one is neither.
-        if (mine === flight) flyingTo = null;
+        if (mine !== flight) return;
+        flyingTo = null;
+        const owed = wordsOwed;
+        wordsOwed = null;
+        if (map && owed !== null && map.getSelection()?.id64 === owed)
+          readAgain(map, owed);
       });
   }
 
@@ -325,28 +348,30 @@
       told = system.id64 ?? null;
       settle(panelOf(system));
     }
+    // A panel told in this call says what is known now.
+    if (told !== null && told === wordsOwed) wordsOwed = null;
 
     if (chosen && chosenChanged) {
       // A new system was chosen in Find: fly to it, and open the map's
       // panel on it where the panel has room beside the map.
+      wordsOwed = null;
       held.setSelection(panelFits() ? chosen.id64 : null);
       fly(chosen);
       return;
     }
     // The same showing, and the panel is open on a system it would now say
-    // something else about: the map reads a panel once, so it is opened
-    // again, and the camera put back as above.
+    // something else about. The map reads a panel once, so it has to be
+    // opened again: at once where the camera is still or the player's, and
+    // on landing where a flight of ours to the chosen system is under way,
+    // which opening a panel would otherwise stop and start again.
     const selected = held.getSelection()?.id64 ?? null;
     if (
       selected &&
       selected !== told &&
       panelText(before, selected) !== panelText(next, selected)
     ) {
-      const viewBefore = held.getView();
-      held.setSelection(null);
-      held.setSelection(selected);
-      if (chosen && flyingTo === chosen.id64) fly(chosen);
-      else held.setView(viewBefore);
+      if (chosen && flyingTo === chosen.id64) wordsOwed = selected;
+      else readAgain(held, selected);
     }
   }
 
