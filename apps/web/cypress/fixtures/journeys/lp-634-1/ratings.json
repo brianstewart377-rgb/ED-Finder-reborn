@@ -1,0 +1,74 @@
+{
+  "derived_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
+  "publication_sequence": 1,
+  "canonical_generation_id": "a7076522-54cd-52f3-a291-4e5406bea230",
+  "canonical_publication_sequence": 4,
+  "scorer_version": "4.0.0",
+  "mechanics_version": "v4-mechanics-2026-09",
+  "system_id64": 6131166483162,
+  "ratings": [
+    {
+      "economy": "Agriculture",
+      "potential_score": 0,
+      "specialisation_quality": 0,
+      "specialisation_quality_min": 0,
+      "specialisation_quality_max": 0,
+      "evidence_completeness": 0.725,
+      "confidence": 0.8625
+    },
+    {
+      "economy": "Refinery",
+      "potential_score": 0,
+      "specialisation_quality": 0,
+      "specialisation_quality_min": 0,
+      "specialisation_quality_max": 0,
+      "evidence_completeness": 1,
+      "confidence": 1
+    },
+    {
+      "economy": "Industrial",
+      "potential_score": 75,
+      "specialisation_quality": 100,
+      "specialisation_quality_min": 100,
+      "specialisation_quality_max": 100,
+      "evidence_completeness": 0.5556,
+      "confidence": 0.7778
+    },
+    {
+      "economy": "HighTech",
+      "potential_score": 62,
+      "specialisation_quality": 97,
+      "specialisation_quality_min": 97,
+      "specialisation_quality_max": 97,
+      "evidence_completeness": 0.9286,
+      "confidence": 0.9643
+    },
+    {
+      "economy": "Military",
+      "potential_score": 0,
+      "specialisation_quality": 0,
+      "specialisation_quality_min": 0,
+      "specialisation_quality_max": 0,
+      "evidence_completeness": 1,
+      "confidence": 1
+    },
+    {
+      "economy": "Tourism",
+      "potential_score": 70,
+      "specialisation_quality": 97,
+      "specialisation_quality_min": 97,
+      "specialisation_quality_max": 97,
+      "evidence_completeness": 0.9444,
+      "confidence": 0.9722
+    },
+    {
+      "economy": "Extraction",
+      "potential_score": 0,
+      "specialisation_quality": 0,
+      "specialisation_quality_min": 0,
+      "specialisation_quality_max": 0,
+      "evidence_completeness": 0.5556,
+      "confidence": 0.7778
+    }
+  ]
+}

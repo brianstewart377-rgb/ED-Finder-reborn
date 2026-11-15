@@ -708,6 +708,9 @@ Found on the way, and left for later:
   at the top as not run and out of date: their map steps describe the Babylon
   map. Rebuilding them is its own job. The renderer-name trick above would
   let a journey draw Almanac's map in CI, slowly.
+  (15 Nov) Rebuilt, and run in CI on every pull request: four journeys in
+  `apps/web/cypress/e2e/journeys.cy.ts`, on recorded real answers, so they
+  need no test stack. The old files are gone. The maps stay out of them.
 - **The density map's route and client call are now unused**
   (`GET /api/map/heatmap`, `getMapHeatmap`), with the `v3_spatial` tables
   that feed it. They belong with the dead API routes already on the list.
