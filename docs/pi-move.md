@@ -418,6 +418,8 @@ In order:
       of 14 Nov, the first to write the signal.
       (14 Nov) That run left out only the three rare words below, so the
       new signal is being written.
+      (14 Nov) The three rare words were looked at again: no change. They
+      stay left out, and written down in `v3_source.unmapped_vocabulary`.
       Inspect shows it in the game's own words, "planetary mining
       locations" (the owner, 13 Nov).
 - [x] Re-score what is on the waiting list. (12 Nov) In order: apply
@@ -470,6 +472,24 @@ In order:
       when `backup.py` is fetched again.
       (14 Nov) The first full backup finished: 133.5 GB, 120 tables,
       3 hours 25 minutes.
+      (14 Nov) A drive for backups is on the Pi: a 12 TB drive in a USB
+      caddy, ext4, at `/mnt/backup` (owner). Its whole surface is being
+      read through once to see that it is sound. Until that comes back
+      clean, the full backups on the drive the Pi starts from
+      (`/var/backups/edfinder/full`) are kept; the owner looks on the
+      evening of 15 Nov.
+- [x] (14 Nov) **Find's usual first searches, run after the nightly jobs.**
+      A job that reads a lot of the database pushes what Find needs out of
+      memory, and the next visitor's first search then waits on the drive.
+      `edfinder_deploy.py warm` (#74) runs the 18 searches visitors start
+      with (Any and each colony type, galaxy-wide, at 250 and 500 ly), and
+      `edfinder-find-warmup.service` runs it whenever the galaxy update or
+      the weekly full backup has ended well. Installed on the Pi by the
+      owner on 14 Nov; its first run, with everything already in memory,
+      answered each search in 0.07 to 0.46 s. systemd's line "multiple
+      trigger source candidates for exit status propagation … skipping"
+      is harmless: two units can start the warm-up, so it is not told
+      which one's result to carry.
 - [x] (11 Nov) **Hearing about failures.** Today a nightly job that fails
       tells nobody. Each night's jobs report in when they finish, and
       something off the Pi notices when they have not.
@@ -543,6 +563,10 @@ been made or agreed since, each as a reviewed migration after a fresh backup:
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had
 Babylon going too. See "Not part of the move".
+(13 to 15 Nov) Babylon has gone altogether, as the plan had it: the owner
+dropped it for the System Map too (13 Nov). The System Map is drawn by the
+browser with Cosmos pictures (#72, #73), Almanac's map is on Explore (#75),
+and Babylon is out of the site (#76).
 
 Also decided since: one band of scores out to 500 ly, kept up to date every
 night (owner, 11 November), in place of 250 ly every night and 500 ly on
@@ -1119,6 +1143,19 @@ Radeon RX 6800 XT, in Chrome, drawing with WebGPU, against the server:
   order was tried and is no better (5.0 s, then 0.5 s): the database read
   the index for the whole cube, 922,417 systems. Not adopted. No change to
   Find for now.
+- (14 Nov) Find, as agreed for the Pi, all live:
+  - systems within 250 ly of inhabited space, or 500 ly on request (#67;
+    a ranking's web address carried the choice as text and was refused,
+    put right the same day in #71, and the deploy tool's Find check now
+    asks as the web app does);
+  - a colony type near a system searches near that system, where before it
+    ranked the whole galaxy (#68);
+  - body filters always apply: galaxy-wide they thin the best 10,000 (#69);
+  - Find counts and pages to 1,000 (#74). The first galaxy-wide search for
+    one colony type had taken 7.7 s and the same search again 0.26 s; most
+    of the first was the count, walking to 10,001 matches off the drive.
+  `scripts/pi/find_timing.py` (#70) times Find's searches on the Pi three
+  ways (as it comes, again, and with JIT off) and changes nothing.
 - (15 Nov) Find counts to 1,000 now, not 10,000 (#74), and the count is
   still the slow half of a search for one colony type near a star. Measured
   on the Pi through the live site: the first page of "Manufacturing Hub near
@@ -1300,6 +1337,10 @@ just Babylon is no longer needed".
   and `devalue` in the web build (its faults are on a server the app does
   not have). None is reachable from outside as the app is built. Routine
   updates, with a test of the share picture first.
+  (14 Nov, #66) Done: Pillow 13.0.0 (the share picture is the same pixel
+  for pixel), tornado 6.6, `devalue` 5.9.4. Still to do: tornado 6.6.1,
+  which has the fix for the last of its faults. It was under a week old,
+  and the lock file waits a week before it takes a release: after 16 Nov.
 - The API's container runs as root and carries a compiler it does not need.
 - Find cannot rank by a colony type and search near a system at once: a
   type gives a list for the whole galaxy, and the body filters (behind the
