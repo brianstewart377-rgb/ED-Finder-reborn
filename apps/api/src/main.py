@@ -76,41 +76,42 @@ from edfinder_api.share_router import router as share_router
 _cache_reconnect_task: Optional[asyncio.Task] = None
 
 
+async def init_connection(conn: asyncpg.Connection) -> None:
+    """Per-connection initialiser.
+
+    Audit fix (2026-05-08, AUDIT_REPORT.md §Phase 6): without this
+    codec, asyncpg returns JSONB columns as strings, which made
+    /api/profile/sync round-trip a stringified JSON instead of the
+    original dict. Registering the codec at pool-init time fixes
+    every JSONB read across the app.
+
+    NOTE: `statement_timeout` is NOT set here — pgBouncer's
+    transaction-pool mode wipes session-level SETs when it returns
+    a server connection to its own pool (verified in prod
+    2026-05-09: `SHOW statement_timeout` came back `0` over a
+    pooled connection). Instead, it lives in the
+    `server_settings={'statement_timeout': …}` startup parameters
+    on `asyncpg.create_pool()` above, which pgBouncer preserves.
+    """
+    import json as _json
+    await conn.set_type_codec(
+        'jsonb',
+        encoder=_json.dumps,
+        decoder=_json.loads,
+        schema='pg_catalog',
+    )
+    await conn.set_type_codec(
+        'json',
+        encoder=_json.dumps,
+        decoder=_json.loads,
+        schema='pg_catalog',
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _cache_reconnect_task
     log.info(f"ED Finder API backend v{settings.app_version} starting ...")
-
-    async def _init_conn(conn: asyncpg.Connection) -> None:
-        """Per-connection initialiser.
-
-        Audit fix (2026-05-08, AUDIT_REPORT.md §Phase 6): without this
-        codec, asyncpg returns JSONB columns as strings, which made
-        /api/profile/sync round-trip a stringified JSON instead of the
-        original dict. Registering the codec at pool-init time fixes
-        every JSONB read across the app.
-
-        NOTE: `statement_timeout` is NOT set here — pgBouncer's
-        transaction-pool mode wipes session-level SETs when it returns
-        a server connection to its own pool (verified in prod
-        2026-05-09: `SHOW statement_timeout` came back `0` over a
-        pooled connection). Instead, it lives in the
-        `server_settings={'statement_timeout': …}` startup parameters
-        on `asyncpg.create_pool()` above, which pgBouncer preserves.
-        """
-        import json as _json
-        await conn.set_type_codec(
-            'jsonb',
-            encoder=_json.dumps,
-            decoder=_json.loads,
-            schema='pg_catalog',
-        )
-        await conn.set_type_codec(
-            'json',
-            encoder=_json.dumps,
-            decoder=_json.loads,
-            schema='pg_catalog',
-        )
 
     async def _create_pool(
         dsn: str,
@@ -131,7 +132,7 @@ async def lifespan(app: FastAPI):
             statement_cache_size=0,
             server_settings={
                 'application_name': application_name,
-                # `statement_timeout` MUST live here, not in `init=_init_conn`.
+                # `statement_timeout` MUST live here, not in `init=init_connection`.
                 # asyncpg sends `server_settings` as protocol-level startup
                 # parameters which pgBouncer transaction-pool mode preserves
                 # across pooled connections, whereas a `SET statement_timeout`
@@ -143,7 +144,7 @@ async def lifespan(app: FastAPI):
                 # parameter fixes this without disabling pgbouncer pooling.
                 'statement_timeout': str(settings.statement_timeout_ms),
             },
-            init=_init_conn,
+            init=init_connection,
         )
 
     pool = await _create_pool(
