@@ -35,7 +35,7 @@ RANKING_VERSION: Final[str] = "v3-colony-potential-2"
 # The 8 V3-native archetype keys computed by F2b (scripts/v3_system_archetype_
 # model.py's `ARCHETYPE_KEYS` is the source of truth). Duplicated here as a
 # plain literal rather than imported: the deployed API image only ships
-# `apps/api/src/` (see apps/api/Dockerfile), not the repo-root `scripts/`
+# `apps/api/src/` (see apps/api/Dockerfile.release), not the repo-root `scripts/`
 # tree, and this module must stay pure/DB-free with no cross-tree coupling.
 # Keep in sync if the archetype set ever changes.
 ARCHETYPE_KEYS: Final[tuple[str, ...]] = (

@@ -13,14 +13,11 @@ classifiers = [
 # authority directly on the integration head:
 #
 #   apps/api/requirements.txt        — API compatibility mirror (not V3 lock authority)
-#   apps/eddn/requirements.txt       — EDDN listener
-#   apps/importer/requirements.txt   — Spansh importer + builders
+#   apps/importer/requirements.txt   — the Spansh pipelines
 #
-# To install everything for local dev / CI:
+# To install everything the tests need:
 #
-#   pip install -r apps/api/requirements.txt \
-#               -r apps/eddn/requirements.txt \
-#               -r apps/importer/requirements.txt
+#   pip install -r tests/requirements-ci.txt
 
 [tool.ruff]
 target-version = "py314"
@@ -34,20 +31,6 @@ ignore = ["E701", "E702"]
 # Retained canonical source must stay byte-identical to its published run hash.
 # Its unused Iterator import is harmless; new bridge code is linted normally.
 "apps/importer/src/v3_spansh/pipeline.py" = ["F401"]
-"apps/importer/src/build_regional_analysis.py" = ["E402"]
-"scripts/checks/data_invariants.py" = ["E402"]
-"scripts/dev/review_environment.py" = ["E402"]
-"tests/test_body_hierarchy_sort.py" = ["E402"]
-"tests/test_elite_news_parser.py" = ["E402"]
-"tests/test_facility_catalogue.py" = ["E402"]
-"tests/test_observations.py" = ["E402"]
-"tests/test_pagination_input_bounds.py" = ["E402"]
-"tests/test_ring_data_model.py" = ["E402"]
-"tests/test_simulation_contracts.py" = ["E402"]
-"tests/test_smoke.py" = ["E402"]
-"tests/test_stage17n2c_data_trust.py" = ["E402"]
-"tests/test_stage6c_comparison.py" = ["E402"]
-"tests/test_stage6e_review.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
