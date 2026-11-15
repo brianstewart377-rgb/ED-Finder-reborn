@@ -466,12 +466,12 @@ def test_model_digest_fails_closed_on_imported_repository_helper(tmp_path):
     source = MODEL_PATH.read_text(encoding='utf-8')
     edited = source.replace(
         'import math\n',
-        'import math\nfrom shared_contracts import data_invariant_contracts\n',
+        'import math\nfrom shared_contracts import ring_radius\n',
     )
     edited = _changed(
         edited,
         '    vectors = _scaled_vectors(vector_row, opportunity_groups)',
-        '    data_invariant_contracts.__name__\n'
+        '    ring_radius.__name__\n'
         '    vectors = _scaled_vectors(vector_row, opportunity_groups)',
     )
     with pytest.raises(ValueError, match='unsupported imported reference'):

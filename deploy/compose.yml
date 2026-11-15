@@ -15,7 +15,6 @@ services:
     environment:
       # No background writers start with the API; they are switched on
       # separately when they are wanted.
-      ADMIN_OPERATION_STARTUP_REAP_ENABLED: "false"
       EDDN_SIMULATION_INGEST_ENABLED: "false"
     expose:
       - "8000"
