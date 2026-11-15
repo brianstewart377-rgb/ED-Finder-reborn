@@ -1,0 +1,6077 @@
+{
+  "what": "The live site's answers for Maia (id 8216113749) on 15 Nov 2026: GET https://ed-finder.app/api/v1/systems/<id>, .../bodies, .../rings and .../stations, and the builder's list of the same bodies, GET https://ed-finder.app/api/v1/plan/systems/<id>/bodies. Nothing is changed.",
+  "system": {
+    "id64": "8216113749",
+    "name": "Maia",
+    "x_ly": -81.78125,
+    "y_ly": -149.4375,
+    "z_ly": -343.375,
+    "source_body_count": 50,
+    "loaded_body_count": 56,
+    "lifecycle_state": "ACTIVE",
+    "source_updated_at": "2026-11-14T21:56:25+00:00"
+  },
+  "bodies": [
+    {
+      "body_id": "36028805235077717",
+      "source_body_id64": "36028805235077717",
+      "frontier_body_id": "1",
+      "direct_parent_body_id": null,
+      "name": "Maia A",
+      "body_type": "star",
+      "body_class": "B (Blue-White) Star",
+      "body_class_source": null,
+      "is_main_star": true,
+      "spectral_class": "B6",
+      "luminosity_class": "III",
+      "is_landable": null,
+      "radius_km": 1751776.3050651336,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 13.617188,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 17565050721.168495,
+      "distance_from_arrival_ls": 0,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "72057602254041685",
+      "source_body_id64": "72057602254041685",
+      "frontier_body_id": "2",
+      "direct_parent_body_id": null,
+      "name": "Maia B",
+      "body_type": "star",
+      "body_class": "Black Hole",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "H0",
+      "luminosity_class": "VII",
+      "is_landable": null,
+      "radius_km": 7.849668733617968,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 2.660156,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 91551548242.56898,
+      "distance_from_arrival_ls": 300817.125247,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "108086399273005653",
+      "source_body_id64": "108086399273005653",
+      "frontier_body_id": "3",
+      "direct_parent_body_id": "36028805235077717",
+      "name": "Maia A 1",
+      "body_type": "planet",
+      "body_class": "Class V gas giant",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 71912.64,
+      "planet_mass_earth": 1859.176147,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 39480700.49285889,
+      "distance_from_arrival_ls": 131.735998,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 16
+        },
+        {
+          "signal_type": "saa_signaltype_other",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "body_id": "180143993310933589",
+      "source_body_id64": "180143993310933589",
+      "frontier_body_id": "5",
+      "direct_parent_body_id": "36028805235077717",
+      "name": "Maia A 2",
+      "body_type": "star",
+      "body_class": "T (Brown dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "T8",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 99170.36552005757,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.039063,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 190369707.34596196,
+      "distance_from_arrival_ls": 634.978934,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "216172790329897557",
+      "source_body_id64": "216172790329897557",
+      "frontier_body_id": "6",
+      "direct_parent_body_id": "180143993310933589",
+      "name": "Maia A 2 a",
+      "body_type": "planet",
+      "body_class": "Metal-rich body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1032.00375,
+      "planet_mass_earth": 0.007395,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1139188.5876655583,
+      "distance_from_arrival_ls": 635.144778,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 2
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "body_id": "252201587348861525",
+      "source_body_id64": "252201587348861525",
+      "frontier_body_id": "7",
+      "direct_parent_body_id": "180143993310933589",
+      "name": "Maia A 2 b",
+      "body_type": "planet",
+      "body_class": "Metal-rich body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1163.2265,
+      "planet_mass_earth": 0.010663,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1532780.8260917645,
+      "distance_from_arrival_ls": 633.750186,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 2
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "body_id": "288230384367825493",
+      "source_body_id64": "288230384367825493",
+      "frontier_body_id": "8",
+      "direct_parent_body_id": null,
+      "name": "Maia barycentre 8",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 341029667.8543091,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "324259181386789461",
+      "source_body_id64": "324259181386789461",
+      "frontier_body_id": "9",
+      "direct_parent_body_id": "288230384367825493",
+      "name": "Maia A 3",
+      "body_type": "star",
+      "body_class": "T (Brown dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "T1",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 144180.24897196254,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.078125,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 7119.962513447001,
+      "distance_from_arrival_ls": 1137.450336,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "360287978405753429",
+      "source_body_id64": "360287978405753429",
+      "frontier_body_id": "10",
+      "direct_parent_body_id": "324259181386789461",
+      "name": "Maia A 3 a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 3692.12375,
+      "planet_mass_earth": 0.161035,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1735186.8748664798,
+      "distance_from_arrival_ls": 1141.370013,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "body_id": "396316775424717397",
+      "source_body_id64": "396316775424717397",
+      "frontier_body_id": "11",
+      "direct_parent_body_id": "288230384367825493",
+      "name": "Maia A 4",
+      "body_type": "planet",
+      "body_class": "High metal content world",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 13420.922,
+      "planet_mass_earth": 19.534296,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 89170.3141376758,
+      "semi_major_axis_km": 9483225.822448734,
+      "distance_from_arrival_ls": 1168.935203,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "body_id": "432345572443681365",
+      "source_body_id64": "432345572443681365",
+      "frontier_body_id": "12",
+      "direct_parent_body_id": "36028805235077717",
+      "name": "Maia A 5",
+      "body_type": "star",
+      "body_class": "M (Red dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "M3",
+      "luminosity_class": "Va",
+      "is_landable": null,
+      "radius_km": 354516.5084894318,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.324219,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 593572169.5423133,
+      "distance_from_arrival_ls": 1974.854038,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "468374369462645333",
+      "source_body_id64": "468374369462645333",
+      "frontier_body_id": "13",
+      "direct_parent_body_id": "432345572443681365",
+      "name": "Maia A 5 a",
+      "body_type": "planet",
+      "body_class": "Class IV gas giant",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 73813.632,
+      "planet_mass_earth": 2013.413452,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 32318397.760391288,
+      "distance_from_arrival_ls": 1894.310873,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "body_id": "504403166481609301",
+      "source_body_id64": "504403166481609301",
+      "frontier_body_id": "14",
+      "direct_parent_body_id": null,
+      "name": "Maia barycentre 14",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 815343832.9696654,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "540431963500573269",
+      "source_body_id64": "540431963500573269",
+      "frontier_body_id": "15",
+      "direct_parent_body_id": "504403166481609301",
+      "name": "Maia A 6",
+      "body_type": "star",
+      "body_class": "L (Brown dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "L3",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 214667.42464184045,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.152344,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 2564.508378505994,
+      "distance_from_arrival_ls": 2719.651514,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "576460760519537237",
+      "source_body_id64": "576460760519537237",
+      "frontier_body_id": "16",
+      "direct_parent_body_id": "540431963500573269",
+      "name": "Maia A 6 a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 5047.549,
+      "planet_mass_earth": 0.436985,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1964221.3582992498,
+      "distance_from_arrival_ls": 2717.847665,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 17
+        }
+      ]
+    },
+    {
+      "body_id": "612489557538501205",
+      "source_body_id64": "612489557538501205",
+      "frontier_body_id": "17",
+      "direct_parent_body_id": "540431963500573269",
+      "name": "Maia A 6 b",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 4718.486,
+      "planet_mass_earth": 0.351587,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 2624696.4335441585,
+      "distance_from_arrival_ls": 2714.266282,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "body_id": "648518354557465173",
+      "source_body_id64": "648518354557465173",
+      "frontier_body_id": "18",
+      "direct_parent_body_id": "504403166481609301",
+      "name": "Maia A 7",
+      "body_type": "planet",
+      "body_class": "High metal content world",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 8955.555,
+      "planet_mass_earth": 3.860881,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 33700215.81649786,
+      "distance_from_arrival_ls": 2809.96959,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "body_id": "684547151576429141",
+      "source_body_id64": "684547151576429141",
+      "frontier_body_id": "19",
+      "direct_parent_body_id": "72057602254041685",
+      "name": "Maia B 1",
+      "body_type": "star",
+      "body_class": "Y (Brown dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "Y1",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 68151.76028411218,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.027344,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 897561258.0776209,
+      "distance_from_arrival_ls": 299040.002289,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "720575948595393109",
+      "source_body_id64": "720575948595393109",
+      "frontier_body_id": "20",
+      "direct_parent_body_id": "684547151576429141",
+      "name": "Maia B 1 a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1513.234375,
+      "planet_mass_earth": 0.010215,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 2410472.2142219567,
+      "distance_from_arrival_ls": 299047.122628,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 12
+        }
+      ]
+    },
+    {
+      "body_id": "756604745614357077",
+      "source_body_id64": "756604745614357077",
+      "frontier_body_id": "21",
+      "direct_parent_body_id": "720575948595393109",
+      "name": "Maia B 1 a a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 432.31903125,
+      "planet_mass_earth": 0.000221,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 4787.135243415997,
+      "distance_from_arrival_ls": 299047.111977,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 17
+        }
+      ]
+    },
+    {
+      "body_id": "792633542633321045",
+      "source_body_id64": "792633542633321045",
+      "frontier_body_id": "22",
+      "direct_parent_body_id": "684547151576429141",
+      "name": "Maia B 1 b",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1453.226125,
+      "planet_mass_earth": 0.009039,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 3130487.322807315,
+      "distance_from_arrival_ls": 299036.402346,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 17
+        }
+      ]
+    },
+    {
+      "body_id": "828662339652285013",
+      "source_body_id64": "828662339652285013",
+      "frontier_body_id": "23",
+      "direct_parent_body_id": "792633542633321045",
+      "name": "Maia B 1 b a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 527.8940625,
+      "planet_mass_earth": 0.000403,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 4936.733305453992,
+      "distance_from_arrival_ls": 299036.413389,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 23
+        }
+      ]
+    },
+    {
+      "body_id": "864691136671248981",
+      "source_body_id64": "864691136671248981",
+      "frontier_body_id": "24",
+      "direct_parent_body_id": null,
+      "name": "Maia barycentre 24",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 4554809.6895217905,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "900719933690212949",
+      "source_body_id64": "900719933690212949",
+      "frontier_body_id": "25",
+      "direct_parent_body_id": "864691136671248981",
+      "name": "Maia B 1 c",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1245.526375,
+      "planet_mass_earth": 0.005641,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 3581.1478495599977,
+      "distance_from_arrival_ls": 299052.814241,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 27
+        }
+      ]
+    },
+    {
+      "body_id": "936748730709176917",
+      "source_body_id64": "936748730709176917",
+      "frontier_body_id": "26",
+      "direct_parent_body_id": "864691136671248981",
+      "name": "Maia B 1 d",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1196.272125,
+      "planet_mass_earth": 0.00499,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 4048.348903656003,
+      "distance_from_arrival_ls": 299052.794499,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 18
+        }
+      ]
+    },
+    {
+      "body_id": "972777527728140885",
+      "source_body_id64": "972777527728140885",
+      "frontier_body_id": "27",
+      "direct_parent_body_id": "684547151576429141",
+      "name": "Maia B 1 e",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2231.352,
+      "planet_mass_earth": 0.033556,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.0046075703034789,
+      "semi_major_axis_km": 11618527.173995975,
+      "distance_from_arrival_ls": 299054.719432,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_biological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 14
+        }
+      ]
+    },
+    {
+      "body_id": "1008806324747104853",
+      "source_body_id64": "1008806324747104853",
+      "frontier_body_id": "28",
+      "direct_parent_body_id": null,
+      "name": "Maia barycentre 28",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 19646701.812744197,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "1044835121766068821",
+      "source_body_id64": "1044835121766068821",
+      "frontier_body_id": "29",
+      "direct_parent_body_id": "1008806324747104853",
+      "name": "Maia B 1 f",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2888.19775,
+      "planet_mass_earth": 0.040722,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 31078.156232834,
+      "distance_from_arrival_ls": 299034.163901,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 15
+        }
+      ]
+    },
+    {
+      "body_id": "1080863918785032789",
+      "source_body_id64": "1080863918785032789",
+      "frontier_body_id": "30",
+      "direct_parent_body_id": "1008806324747104853",
+      "name": "Maia B 1 g",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2715.379,
+      "planet_mass_earth": 0.03367,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 37587.31544017803,
+      "distance_from_arrival_ls": 299033.961047,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "body_id": "1116892715803996757",
+      "source_body_id64": "1116892715803996757",
+      "frontier_body_id": "31",
+      "direct_parent_body_id": "684547151576429141",
+      "name": "Maia B 1 h",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2978.71925,
+      "planet_mass_earth": 0.044791,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.0037503439526276796,
+      "semi_major_axis_km": 28595801.591873184,
+      "distance_from_arrival_ls": 299065.922706,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_biological",
+          "count": 2
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "body_id": "1152921512822960725",
+      "source_body_id64": "1152921512822960725",
+      "frontier_body_id": "32",
+      "direct_parent_body_id": null,
+      "name": "Maia barycentre 32",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 1272436916.828155,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "1188950309841924693",
+      "source_body_id64": "1188950309841924693",
+      "frontier_body_id": "33",
+      "direct_parent_body_id": "1152921512822960725",
+      "name": "Maia B 2",
+      "body_type": "star",
+      "body_class": "Y (Brown dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "Y3",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 51909.98309417682,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.015625,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 29695225.95405578,
+      "distance_from_arrival_ls": 296702.633594,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "1224979106860888661",
+      "source_body_id64": "1224979106860888661",
+      "frontier_body_id": "34",
+      "direct_parent_body_id": "1188950309841924693",
+      "name": "Maia B 2 a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 1105.140375,
+      "planet_mass_earth": 0.003935,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1215184.3905448914,
+      "distance_from_arrival_ls": 296704.433886,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "body_id": "1261007903879852629",
+      "source_body_id64": "1261007903879852629",
+      "frontier_body_id": "35",
+      "direct_parent_body_id": "1188950309841924693",
+      "name": "Maia B 2 b",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 740.90925,
+      "planet_mass_earth": 0.001169,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1505853.1761169496,
+      "distance_from_arrival_ls": 296707.272586,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "body_id": "1297036700898816597",
+      "source_body_id64": "1297036700898816597",
+      "frontier_body_id": "36",
+      "direct_parent_body_id": null,
+      "name": "Maia barycentre 36",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 2188019.9909210242,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "1333065497917780565",
+      "source_body_id64": "1333065497917780565",
+      "frontier_body_id": "37",
+      "direct_parent_body_id": "1297036700898816597",
+      "name": "Maia B 2 c",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 804.107125,
+      "planet_mass_earth": 0.001497,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1726.7510890959948,
+      "distance_from_arrival_ls": 296709.913128,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "body_id": "1369094294936744533",
+      "source_body_id64": "1369094294936744533",
+      "frontier_body_id": "38",
+      "direct_parent_body_id": "1297036700898816597",
+      "name": "Maia B 2 d",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 764.1805625,
+      "planet_mass_earth": 0.001284,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 2013.198196888003,
+      "distance_from_arrival_ls": 296709.914162,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "body_id": "1405123091955708501",
+      "source_body_id64": "1405123091955708501",
+      "frontier_body_id": "39",
+      "direct_parent_body_id": "1188950309841924693",
+      "name": "Maia B 2 e",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1252.97825,
+      "planet_mass_earth": 0.005757,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 3677267.9090499934,
+      "distance_from_arrival_ls": 296696.412168,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 25
+        }
+      ]
+    },
+    {
+      "body_id": "1441151888974672469",
+      "source_body_id64": "1441151888974672469",
+      "frontier_body_id": "40",
+      "direct_parent_body_id": "1405123091955708501",
+      "name": "Maia B 2 e a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 470.55046875,
+      "planet_mass_earth": 0.000285,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 7031.105101108999,
+      "distance_from_arrival_ls": 296696.408366,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "body_id": "1477180685993636437",
+      "source_body_id64": "1477180685993636437",
+      "frontier_body_id": "41",
+      "direct_parent_body_id": "1188950309841924693",
+      "name": "Maia B 2 f",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1022.70275,
+      "planet_mass_earth": 0.003101,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 5569083.9886665335,
+      "distance_from_arrival_ls": 296686.840617,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 18
+        }
+      ]
+    },
+    {
+      "body_id": "1513209483012600405",
+      "source_body_id64": "1513209483012600405",
+      "frontier_body_id": "42",
+      "direct_parent_body_id": "1152921512822960725",
+      "name": "Maia B 3",
+      "body_type": "planet",
+      "body_class": "Class III gas giant",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 66863.72,
+      "planet_mass_earth": 3140.862061,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 49196463.82331845,
+      "distance_from_arrival_ls": 296467.822497,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "body_id": "1585267077050528341",
+      "source_body_id64": "1585267077050528341",
+      "frontier_body_id": "44",
+      "direct_parent_body_id": "1513209483012600405",
+      "name": "Maia B 3 a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1158.08925,
+      "planet_mass_earth": 0.004522,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 805585.0744247438,
+      "distance_from_arrival_ls": 296465.457406,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 24
+        }
+      ]
+    },
+    {
+      "body_id": "1621295874069492309",
+      "source_body_id64": "1621295874069492309",
+      "frontier_body_id": "45",
+      "direct_parent_body_id": "1513209483012600405",
+      "name": "Maia B 3 b",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 1666.542125,
+      "planet_mass_earth": 0.013733,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 5.789097582038,
+      "semi_major_axis_km": 1455289.0658378592,
+      "distance_from_arrival_ls": 296471.945458,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "body_id": "1657324671088456277",
+      "source_body_id64": "1657324671088456277",
+      "frontier_body_id": "46",
+      "direct_parent_body_id": "1513209483012600405",
+      "name": "Maia B 3 c",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1423.094,
+      "planet_mass_earth": 0.008463,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 2024060.606956489,
+      "distance_from_arrival_ls": 296463.166916,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 25
+        }
+      ]
+    },
+    {
+      "body_id": "1693353468107420245",
+      "source_body_id64": "1693353468107420245",
+      "frontier_body_id": "47",
+      "direct_parent_body_id": "1513209483012600405",
+      "name": "Maia B 3 d",
+      "body_type": "planet",
+      "body_class": "Rocky Ice world",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2062.42425,
+      "planet_mass_earth": 0.021706,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 2694109.8570823707,
+      "distance_from_arrival_ls": 296462.787163,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 11
+        }
+      ]
+    },
+    {
+      "body_id": "1729382265126384213",
+      "source_body_id64": "1729382265126384213",
+      "frontier_body_id": "48",
+      "direct_parent_body_id": "1513209483012600405",
+      "name": "Maia B 3 e",
+      "body_type": "planet",
+      "body_class": "Rocky Ice world",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1884.503375,
+      "planet_mass_earth": 0.016464,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 3832999.467849728,
+      "distance_from_arrival_ls": 296458.29727,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 14
+        }
+      ]
+    },
+    {
+      "body_id": "1765411062145348181",
+      "source_body_id64": "1765411062145348181",
+      "frontier_body_id": "49",
+      "direct_parent_body_id": "72057602254041685",
+      "name": "Maia B 4",
+      "body_type": "star",
+      "body_class": "Y (Brown dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "Y3",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 54861.10348296192,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.015625,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 1638193905.353551,
+      "distance_from_arrival_ls": 304287.301486,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "1801439859164312149",
+      "source_body_id64": "1801439859164312149",
+      "frontier_body_id": "50",
+      "direct_parent_body_id": "1765411062145348181",
+      "name": "Maia B 4 a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1552.845375,
+      "planet_mass_earth": 0.011043,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 2336121.976375578,
+      "distance_from_arrival_ls": 304294.210291,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 11
+        }
+      ]
+    },
+    {
+      "body_id": "1837468656183276117",
+      "source_body_id64": "1837468656183276117",
+      "frontier_body_id": "51",
+      "direct_parent_body_id": "1765411062145348181",
+      "name": "Maia B 4 b",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 1882.45925,
+      "planet_mass_earth": 0.019914,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.00319850662718974,
+      "semi_major_axis_km": 4085520.8635330223,
+      "distance_from_arrival_ls": 304275.167486,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_biological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 20
+        }
+      ]
+    },
+    {
+      "body_id": "1873497453202240085",
+      "source_body_id64": "1873497453202240085",
+      "frontier_body_id": "52",
+      "direct_parent_body_id": "1837468656183276117",
+      "name": "Maia B 4 b a",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 509.9251875,
+      "planet_mass_earth": 0.000363,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.0210196705156674,
+      "semi_major_axis_km": 12117.435932159002,
+      "distance_from_arrival_ls": 304275.198708,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_biological",
+          "count": 3
+        },
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 3
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 12
+        }
+      ]
+    },
+    {
+      "body_id": "1909526250221204053",
+      "source_body_id64": "1909526250221204053",
+      "frontier_body_id": "53",
+      "direct_parent_body_id": "1765411062145348181",
+      "name": "Maia B 4 c",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2610.374,
+      "planet_mass_earth": 0.028901,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.000219674719960523,
+      "semi_major_axis_km": 5384479.761123661,
+      "distance_from_arrival_ls": 304287.069634,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 25
+        }
+      ]
+    },
+    {
+      "body_id": "1945555047240168021",
+      "source_body_id64": "1945555047240168021",
+      "frontier_body_id": "54",
+      "direct_parent_body_id": "1765411062145348181",
+      "name": "Maia B 4 d",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 2538.5465,
+      "planet_mass_earth": 0.026527,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 7730475.366115572,
+      "distance_from_arrival_ls": 304272.59651,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "body_id": "1981583844259131989",
+      "source_body_id64": "1981583844259131989",
+      "frontier_body_id": "55",
+      "direct_parent_body_id": "1765411062145348181",
+      "name": "Maia B 4 e",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 5565.6435,
+      "planet_mass_earth": 0.287001,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.0017392768221070798,
+      "semi_major_axis_km": 14417654.871940605,
+      "distance_from_arrival_ls": 304325.703272,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_biological",
+          "count": 1
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 13
+        }
+      ]
+    },
+    {
+      "body_id": "2017612641278095957",
+      "source_body_id64": "2017612641278095957",
+      "frontier_body_id": "56",
+      "direct_parent_body_id": "1765411062145348181",
+      "name": "Maia B 4 f",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 4860.1605,
+      "planet_mass_earth": 0.186701,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.000338826281766593,
+      "semi_major_axis_km": 32118237.61463169,
+      "distance_from_arrival_ls": 304250.203712,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "body_id": "2053641438297059925",
+      "source_body_id64": "2053641438297059925",
+      "frontier_body_id": "57",
+      "direct_parent_body_id": "72057602254041685",
+      "name": "Maia B 5",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 25030.274,
+      "planet_mass_earth": 183.854935,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 71.0519368369109,
+      "semi_major_axis_km": 2298892796.0395837,
+      "distance_from_arrival_ls": 307624.149435,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "body_id": "2125699032334987861",
+      "source_body_id64": "2125699032334987861",
+      "frontier_body_id": "59",
+      "direct_parent_body_id": "2053641438297059925",
+      "name": "Maia B 5 a",
+      "body_type": "planet",
+      "body_class": "Icy body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 13220.899,
+      "planet_mass_earth": 5.084518,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0.926748087836171,
+      "semi_major_axis_km": 17917349.338531543,
+      "distance_from_arrival_ls": 307609.230578,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 2
+        }
+      ]
+    }
+  ],
+  "rings": [
+    {
+      "ring_id": "144115196291969621",
+      "body_id": "108086399273005653",
+      "source_ring_id64": "144115196291969621",
+      "kind": "RING",
+      "name": "Maia A 1 A Ring",
+      "ring_type": "metal_rich",
+      "reserve_type": "pristine",
+      "inner_radius_km": 135880,
+      "outer_radius_km": 253350,
+      "mass_mt": 42802000000,
+      "signals_complete": true,
+      "source_updated_at": "2026-11-14T18:40:39+00:00",
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "monazite",
+          "count": 2
+        },
+        {
+          "signal_type": "painite",
+          "count": 3
+        },
+        {
+          "signal_type": "platinum",
+          "count": 1
+        },
+        {
+          "signal_type": "rhodplumsite",
+          "count": 3
+        },
+        {
+          "signal_type": "serendibite",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "ring_id": "1549238280031564373",
+      "body_id": "1513209483012600405",
+      "source_ring_id64": "1549238280031564373",
+      "kind": "RING",
+      "name": "Maia B 3 A Ring",
+      "ring_type": "rocky",
+      "reserve_type": "pristine",
+      "inner_radius_km": 130060,
+      "outer_radius_km": 509820,
+      "mass_mt": 4950900000000,
+      "signals_complete": true,
+      "source_updated_at": "2026-11-14T18:41:22+00:00",
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "alexandrite",
+          "count": 1
+        },
+        {
+          "signal_type": "serendibite",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "ring_id": "2089670235316023893",
+      "body_id": "2053641438297059925",
+      "source_ring_id64": "2089670235316023893",
+      "kind": "RING",
+      "name": "Maia B 5 A Ring",
+      "ring_type": "icy",
+      "reserve_type": "pristine",
+      "inner_radius_km": 41300,
+      "outer_radius_km": 201810,
+      "mass_mt": 129010000,
+      "signals_complete": false,
+      "source_updated_at": "2026-11-14T18:48:25+00:00",
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "ring_id": "2161727829353951829",
+      "body_id": "2125699032334987861",
+      "source_ring_id64": "2161727829353951829",
+      "kind": "RING",
+      "name": "Maia B 5 a A Ring",
+      "ring_type": "icy",
+      "reserve_type": "pristine",
+      "inner_radius_km": 26128,
+      "outer_radius_km": 59863,
+      "mass_mt": 241300000,
+      "signals_complete": false,
+      "source_updated_at": "2026-11-14T18:48:48+00:00",
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    }
+  ],
+  "stations": [
+    {
+      "station_id": "128672445",
+      "market_id": "128672445",
+      "name": "Obsidian Orbital",
+      "station_type": "ocellus_starport",
+      "distance_from_arrival_ls": 636.404911,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "128735222",
+      "market_id": "128735222",
+      "name": "Maia Point",
+      "station_type": "planetary_outpost",
+      "distance_from_arrival_ls": 634.920271,
+      "body_id": "252201587348861525",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": false,
+          "is_secondary": false
+        },
+        {
+          "economy": "refinery",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "128772653",
+      "market_id": "128772653",
+      "name": "Moni's Hub",
+      "station_type": "outpost",
+      "distance_from_arrival_ls": 1140.672037,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "128988123",
+      "market_id": "128988123",
+      "name": "Bright Sentinel",
+      "station_type": "megaship",
+      "distance_from_arrival_ls": 131.385824,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3400014376",
+      "market_id": "3400014376",
+      "name": "Rescue Ship - Obsidian Orbital",
+      "station_type": "megaship",
+      "distance_from_arrival_ls": 634.588872,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "rescue",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3500000000",
+      "market_id": "3500000000",
+      "name": "Darnielle's Progress",
+      "station_type": "planetary_outpost",
+      "distance_from_arrival_ls": 635.192381,
+      "body_id": "216172790329897557",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        },
+        {
+          "economy": "refinery",
+          "economy_weight": null,
+          "is_primary": false,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3500000256",
+      "market_id": "3500000256",
+      "name": "Pavlou Keep",
+      "station_type": null,
+      "distance_from_arrival_ls": null,
+      "body_id": "936748730709176917",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3542864896",
+      "market_id": "3542864896",
+      "name": "Palin Research Centre",
+      "station_type": "planetary_outpost",
+      "distance_from_arrival_ls": 1140.631862,
+      "body_id": "360287978405753429",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "colony",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3600011786",
+      "market_id": "3600011786",
+      "name": "Abraxas KJ35",
+      "station_type": "megaship",
+      "distance_from_arrival_ls": 303321.510135,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        },
+        {
+          "economy": "rescue",
+          "economy_weight": null,
+          "is_primary": false,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3700097280",
+      "market_id": "3700097280",
+      "name": "V7W-09T",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3700371712",
+      "market_id": "3700371712",
+      "name": "NOSTROMO",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 632.287701,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3700633856",
+      "market_id": "3700633856",
+      "name": "raxxla",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 131.657701,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701364224",
+      "market_id": "3701364224",
+      "name": "DIAMOND SOUL",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701451520",
+      "market_id": "3701451520",
+      "name": "B2H-15K",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 464.07477,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701647360",
+      "market_id": "3701647360",
+      "name": "QBH-61W",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0.890827,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701873664",
+      "market_id": "3701873664",
+      "name": "VHY-44Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 631.269837,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701883648",
+      "market_id": "3701883648",
+      "name": "T5Z-5QB",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1137.349799,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701990400",
+      "market_id": "3701990400",
+      "name": "JLF-83L",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702035456",
+      "market_id": "3702035456",
+      "name": "Q3Y-8QT",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 635.043993,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702308864",
+      "market_id": "3702308864",
+      "name": "The Donnager",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 296468.271718,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702343680",
+      "market_id": "3702343680",
+      "name": "PZQ-76G",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 303660.008448,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702659584",
+      "market_id": "3702659584",
+      "name": "KFL-57L",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702942976",
+      "market_id": "3702942976",
+      "name": "TZZ-00H",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 30.382178,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702981120",
+      "market_id": "3702981120",
+      "name": "ginger strip",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 37.23763,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703038720",
+      "market_id": "3703038720",
+      "name": "T9L-33Y",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 307531.904569,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703204096",
+      "market_id": "3703204096",
+      "name": "PZX-08X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 634.963956,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704029440",
+      "market_id": "3704029440",
+      "name": "G8M-8VL",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704398848",
+      "market_id": "3704398848",
+      "name": "K1J-24B",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 532.444847,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705105920",
+      "market_id": "3705105920",
+      "name": "BPFC TEA-NATION",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 2767.367831,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705118208",
+      "market_id": "3705118208",
+      "name": "W2V-4XV",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705200384",
+      "market_id": "3705200384",
+      "name": "TNZ-B1L",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 22.880183,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705273600",
+      "market_id": "3705273600",
+      "name": "JNX-WKH",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705712896",
+      "market_id": "3705712896",
+      "name": "V0Z-42G",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1109.897831,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705818624",
+      "market_id": "3705818624",
+      "name": "[ERIC]alevic",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705857792",
+      "market_id": "3705857792",
+      "name": "G8X-39N",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 9.02657,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705917184",
+      "market_id": "3705917184",
+      "name": "HZB-81Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706046976",
+      "market_id": "3706046976",
+      "name": "VNJ-15N",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 803.764532,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706422272",
+      "market_id": "3706422272",
+      "name": "YBF-W3Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 306532.824092,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706438912",
+      "market_id": "3706438912",
+      "name": "VZW-LKV",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706492928",
+      "market_id": "3706492928",
+      "name": "K6M-4KH",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706629888",
+      "market_id": "3706629888",
+      "name": "H0Y-L1T",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 635.593359,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707015680",
+      "market_id": "3707015680",
+      "name": "G3F-6QQ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707209216",
+      "market_id": "3707209216",
+      "name": "THE GLEIPNIR",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 328.282532,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707232512",
+      "market_id": "3707232512",
+      "name": "THE SILVER STARGATE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707909376",
+      "market_id": "3707909376",
+      "name": "LADY LICORICE NIBS",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 27832.543623,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3708210688",
+      "market_id": "3708210688",
+      "name": "X6G-4KX",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3709442048",
+      "market_id": "3709442048",
+      "name": "HEAVY BURDEN",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3160.820722,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710115584",
+      "market_id": "3710115584",
+      "name": "Q8Y-27Y",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710254592",
+      "market_id": "3710254592",
+      "name": "OUTLAW EXCHANGE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1676.872516,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710563072",
+      "market_id": "3710563072",
+      "name": "G9M-68N",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710808064",
+      "market_id": "3710808064",
+      "name": "GLY-BXL",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1315.608995,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712699904",
+      "market_id": "3712699904",
+      "name": "KIS HULK HOGAN",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 300863.395349,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712721408",
+      "market_id": "3712721408",
+      "name": "T9Z-09F",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1225.268945,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713410560",
+      "market_id": "3713410560",
+      "name": "VANG",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 300820.418802,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713772544",
+      "market_id": "3713772544",
+      "name": "KHH-N2T",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 16496.829574,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713828352",
+      "market_id": "3713828352",
+      "name": "WBB-33W",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714677504",
+      "market_id": "3714677504",
+      "name": "AISLINGS PRIDE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 633.559336,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3715173120",
+      "market_id": "3715173120",
+      "name": "W7M-91X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 300817.114408,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856917248",
+      "market_id": "3856917248",
+      "name": "Pianzola Industrial Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 305778.353609,
+      "body_id": "1873497453202240085",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856917504",
+      "market_id": "3856917504",
+      "name": "Bawa Biochemical Lab",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304403.761459,
+      "body_id": "1873497453202240085",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856917760",
+      "market_id": "3856917760",
+      "name": "Dynamo Command Base",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 305166.440518,
+      "body_id": "1873497453202240085",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856918016",
+      "market_id": "3856918016",
+      "name": "Lima Expedition",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304747.009851,
+      "body_id": "1873497453202240085",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856918272",
+      "market_id": "3856918272",
+      "name": "Dubey Extraction Exchange",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 306011.168496,
+      "body_id": "1873497453202240085",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856918528",
+      "market_id": "3856918528",
+      "name": "Close Prospecting Facility",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299589.563618,
+      "body_id": "792633542633321045",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856918784",
+      "market_id": "3856918784",
+      "name": "Navarrete Boarding Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299204.007232,
+      "body_id": "792633542633321045",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856919040",
+      "market_id": "3856919040",
+      "name": "Horsman Synthetics Plant",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299241.159197,
+      "body_id": "792633542633321045",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856919296",
+      "market_id": "3856919296",
+      "name": "Leighton Drilling Exploration",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296745.042337,
+      "body_id": "1333065497917780565",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856919552",
+      "market_id": "3856919552",
+      "name": "Ziegler Mineralogic Exchange",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296847.125259,
+      "body_id": "1333065497917780565",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856919808",
+      "market_id": "3856919808",
+      "name": "Xie Analytics Site",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 301175.759871,
+      "body_id": "900719933690212949",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856920064",
+      "market_id": "3856920064",
+      "name": "Fernandes Tourist District",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300791.557765,
+      "body_id": "828662339652285013",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856920320",
+      "market_id": "3856920320",
+      "name": "Gunther Research Lab",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299781.963807,
+      "body_id": "828662339652285013",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856920576",
+      "market_id": "3856920576",
+      "name": "Anosike Mining Hub",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299176.265631,
+      "body_id": "828662339652285013",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856920832",
+      "market_id": "3856920832",
+      "name": "Ma Drilling Platform",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 303140.915977,
+      "body_id": "828662339652285013",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856921088",
+      "market_id": "3856921088",
+      "name": "Mellier's Camp",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296490.872604,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856921344",
+      "market_id": "3856921344",
+      "name": "Yim Fort",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296496.449968,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856921600",
+      "market_id": "3856921600",
+      "name": "Blaes Genetics Laboratory",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296479.302443,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856921856",
+      "market_id": "3856921856",
+      "name": "Ilsley Metallurgic Exploration",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296478.649074,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856922112",
+      "market_id": "3856922112",
+      "name": "Roh Prospecting Station",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296493.95469,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856922368",
+      "market_id": "3856922368",
+      "name": "Craig Mineralogic Reserve",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300179.250604,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856922624",
+      "market_id": "3856922624",
+      "name": "Ivanychuk Chemical Plant",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296653.18267,
+      "body_id": "1585267077050528341",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856922880",
+      "market_id": "3856922880",
+      "name": "Saccone Military Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297084.631392,
+      "body_id": "1729382265126384213",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856923136",
+      "market_id": "3856923136",
+      "name": "Borde Extraction Facility",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 298418.85452,
+      "body_id": "1729382265126384213",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856923392",
+      "market_id": "3856923392",
+      "name": "Baldock Drilling Exploration",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296687.919933,
+      "body_id": "1729382265126384213",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856923648",
+      "market_id": "3856923648",
+      "name": "Soria Biological Installation",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 2683.985383,
+      "body_id": "648518354557465173",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856923904",
+      "market_id": "3856923904",
+      "name": "Edwards Research Facility",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304606.899124,
+      "body_id": "1945555047240168021",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856924160",
+      "market_id": "3856924160",
+      "name": "Joshi Astrophysics Lab",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 302799.184148,
+      "body_id": "756604745614357077",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856924416",
+      "market_id": "3856924416",
+      "name": "Matsumoto Dredging Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304124.547093,
+      "body_id": "756604745614357077",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856924672",
+      "market_id": "3856924672",
+      "name": "Clifford Deposits",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299224.268018,
+      "body_id": "756604745614357077",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856924928",
+      "market_id": "3856924928",
+      "name": "Bassett Arms Stockade",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299288.056986,
+      "body_id": "756604745614357077",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856925184",
+      "market_id": "3856925184",
+      "name": "Beauchamp Resolve",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299223.403957,
+      "body_id": "756604745614357077",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856925440",
+      "market_id": "3856925440",
+      "name": "Owusu Biochemical Lab",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299057.632242,
+      "body_id": "936748730709176917",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856925696",
+      "market_id": "3856925696",
+      "name": "Miura's Horizon",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299607.65724,
+      "body_id": "1080863918785032789",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856925952",
+      "market_id": "3856925952",
+      "name": "Shimizu Biological Centre",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299287.472042,
+      "body_id": "1080863918785032789",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856926208",
+      "market_id": "3856926208",
+      "name": "Koroma Mining Site",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296880.822937,
+      "body_id": "1441151888974672469",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856926464",
+      "market_id": "3856926464",
+      "name": "Suk Military Fort",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297023.842959,
+      "body_id": "1441151888974672469",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856926720",
+      "market_id": "3856926720",
+      "name": "Mazumder Biological Assembly",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299249.511624,
+      "body_id": "1116892715803996757",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856926976",
+      "market_id": "3856926976",
+      "name": "Orakpo Entertainment District",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299294.550514,
+      "body_id": "1116892715803996757",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856927232",
+      "market_id": "3856927232",
+      "name": "Sung Biological Laboratory",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299287.436506,
+      "body_id": "1044835121766068821",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856927488",
+      "market_id": "3856927488",
+      "name": "Hayashi Astrophysics Installation",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299279.987095,
+      "body_id": "972777527728140885",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856927744",
+      "market_id": "3856927744",
+      "name": "Jayashankar Defence Facility",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296664.459022,
+      "body_id": "1693353468107420245",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856928000",
+      "market_id": "3856928000",
+      "name": "Fra Drilling Platform",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297446.940822,
+      "body_id": "1693353468107420245",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856928256",
+      "market_id": "3856928256",
+      "name": "Rhee Excavation Site",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296473.933439,
+      "body_id": "1693353468107420245",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856928512",
+      "market_id": "3856928512",
+      "name": "Petlura's Hostel",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304772.751865,
+      "body_id": "2017612641278095957",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856928768",
+      "market_id": "3856928768",
+      "name": "Watson Research",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304784.629419,
+      "body_id": "2017612641278095957",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856929024",
+      "market_id": "3856929024",
+      "name": "Gokhale Biochemical Enterprise",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 306523.614996,
+      "body_id": "1837468656183276117",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856929280",
+      "market_id": "3856929280",
+      "name": "Saez Military Hub",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296686.536181,
+      "body_id": "1657324671088456277",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "military",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3856929536",
+      "market_id": "3856929536",
+      "name": "Woods's Biochemicals",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300182.039885,
+      "body_id": "1657324671088456277",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858400256",
+      "market_id": "3858400256",
+      "name": "Aoki Metallurgic Hub",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299269.589528,
+      "body_id": "720575948595393109",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858400512",
+      "market_id": "3858400512",
+      "name": "Bogacki Mining Enterprise",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299605.767147,
+      "body_id": "720575948595393109",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858400768",
+      "market_id": "3858400768",
+      "name": "Villalba Extraction Hub",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 301141.825127,
+      "body_id": "720575948595393109",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858401024",
+      "market_id": "3858401024",
+      "name": "Bedi's Pearl",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300115.317913,
+      "body_id": "720575948595393109",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858401280",
+      "market_id": "3858401280",
+      "name": "Joo Engineering",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300836.963597,
+      "body_id": "720575948595393109",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858401536",
+      "market_id": "3858401536",
+      "name": "Owor Mineralogic Platform",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296847.533426,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858401792",
+      "market_id": "3858401792",
+      "name": "Jawara's Quarry",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296792.079278,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858402048",
+      "market_id": "3858402048",
+      "name": "Fujimoto Mining Station",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296788.034171,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858402304",
+      "market_id": "3858402304",
+      "name": "Powell Deposits",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297560.937683,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858402560",
+      "market_id": "3858402560",
+      "name": "Schubert Lodges",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296842.373316,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858402816",
+      "market_id": "3858402816",
+      "name": "Heinrich's Manufacturings",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296832.217105,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858403072",
+      "market_id": "3858403072",
+      "name": "Craig Genetics Installation",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297000.423632,
+      "body_id": "1369094294936744533",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858403328",
+      "market_id": "3858403328",
+      "name": "Dickinson Prospecting Site",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300223.960581,
+      "body_id": "1405123091955708501",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858403584",
+      "market_id": "3858403584",
+      "name": "Awolowo Dredging Hub",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297012.938558,
+      "body_id": "1405123091955708501",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858403840",
+      "market_id": "3858403840",
+      "name": "Scott's Find",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296736.825239,
+      "body_id": "1405123091955708501",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858404096",
+      "market_id": "3858404096",
+      "name": "Daramy Tourist Lodge",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297014.006379,
+      "body_id": "1405123091955708501",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858404352",
+      "market_id": "3858404352",
+      "name": "Takeuchi Chemical Enterprise",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296810.273409,
+      "body_id": "1405123091955708501",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858404608",
+      "market_id": "3858404608",
+      "name": "Paterson's Constructions",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300223.951768,
+      "body_id": "1405123091955708501",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858404864",
+      "market_id": "3858404864",
+      "name": "Powell's Club",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304519.596687,
+      "body_id": "1909526250221204053",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858405120",
+      "market_id": "3858405120",
+      "name": "Ikeda Biochemical Centre",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 306302.709596,
+      "body_id": "1909526250221204053",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858405376",
+      "market_id": "3858405376",
+      "name": "Saccone Dredging Site",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304404.833076,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858405632",
+      "market_id": "3858405632",
+      "name": "Martinez Mining Station",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304373.084074,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858405888",
+      "market_id": "3858405888",
+      "name": "Gavrylyuk Drilling Exchange",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 305136.264746,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858406144",
+      "market_id": "3858406144",
+      "name": "Giuliani Mineralogic Facility",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304409.144378,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858406400",
+      "market_id": "3858406400",
+      "name": "Zabuzhko's Voyage",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 305061.675021,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858406656",
+      "market_id": "3858406656",
+      "name": "Bengrina Chemical Base",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304290.757128,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858406912",
+      "market_id": "3858406912",
+      "name": "Arai Synthetics Installation",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304407.87848,
+      "body_id": "1801439859164312149",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858407168",
+      "market_id": "3858407168",
+      "name": "Rocha Prospecting Base",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296810.146126,
+      "body_id": "1261007903879852629",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858407424",
+      "market_id": "3858407424",
+      "name": "Linnett Metallurgic Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297011.511331,
+      "body_id": "1261007903879852629",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858407680",
+      "market_id": "3858407680",
+      "name": "Dyachenko Deposits",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300095.249433,
+      "body_id": "1261007903879852629",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858407936",
+      "market_id": "3858407936",
+      "name": "Howarth's Humility",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296969.731678,
+      "body_id": "1261007903879852629",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858408192",
+      "market_id": "3858408192",
+      "name": "Desjardins Chemical Depot",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296940.64018,
+      "body_id": "1261007903879852629",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858408448",
+      "market_id": "3858408448",
+      "name": "Grebinka Industrial Exchange",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297957.613481,
+      "body_id": "1261007903879852629",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858408704",
+      "market_id": "3858408704",
+      "name": "Saez Excavation Base",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296840.410932,
+      "body_id": "1477180685993636437",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858408960",
+      "market_id": "3858408960",
+      "name": "Kenyatta Metallurgic Reserve",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 300233.8677,
+      "body_id": "1477180685993636437",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858409216",
+      "market_id": "3858409216",
+      "name": "Panchenko Mineralogic Reserve",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 297122.87475,
+      "body_id": "1477180685993636437",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858409472",
+      "market_id": "3858409472",
+      "name": "Bruno Visitor Zone",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 296711.526226,
+      "body_id": "1477180685993636437",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858409728",
+      "market_id": "3858409728",
+      "name": "Gupta Manufacturing Depot",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299311.366409,
+      "body_id": "1477180685993636437",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858409984",
+      "market_id": "3858409984",
+      "name": "Fellows Industrial Base",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 299311.627698,
+      "body_id": "1477180685993636437",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858410240",
+      "market_id": "3858410240",
+      "name": "Dias's Biochemicals",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 306125.150043,
+      "body_id": "1981583844259131989",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3858410496",
+      "market_id": "3858410496",
+      "name": "Tarasenko's Voyage",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 304401.684915,
+      "body_id": "1981583844259131989",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "tourism",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3930524673",
+      "market_id": "3930524673",
+      "name": "Stronghold Carrier",
+      "station_type": "planetary_outpost",
+      "distance_from_arrival_ls": 1169.332295,
+      "body_id": "396316775424717397",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    }
+  ],
+  "plan": {
+    "generation_id": "a7076522-54cd-52f3-a291-4e5406bea230",
+    "publication_sequence": "4",
+    "system_id64": "8216113749",
+    "bodies": [
+      {
+        "body_id": "36028805235077717",
+        "name": "Maia A",
+        "direct_parent_body_id": null,
+        "body_type": "star",
+        "is_main_star": true,
+        "is_landable": null,
+        "radius_km": 1751776.3050651336,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 15569,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 0,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "other_star",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "72057602254041685",
+        "name": "Maia B",
+        "direct_parent_body_id": null,
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 7.849668733617968,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 0,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 300817.125247,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "black_hole",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "108086399273005653",
+        "name": "Maia A 1",
+        "direct_parent_body_id": "36028805235077717",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 71912.64,
+        "surface_gravity_g": 14.6111124706842,
+        "surface_temperature_k": 2407.762939,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 131.735998,
+        "has_rings": true,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "gas_giant",
+        "economy_parent_id": "36028805235077717",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "180143993310933589",
+        "name": "Maia A 2",
+        "direct_parent_body_id": "36028805235077717",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 99170.36552005757,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 813,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 634.978934,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "brown_dwarf",
+        "economy_parent_id": "36028805235077717",
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "216172790329897557",
+        "name": "Maia A 2 a",
+        "direct_parent_body_id": "180143993310933589",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1032.00375,
+        "surface_gravity_g": 0.28219465687774,
+        "surface_temperature_k": 1088.117188,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Metallic Magma",
+        "distance_from_arrival_ls": 635.144778,
+        "has_rings": false,
+        "geological_signals": 2,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "metal_rich_body",
+        "economy_parent_id": "180143993310933589",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 0,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "252201587348861525",
+        "name": "Maia A 2 b",
+        "direct_parent_body_id": "180143993310933589",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1163.2265,
+        "surface_gravity_g": 0.320275721423473,
+        "surface_temperature_k": 1068.794067,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Rocky Magma",
+        "distance_from_arrival_ls": 633.750186,
+        "has_rings": false,
+        "geological_signals": 2,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "metal_rich_body",
+        "economy_parent_id": "180143993310933589",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 0,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "288230384367825493",
+        "name": "Maia barycentre 8",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "324259181386789461",
+        "name": "Maia A 3",
+        "direct_parent_body_id": "288230384367825493",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 144180.24897196254,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 1219,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 1137.450336,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "brown_dwarf",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "360287978405753429",
+        "name": "Maia A 3 a",
+        "direct_parent_body_id": "324259181386789461",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 3692.12375,
+        "surface_gravity_g": 0.4801102273886,
+        "surface_temperature_k": 931.1427,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 1141.370013,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "324259181386789461",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 0,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "396316775424717397",
+        "name": "Maia A 4",
+        "direct_parent_body_id": "288230384367825493",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 13420.922,
+        "surface_gravity_g": 4.40764270419088,
+        "surface_temperature_k": 4894.189453,
+        "atmosphere": "Hot thick Carbon dioxide-rich",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 1168.935203,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "high_metal_content_world",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "432345572443681365",
+        "name": "Maia A 5",
+        "direct_parent_body_id": "36028805235077717",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 354516.5084894318,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 3087,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 1974.854038,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "other_star",
+        "economy_parent_id": "36028805235077717",
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "468374369462645333",
+        "name": "Maia A 5 a",
+        "direct_parent_body_id": "432345572443681365",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 73813.632,
+        "surface_gravity_g": 15.0187242785765,
+        "surface_temperature_k": 1133.354126,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 1894.310873,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "gas_giant",
+        "economy_parent_id": "432345572443681365",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "504403166481609301",
+        "name": "Maia barycentre 14",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "540431963500573269",
+        "name": "Maia A 6",
+        "direct_parent_body_id": "504403166481609301",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 214667.42464184045,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 1720,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 2719.651514,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "brown_dwarf",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "576460760519537237",
+        "name": "Maia A 6 a",
+        "direct_parent_body_id": "540431963500573269",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 5047.549,
+        "surface_gravity_g": 0.697073620883043,
+        "surface_temperature_k": 818.796326,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Minor Metallic Magma",
+        "distance_from_arrival_ls": 2717.847665,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "540431963500573269",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 0,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "612489557538501205",
+        "name": "Maia A 6 b",
+        "direct_parent_body_id": "540431963500573269",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 4718.486,
+        "surface_gravity_g": 0.641801468338941,
+        "surface_temperature_k": 770.126465,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Rocky Magma",
+        "distance_from_arrival_ls": 2714.266282,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "540431963500573269",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "648518354557465173",
+        "name": "Maia A 7",
+        "direct_parent_body_id": "504403166481609301",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 8955.555,
+        "surface_gravity_g": 1.9564767003161,
+        "surface_temperature_k": 545.140259,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 2809.96959,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "high_metal_content_world",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 6,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "684547151576429141",
+        "name": "Maia B 1",
+        "direct_parent_body_id": "72057602254041685",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 68151.76028411218,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 577,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 299040.002289,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "brown_dwarf",
+        "economy_parent_id": "72057602254041685",
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "720575948595393109",
+        "name": "Maia B 1 a",
+        "direct_parent_body_id": "684547151576429141",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1513.234375,
+        "surface_gravity_g": 0.181300601611094,
+        "surface_temperature_k": 104.696365,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 299047.122628,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "684547151576429141",
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "756604745614357077",
+        "name": "Maia B 1 a a",
+        "direct_parent_body_id": "720575948595393109",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 432.31903125,
+        "surface_gravity_g": 0.048057000101968,
+        "surface_temperature_k": 104.696365,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 299047.111977,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "720575948595393109",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "792633542633321045",
+        "name": "Maia B 1 b",
+        "direct_parent_body_id": "684547151576429141",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1453.226125,
+        "surface_gravity_g": 0.173951055368614,
+        "surface_temperature_k": 96.720779,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 299036.402346,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "684547151576429141",
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "828662339652285013",
+        "name": "Maia B 1 b a",
+        "direct_parent_body_id": "792633542633321045",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 527.8940625,
+        "surface_gravity_g": 0.0587739369837871,
+        "surface_temperature_k": 96.720779,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 299036.413389,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "792633542633321045",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "864691136671248981",
+        "name": "Maia barycentre 24",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "900719933690212949",
+        "name": "Maia B 1 c",
+        "direct_parent_body_id": "864691136671248981",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1245.526375,
+        "surface_gravity_g": 0.147782604262262,
+        "surface_temperature_k": 86.95385,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Metallic Magma",
+        "distance_from_arrival_ls": 299052.814241,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "936748730709176917",
+        "name": "Maia B 1 d",
+        "direct_parent_body_id": "864691136671248981",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1196.272125,
+        "surface_gravity_g": 0.141714285714286,
+        "surface_temperature_k": 86.95385,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Metallic Magma",
+        "distance_from_arrival_ls": 299052.794499,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "972777527728140885",
+        "name": "Maia B 1 e",
+        "direct_parent_body_id": "684547151576429141",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2231.352,
+        "surface_gravity_g": 0.273909554399918,
+        "surface_temperature_k": 80.838837,
+        "atmosphere": "Thin Methane",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 299054.719432,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 3,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "684547151576429141",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 4,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1008806324747104853",
+        "name": "Maia barycentre 28",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "1044835121766068821",
+        "name": "Maia B 1 f",
+        "direct_parent_body_id": "1008806324747104853",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2888.19775,
+        "surface_gravity_g": 0.198403079433058,
+        "surface_temperature_k": 55.265995,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 299034.163901,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1080863918785032789",
+        "name": "Maia B 1 g",
+        "direct_parent_body_id": "1008806324747104853",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2715.379,
+        "surface_gravity_g": 0.185590292648109,
+        "surface_temperature_k": 55.265995,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 299033.961047,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1116892715803996757",
+        "name": "Maia B 1 h",
+        "direct_parent_body_id": "684547151576429141",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2978.71925,
+        "surface_gravity_g": 0.205165697970837,
+        "surface_temperature_k": 51.881363,
+        "atmosphere": "Thin Nitrogen",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 299065.922706,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 2,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "684547151576429141",
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 4,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1152921512822960725",
+        "name": "Maia barycentre 32",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "1188950309841924693",
+        "name": "Maia B 2",
+        "direct_parent_body_id": "1152921512822960725",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 51909.98309417682,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 473,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 296702.633594,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "brown_dwarf",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "1224979106860888661",
+        "name": "Maia B 2 a",
+        "direct_parent_body_id": "1188950309841924693",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 1105.140375,
+        "surface_gravity_g": 0.130943203833996,
+        "surface_temperature_k": 104.257523,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Rocky Magma",
+        "distance_from_arrival_ls": 296704.433886,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1188950309841924693",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "1261007903879852629",
+        "name": "Maia B 2 b",
+        "direct_parent_body_id": "1188950309841924693",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 740.90925,
+        "surface_gravity_g": 0.0865480779035383,
+        "surface_temperature_k": 99.015244,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296707.272586,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1188950309841924693",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1297036700898816597",
+        "name": "Maia barycentre 36",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "1333065497917780565",
+        "name": "Maia B 2 c",
+        "direct_parent_body_id": "1297036700898816597",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 804.107125,
+        "surface_gravity_g": 0.094095136127256,
+        "surface_temperature_k": 91.123596,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 296709.913128,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": false,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1369094294936744533",
+        "name": "Maia B 2 d",
+        "direct_parent_body_id": "1297036700898816597",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 764.1805625,
+        "surface_gravity_g": 0.0893606607525237,
+        "surface_temperature_k": 91.123596,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 296709.914162,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1405123091955708501",
+        "name": "Maia B 2 e",
+        "direct_parent_body_id": "1188950309841924693",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1252.97825,
+        "surface_gravity_g": 0.149032935658203,
+        "surface_temperature_k": 82.338058,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296696.412168,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1188950309841924693",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1441151888974672469",
+        "name": "Maia B 2 e a",
+        "direct_parent_body_id": "1405123091955708501",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 470.55046875,
+        "surface_gravity_g": 0.0523125318649944,
+        "surface_temperature_k": 82.338058,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Metallic Magma",
+        "distance_from_arrival_ls": 296696.408366,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1405123091955708501",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1477180685993636437",
+        "name": "Maia B 2 f",
+        "direct_parent_body_id": "1188950309841924693",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1022.70275,
+        "surface_gravity_g": 0.120496991944529,
+        "surface_temperature_k": 76.783432,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296686.840617,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1188950309841924693",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1513209483012600405",
+        "name": "Maia B 3",
+        "direct_parent_body_id": "1152921512822960725",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 66863.72,
+        "surface_gravity_g": 28.5522943815642,
+        "surface_temperature_k": 756.616516,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296467.822497,
+        "has_rings": true,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "gas_giant",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "1585267077050528341",
+        "name": "Maia B 3 a",
+        "direct_parent_body_id": "1513209483012600405",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1158.08925,
+        "surface_gravity_g": 0.13703130417049,
+        "surface_temperature_k": 175.661697,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Minor Silicate Vapour Geysers",
+        "distance_from_arrival_ls": 296465.457406,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1513209483012600405",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1621295874069492309",
+        "name": "Maia B 3 b",
+        "direct_parent_body_id": "1513209483012600405",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 1666.542125,
+        "surface_gravity_g": 0.200958499031304,
+        "surface_temperature_k": 293.167542,
+        "atmosphere": "Thick Carbon dioxide",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296471.945458,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1513209483012600405",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "1657324671088456277",
+        "name": "Maia B 3 c",
+        "direct_parent_body_id": "1513209483012600405",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1423.094,
+        "surface_gravity_g": 0.169836239420822,
+        "surface_temperature_k": 127.801407,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296463.166916,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1513209483012600405",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1693353468107420245",
+        "name": "Maia B 3 d",
+        "direct_parent_body_id": "1513209483012600405",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2062.42425,
+        "surface_gravity_g": 0.207394310186601,
+        "surface_temperature_k": 103.540359,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296462.787163,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_ice_body",
+        "economy_parent_id": "1513209483012600405",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1729382265126384213",
+        "name": "Maia B 3 e",
+        "direct_parent_body_id": "1513209483012600405",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1884.503375,
+        "surface_gravity_g": 0.188414703783012,
+        "surface_temperature_k": 93.389671,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 296458.29727,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_ice_body",
+        "economy_parent_id": "1513209483012600405",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1765411062145348181",
+        "name": "Maia B 4",
+        "direct_parent_body_id": "72057602254041685",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 54861.10348296192,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 455,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 304287.301486,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "brown_dwarf",
+        "economy_parent_id": "72057602254041685",
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "1801439859164312149",
+        "name": "Maia B 4 a",
+        "direct_parent_body_id": "1765411062145348181",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1552.845375,
+        "surface_gravity_g": 0.18612460487407,
+        "surface_temperature_k": 80.749588,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 304294.210291,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1765411062145348181",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1837468656183276117",
+        "name": "Maia B 4 b",
+        "direct_parent_body_id": "1765411062145348181",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 1882.45925,
+        "surface_gravity_g": 0.22839176098705,
+        "surface_temperature_k": 80.916046,
+        "atmosphere": "Thin Methane",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 304275.167486,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 3,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1765411062145348181",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 4,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1873497453202240085",
+        "name": "Maia B 4 b a",
+        "direct_parent_body_id": "1837468656183276117",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 509.9251875,
+        "surface_gravity_g": 0.0567370245742837,
+        "surface_temperature_k": 91.719521,
+        "atmosphere": "Thin Methane",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Minor Metallic Magma",
+        "distance_from_arrival_ls": 304275.198708,
+        "has_rings": false,
+        "geological_signals": 3,
+        "biological_signals": 3,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "1837468656183276117",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 4,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1909526250221204053",
+        "name": "Maia B 4 c",
+        "direct_parent_body_id": "1765411062145348181",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2610.374,
+        "surface_gravity_g": 0.172377485469563,
+        "surface_temperature_k": 59.09803,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 304287.069634,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "1765411062145348181",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1945555047240168021",
+        "name": "Maia B 4 d",
+        "direct_parent_body_id": "1765411062145348181",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 2538.5465,
+        "surface_gravity_g": 0.167298154379525,
+        "surface_temperature_k": 55.10696,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 304272.59651,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "1765411062145348181",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 2,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "1981583844259131989",
+        "name": "Maia B 4 e",
+        "direct_parent_body_id": "1765411062145348181",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 5565.6435,
+        "surface_gravity_g": 0.376552666462731,
+        "surface_temperature_k": 49.788353,
+        "atmosphere": "Thin Neon",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 304325.703272,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 1,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "1765411062145348181",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 6,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "2017612641278095957",
+        "name": "Maia B 4 f",
+        "direct_parent_body_id": "1765411062145348181",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 4860.1605,
+        "surface_gravity_g": 0.321231773223208,
+        "surface_temperature_k": 44.91832,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 304250.203712,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "1765411062145348181",
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 3,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "2053641438297059925",
+        "name": "Maia B 5",
+        "direct_parent_body_id": "72057602254041685",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 25030.274,
+        "surface_gravity_g": 11.926619353523,
+        "surface_temperature_k": 41.458214,
+        "atmosphere": "Thick Helium",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Water Geysers",
+        "distance_from_arrival_ls": 307624.149435,
+        "has_rings": true,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "72057602254041685",
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "2125699032334987861",
+        "name": "Maia B 5 a",
+        "direct_parent_body_id": "2053641438297059925",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 13220.899,
+        "surface_gravity_g": 1.18222749056796,
+        "surface_temperature_k": 36.513832,
+        "atmosphere": "Helium",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Major Water Geysers",
+        "distance_from_arrival_ls": 307609.230578,
+        "has_rings": true,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "icy_body",
+        "economy_parent_id": "2053641438297059925",
+        "in_binary_pair": false,
+        "tidally_locked": false,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      }
+    ],
+    "belts": [],
+    "economy_facts_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
+    "reserve_level": "pristine",
+    "has_black_hole": true,
+    "has_white_dwarf": false,
+    "has_neutron_star": false,
+    "economy_notes": []
+  }
+}

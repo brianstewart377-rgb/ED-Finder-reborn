@@ -742,7 +742,7 @@
         <g
           class="sm-body"
           class:sm-selected={selected}
-          class:sm-guessed={item.node.guessedParent !== false}
+          class:sm-guessed={item.node.placedBy !== false}
           data-body-key={item.id}
           data-look={picture ? 'picture' : 'plain'}
           transform={`translate(${n(item.x)} ${n(item.y)})`}

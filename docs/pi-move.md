@@ -871,6 +871,26 @@ Still to do: the 1.3 s pause on the first system drawn; temperatures in the
 trial's data, so hot rock and metal is drawn molten as the rule says; then
 the real System Map in the app.
 
+(15 Nov) The map is in the app (#72, #73). Going back over it with more real
+systems found that pairs were put in the wrong place. Our data never says
+what a pair (two bodies that circle each other) orbits. In Maia, three pairs
+of moons of star B's brown dwarfs were drawn in star A's row; in Alpha
+Centauri, the star a ship arrives at was drawn under Proxima, 6.4 million ls
+away. Now:
+
+- a pair is hung from the body both its members are named after ("B 1 c" and
+  "B 1 d" go around "B 1"), and the card says that is taken from their names;
+- two stars that circle each other at the top of a system each head a row,
+  and a planet that goes around both is drawn in the nearer star's row, with
+  the card saying which two it goes around;
+- only the two that circle each other are joined as a pair. What goes around
+  both is not;
+- a body with no parent and no telling name goes in the row of the star
+  nearest its distance. The old rule, "the last star it is beyond", put half
+  of what circles a far star in the wrong row.
+
+Recorded for the tests: Maia and Alpha Centauri, from the live site.
+
 ### What the Pi itself showed (14 November, `pi_report.py`)
 
 - Both NVMe links run at the lower speed, and that is all the case allows:

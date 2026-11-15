@@ -10,6 +10,11 @@
  *              predicted ground slots
  *   Polaris    two stars; two moons our data gives no parent
  *   Altair     two high-metal-content worlds, at 591 K and 1,753 K
+ *   Maia       (15 November) two stars far apart, with six pairs: two of
+ *              planets around a star, three of moons around a brown dwarf,
+ *              and one of a brown dwarf with a planet
+ *   Alpha Centauri  (15 November) two stars that circle each other, three
+ *              planets that go around both, and a third star far away
  *
  * And one older answer: the builder's list for LHS 3447 on 13 November,
  * when it still lacked some bodies' facts and so predicted nothing for them.
@@ -24,8 +29,10 @@ import {
   type SystemV1,
 } from '$lib/api/client';
 import lhs3447On13Nov from './fixtures/plan-lhs3447-13nov.json';
+import alphaCentauri from './fixtures/system-alpha-centauri.json';
 import altair from './fixtures/system-altair.json';
 import lhs3447 from './fixtures/system-lhs3447.json';
+import maia from './fixtures/system-maia.json';
 import polaris from './fixtures/system-polaris.json';
 import sol from './fixtures/system-sol.json';
 import {
@@ -49,6 +56,8 @@ export const RECORDED = {
   lhs3447,
   polaris,
   altair,
+  maia,
+  alphaCentauri,
 } as const satisfies Record<string, Recorded>;
 export type RecordedName = keyof typeof RECORDED;
 
