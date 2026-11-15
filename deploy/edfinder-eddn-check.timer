@@ -1,0 +1,13 @@
+# Every half hour, at 7 and 37 minutes past: off the hour and the half hour,
+# when the nightly jobs start.
+[Unit]
+Description=ED-Finder: check that the EDDN listener is working
+
+[Timer]
+OnCalendar=*-*-* *:07,37:00 UTC
+# A check missed while the machine was off is not run late: the next one is
+# at most half an hour away.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

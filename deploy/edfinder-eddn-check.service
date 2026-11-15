@@ -1,0 +1,21 @@
+# Look at the EDDN listener, and start it afresh if it is running but no
+# longer working (deploy/eddn_check.py). Docker restarts a container that
+# stops, but not one that is still running and unwell, and the sightings the
+# listener misses cannot be gathered afterwards. A few seconds. Started every
+# half hour by edfinder-eddn-check.timer.
+#
+# By hand, changing nothing:
+#     sudo python3 /opt/edfinder/eddn_check.py --look
+[Unit]
+Description=ED-Finder: check that the EDDN listener is working
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/edfinder/eddn_check.py
+TimeoutStartSec=5min
+# When the run ends, well or badly, tell healthchecks.io, which emails the
+# owner about a failure or a day with no word (deploy/report_in.py). It
+# does nothing until the check's address has been saved on the machine, and
+# it cannot make the job fail (the dash).
+ExecStopPost=-/usr/bin/python3 /opt/edfinder/report_in.py eddn-check

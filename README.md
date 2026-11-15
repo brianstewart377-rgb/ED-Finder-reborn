@@ -86,6 +86,12 @@ Before a release goes live the tool also runs three real Find searches against
 it. On a machine whose database has no Finder data yet, put
 `EDFINDER_FIND_CHECK=0` in `deploy.conf`.
 
+After a release has gone live, the tool removes the site's older images from
+the machine, so the drive does not fill a little with every deploy. The live
+build's images are kept, and those of the build before it, which `rollback`
+starts without fetching. An image a container still uses is left. To keep
+them all, put `EDFINDER_KEEP_OLD_IMAGES=1` in `deploy.conf`.
+
 Find counts its matches up to 1,000 ("1,000+ found") and pages through the
 first 1,000. Counting is most of a search's work, and the first search after
 the database's memory has been emptied has to read it all from the drive.
@@ -285,6 +291,19 @@ with the other containers and says so if it is unhealthy. It counts as
 unhealthy when a write has failed or the feed has been silent for five
 minutes, and restarts itself after five failed writes in a row.
 
+Docker starts the listener again when it stops, but does nothing about one
+that is still running and no longer working. So `deploy/eddn_check.py` asks
+Docker how it is every half hour (`edfinder-eddn-check.timer`). A listener
+that is running but unhealthy is started afresh. That run, and any run that
+finds the listener not running, counts as failed and is reported like a
+nightly job's (next section but one), so an email follows. A listener that is
+not running is not started from there, in case it was stopped on purpose; if
+you stop it on purpose, stop the timer as well
+(`sudo systemctl disable --now edfinder-eddn-check.timer`). The feed goes
+quiet during the game's weekly maintenance, so one failed run then is
+expected, and the next healthy one clears it. To look without changing
+anything: `sudo python3 /opt/edfinder/eddn_check.py --look`.
+
 ## Backups
 
 `deploy/backup.py` (Python standard library only) backs the database up on
@@ -363,8 +382,7 @@ healthchecks.io emails the owner:
   is off, has no internet, or the job is stuck.
 
 systemd runs it when a job ends, whichever way the job ended (the
-`ExecStopPost=` line in `edfinder-galaxy-update.service` and
-`edfinder-state-refresh.service`). It cannot make the job itself fail. It
+`ExecStopPost=` line in each job's `.service` file). It cannot make the job itself fail. It
 belongs beside the other scripts, as `/opt/edfinder/report_in.py`; if it is
 not there, the jobs run as before and nothing is reported.
 
@@ -378,6 +396,8 @@ well". It is kept in a file that only root can read, and is never printed:
 | System state refresh (03:30 UTC) | `/etc/edfinder/report/state-refresh.url` | 1 day, then 3 hours |
 | Small backup (02:30 UTC) | `/etc/edfinder/report/backup-small.url` | 1 day, then 2 hours |
 | Full backup (Sundays, 07:00 UTC) | `/etc/edfinder/report/backup-full.url` | 1 week, then 12 hours |
+| Find warm-up (after each galaxy update and full backup) | `/etc/edfinder/report/find-warmup.url` | 12 hours, then 14 hours (so one failed galaxy update, which it follows, does not raise this one too) |
+| EDDN listener check (every half hour) | `/etc/edfinder/report/eddn-check.url` | 30 minutes, then 1 hour |
 
 A job reports when it ends, not when it starts, so the grace time has to
 cover the longest a run normally takes. Until a job's file exists, nothing is
