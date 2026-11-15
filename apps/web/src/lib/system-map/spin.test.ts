@@ -6,7 +6,9 @@ import {
   SPIN_EVERY_MS,
   SPIN_FRAMES_BEFORE_JUDGING,
   SPIN_RESTS_AFTER_MS,
-  SPIN_TOO_SLOW_MS,
+  SPIN_ROUND_MAX_STEPS,
+  SPIN_ROUND_TOO_SLOW_MS,
+  SPIN_STEP_BUDGET_MS,
   startSpinning,
   type SpinTarget,
 } from './spin';
@@ -177,11 +179,25 @@ describe('spinning', () => {
     expect(asked[1]!.time).toBeCloseTo(1 / 12);
   });
 
-  it('stops itself, and says how slow it was, when a step takes more than 8 ms on average', () => {
-    // A whole system on screen on a machine with no graphics card to speak of.
-    const { clock, generator, tick, running } = bench(3);
+  const EIGHT = [
+    'Sol',
+    'Mercury',
+    'Venus',
+    'Earth',
+    'Mars',
+    'Jupiter',
+    'Saturn',
+    'Uranus',
+  ];
+
+  it('turns as many bodies as fit in a step, and the rest on the next steps', () => {
+    // Seen on a gaming PC: Maia's 56 bodies took 8.7 to 11.1 ms a step, over
+    // the limit of the day, and spinning switched itself off. A large system
+    // now turns over several steps instead.
+    expect(SPIN_STEP_BUDGET_MS).toBe(6);
+    const { clock, generator, asked, tick, running } = bench(2.5);
     let slow: number | null = null;
-    const targets = targetsOf(['Earth', 'Jupiter', 'Saturn', 'Uranus']);
+    const targets = targetsOf(EIGHT);
     startSpinning(
       generator,
       {
@@ -193,11 +209,131 @@ describe('spinning', () => {
       },
       clock,
     );
-    for (let frame = 0; frame < SPIN_FRAMES_BEFORE_JUDGING; frame += 1)
-      tick(frame * SPIN_EVERY_MS * 2);
-    expect(slow).toBeCloseTo(12);
-    expect(slow!).toBeGreaterThan(SPIN_TOO_SLOW_MS);
+    // 2.5 ms a body: three fit in a step's 6 ms (the third is begun at 5 ms
+    // and finished), so eight bodies take three steps: 3, 3 and 2.
+    const drawnBy: number[] = [];
+    for (let step = 0; step < 9; step += 1) {
+      tick(step * SPIN_EVERY_MS * 2);
+      drawnBy.push(asked.length);
+    }
+    expect(drawnBy).toEqual([3, 6, 8, 11, 14, 16, 19, 22, 24]);
+    // Every round draws every body once, in the same order.
+    const kinds = asked.map((one) => one.type);
+    expect(kinds.slice(8, 16)).toEqual(kinds.slice(0, 8));
+    expect(kinds.slice(16, 24)).toEqual(kinds.slice(0, 8));
+    // Each step is one step on in time, whichever bodies it draws.
+    expect(asked[0].time).toBeCloseTo(0);
+    expect(asked[3].time).toBeCloseTo(1 / 12);
+    expect(asked[6].time).toBeCloseTo(2 / 12);
+    expect(asked[8].time).toBeCloseTo(3 / 12);
+    // 20 ms of drawing for a round is within what a round may take.
+    expect(SPIN_ROUND_TOO_SLOW_MS).toBe(24);
+    expect(slow).toBeNull();
+    expect(running()).toBe(true);
+  });
+
+  it('never spends more than a step may on drawing, plus the body it had begun', () => {
+    const { clock, generator, tick } = bench(2.5);
+    const targets = targetsOf(EIGHT);
+    startSpinning(
+      generator,
+      {
+        targets: () => targets,
+        lastStir: () => Infinity,
+        drew: () => {},
+        tooSlow: () => {},
+        failed: () => {},
+      },
+      clock,
+    );
+    for (let step = 0; step < 12; step += 1) {
+      const began = step * SPIN_EVERY_MS * 2;
+      tick(began);
+      expect(clock.now() - began).toBeLessThanOrEqual(
+        SPIN_STEP_BUDGET_MS + 2.5,
+      );
+    }
+  });
+
+  it('stops itself, and says how slow it was, where turning every body once takes more than four steps', () => {
+    // A whole system on screen on a machine with no graphics card to speak
+    // of: 5 ms a body, so 40 ms to turn the eight of them once.
+    expect(SPIN_ROUND_MAX_STEPS).toBe(4);
+    const { clock, generator, tick, running } = bench(5);
+    let slow: number | null = null;
+    const targets = targetsOf(EIGHT);
+    startSpinning(
+      generator,
+      {
+        targets: () => targets,
+        lastStir: () => Infinity,
+        drew: () => {},
+        tooSlow: (ms) => (slow = ms),
+        failed: () => {},
+      },
+      clock,
+    );
+    // The first steps are not judged: the first are always the slowest.
+    for (let step = 0; step < SPIN_FRAMES_BEFORE_JUDGING; step += 1)
+      tick(step * SPIN_EVERY_MS * 2);
+    expect(slow).toBeNull();
+    expect(running()).toBe(true);
+    // Then it is: it stops as soon as a round has cost too much, and says
+    // what a whole round would take.
+    let step = SPIN_FRAMES_BEFORE_JUDGING;
+    while (running() && step < 40) {
+      tick(step * SPIN_EVERY_MS * 2);
+      step += 1;
+    }
     expect(running()).toBe(false);
+    expect(step).toBeLessThanOrEqual(SPIN_FRAMES_BEFORE_JUDGING + 4);
+    expect(slow).toBeCloseTo(40);
+    expect(slow!).toBeGreaterThan(SPIN_ROUND_TOO_SLOW_MS);
+  });
+
+  it('is not stopped by slow first steps, while the graphics card is still being handed its work', () => {
+    let now = 0;
+    let next: ((time: number) => void) | null = null;
+    const clock = {
+      now: () => now,
+      frame: (step: (time: number) => void) => {
+        next = step;
+        return 1;
+      },
+      cancel: () => {
+        next = null;
+      },
+    };
+    let calls = 0;
+    const generator = {
+      render: () => {
+        calls += 1;
+        // The first two bodies ever drawn take 60 ms each; then 0.2 ms.
+        now += calls <= 2 ? 60 : 0.2;
+        return {} as HTMLCanvasElement;
+      },
+    };
+    let slow: number | null = null;
+    const targets = targetsOf(EIGHT);
+    startSpinning(
+      generator,
+      {
+        targets: () => targets,
+        lastStir: () => Infinity,
+        drew: () => {},
+        tooSlow: (ms) => (slow = ms),
+        failed: () => {},
+      },
+      clock,
+    );
+    for (let step = 0; step < 30; step += 1) {
+      now = step * SPIN_EVERY_MS * 2;
+      const waiting = next as ((time: number) => void) | null;
+      next = null;
+      waiting?.(now);
+    }
+    expect(slow).toBeNull();
+    expect(next).not.toBeNull();
   });
 
   it('carries on where a step is cheap', () => {
