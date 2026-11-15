@@ -452,7 +452,7 @@
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: var(--radius-md, 0.5rem);
-    background: #000;
+    background: var(--bg-void);
   }
   .galaxy-map-keys {
     position: absolute;

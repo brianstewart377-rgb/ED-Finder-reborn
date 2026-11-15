@@ -34,21 +34,15 @@ vi.mock('$lib/api/client', async (loadOriginal) => ({
   searchExploreSystems: vi.fn(),
   getCatalogueViewportSystems: vi.fn(),
   getAuthSession: vi.fn(),
-  getMapHeatmap: vi.fn(),
 }));
-// This contract exercises the real list DOM; GPU rendering has its own lane.
-vi.mock('$lib/spatial/SpatialCanvas.svelte', () => ({ default: () => {} }));
-vi.mock('$lib/spatial/galaxy-regions', async (loadOriginal) => ({
-  ...(await loadOriginal<typeof import('$lib/spatial/galaxy-regions')>()),
-  fetchAuthoritativeGalaxyRegions: vi
-    .fn()
-    .mockRejectedValue(new Error('No map asset in style contract')),
-}));
-vi.mock('$lib/spatial/galaxy-nebulae', async (loadOriginal) => ({
-  ...(await loadOriginal<typeof import('$lib/spatial/galaxy-nebulae')>()),
-  fetchGalaxyNebulae: vi
-    .fn()
-    .mockRejectedValue(new Error('No map asset in style contract')),
+// This contract exercises the real list DOM. Almanac's map needs a graphics
+// card; the stand-in keeps what it is given and draws nothing.
+vi.mock(
+  '@elite-dangerous-almanac/galaxy-map',
+  () => import('$lib/galaxy-map/fake-almanac'),
+);
+vi.mock('@elite-dangerous-almanac/galaxy-map/nebulae', () => ({
+  nebulae: {},
 }));
 
 const sourceRoot = resolve(process.cwd(), 'src');
@@ -188,7 +182,7 @@ const adoptedComponents = [
   'lib/components/SystemDetail.svelte',
   'lib/components/GalaxyImpactPanel.svelte',
   'lib/features/explore/WatchlistPanel.svelte',
-  'lib/spatial/SpatialCanvas.svelte',
+  'lib/galaxy-map/GalaxyMap.svelte',
   ...readdirSync(resolve(sourceRoot, 'lib/features/plan'))
     .filter((name) => name.endsWith('.svelte'))
     .map((name) => `lib/features/plan/${name}`),
@@ -325,10 +319,6 @@ describe('design-kit action opt-in', () => {
       systems: [],
       truncated: false,
     });
-    vi.mocked(api.getMapHeatmap).mockResolvedValue({
-      source: 'legacy-fallback',
-    });
-
     render(ExploreWorkspaceTestHost, { target: main });
     const results = await screen.findByRole('list', { name: 'System results' });
     const row = results.querySelector<HTMLButtonElement>('.result-select')!;

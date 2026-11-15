@@ -128,6 +128,14 @@ async function act(page, step, size) {
         await sleep(step.seconds / step.times);
       }
       break;
+    case 'hold':
+      await page.keyboard.down(step.key);
+      try {
+        await sleep(step.seconds);
+      } finally {
+        await page.keyboard.up(step.key);
+      }
+      break;
     case 'click':
       if (step.selector) await page.locator(step.selector).first().click({ timeout: 10000 });
       else await page.mouse.click(...point(step.at));

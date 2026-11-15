@@ -1,3 +1,7 @@
+// NOT RUN, AND OUT OF DATE. This file came from the old repo. Nothing in this
+// repo runs it (the Review Lab stack it needs was not brought over), and its
+// map steps describe the Babylon map that Explore no longer has. It is kept
+// as the record of the journeys to rebuild; see docs/pi-move.md.
 type ReviewLabConfig = Readonly<{
   reviewLabRun: boolean;
   reviewOutputPath: string;

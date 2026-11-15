@@ -16,8 +16,9 @@
  * of its own. That ring is made fully clear: the rings on the map are the
  * ones in our data, drawn in the colour of their kind.
  *
- * Ported from the System Map trial (scripts/almanac-trial/src/system-map/
- * cosmos-look.mjs).
+ * Ported from the System Map trial page (`cosmos-look.mjs` in
+ * `scripts/almanac-trial`, removed once it was in the site: git history has
+ * it).
  */
 import { isBanded, type FamilyKey, type Rgb } from './look';
 

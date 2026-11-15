@@ -631,82 +631,6 @@ footer {
   border-bottom: 1px solid var(--line);
   font-size: 0.78rem;
 }
-.region-load-state {
-  min-height: 3.25rem;
-  margin: 0;
-  padding: 0.8rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-.region-load-state.error {
-  color: var(--danger);
-}
-.region-load-state button,
-.product-region-actions button {
-  cursor: pointer;
-}
-.region-load-state button {
-  padding: 0.4rem 0.65rem;
-}
-.product-region-controls {
-  display: grid;
-  grid-template-columns: minmax(13rem, 1.25fr) auto;
-  gap: 0.65rem 0.8rem;
-  align-items: end;
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(100deg, var(--panel), var(--bg-deep));
-}
-.product-region-controls label {
-  display: grid;
-  gap: 0.35rem;
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.product-region-controls select {
-  min-width: 0;
-  min-height: 2.45rem;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-sunken);
-  color: var(--text);
-  padding: 0 0.65rem;
-}
-.product-region-actions {
-  display: flex;
-  gap: 0.4rem;
-}
-.product-region-actions button {
-  min-height: 2.45rem;
-  padding: 0.4rem 0.65rem;
-}
-.product-region-actions button:hover:not(:disabled),
-.region-load-state button:hover {
-  border-color: var(--color-cyan);
-  background: var(--panel-raised);
-}
-.product-region-actions button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.product-region-status {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 1rem;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-.product-region-status strong {
-  color: var(--text);
-  font-weight: 600;
-}
 .map-layer-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -718,11 +642,6 @@ footer {
   color: var(--text-muted);
   font-size: 0.72rem;
 }
-.map-panel .spatial-canvas {
-  height: clamp(42rem, 84vh, 78rem);
-  border-width: 0 0 1px;
-}
-.map-panel .renderer-status,
 .selection-status {
   margin: 0;
   padding: 0.65rem 1rem;
@@ -921,17 +840,6 @@ footer {
   color: var(--text-muted);
   font-size: 0.78rem;
   line-height: 1.55;
-}
-.system-map-panel .camera-toolbar,
-.system-map-panel .camera-help,
-.system-map-panel .renderer-status {
-  margin-right: 1rem;
-  margin-left: 1rem;
-}
-.system-map-panel .spatial-canvas {
-  height: clamp(22rem, 58vh, 40rem);
-  border-width: 1px 0;
-  border-radius: 0;
 }
 /* The map, with the chosen body's details and the list of bodies in a column
    beside it, the same height as the map, so neither is missed below it. */
@@ -1321,19 +1229,6 @@ footer {
   }
   .map-panel {
     order: -1;
-  }
-  .map-panel .spatial-canvas {
-    height: 18rem;
-  }
-  .product-region-controls {
-    grid-template-columns: 1fr;
-  }
-  .product-region-actions,
-  .product-region-status {
-    grid-column: 1;
-  }
-  .product-region-actions button {
-    flex: 1;
   }
   .map-system-card {
     grid-template-columns: 1fr;

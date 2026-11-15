@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@babylonjs/core':
-        specifier: 9.23.0
-        version: 9.23.0
       '@ed-finder/api-client':
         specifier: file:../../packages/api-client
         version: file:../../packages/api-client
@@ -150,9 +147,6 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
-
-  '@babylonjs/core@9.23.0':
-    resolution: {integrity: sha512-FpDaTPx485J1H0AEJpoJ785Z1CwCkEPNnZFu7WzHTy0ByGCy75bkZZILh4QFU4LLnzK1iuHwUfecCguATIeKSA==}
 
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
@@ -2580,8 +2574,6 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
-
-  '@babylonjs/core@9.23.0': {}
 
   '@bcoe/v8-coverage@1.0.2': {}
 

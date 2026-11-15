@@ -1,20 +1,10 @@
 {
-  "about": "The Explore galaxy map as it is today. Type Sol and fly to it; pick a result; zoom, pan, turn and tilt; type Colonia and fly right across the map; back out to the whole galaxy.",
+  "about": "The Explore galaxy map (Almanac's). Type Sol and fly to it; pick a result; zoom, move, turn and tilt; choose a star on the map itself; type Colonia and fly right across the map; back out to the whole galaxy.",
   "path": "/explore",
-  "ready": { "selector": "[data-renderer-state=\"ready\"]", "timeoutSeconds": 90, "drawnWith": "data-renderer-backend" },
+  "ready": { "selector": "[data-galaxy-map=\"ready\"]", "timeoutSeconds": 90 },
   "probe": [
-    {
-      "selector": ".spatial-canvas",
-      "attributes": [
-        "data-camera-transition-active",
-        "data-last-settled-focus-id64",
-        "data-scene-target-count",
-        "data-rendered-layer-ids",
-        "data-camera-revision",
-        "data-camera-pitch"
-      ]
-    },
-    { "selector": ".map-catalogue-status", "attributes": ["data-catalogue-star-count"] }
+    { "selector": ".selection-status", "attributes": ["data-map-showing", "data-map-stars"] },
+    { "selector": ".gm-hud", "attributes": ["data-panel"] }
   ],
   "requests": { "under": "/api/" },
   "steps": [
@@ -25,22 +15,22 @@
     { "do": "keys", "name": "choose-sol", "key": "ArrowDown", "times": 1, "seconds": 0.3, "shot": false, "settleSeconds": 0.1 },
     { "do": "keys", "name": "fly-to-sol-start", "key": "Enter", "times": 1, "seconds": 0.2, "settleSeconds": 0.2 },
     { "do": "wait", "name": "fly-to-sol-middle", "seconds": 0.8, "settleSeconds": 0 },
+    { "do": "waitFor", "name": "stars-near-sol", "selector": ".selection-status[data-map-stars=\"ready\"]", "timeoutSeconds": 30, "settleSeconds": 0 },
     { "do": "wait", "name": "fly-to-sol-arrived", "seconds": 4, "settleSeconds": 0 },
 
     { "do": "waitFor", "name": "results-near-sol", "selector": "[data-system-result]", "timeoutSeconds": 30, "settleSeconds": 2 },
-    { "do": "wait", "name": "stars-near-sol", "seconds": 10, "settleSeconds": 0 },
     { "do": "click", "name": "fly-to-a-result-start", "selector": "[data-result-select]", "settleSeconds": 0.3 },
     { "do": "wait", "name": "fly-to-a-result-arrived", "seconds": 4, "settleSeconds": 0 },
 
-    { "do": "focus", "name": "keyboard-on-the-map", "selector": ".spatial-canvas", "shot": false },
-    { "do": "wheel", "name": "zoom-in-1", "deltaY": -200, "ticks": 6, "seconds": 3, "at": [0.62, 0.56] },
-    { "do": "wheel", "name": "zoom-in-2", "deltaY": -200, "ticks": 6, "seconds": 3, "at": [0.62, 0.56] },
-    { "do": "keys", "name": "pan-right", "key": "ArrowRight", "times": 20, "seconds": 3 },
-    { "do": "keys", "name": "pan-up", "key": "ArrowUp", "times": 20, "seconds": 3 },
-    { "do": "keys", "name": "turn", "key": "q", "times": 12, "seconds": 3 },
-    { "do": "drag", "name": "tilt-with-right-button", "from": [0.62, 0.5], "to": [0.7, 0.38], "seconds": 2, "button": "right" },
-    { "do": "drag", "name": "drag-with-left-button", "from": [0.7, 0.5], "to": [0.55, 0.6], "seconds": 2 },
-    { "do": "move", "name": "hover-the-middle", "at": [0.62, 0.56], "settleSeconds": 2 },
+    { "do": "move", "name": "pointer-on-the-map", "at": [0.62, 0.56], "shot": false, "settleSeconds": 0.3 },
+    { "do": "wheel", "name": "zoom-out-a-little", "deltaY": 200, "ticks": 6, "seconds": 3, "at": [0.62, 0.56] },
+    { "do": "wheel", "name": "zoom-in-again", "deltaY": -200, "ticks": 6, "seconds": 3, "at": [0.62, 0.56] },
+    { "do": "hold", "name": "move-right", "key": "d", "seconds": 2 },
+    { "do": "hold", "name": "move-forward", "key": "w", "seconds": 2 },
+    { "do": "hold", "name": "turn", "key": "q", "seconds": 2 },
+    { "do": "drag", "name": "turn-and-tilt-with-left-button", "from": [0.62, 0.5], "to": [0.7, 0.38], "seconds": 2 },
+    { "do": "drag", "name": "move-with-right-button", "from": [0.7, 0.5], "to": [0.55, 0.6], "seconds": 2, "button": "right" },
+    { "do": "click", "name": "centre-on-the-system", "selector": "[data-map-camera=\"chosen\"]", "settleSeconds": 4 },
 
     { "do": "type", "name": "type-colonia", "selector": "#system-search", "text": "Colonia", "shot": false, "settleSeconds": 0.2 },
     { "do": "waitFor", "name": "suggestions-for-colonia", "selector": "[role=\"listbox\"] [role=\"option\"]", "timeoutSeconds": 15, "settleSeconds": 0.5 },
@@ -50,9 +40,9 @@
     { "do": "wait", "name": "fly-to-colonia-middle-2", "seconds": 0.7, "settleSeconds": 0 },
     { "do": "wait", "name": "fly-to-colonia-arrived", "seconds": 5, "settleSeconds": 0 },
 
-    { "do": "focus", "name": "keyboard-back-on-the-map", "selector": ".spatial-canvas", "shot": false },
-    { "do": "wheel", "name": "zoom-out-1", "deltaY": 200, "ticks": 15, "seconds": 4, "at": [0.62, 0.56] },
-    { "do": "wheel", "name": "zoom-out-2", "deltaY": 200, "ticks": 25, "seconds": 5, "at": [0.62, 0.56] },
-    { "do": "keys", "name": "home", "key": "Home", "times": 1, "seconds": 0.5, "settleSeconds": 4 }
+    { "do": "click", "name": "hide-the-finder", "selector": "[data-finder-panel-hide]", "settleSeconds": 2 },
+    { "do": "wheel", "name": "zoom-out-1", "deltaY": 200, "ticks": 15, "seconds": 4, "at": [0.5, 0.56] },
+    { "do": "wheel", "name": "zoom-out-2", "deltaY": 200, "ticks": 25, "seconds": 5, "at": [0.5, 0.56] },
+    { "do": "click", "name": "whole-galaxy-again", "selector": "[data-map-camera=\"galaxy\"]", "settleSeconds": 5 }
   ]
 }

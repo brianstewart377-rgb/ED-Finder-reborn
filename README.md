@@ -456,6 +456,9 @@ graphics card. `scripts/map-recorder` records a fixed tour of the map in a
 real browser on a real graphics card (the owner's gaming PC) and saves a
 video, pictures and frame timings. Its own README has the commands.
 
-`scripts/almanac-trial` is a trial page: Almanac's galaxy map, unchanged,
-with Find's own candidates on it. It is not part of the site. Its own README
-has the commands.
+The galaxy map on Explore is Almanac's Galaxy-Map, unchanged. Almanac refuses
+a browser that draws on the processor, so tests use a stand-in that keeps
+what the page gives the map (`apps/web/src/lib/galaxy-map/fake-almanac.ts`).
+The trial page that came first (`scripts/almanac-trial`) was removed once the
+map and the System Map were in the site; `git log -- scripts/almanac-trial`
+finds it, with its first cut of "All my systems".
