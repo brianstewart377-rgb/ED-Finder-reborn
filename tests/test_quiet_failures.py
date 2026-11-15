@@ -1,10 +1,11 @@
 """Things that used to go wrong without a word now say so.
 
 The code review of 15 November 2026 found places where the running site could
-fail and leave no trace: a cache that could not be reached, a body whose
-stored rings could not be read, a sign-in that lost its commander name, a
-journal import that failed for one reason and reported another. Each now
-leaves a line in the log, and the cache failures are counted as well.
+fail and leave no trace: a cache that could not be reached, and a sign-in
+that lost its commander name. Each now leaves a line in the log, and the
+cache failures are counted as well. (It found two more, in the V2 system
+page and the V2 journal import; both were later removed whole, as nothing
+used them, and their tests with them.)
 
 It also found the opposite fault, saying too much: a watchlist address
 carries the browser's own key, and it was written to the logs whole; and the
@@ -26,8 +27,7 @@ from fastapi import HTTPException
 
 os.environ.setdefault("CORS_ORIGINS", "https://quiet-failures-test.invalid")
 
-from edfinder_api import deps, local_search, request_logging  # noqa: E402
-from edfinder_api.journal_import import store as journal_store  # noqa: E402
+from edfinder_api import deps, request_logging  # noqa: E402
 from edfinder_api.routers import auth as auth_route  # noqa: E402
 from edfinder_api.routers import meta as meta_route  # noqa: E402
 from edfinder_api.state import metrics  # noqa: E402
@@ -120,40 +120,6 @@ def test_the_count_of_cache_failures_is_on_the_metrics_page(cache_counts):
     assert "ed_finder_cache_errors_total 4" in text.splitlines()
 
 
-# ── A body's rings and signals ─────────────────────────────────────────────
-
-def _body_row(**changes):
-    # The columns _normalize_body reads, with a ringed gas giant's values.
-    row = {"id": 4521, "name": "A 5", "ring_types": '["Icy", "Rocky"]',
-           "signals": '[{"name": "Biological", "count": 2}]', "has_signals": True}
-    row.update(changes)
-    return row
-
-
-def test_a_bodys_stored_rings_and_signals_are_read(caplog):
-    caplog.set_level(logging.WARNING, logger=local_search.log.name)
-    body = local_search._normalize_body(_body_row())
-    assert body["rings"] == [{"type": "Icy"}, {"type": "Rocky"}]
-    assert body["signals"] == [{"name": "Biological", "count": 2}]
-    assert not caplog.records
-
-
-def test_rings_that_cannot_be_read_are_shown_as_none_and_the_log_names_the_body(caplog):
-    caplog.set_level(logging.WARNING, logger=local_search.log.name)
-    body = local_search._normalize_body(_body_row(ring_types='["Icy", '))
-    assert body["rings"] == [], "the page is still answered"
-    assert body["signals"] == [{"name": "Biological", "count": 2}], "the readable half is kept"
-    said = [record.getMessage() for record in caplog.records]
-    assert said == ["body 4521: its stored ring_types could not be read, so it is shown with none"]
-
-
-def test_a_body_with_no_rings_says_nothing(caplog):
-    caplog.set_level(logging.WARNING, logger=local_search.log.name)
-    body = local_search._normalize_body(_body_row(ring_types=None, signals=[], has_signals=False))
-    assert body["rings"] == [] and body["signals"] == []
-    assert not caplog.records
-
-
 # ── The commander name at sign-in ──────────────────────────────────────────
 
 class _Frontier:
@@ -218,36 +184,6 @@ def test_a_sign_in_that_gets_its_name_says_nothing(frontier, caplog):
     frontier(httpx.Response(200, json={"commander": {"name": "A Commander"}}))
     assert _sign_in()
     assert not caplog.records
-
-
-# ── A journal import that cannot mark its systems ──────────────────────────
-
-class _RefusingConnection:
-    """A database connection whose first statement fails."""
-
-    def __init__(self) -> None:
-        self.asked = 0
-
-    async def execute(self, *args):
-        self.asked += 1
-        raise TimeoutError("the statement ran out of time")
-
-    async def fetchrow(self, *args):
-        self.asked += 1
-        raise AssertionError("nothing may be asked after a statement has failed")
-
-
-def test_an_import_that_cannot_mark_its_systems_fails_with_the_real_reason(caplog):
-    caplog.set_level(logging.WARNING, logger="ed_finder")
-    connection = _RefusingConnection()
-    with pytest.raises(TimeoutError):
-        run(journal_store._mark_dirty_systems_incremental(connection, {11, 12, 13}, batch_size=2))
-    # One statement, then stop: inside a transaction PostgreSQL refuses the
-    # rest anyway, and the import used to fail later with "transaction is
-    # aborted", which named nothing.
-    assert connection.asked == 1
-    said = [record.getMessage() for record in caplog.records]
-    assert said == ["marking 2 systems for new scores failed (TimeoutError); the import cannot go on"]
 
 
 # ── What the logs and the browser are not told ─────────────────────────────

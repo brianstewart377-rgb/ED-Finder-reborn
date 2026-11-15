@@ -42,16 +42,6 @@ T2_PORT_MIN_YELLOW_COST = 3
 T2_PORT_YELLOW_INCREMENT = 2
 T3_PORT_GREEN_INCREMENT = 6
 
-LATE_T3_BUILD_ORDER_THRESHOLD = 3
-
-CP_COMPLEXITY_THRESHOLDS = [
-    (90, 'expert'),
-    (65, 'advanced'),
-    (40, 'moderate'),
-    (15, 'simple'),
-    (0, 'trivial'),
-]
-
 
 def escalating_port_tier(facility: FacilityTemplate) -> int | None:
     """Classify catalogue ports, with a tier fallback for synthetic templates."""

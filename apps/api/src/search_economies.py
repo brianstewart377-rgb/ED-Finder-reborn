@@ -154,20 +154,6 @@ def archetype_score_column(name: Optional[str], *, alias: str = '') -> str:
     return f'{alias}.{col}' if alias else col
 
 
-# ── cluster_summary.<economy>_count lookups ────────────────────────────────
-def cluster_count_column(name: Optional[str], *, alias: str = 'cs') -> Optional[str]:
-    """Return the ``cluster_summary`` count column for an economy, or
-    ``None`` if the economy isn't recognised.
-
-    Note: cluster_summary only carries the six "core" economies
-    (no extraction column today).
-    """
-    canon = _canon(name)
-    if canon is None or canon == 'extraction':
-        return None
-    return f'{alias}.{canon}_count' if alias else f'{canon}_count'
-
-
 # ── Body filter columns ────────────────────────────────────────────────────
 # The server accepts body-filter keys in snake_case; older/legacy callers may
 # still send camelCase, which we accept via BODY_FILTER_ALIASES. (The snake_case
@@ -242,16 +228,6 @@ def normalise_body_filters(body_filters: dict) -> dict:
     return out
 
 
-def body_filter_column(key: str, *, alias: str = '') -> Optional[str]:
-    """Resolve a body-filter request key to a ratings column. Returns
-    ``None`` if ``key`` isn't a known filter.
-    """
-    col = BODY_FILTER_COLS.get(key)
-    if col is None:
-        return None
-    return f'{alias}.{col}' if alias else col
-
-
 __all__ = [
     'ECONOMIES',
     'ECONOMY_ALIASES',
@@ -260,9 +236,7 @@ __all__ = [
     'economy_enum_value',
     'ratings_score_column',
     'archetype_score_column',
-    'cluster_count_column',
     'BODY_FILTER_COLS',
     'BODY_FILTER_ALIASES',
     'normalise_body_filters',
-    'body_filter_column',
 ]

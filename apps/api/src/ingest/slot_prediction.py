@@ -11,10 +11,6 @@ import re
 from typing import Any, Literal, Optional
 
 PREDICTION_VERSION = 'validated-slot-v1'
-PREDICTION_DISCLAIMER = (
-    'Predicted slots — high-accuracy algorithm, not guaranteed. '
-    'Verify in Architect Mode.'
-)
 VALIDATION_NOTE = (
     'Validated against the supplied evidence set with only 2 true mismatches '
     'after data-entry corrections.'
@@ -272,56 +268,6 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
         reasons=reasons,
         required_input_missing=[] if orbital_slots is not None else ['radius'],
     )
-
-
-def predict_system_slots(scan_facts: list[dict[str, Any]]) -> dict[str, Any]:
-    """Aggregate canonical predictions for a system."""
-    if not scan_facts:
-        return {
-            'predicted_orbital_slots_total': None,
-            'predicted_ground_slots_total': None,
-            'slot_confidence': None,
-            'body_predictions': [],
-            'prediction_status': 'unknown',
-            'prediction_version': PREDICTION_VERSION,
-            'validation_note': VALIDATION_NOTE,
-            'required_input_missing': ['body_scan_facts'],
-        }
-
-    predictions = [predict_body_slots(fact) for fact in scan_facts]
-    has_unknown = any(p.prediction_status == 'unknown' for p in predictions)
-    status: str
-    if all(p.prediction_status == 'observed' for p in predictions):
-        status = 'observed'
-    elif has_unknown:
-        status = 'unknown'
-    else:
-        status = 'predicted'
-
-    required_missing = sorted({
-        missing
-        for prediction in predictions
-        for missing in prediction.required_input_missing
-    })
-
-    known_orbital = [p.predicted_orbital_slots for p in predictions if p.predicted_orbital_slots is not None]
-    known_ground = [p.predicted_ground_slots for p in predictions if p.predicted_ground_slots is not None]
-    orbital_total = None if status == 'unknown' else (sum(known_orbital) if known_orbital else None)
-    ground_total = None if status == 'unknown' else (sum(known_ground) if known_ground else None)
-
-    return {
-        'predicted_orbital_slots_total': orbital_total,
-        'predicted_ground_slots_total': ground_total,
-        'slot_confidence': 0.96 if status == 'predicted' else None,
-        'body_predictions': predictions,
-        'prediction_status': status,
-        'prediction_version': PREDICTION_VERSION,
-        'validation_note': VALIDATION_NOTE,
-        'required_input_missing': required_missing,
-        # Back-compat fields
-        'estimated_orbital_slots': orbital_total,
-        'estimated_ground_slots': ground_total,
-    }
 
 
 def confidence_label(confidence: Optional[float]) -> str:

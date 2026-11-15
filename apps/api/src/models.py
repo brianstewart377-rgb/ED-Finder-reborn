@@ -14,25 +14,22 @@ Why both?
 * Strict fields → openapi-typescript can generate real TypeScript types
   from /openapi.json instead of `Record<string, never>` / `unknown`,
   which is what made the api.gen.ts CI drift-check toothless.
-* Extras allowed → adding a column on the SQL side or a key in
-  `helpers.sys_row_to_dict` will *not* be silently stripped by
-  Pydantic's response serializer (which was the original bug behind
-  the `source/query_ms/display_economy` regression in d43fde8).
+* Extras allowed → adding a column on the SQL side or a key in a
+  result row will *not* be silently stripped by Pydantic's response
+  serializer (which was the original bug behind the
+  `source/query_ms/display_economy` regression in d43fde8).
 
-If you tighten extras here, audit `helpers.sys_row_to_dict` and the
-SQL projections in `routers/systems.py` + `local_search.py` first.
+If you tighten extras here, audit the rows `local_search.py` builds
+(`_build_v3_system_record`) first.
 
 Strictness policy (2026-05-09 follow-up to the search-503 RCA):
 
-* **Row models** (`SystemRow`, `SystemDetailRow`, `BodyModel`,
-  `StationModel`, `AutocompleteHit`,
-  `RangeFilter`, `BodyCountFilter`, `BodyFilters`,
-  `ExplorationValueModel`) → `extra='allow'`. SQL projections
+* **Row models** (`SystemRow`, `AutocompleteHit`, `RangeFilter`,
+  `BodyCountFilter`, `BodyFilters`) → `extra='allow'`. SQL projections
   legitimately drift; silently dropping an existing field would be a
   worse bug than passing through an unknown one.
 * **Response envelopes** (`SearchResponse`, `AutocompleteResponse`,
-  `StatusResponse`, `CacheStatsResponse`, `SystemDetailResponse`,
-  `HealthResponse`) → `extra='forbid'`. The
+  `StatusResponse`, `HealthResponse`) → `extra='forbid'`. The
   top-level envelope shape changes rarely and intentionally;
   forgetting to update the model when adding a key should be a loud
   failure (Pydantic ValidationError → 500), not silently shipped
@@ -52,10 +49,9 @@ frontend useful types out of the box.
 """
 from __future__ import annotations
 
-import math
 from typing import Annotated, Any, Literal, Optional
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from edfinder_api.models_economy import EconomyFilterField, EconomyNameField
 from edfinder_api.ranking.profile import (
@@ -63,7 +59,6 @@ from edfinder_api.ranking.profile import (
     RANKING_PAGE_LIMIT_MAX,
     RANKING_PAGE_LIMIT_MIN,
 )
-
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -98,8 +93,8 @@ class BodyCountFilter(BaseModel):
 
 
 class BodyFilters(BaseModel):
-    """`LocalSearchRequest.body_filters`. Keys mirror the
-    `helpers.sys_row_to_dict` body-count column names. All optional —
+    """`LocalSearchRequest.body_filters`. Keys are the body-count column
+    names (`search_economies.BODY_FILTER_COLS`). All optional —
     a missing key means "no filter on that body type"."""
     model_config = ConfigDict(extra='allow')
 
@@ -124,105 +119,14 @@ class BodyFilters(BaseModel):
     walkable_count:      Optional[BodyCountFilter] = None
 
 
-class BodyRingModel(BaseModel):
-    model_config = ConfigDict(extra='allow')
-
-    ring_name:    Optional[str]   = None
-    ring_type:    Optional[str]   = None
-    ring_class:   Optional[str]   = None
-    mass_mt:      Optional[float] = None
-    inner_radius: Optional[float] = None
-    outer_radius: Optional[float] = None
-    source:       Optional[str]   = None
-    confidence:   Optional[str]   = None
-    updated_at:   Optional[Any]   = None
-
-
-class BodyModel(BaseModel):
-    model_config = ConfigDict(extra='allow')
-
-    id:                      Optional[int]   = None
-    name:                    Optional[str]   = None
-    subtype:                 Optional[str]   = None
-    body_type:               Optional[str]   = None
-    distance_from_star:      Optional[float] = None
-    is_landable:             Optional[bool]  = None
-    is_terraformable:        Optional[bool]  = None
-    is_earth_like:           Optional[bool]  = None
-    is_water_world:          Optional[bool]  = None
-    is_ammonia_world:        Optional[bool]  = None
-    bio_signal_count:        Optional[int]   = None
-    geo_signal_count:        Optional[int]   = None
-    surface_temp:            Optional[float] = None
-    radius:                  Optional[float] = None
-    mass:                    Optional[float] = None
-    gravity:                 Optional[float] = None
-    estimated_mapping_value: Optional[int]   = None
-    estimated_scan_value:    Optional[int]   = None
-    is_main_star:            Optional[bool]  = None
-    spectral_class:          Optional[str]   = None
-    is_scoopable:            Optional[bool]  = None
-    is_ringed:               Optional[bool]  = None
-    ring_state:              Optional[Literal['ringed', 'not_ringed', 'unknown']] = None
-    rings:                   Optional[list[BodyRingModel]] = None
-    ring_count:              Optional[int]   = None
-    ring_source:             Optional[str]   = None
-    ring_confidence:         Optional[str]   = None
-    body_sort_key:           Optional[str]   = None
-
-
-class StationModel(BaseModel):
-    model_config = ConfigDict(extra='allow')
-
-    id:                 Optional[int]   = None
-    market_id:          Optional[int]   = None
-    name:               Optional[str]   = None
-    station_type:       Optional[str]   = None
-    distance_from_star: Optional[float] = None
-    distance_source:    Optional[str]   = None
-    distance_confidence: Optional[str]  = None
-    distance_updated_at: Optional[Any]  = None
-    station_type_source: Optional[str]  = None
-    station_type_confidence: Optional[str] = None
-    station_type_updated_at: Optional[Any] = None
-    body_id:            Optional[int]   = None
-    body_name:          Optional[str]   = None
-    station_body_name:  Optional[str]   = None
-    body_name_source:   Optional[str]   = None
-    body_name_confidence: Optional[str] = None
-    body_name_updated_at: Optional[Any] = None
-    lane:               Optional[str]   = None
-    association_status: Optional[str]   = None
-    association_confidence: Optional[str] = None
-    association_source: Optional[str]   = None
-    resolver_notes:     Optional[str]   = None
-    landing_pad_size:   Optional[str]   = None
-    primary_economy:    Optional[str]   = None
-    secondary_economy:  Optional[str]   = None
-    has_market:         Optional[bool]  = None
-    has_shipyard:       Optional[bool]  = None
-    has_outfitting:     Optional[bool]  = None
-    has_refuel:         Optional[bool]  = None
-    has_repair:         Optional[bool]  = None
-    has_rearm:          Optional[bool]  = None
-
-
-class ExplorationValueModel(BaseModel):
-    model_config = ConfigDict(extra='allow')
-
-    total_scan_value:    int = 0
-    total_mapping_value: int = 0
-    combined_value:      int = 0
-
-
 # ══════════════════════════════════════════════════════════════════════
-# Search row (camelCase) — `/api/local/search`, `/api/systems/batch`
+# Search row (camelCase) — `/api/local/search`
 # ══════════════════════════════════════════════════════════════════════
 class SystemRow(BaseModel):
     """One result row inside `SearchResponse.results`.
 
-    Keep aligned with `helpers.sys_row_to_dict` (single source of truth
-    for the camelCase translator).
+    Keep aligned with `local_search._build_v3_system_record`, which builds
+    each row.
     """
     model_config = ConfigDict(extra='allow')
 
@@ -298,91 +202,6 @@ SystemModel = SystemRow
 
 
 # ══════════════════════════════════════════════════════════════════════
-# Detail row (snake_case) — `/api/system/{id64}`
-# ══════════════════════════════════════════════════════════════════════
-class SystemDetailRow(BaseModel):
-    """Full system detail returned by `/api/system/{id64}`.
-
-    The detail endpoint does *not* go through the camelCase translator —
-    it returns the joined ratings + bodies + stations rows snake_case
-    as PostgreSQL emits them (see `routers/systems.py::get_system`).
-    Frontend renders these strings directly.
-    """
-    model_config = ConfigDict(extra='allow')
-
-    id64:               int
-    name:               str
-    x:                  Optional[float] = None
-    y:                  Optional[float] = None
-    z:                  Optional[float] = None
-    population:         Optional[int] = None
-    primary_economy:    Optional[str]  = None
-    secondary_economy:  Optional[str]  = None
-    security:           Optional[str]  = None
-    allegiance:         Optional[str]  = None
-    government:         Optional[str]  = None
-    is_colonised:       Optional[bool] = None
-    is_being_colonised: Optional[bool] = None
-    main_star_type:     Optional[str]  = None
-    main_star_subtype:  Optional[str]  = None
-    body_data_updated_at: Optional[str] = None
-    body_data_sources: Optional[list[str]] = None
-    status_updated_at: Optional[str] = None
-    status_source: Optional[str] = None
-
-    # Archetype / buildability (from LEFT JOIN mv_archetype_rankings in the
-    # /api/system/{id64} handler — nullable when no ranking row exists). CQ-030:
-    # previously flowed through as extra='allow' untyped extras, so absent from
-    # the OpenAPI schema and the frontend had to hand-augment. Declared here so
-    # the schema is honest.
-    primary_archetype:             Optional[str]   = None
-    secondary_archetype:           Optional[str]   = None
-    archetype_confidence:          Optional[float] = None
-    overall_development_potential: Optional[float] = None
-    buildability_score:            Optional[float] = None
-    build_complexity:              Optional[str]   = None
-    purity_score:                  Optional[float] = None
-    contamination_risk:            Optional[float] = None
-    est_total_slots:               Optional[int]   = None
-
-    # Flat rating fields (joined from ratings table; snake_case here).
-    score:                  Optional[float] = None
-    score_agriculture:      Optional[float] = None
-    score_refinery:         Optional[float] = None
-    score_industrial:       Optional[float] = None
-    score_hightech:         Optional[float] = None
-    score_military:         Optional[float] = None
-    score_tourism:          Optional[float] = None
-    score_extraction:       Optional[float] = None
-    economy_suggestion:     Optional[str]   = None
-    rating_version:         Optional[str]   = None
-
-    # Flat body counts.
-    elw_count:              Optional[int] = None
-    ww_count:               Optional[int] = None
-    ammonia_count:          Optional[int] = None
-    gas_giant_count:        Optional[int] = None
-    landable_count:         Optional[int] = None
-    terraformable_count:    Optional[int] = None
-    bio_signal_total:       Optional[int] = None
-    geo_signal_total:       Optional[int] = None
-    neutron_count:          Optional[int] = None
-    black_hole_count:       Optional[int] = None
-    white_dwarf_count:      Optional[int] = None
-
-    # v3.1 rating fields.
-    terraforming_potential: Optional[float] = None
-    body_diversity:         Optional[float] = None
-    confidence:             Optional[float] = None
-    rationale:              Optional[str]   = None
-
-    bodies:   list[BodyModel]    = Field(default_factory=list)
-    stations: list[StationModel] = Field(default_factory=list)
-
-    exploration_value: Optional[ExplorationValueModel] = None
-
-
-# ══════════════════════════════════════════════════════════════════════
 # Response wrappers
 # ══════════════════════════════════════════════════════════════════════
 class RankingIdentity(BaseModel):
@@ -422,7 +241,7 @@ class SearchResponse(BaseModel):
     results: list[SystemRow]
     total:   int = 0
     count:   int = 0
-    # Optional — only set by local_db_search, helpful for ops visibility
+    # Optional — helpful for ops visibility
     # so you can tell which code path served the response without
     # spelunking through logs. (FastAPI silently drops fields not in
     # the response model; without these, source/query_ms/display_economy
@@ -441,22 +260,13 @@ class SearchResponse(BaseModel):
     # not a count. Ask again with `wait_for_count` for the count. True or
     # absent: `total` is the count.
     total_is_counted: Optional[bool] = None
-    # Surfaces the radius-cap notice from `local_db_search`. UI can
+    # Surfaces a radius-cap notice. UI can
     # render this as a small banner next to the results count.
     warning:          Optional[str] = None
     # Every successful V3 Finder envelope carries the complete ranking and
     # published archetype-product identity. Product readiness is checked
     # before the read, so a partial/identity-free envelope is never valid.
     ranking:          RankingIdentity
-
-
-class SystemDetailResponse(BaseModel):
-    """`/api/system/{id64}` response. Backend returns the same row
-    twice under `record` and `system` for legacy compat."""
-    model_config = ConfigDict(extra='forbid')
-
-    record: SystemDetailRow
-    system: SystemDetailRow
 
 
 class HealthResponse(BaseModel):
@@ -522,27 +332,6 @@ class StatusResponse(BaseModel):
     reason:               Optional[str]   = None  # populated when available=False
 
 
-class RetiredRouteProblem(BaseModel):
-    """RFC 9457 problem detail for a retired route that answers 410 Gone."""
-    model_config = ConfigDict(extra='forbid')
-
-    type:   str
-    title:  str
-    status: int
-    detail: str
-
-
-class CacheStatsResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    cache_hits:       int = 0
-    cache_misses:     int = 0
-    redis_hits:       Optional[int]   = None
-    redis_misses:     Optional[int]   = None
-    redis_memory_mb:  Optional[float] = None
-    db_cache_rows:    int = 0
-
-
 class WatchlistAlert(BaseModel):
     min_development_score: Optional[int] = Field(
         default=None,
@@ -553,10 +342,6 @@ class WatchlistAlert(BaseModel):
     economy: Optional[str] = Field(default=None, max_length=64)
 
     model_config = {'populate_by_name': True}
-
-
-class NoteBody(BaseModel):
-    note: str
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1148,269 +933,9 @@ class BuildSimulateResponse(BaseModel):
     ranking:               RankingIdentity
 
 
-# ── Response: simulation/buildability endpoints ───────────────────────
-# -- Request/response: POST /api/simulate/build -----------------------------
-class SimulateBuildPlacement(BaseModel):
-    """One user-selected facility placement in Simulation Preview."""
-    model_config = ConfigDict(extra='forbid')
-
-    facility_template_id: str
-    local_body_id:        Optional[str] = None
-    is_primary_port:      bool          = False
-    build_order:          int           = Field(default=1, ge=1)
-
-
-class SimulateBuildRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    system_id64:       int
-    target_archetype:  str
-    placements:        list[SimulateBuildPlacement] = Field(default_factory=list)
-
-
-class SimulationCPResult(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    yellow_cp_final:     int
-    green_cp_final:      int
-    yellow_cp_generated: int = 0
-    green_cp_generated:  int = 0
-    yellow_cp_spent:     int = 0
-    green_cp_spent:      int = 0
-    t2_ports:            int
-    t3_ports:            int
-    warnings:            list[str] = Field(default_factory=list)
-
-
-class SimulationLink(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    port_facility_id:    Optional[str] = None
-    support_facility_id: str
-    local_body_id:       Optional[str] = None
-    economy:             Optional[str] = None
-    value:               float = 0.0
-    note:                str
-
-
-class SimulationLinks(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    strong_links: list[SimulationLink] = Field(default_factory=list)
-    weak_links:   list[SimulationLink] = Field(default_factory=list)
-
-
-class SimulationInheritedEconomy(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    source_body_id:     Optional[str] = None
-    source_body_name:   Optional[str] = None
-    base_economies:     list[str] = Field(default_factory=list)
-    modifier_economies: list[str] = Field(default_factory=list)
-    weights:            dict[str, float] = Field(default_factory=dict)
-    purity:             float
-    confidence:         float
-    caveats:            list[str] = Field(default_factory=list)
-    strategic_tags:     list[str] = Field(default_factory=list)
-
-
-class SimulateBuildResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    system_id64:         int
-    mechanics_version:   str = ''
-    target_archetype:    str
-    final_score:         float
-    composition_score:   float
-    buildability_score:  float
-    build_complexity:    Literal['simple', 'moderate', 'advanced', 'expert']
-    confidence:          float
-    cp:                  SimulationCPResult
-    cp_timeline:         list[dict[str, Any]] = Field(default_factory=list)
-    cp_repair_suggestions: list[dict[str, Any]] = Field(default_factory=list)
-    observation_summary: dict[str, Any] = Field(default_factory=dict)
-    prediction_observation_diffs: list[dict[str, Any]] = Field(default_factory=list)
-    economy_composition: dict[str, float] = Field(default_factory=dict)
-    economy_order:       list[str] = Field(default_factory=list)
-    economy_stack:       dict[str, Any] = Field(default_factory=dict)
-    port_economy_states: list[dict[str, Any]] = Field(default_factory=list)
-    influence_ledger:    list[dict[str, Any]] = Field(default_factory=list)
-    inherited_economies: list[SimulationInheritedEconomy] = Field(default_factory=list)
-    topology:            dict[str, Any] = Field(default_factory=dict)
-    services:            dict[str, Any] = Field(default_factory=dict)
-    port_service_states: list[dict[str, Any]] = Field(default_factory=list)
-    service_unlock_ledger: list[dict[str, Any]] = Field(default_factory=list)
-    data_quality:        dict[str, str] = Field(default_factory=dict)
-    confidence_signals:  list[dict[str, Any]] = Field(default_factory=list)
-    mechanics_trace:     dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
-    top_two_alignment:   str
-    contamination_risk:  str
-    warnings:            list[str] = Field(default_factory=list)
-    strengths:           list[str] = Field(default_factory=list)
-    recommendations:     list[str] = Field(default_factory=list)
-    mechanics_notes:     list[str] = Field(default_factory=list)
-    links:               SimulationLinks
-
-
-class RecommendedBuildPlan(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    id:                 str
-    label:              str
-    summary:            str
-    complexity:         Literal['simple', 'moderate', 'advanced', 'expert']
-    confidence:         float
-    final_score:        float
-    composition_score:  float
-    buildability_score: float
-    economy_result:     dict[str, float] = Field(default_factory=dict)
-    port_economy_summary: list[str] = Field(default_factory=list)
-    cp_result:          SimulationCPResult
-    build_order:        list[SimulateBuildPlacement] = Field(default_factory=list)
-    strengths:          list[str] = Field(default_factory=list)
-    warnings:           list[str] = Field(default_factory=list)
-    tradeoffs:          list[str] = Field(default_factory=list)
-    next_actions:       list[str] = Field(default_factory=list)
-    selected_body_id:   Optional[str] = None
-    selected_body_name: Optional[str] = None
-    body_selection_reason: str = ''
-    mechanics_basis:    list[str] = Field(default_factory=list)
-    economy_caveats:    list[str] = Field(default_factory=list)
-    assumptions:        list[str] = Field(default_factory=list)
-    regional_role:      Optional[str] = None
-    nearest_colony_distance: Optional[float] = None
-    archetype_regional_fit: Optional[float] = None
-    regional_rationale: dict[str, Any] = Field(default_factory=dict)
-    decision_explanation: dict[str, Any] = Field(default_factory=dict)
-    rank_breakdown:     dict[str, float] = Field(default_factory=dict)
-    simulation_request: SimulateBuildRequest
-    is_default:         bool = False
-
-
-class RecommendedBuildsResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    system_id64:              int
-    mechanics_version:        str = ''
-    target_archetype:         str
-    best_suggested_archetype: str
-    recommended_next_action:  str
-    plans:                   list[RecommendedBuildPlan] = Field(default_factory=list)
-    warnings:                list[str] = Field(default_factory=list)
-
-
-class RegionalAnalysisResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    system_id64:                 int
-    mechanics_version:           str = ''
-    claim_range_ly:              float = 0.0
-    analysis_radius_ly:          float = 0.0
-    nearest_colonised_system:    Optional[dict[str, Any]] = None
-    counts:                      dict[str, int] = Field(default_factory=dict)
-    scores:                      dict[str, float] = Field(default_factory=dict)
-    regional_role:               str = 'unknown'
-    archetype_regional_fit:      dict[str, float] = Field(default_factory=dict)
-    rationale:                   dict[str, Any] = Field(default_factory=dict)
-    data_quality:                dict[str, str] = Field(default_factory=dict)
-    confidence_signals:          list[dict[str, Any]] = Field(default_factory=list)
-    computed_at:                 Optional[Any] = None
-
-
-class FacilityTemplateResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    id:                  str
-    name:                str
-    category:            str
-    tier:                int
-    economy:             Optional[str] = None
-    is_port:             bool
-    is_support_facility: bool
-    allowed_location:    str
-    pad_size:            Optional[str] = None
-    confidence:          Optional[str] = None
-    canonical_confidence: Optional[dict[str, Any]] = None  # EDRE-aligned canonical shape
-    notes:               Optional[str] = None
-    # list[dict[str, Any]] / dict[str, Any] still emit as
-    # Record<string, never> via openapi-typescript (its handling of Pydantic's
-    # `additionalProperties: {}` schema for a bare Any value type) — the exact
-    # unusable-generated-type trap this file's own module docstring warns
-    # about. These three catalogue fields are genuinely free-form (frontend
-    # code defensively probes several possible keys), so `Any` is the
-    # documented remedy rather than inventing a fixed sub-model shape.
-    prerequisites:       list[Any] = Field(default_factory=list)
-    economy_effects:     Any = Field(default_factory=dict)
-    yellow_cp_generated: int = 0
-    green_cp_generated:  int = 0
-    yellow_cp_cost:      int = 0
-    green_cp_cost:       int = 0
-    stat_effects:        Any = Field(default_factory=dict)
-
-
 SimulationSource = Literal['precomputed', 'computed', 'insufficient_data']
 SlotDataSource = Literal['eddn', 'spansh', 'none']
 SlotPredictionStatus = Literal['predicted', 'unknown', 'observed']
-
-
-class SlotReason(BaseModel):
-    """One explainability note for a per-body slot prediction."""
-    model_config = ConfigDict(extra='allow')
-
-    factor:       str
-    delta:        Optional[float] = None
-    note:         Optional[str]   = None
-
-
-class BodySlotPrediction(BaseModel):
-    """One body row returned by GET /api/systems/{id64}/slot-predictions."""
-    model_config = ConfigDict(extra='allow')
-
-    system_address: int
-    body_id:        int
-    body_name:      Optional[str]   = None
-    planet_class:   Optional[str]   = None
-    predicted_ground_slots: Optional[int] = None
-    predicted_orbital_slots: Optional[int] = None
-    prediction_status: SlotPredictionStatus = 'unknown'
-    confidence_label: Optional[str] = None
-    prediction_version: Optional[str] = None
-    validation_note: Optional[str] = None
-    required_input_missing: list[str] = Field(default_factory=list)
-    missing_inputs: list[str] = Field(default_factory=list)
-    source_label: Optional[str] = None
-    estimated_surface_slots: Optional[int] = None
-    estimated_orbital_slots: Optional[int] = None
-    slot_confidence: Optional[float] = None
-    slot_source:    Optional[str] = None
-    reasons:        list[SlotReason]= Field(default_factory=list)
-    is_ringed:      Optional[bool]  = None
-    is_landable:    Optional[bool]  = None
-    radius:         Optional[float] = None
-
-
-class SlotPredictionResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    system_id64:             int
-    data_source:             SlotDataSource
-    body_count:              int
-    predicted_orbital_slots_total: Optional[int] = None
-    predicted_ground_slots_total:  Optional[int] = None
-    prediction_status: SlotPredictionStatus = 'unknown'
-    prediction_version: str
-    confidence_label: Optional[str] = None
-    disclaimer: str
-    validation_note: str
-    required_input_missing: list[str] = Field(default_factory=list)
-    missing_inputs: list[str] = Field(default_factory=list)
-    source_label: Optional[str] = None
-    estimated_orbital_slots: Optional[int] = None
-    estimated_ground_slots:  Optional[int] = None
-    slot_confidence:         Optional[float] = None
-    slot_confidence_label:   Optional[str] = None
-    predictions:             list[BodySlotPrediction] = Field(default_factory=list)
-    note:                    Optional[str] = None
 
 
 class BuildabilityIssue(BaseModel):
@@ -1497,48 +1022,6 @@ class BuildabilityResponse(BuildabilityData):
 
 # Backwards-compatible public name used by older imports/docs.
 SystemBuildabilityResponse = BuildabilityResponse
-
-
-class SimulationClassification(BaseModel):
-    model_config = ConfigDict(extra='allow')
-
-    primary_archetype:   Optional[str]   = None
-    secondary_archetype: Optional[str]   = None
-    confidence:          Optional[float] = None
-    overall_potential:   Optional[float] = None
-    purity_score:        Optional[float] = None
-    display_tags:        list[str]       = Field(default_factory=list)
-    data_confidence:     Optional[float] = None
-    rationale:           Optional[Any]   = None
-
-
-class SimulationBodySummary(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    elw_count:           int = 0
-    hmc_count:           int = 0
-    gas_giant_count:     int = 0
-    terraformable_count: int = 0
-    bio_signal_total:    int = 0
-    geo_signal_total:    int = 0
-    scanned_body_count:  int = 0
-
-
-class SimulationSummaryResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    system_id64:       int
-    mechanics_version: str = ''
-    system_name:       Optional[str] = None
-    archetype:         Optional[str] = None
-    classification:    Optional[SimulationClassification] = None
-    archetype_scores:  dict[str, float] = Field(default_factory=dict)
-    body_summary:      Optional[SimulationBodySummary] = None
-    buildability:      BuildabilityData
-    topology_summary:  list[str] = Field(default_factory=list)
-    regional_context:  Optional[RegionalAnalysisResponse] = None
-    distance_to_sol:   Optional[float] = None
-    main_star_type:    Optional[str] = None
 
 
 # ── Profile entry: GET /api/archetypes/profiles ──────────────────────
@@ -1685,58 +1168,6 @@ class MapViewportSystem(BaseModel):
     z: float
     main_star_class: Optional[str] = None
     populated: bool
-
-
-class MapViewportRequest(BaseModel):
-    """Request for systems within a bounding box."""
-    model_config = ConfigDict(extra='forbid')
-
-    min_x: float
-    max_x: float
-    min_y: float
-    max_y: float
-    min_z: float
-    max_z: float
-    limit: int = Field(default=10000, ge=1, le=40000)
-    min_importance: Optional[int] = None
-
-    @field_validator('min_x', 'min_y', 'min_z')
-    @classmethod
-    def validate_mins(cls, v: float) -> float:
-        if not isinstance(v, (int, float)) or not math.isfinite(v):
-            raise ValueError('must be a finite number')
-        return v
-
-    @field_validator('max_x', 'max_y', 'max_z')
-    @classmethod
-    def validate_maxes(cls, v: float) -> float:
-        if not isinstance(v, (int, float)) or not math.isfinite(v):
-            raise ValueError('must be a finite number')
-        return v
-
-    @field_validator('max_x')
-    @classmethod
-    def validate_max_x_bounds(cls, v: float, info: ValidationInfo) -> float:
-        data = info.data
-        if 'min_x' in data and v < data['min_x']:
-            raise ValueError('max_x must be >= min_x')
-        return v
-
-    @field_validator('max_y')
-    @classmethod
-    def validate_max_y_bounds(cls, v: float, info: ValidationInfo) -> float:
-        data = info.data
-        if 'min_y' in data and v < data['min_y']:
-            raise ValueError('max_y must be >= min_y')
-        return v
-
-    @field_validator('max_z')
-    @classmethod
-    def validate_max_z_bounds(cls, v: float, info: ValidationInfo) -> float:
-        data = info.data
-        if 'min_z' in data and v < data['min_z']:
-            raise ValueError('max_z must be >= min_z')
-        return v
 
 
 class MapViewportResponse(BaseModel):

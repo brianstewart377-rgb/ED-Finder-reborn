@@ -33,12 +33,6 @@ LOC_SURFACE         = 'surface'
 LOC_ORBITAL_SURFACE = 'orbital_or_surface'
 LOC_RINGED_ORBITAL  = 'ringed_orbital'
 
-# Build complexity thresholds
-COMPLEXITY_SIMPLE   = 'simple'
-COMPLEXITY_MODERATE = 'moderate'
-COMPLEXITY_ADVANCED = 'advanced'
-COMPLEXITY_EXPERT   = 'expert'
-
 
 @dataclass(frozen=True)
 class FacilityTemplate:
@@ -199,10 +193,6 @@ def get_catalogue() -> dict[str, FacilityTemplate]:
     return _CATALOGUE
 
 
-def get_facility(facility_id: str) -> Optional[FacilityTemplate]:
-    return _CATALOGUE.get(facility_id)
-
-
 def load_catalogue_from_rows(rows: list[dict]) -> None:
     """
     Populate the in-memory catalogue from DB rows.
@@ -242,18 +232,6 @@ def load_bundled_catalogue() -> dict[str, FacilityTemplate]:
     """Load and return the DaftMav-derived bundled catalogue."""
     load_catalogue_from_json_path(_BUNDLED_CATALOGUE_PATH)
     return get_catalogue()
-
-
-def facilities_by_tier(tier: int) -> list[FacilityTemplate]:
-    return [f for f in _CATALOGUE.values() if f.tier == tier]
-
-
-def facilities_by_economy(economy: str) -> list[FacilityTemplate]:
-    return [f for f in _CATALOGUE.values() if f.economy == economy]
-
-
-def port_facilities() -> list[FacilityTemplate]:
-    return [f for f in _CATALOGUE.values() if f.is_port]
 
 
 def _template_json_to_row(template: dict[str, Any]) -> dict[str, Any]:
