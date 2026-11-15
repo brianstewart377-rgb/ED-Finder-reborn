@@ -23,14 +23,11 @@
 import {
   ADMIN_TOKEN_SESSION_KEY,
   ApiError,
-  LEGACY_ADMIN_ENDPOINTS,
   adminEndpointClass,
-  apiRequest,
-  canonicalApiPath,
 } from '@ed-finder/api-client/core';
 import { parseLosslessJson } from '@ed-finder/api-client/lossless-json';
 import { parseId64, type Id64 } from '@ed-finder/api-client/id64';
-import { FINDER_F4_ENABLED } from '$lib/config';
+
 import {
   ARCHETYPE_KEYS,
   isArchetypeKey,
@@ -41,62 +38,25 @@ import {
 } from '$lib/features/explore/archetypes';
 import { client } from './generated/client.gen';
 import { isScore, isUnitInterval, losslessId64 } from './values';
+import { SOL_ID64, SOL_NAME } from './sol';
 import {
-  authLogoutApiV1AuthLogoutPost,
-  authSessionApiV1AuthSessionGet,
   autocompleteApiLocalAutocompleteGet,
-  claimOwnerApiV1AuthOwnerClaimPost,
-  frontierLinkApiV1AuthFrontierLinkPost,
   getArchetypeRankingsApiArchetypesRankingsGet,
   getSystemArchetypesApiArchetypesSystemId64Get,
   getSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGet,
-  getV3CurrentGeneration,
-  getV3JournalTravelHeatmap,
-  getV3JournalSummary,
-  getV3System,
-  getV3PlanCatalogue as getPlanCatalogueSdk,
-  listV3PlanBodies as listPlanBodiesSdk,
-  evaluateV3Plan as evaluatePlanSdk,
-  healthApiHealthGet,
-  listIdentitiesApiV1AuthIdentitiesGet,
-  listV3SystemBodies,
-  listV3SystemRings,
-  listV3SystemStations,
-  listVerifiedCommanders,
-  createVerifiedJournalImport,
-  offerJournalGalaxyFacts,
-  listJournalGalaxyContributions,
-  getJournalGalaxyImpact,
-  withdrawJournalGalaxyContribution,
   localSearchEndpointApiLocalSearchPost,
-  mapHeatmapApiMapHeatmapGet,
-  mapSystemsApiMapSystemsGet,
-  unlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDelete,
 } from './generated/sdk.gen';
 import type {
   ArchetypeRankingRow,
   ArchetypeRankingsResponse,
-  AuthSessionResponse,
   AutocompleteHit,
   AutocompleteResponse,
-  ExternalIdentityResponse,
-  HealthResponse,
   LocalSearchRequest,
-  BodyV1,
-  MapHeatmapApiMapHeatmapGetData,
-  MapHeatmapPyramidResponse,
-  MapViewportResponse,
   RankingIdentity,
-  RingV1,
   SearchResponse,
-  StationV1,
   SystemArchetypeExplanationEntry,
   SystemArchetypeExplanationSummary,
   SystemRow,
-  SystemV1,
-  V3JournalImportRequest,
-  V3TravelHeatmapResponse,
-  PlanRequestV1,
 } from './generated';
 
 export type {
@@ -132,120 +92,6 @@ export type {
   PlanTotalsV1,
   PortEconomyV1,
 } from './generated';
-
-export const getV3PlanCatalogue = async (signal?: AbortSignal) =>
-  (await getPlanCatalogueSdk({ throwOnError: true, signal })).data;
-
-export const listV3PlanBodies = async (
-  systemId: string,
-  signal?: AbortSignal,
-) =>
-  (
-    await listPlanBodiesSdk({
-      path: { system_id: parseId64(systemId) },
-      throwOnError: true,
-      signal,
-    })
-  ).data;
-
-export const evaluateV3Plan = async (
-  body: PlanRequestV1,
-  signal?: AbortSignal,
-) => {
-  const result = await evaluatePlanSdk({ body, throwOnError: false, signal });
-  if (result.data !== undefined) return result.data;
-  const header = result.response?.headers.get('Retry-After')?.trim();
-  const seconds = header && /^\d+$/.test(header) ? Number(header) : null;
-  const retryAfterSeconds =
-    seconds !== null && Number.isSafeInteger(seconds) ? seconds : null;
-  const error =
-    result.error instanceof ApiError
-      ? result.error
-      : new ApiError(
-          result.response?.status ?? 0,
-          '/api/v1/plan/evaluate',
-          result.error,
-        );
-  throw Object.assign(error, { retryAfterSeconds });
-};
-
-/** Identity only: Plan does not load Inspect's map, stations or ratings. */
-export const getPlanSystem = async (systemId: string, signal?: AbortSignal) =>
-  (
-    await getV3System({
-      path: { system_id: parseId64(systemId) },
-      throwOnError: true,
-      signal,
-    })
-  ).data;
-
-export const getVerifiedCommanders = async (signal?: AbortSignal) =>
-  (await listVerifiedCommanders({ throwOnError: true, signal })).data;
-
-/** Account-wide import metadata distinguishes no journals from an empty viewport. */
-export const getCommanderJournalSummary = async (signal?: AbortSignal) =>
-  (await getV3JournalSummary({ throwOnError: true, signal })).data;
-
-export const getGalaxyImpact = async (signal?: AbortSignal) =>
-  (await getJournalGalaxyImpact({ throwOnError: true, signal })).data;
-
-export const importVerifiedJournals = async (
-  body: V3JournalImportRequest,
-  signal?: AbortSignal,
-) =>
-  (await createVerifiedJournalImport({ body, throwOnError: true, signal }))
-    .data;
-
-export const offerGalaxyFacts = async (
-  importId: string,
-  fileSha256: string[],
-  signal?: AbortSignal,
-) =>
-  (
-    await offerJournalGalaxyFacts({
-      path: { import_id: importId },
-      body: {
-        policy_version: 'journal-galaxy-physical-v1',
-        share_on_site_and_api: true,
-        file_sha256: fileSha256,
-      },
-      throwOnError: true,
-      signal,
-    })
-  ).data;
-
-export const getGalaxyContributions = async (
-  offset = 0,
-  signal?: AbortSignal,
-) =>
-  (
-    await listJournalGalaxyContributions({
-      query: { offset, limit: 50 },
-      throwOnError: true,
-      signal,
-    })
-  ).data;
-
-export const withdrawGalaxyContribution = async (
-  id: string,
-  signal?: AbortSignal,
-) =>
-  (
-    await withdrawJournalGalaxyContribution({
-      path: { contribution_id: id },
-      throwOnError: true,
-      signal,
-    })
-  ).data;
-
-export {
-  ADMIN_TOKEN_SESSION_KEY,
-  ApiError,
-  LEGACY_ADMIN_ENDPOINTS,
-  adminEndpointClass,
-  apiRequest,
-  canonicalApiPath,
-};
 
 function sessionAdminToken(): string {
   if (typeof window === 'undefined') return '';
@@ -319,56 +165,12 @@ client.interceptors.error.use((error, response, request) => {
   return new ApiError(status, path, error);
 });
 
-export const getHealth = async (
-  signal?: AbortSignal,
-): Promise<HealthResponse> =>
-  (await healthApiHealthGet({ throwOnError: true, signal })).data;
-
-export type AuthIdentity = ExternalIdentityResponse;
-
-export const getAuthSession = async (
-  signal?: AbortSignal,
-): Promise<AuthSessionResponse> =>
-  (await authSessionApiV1AuthSessionGet({ throwOnError: true, signal })).data;
-
-export const getAuthIdentities = async (
-  signal?: AbortSignal,
-): Promise<readonly AuthIdentity[]> =>
-  (await listIdentitiesApiV1AuthIdentitiesGet({ throwOnError: true, signal }))
-    .data;
-
-export const startFrontierLink = async (returnTo: string): Promise<string> => {
-  const { data } = await frontierLinkApiV1AuthFrontierLinkPost({
-    throwOnError: true,
-    query: { return_to: returnTo },
-  });
-  return data.authorization_url;
-};
-
-export const unlinkAuthIdentity = async (
-  externalIdentityId: string,
-): Promise<AuthSessionResponse> =>
-  (
-    await unlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDelete({
-      throwOnError: true,
-      path: { external_identity_id: externalIdentityId },
-    })
-  ).data;
-
 export type AutocompleteSystem = Readonly<
   Pick<
     AutocompleteHit,
     'name' | 'x' | 'y' | 'z' | 'population' | 'primaryEconomy'
   > & { id64: Id64 }
 >;
-
-/**
- * Sol's lossless id64 (`apps/api/src/helpers.py` `SOL_ID64`), mirrored so an
- * Any search anchored at Sol normalizes to the same `sol` distance reference
- * the selected-archetype ranking measures from.
- */
-export const SOL_ID64: Id64 = parseId64('10477373803');
-export const SOL_NAME = 'Sol';
 
 /** The committed anchor's identity, held by the caller alongside the request. */
 export type DistanceAnchor = Readonly<{ id64: Id64; name: string }>;
@@ -550,116 +352,6 @@ export type ArchetypeRankingsPage = Readonly<{
   query_ms?: number | null;
 }>;
 
-/** One catalogued ring or belt of a body (V3 canonical generation). */
-export type SystemDetailRing = Readonly<{
-  /** Canonical V3 ring key (lossless decimal). */
-  ringKey: string;
-  name: string;
-  kind: 'RING' | 'BELT';
-  ringType: string | null;
-  innerRadiusKm: number | null;
-  outerRadiusKm: number | null;
-  /** V3 reserve-level public code (`pristine` … `depleted`); null when unobserved. */
-  reserveLevel: string | null;
-  /**
-   * Catalogued ring signals: mining hotspots by commodity public code
-   * (`platinum`, `lowtemperaturediamond`, …), largest count first.
-   */
-  hotspots: readonly Readonly<{ signalType: string; count: number }>[];
-  /** Whether the source recorded this ring's signal list as complete. */
-  signalsComplete: boolean | null;
-}>;
-
-/** One catalogued body as Inspect renders it (V3 canonical generation). */
-export type SystemDetailBody = Readonly<{
-  /**
-   * Frontier in-system BodyID, when uniquely available as a safe integer.
-   * System Map selection requires this ID; parent links use the key below.
-   */
-  id: number | null;
-  /** Canonical V3 body key (lossless decimal). */
-  bodyKey: string;
-  /** Canonical V3 parent key, which may refer to an unloaded body. */
-  directParentBodyKey: string | null;
-  name: string;
-  /** V3 public body-type code: `star`, `planet`, `barycentre`, `belt_cluster`. */
-  bodyType: string | null;
-  /**
-   * Raw catalogued class; display verbatim. It is the galaxy tables' own
-   * where the body's row holds one, otherwise the published derived
-   * generation's.
-   */
-  bodyClass: string | null;
-  /** Named only when the class came from the derived generation. */
-  bodyClassSource: 'ratings-v4-derived' | null;
-  isMainStar: boolean | null;
-  spectralClass: string | null;
-  luminosityClass: string | null;
-  isLandable: boolean | null;
-  radiusKm: number | null;
-  semiMajorAxisKm: number | null;
-  distanceFromArrivalLs: number | null;
-  rings: readonly SystemDetailRing[];
-  signals: readonly Readonly<{ signalType: string; count: number }>[];
-}>;
-
-/** One catalogued economy of a station, as the V3 catalogue records it. */
-export type SystemDetailStationEconomy = Readonly<{
-  /** V3 economy public code (`extraction`, `high_tech`, …). */
-  economy: string;
-  /**
-   * The catalogued share, 0–1, when a source recorded one. Always null from the
-   * Spansh import, which keeps designations but not Spansh's uncalibrated scale.
-   */
-  weight: number | null;
-  isPrimary: boolean;
-  isSecondary: boolean;
-}>;
-
-export type SystemDetailStation = Readonly<{
-  /** Canonical V3 station key (lossless decimal). */
-  stationKey: string;
-  name: string;
-  stationType: string | null;
-  distanceFromArrivalLs: number | null;
-  /**
-   * Canonical body key of the body the station is placed on or orbits, only
-   * when the catalogue resolved that placement (`BODY_RESOLVED`).
-   */
-  bodyKey: string | null;
-  /** Primary first, then secondary, then the rest by share. */
-  economies: readonly SystemDetailStationEconomy[];
-  /** Observation time, when supplied; the canonical station read has none. */
-  lastObservedAt?: string | null;
-}>;
-
-/**
- * Inspect's system detail, read from the published V3 canonical generation
- * (`/api/v1/systems/{id}` + `/bodies`, `/rings`, `/stations`). Only ACTIVE
- * bodies, rings and stations are current catalogue objects; rows the
- * generation retains as MISSING_CANDIDATE or RETIRED are omitted. Population,
- * economy, security, allegiance, government and development fit are not part
- * of the V3 canonical catalogue, so they are deliberately absent here.
- */
-export type SystemDetail = Readonly<{
-  id64: Id64;
-  name: string;
-  /** The system's own catalogue lifecycle: ACTIVE, MISSING_CANDIDATE, RETIRED. */
-  lifecycleState: string;
-  /** F4 omits an unknown legacy origin; only Sol is known to occupy (0, 0, 0). */
-  x?: number;
-  y?: number;
-  z?: number;
-  sourceBodyCount: number | null;
-  loadedBodyCount: number;
-  sourceUpdatedAt: string | null;
-  /** Identity already read by the canonical publication fence. */
-  canonicalGenerationId?: string;
-  canonicalGenerationLabel?: string;
-  bodies: readonly SystemDetailBody[];
-  stations: readonly SystemDetailStation[];
-}>;
-
 export type AutocompleteSystemsResponse = Omit<
   AutocompleteResponse,
   'results'
@@ -673,56 +365,6 @@ export type ExploreSearchResponse = Omit<SearchResponse, 'results'> & {
 };
 
 export type ExploreSearchRequest = LocalSearchRequest;
-
-export type CatalogueViewportRequest = Readonly<{
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  minZ: number;
-  maxZ: number;
-  limit: number;
-}>;
-
-export type CatalogueViewportResponse = Readonly<{
-  systems: readonly Readonly<{
-    id64: Id64;
-    name: string;
-    x: number;
-    y: number;
-    z: number;
-    mainStarClass?: string | null;
-    populated: boolean;
-  }>[];
-  truncated: boolean;
-}>;
-
-export type {
-  MapHeatmapPyramidCell,
-  MapHeatmapPyramidResponse,
-} from './generated';
-
-export type MapHeatmapResponse =
-  | MapHeatmapPyramidResponse
-  | { source: 'legacy-fallback'; [k: string]: unknown };
-
-export type CommanderTravelHeatmapResponse = Readonly<{
-  mode: 'markers' | 'density';
-  visits: readonly Readonly<{
-    kind: 'marker' | 'density';
-    systemId64?: Id64 | null;
-    systemName?: string | null;
-    x: number;
-    y: number;
-    z: number;
-    visitCount: number;
-    firstVisitedAt: string;
-    lastVisitedAt: string;
-    cellSizeLy?: number | null;
-  }>[];
-  count: number;
-  truncated: boolean;
-}>;
 
 export async function autocompleteSystems(
   query: string,
@@ -1220,350 +862,14 @@ export async function getArchetypeExplanation(
   }
 }
 
-export async function getCatalogueViewportSystems(
-  request: CatalogueViewportRequest,
-  signal?: AbortSignal,
-): Promise<CatalogueViewportResponse> {
-  const { data } = await mapSystemsApiMapSystemsGet({
-    throwOnError: true,
-    priority: 'low',
-    query: {
-      min_x: request.minX,
-      max_x: request.maxX,
-      min_y: request.minY,
-      max_y: request.maxY,
-      min_z: request.minZ,
-      max_z: request.maxZ,
-      limit: request.limit,
-    },
-    signal,
-  });
-  const response = data as MapViewportResponse;
-  return {
-    systems: response.systems.map((system) => ({
-      id64: losslessId64(system.id64),
-      name: system.name,
-      x: system.x,
-      y: system.y,
-      z: system.z,
-      mainStarClass: system.main_star_class,
-      populated: system.populated,
-    })),
-    truncated: response.truncated ?? false,
-  };
-}
-
-export type MapHeatmapRequest = NonNullable<
-  MapHeatmapApiMapHeatmapGetData['query']
->;
-
-export const getMapHeatmap = async (
-  query: MapHeatmapRequest,
-  signal?: AbortSignal,
-): Promise<MapHeatmapResponse> =>
-  (await mapHeatmapApiMapHeatmapGet({ query, throwOnError: true, signal }))
-    .data as MapHeatmapResponse;
-
-/**
- * The signed-in account's imported journal travel (V3 journal store) inside
- * one viewport box, aggregated server-side. Rejects with a 401 ApiError when
- * signed out.
- */
-export async function getCommanderTravelHeatmap(
-  request: CatalogueViewportRequest,
-  cameraDistanceLy: number,
-  signal?: AbortSignal,
-): Promise<CommanderTravelHeatmapResponse> {
-  const { data } = await getV3JournalTravelHeatmap({
-    throwOnError: true,
-    query: {
-      min_x: request.minX,
-      max_x: request.maxX,
-      min_y: request.minY,
-      max_y: request.maxY,
-      min_z: request.minZ,
-      max_z: request.maxZ,
-      zoom: Math.min(5_000, Math.max(0.001, cameraDistanceLy)),
-      limit: Math.min(20_000, request.limit),
-    },
-    signal,
-  });
-  const response = data as V3TravelHeatmapResponse;
-  return {
-    mode: response.mode,
-    visits: response.points.map((point) => ({
-      kind: point.kind,
-      systemId64:
-        point.system_id64 == null ? null : parseId64(point.system_id64),
-      systemName: point.system_name,
-      x: point.x,
-      y: point.y,
-      z: point.z,
-      visitCount: point.visit_count,
-      firstVisitedAt: point.first_visited_at,
-      lastVisitedAt: point.last_visited_at,
-      cellSizeLy: response.cell_size_ly,
-    })),
-    count: response.count,
-    truncated: response.truncated,
-  };
-}
-
-const SAFE_DECIMAL = /^(0|[1-9][0-9]{0,15})$/;
-const ACTIVE = 'ACTIVE';
-
-/** Unique, safe Frontier BodyIDs keyed by canonical body key. */
-function frontierBodyIds(bodies: readonly BodyV1[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const body of bodies) {
-    const raw = body.frontier_body_id;
-    if (raw != null) counts.set(raw, (counts.get(raw) ?? 0) + 1);
-  }
-  const ids = new Map<string, number>();
-  for (const body of bodies) {
-    const raw = body.frontier_body_id;
-    if (raw == null || counts.get(raw) !== 1 || !SAFE_DECIMAL.test(raw))
-      continue;
-    const value = Number(raw);
-    if (Number.isSafeInteger(value)) ids.set(body.body_id, value);
-  }
-  return ids;
-}
-
-/** Main star first, then by arrival distance (unknown last), then name. */
-function bodyOrder(left: SystemDetailBody, right: SystemDetailBody): number {
-  const main =
-    Number(right.isMainStar === true) - Number(left.isMainStar === true);
-  if (main !== 0) return main;
-  const leftDistance = left.distanceFromArrivalLs ?? Number.POSITIVE_INFINITY;
-  const rightDistance = right.distanceFromArrivalLs ?? Number.POSITIVE_INFINITY;
-  if (leftDistance !== rightDistance)
-    return leftDistance < rightDistance ? -1 : 1;
-  return left.name.localeCompare(right.name);
-}
-
-/** Pure V3 canonical → Inspect mapping; exported for tests. */
-export function systemDetailFromV3(
-  system: SystemV1,
-  bodies: readonly BodyV1[],
-  rings: readonly RingV1[],
-  stations: readonly StationV1[],
-): SystemDetail {
-  const current = bodies.filter((body) => body.lifecycle_state === ACTIVE);
-  const ids = frontierBodyIds(current);
-  const ringsByBody = new Map<string, SystemDetailRing[]>();
-  for (const ring of rings) {
-    if (ring.lifecycle_state !== ACTIVE) continue;
-    const list = ringsByBody.get(ring.body_id) ?? [];
-    list.push({
-      ringKey: ring.ring_id,
-      name: ring.name,
-      kind: ring.kind,
-      ringType: ring.ring_type,
-      innerRadiusKm: ring.inner_radius_km,
-      outerRadiusKm: ring.outer_radius_km,
-      reserveLevel: ring.reserve_type,
-      hotspots: ring.signals
-        .filter((signal) => signal.count > 0)
-        .map((signal) => ({
-          signalType: signal.signal_type,
-          count: signal.count,
-        }))
-        .sort(
-          (left, right) =>
-            right.count - left.count ||
-            left.signalType.localeCompare(right.signalType),
-        ),
-      signalsComplete: ring.signals_complete,
-    });
-    ringsByBody.set(ring.body_id, list);
-  }
-  return {
-    id64: parseId64(system.id64),
-    name: system.name,
-    lifecycleState: system.lifecycle_state,
-    x: system.x_ly,
-    y: system.y_ly,
-    z: system.z_ly,
-    sourceBodyCount: system.source_body_count,
-    loadedBodyCount: system.loaded_body_count,
-    sourceUpdatedAt: system.source_updated_at,
-    bodies: current
-      .map((body): SystemDetailBody => ({
-        id: ids.get(body.body_id) ?? null,
-        bodyKey: body.body_id,
-        directParentBodyKey: body.direct_parent_body_id,
-        name: body.name,
-        bodyType: body.body_type,
-        bodyClass: body.body_class ?? null,
-        bodyClassSource:
-          body.body_class != null ? (body.body_class_source ?? null) : null,
-        isMainStar: body.is_main_star,
-        spectralClass: body.spectral_class,
-        luminosityClass: body.luminosity_class,
-        isLandable: body.is_landable,
-        radiusKm: body.radius_km,
-        semiMajorAxisKm: body.semi_major_axis_km,
-        distanceFromArrivalLs: body.distance_from_arrival_ls,
-        rings: ringsByBody.get(body.body_id) ?? [],
-        signals: body.signals.map((signal) => ({
-          signalType: signal.signal_type,
-          count: signal.count,
-        })),
-      }))
-      .sort(bodyOrder),
-    stations: stations
-      .filter((station) => station.lifecycle_state === ACTIVE)
-      .map(stationDetail)
-      .sort(stationOrder),
-  };
-}
-
-const BODY_RESOLVED = 'BODY_RESOLVED';
-
-/** One V3 station as Inspect renders it; a body only when resolved. */
-function stationDetail(station: StationV1): SystemDetailStation {
-  return {
-    stationKey: station.station_id,
-    name: station.name,
-    stationType: station.station_type,
-    distanceFromArrivalLs: station.distance_from_arrival_ls,
-    bodyKey:
-      station.association_state === BODY_RESOLVED ? station.body_id : null,
-    economies: station.economies.map(stationEconomy).sort(economyOrder),
-    lastObservedAt: null,
-  };
-}
-
-function stationEconomy(
-  economy: StationV1['economies'][number],
-): SystemDetailStationEconomy {
-  return {
-    economy: economy.economy,
-    weight: economy.economy_weight,
-    isPrimary: economy.is_primary,
-    isSecondary: economy.is_secondary,
-  };
-}
-
-/** Primary, then secondary, then by share (unknown last), then by code. */
-function economyOrder(
-  left: SystemDetailStationEconomy,
-  right: SystemDetailStationEconomy,
-): number {
-  const rank = (economy: SystemDetailStationEconomy) =>
-    economy.isPrimary ? 0 : economy.isSecondary ? 1 : 2;
-  const byRank = rank(left) - rank(right);
-  if (byRank !== 0) return byRank;
-  const byWeight = (right.weight ?? -1) - (left.weight ?? -1);
-  if (byWeight !== 0) return byWeight;
-  return left.economy.localeCompare(right.economy);
-}
-
-/** By arrival distance (unknown last), then name. */
-function stationOrder(
-  left: SystemDetailStation,
-  right: SystemDetailStation,
-): number {
-  const leftDistance = left.distanceFromArrivalLs ?? Number.POSITIVE_INFINITY;
-  const rightDistance = right.distanceFromArrivalLs ?? Number.POSITIVE_INFINITY;
-  if (leftDistance !== rightDistance)
-    return leftDistance < rightDistance ? -1 : 1;
-  return left.name.localeCompare(right.name);
-}
-
-/** Attempts before a read that keeps straddling publications fails closed. */
-const INSPECT_GENERATION_ATTEMPTS = 2;
-
-/**
- * Inspect's system read: the generation-pinned V3 canonical routes, fetched in
- * parallel. Each route resolves the canonical pointer on its own, so the four
- * reads are fenced by the published generation identity read before and after
- * them: an unchanged generation and publication sequence proves no publication
- * happened in between and every part came from one immutable generation. Any
- * part's error (a 404 included) is only reported once the fence holds. A read
- * that straddles a publication is retried once, then fails closed with a
- * retryable 503. An unknown system rejects with the system route's 404
- * ApiError; no published generation rejects with 503.
- */
-export async function getSystem(
-  id64: Id64,
-  signal?: AbortSignal,
-): Promise<SystemDetail> {
-  const path = { system_id: parseId64(id64) };
-  for (let attempt = 0; attempt < INSPECT_GENERATION_ATTEMPTS; attempt += 1) {
-    const before = await getV3CurrentGeneration({ throwOnError: true, signal });
-    // Settle every part (including a 404) before judging it: a system that
-    // was absent from the old generation may exist in a newly published one.
-    const [system, bodies, rings, stations] = await Promise.allSettled([
-      getV3System({ path, throwOnError: true, signal }),
-      listV3SystemBodies({ path, throwOnError: true, signal }),
-      listV3SystemRings({ path, throwOnError: true, signal }),
-      listV3SystemStations({ path, throwOnError: true, signal }),
-    ]);
-    const after = await getV3CurrentGeneration({ throwOnError: true, signal });
-    if (
-      before.data.generation_id !== after.data.generation_id ||
-      before.data.publication_sequence !== after.data.publication_sequence
-    )
-      continue;
-    for (const part of [system, bodies, rings, stations])
-      if (part.status === 'rejected') throw part.reason;
-    if (
-      system.status === 'fulfilled' &&
-      bodies.status === 'fulfilled' &&
-      rings.status === 'fulfilled' &&
-      stations.status === 'fulfilled'
-    ) {
-      const detail = {
-        ...systemDetailFromV3(
-          system.value.data,
-          bodies.value.data,
-          rings.value.data,
-          stations.value.data,
-        ),
-        canonicalGenerationId: after.data.generation_id,
-        canonicalGenerationLabel: after.data.generation_key,
-      };
-      if (
-        FINDER_F4_ENABLED &&
-        detail.id64 !== SOL_ID64 &&
-        detail.x === 0 &&
-        detail.y === 0 &&
-        detail.z === 0
-      ) {
-        return { ...detail, x: undefined, y: undefined, z: undefined };
-      }
-      return detail;
-    }
-  }
-  throw new ApiError(
-    503,
-    `/api/v1/systems/${path.system_id}`,
-    null,
-    'The catalogue was republished while this system was loading',
-  );
-}
-
-export const authLogout = async <T = AuthSessionResponse>(): Promise<T> =>
-  (await authLogoutApiV1AuthLogoutPost({ throwOnError: true }))
-    .data as unknown as T;
-
-export const claimOwner = async <T = AuthSessionResponse>(
-  adminToken: string,
-): Promise<T> =>
-  (
-    await claimOwnerApiV1AuthOwnerClaimPost({
-      throwOnError: true,
-      body: { admin_token: adminToken },
-    })
-  ).data as unknown as T;
-
-export const frontierLoginUrl = (returnTo: string): string =>
-  `/api/v1/auth/frontier/login?return_to=${encodeURIComponent(returnTo)}`;
-
 // The parts of this file that stand by themselves live in files of their
 // own; the app still reaches them through here.
+export * from './auth';
+export * from './journal';
+export * from './map';
+export * from './plan';
 export * from './profile-sync';
 export * from './ratings';
+export * from './sol';
+export * from './system-detail';
 export * from './watchlist';
