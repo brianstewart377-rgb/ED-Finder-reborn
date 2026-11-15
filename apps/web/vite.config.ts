@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
 
+import { galaxyMapWorkerFilesPlugin } from './vite.galaxy-map-files.ts';
 import { authoritativeGalaxyRegionsPlugin } from './vite.galaxy-regions.ts';
 
 const apiTarget = process.env.VITE_DEV_API_TARGET ?? 'http://127.0.0.1:8002';
@@ -12,7 +13,12 @@ const backendProxy = {
 };
 
 export default defineConfig({
-  plugins: [authoritativeGalaxyRegionsPlugin(), tailwindcss(), sveltekit()],
+  plugins: [
+    authoritativeGalaxyRegionsPlugin(),
+    galaxyMapWorkerFilesPlugin(),
+    tailwindcss(),
+    sveltekit(),
+  ],
   resolve: { conditions: ['browser'] },
   server: { proxy: backendProxy },
   preview: { proxy: backendProxy },

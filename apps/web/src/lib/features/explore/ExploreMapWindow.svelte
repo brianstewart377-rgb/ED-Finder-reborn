@@ -1,27 +1,26 @@
 <script lang="ts">
-  import type { ComponentProps, Snippet } from 'svelte';
-  import SpatialCanvas from '$lib/spatial/SpatialCanvas.svelte';
+  import type { Snippet } from 'svelte';
 
   // The Explore map fills the window beside the Finder panel. It is part of
-  // the page, not a pop-out: there is nothing to open, close or expand.
+  // the page, not a pop-out: there is nothing to open, close or expand. This
+  // is the frame only; the page puts the map itself inside it.
   let {
-    canvasProps,
     finderPanelOpen,
     onShowFinder,
-    hoveredSystemId = null,
     id = 'explore-map-window',
     element = $bindable(),
     beforeCanvas,
+    children,
     afterCanvas,
     selectedSystemName = null,
   }: {
-    canvasProps: ComponentProps<typeof SpatialCanvas>;
     finderPanelOpen: boolean;
     onShowFinder: () => void;
-    hoveredSystemId?: string | null;
     id?: string;
     element?: HTMLElement;
     beforeCanvas?: Snippet;
+    /** The map. */
+    children?: Snippet;
     afterCanvas?: Snippet;
     selectedSystemName?: string | null;
   } = $props();
@@ -34,17 +33,15 @@
   aria-labelledby={`${id}-title`}
   data-explore-map-window
   data-finder-panel-open={finderPanelOpen}
-  data-hovered-system-id={hoveredSystemId ?? ''}
 >
   <header class="map-window-heading">
-    <h2 id={`${id}-title`}>
+    <!-- The map draws its own title bar, so this heading is for screen
+         readers: it names the window, and the system it shows. -->
+    <h2 id={`${id}-title`} class="map-window-title">
       {selectedSystemName ? `${selectedSystemName} · Galaxy map` : 'Galaxy map'}
     </h2>
-    {@render beforeCanvas?.()}
-  </header>
-  <div class="map-window-content">
     {#if !finderPanelOpen}
-      <!-- Floats over the map so showing it never changes the canvas size. -->
+      <!-- In the row above the map: the map's own panels fill its corners. -->
       <button
         type="button"
         class="quiet-button finder-show"
@@ -54,7 +51,10 @@
         onclick={onShowFinder}>Show Finder</button
       >
     {/if}
-    <SpatialCanvas {...canvasProps} controlsOverlay />
+    {@render beforeCanvas?.()}
+  </header>
+  <div class="map-window-content">
+    {@render children?.()}
   </div>
   <footer class="map-window-footer">
     {@render afterCanvas?.()}
@@ -85,18 +85,23 @@
     padding: 0.4rem 0.75rem;
     border-bottom: 1px solid var(--line);
   }
-  .map-window-heading h2 {
-    margin: 0;
-    font-family: var(--font-hud);
-    font-size: 1.05rem;
-    min-width: 0;
-    max-width: 22rem;
+  .map-window-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
+    clip-path: inset(50%);
     white-space: nowrap;
   }
+  /* The page's own controls for the map fill the row; the row's own line
+     under them is the only one. */
   .map-window-heading :global(.map-layer-toolbar) {
+    flex: 1 1 20rem;
+    min-width: 0;
     padding: 0;
+    border-bottom: 0;
   }
   .map-window-content {
     position: relative;
@@ -106,18 +111,6 @@
     min-height: 0;
     padding: 0.4rem 0.5rem 0;
     gap: 0.25rem;
-  }
-  .map-window-content :global(.map-systems-surface) {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .map-window-content :global(.spatial-canvas) {
-    flex: 1;
-    min-height: 0;
-    height: auto;
-    border: 1px solid var(--line);
   }
   .map-window-footer {
     display: flex;
@@ -133,30 +126,22 @@
   .map-window-footer:empty {
     display: none;
   }
+  /* The same size as the map's other controls in this row. */
   .quiet-button {
-    min-height: 2.25rem;
-    padding: 0.35rem 0.75rem;
+    min-height: 2rem;
+    padding: 0.3rem 0.6rem;
     border: 1px solid var(--accent);
     border-radius: var(--radius-pill);
     background: var(--panel-raised);
     color: var(--text);
+    font-size: 0.75rem;
     cursor: pointer;
-  }
-  .finder-show {
-    position: absolute;
-    z-index: 5;
-    top: 0.85rem;
-    left: 1rem;
-    box-shadow: var(--shadow-panel);
   }
   .quiet-button:focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
   @media (max-width: 700px) {
-    .map-window-heading h2 {
-      font-size: 0.95rem;
-    }
     .map-window-heading,
     .map-window-footer {
       padding: 0.35rem 0.5rem;

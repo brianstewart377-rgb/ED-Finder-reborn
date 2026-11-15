@@ -1,26 +1,9 @@
 import type { QueryKey } from '@tanstack/svelte-query';
-import {
-  SOL_ID64,
-  type CatalogueViewportResponse,
-  type ExploreSystem,
-  type MapHeatmapResponse,
-} from '$lib/api/client';
+import { SOL_ID64, type ExploreSystem } from '$lib/api/client';
 import { parseId64, type Id64 } from '$lib/domain/id64';
+import type { MapResume } from '$lib/galaxy-map/GalaxyMap.svelte';
 import type { PersistenceContext } from '$lib/persistence/context';
 import { createMapLayerPreferences } from '$lib/persistence/map-layers';
-import type {
-  CameraState,
-  GalaxySystemPoint,
-  RenderedLayerReceipt,
-  SpatialContribution,
-  SpatialTarget,
-} from '$lib/spatial/contracts';
-import type { GalaxyCameraViewport } from '$lib/spatial/galaxy-camera';
-import type { GalaxyDetailMode } from '$lib/spatial/galaxy-detail-policy';
-import type { GalaxyDensityResult } from '$lib/spatial/galaxy-density-source';
-import type { GalaxyNebulaePayload } from '$lib/spatial/galaxy-nebulae';
-import type { GalaxyRegionsPayload } from '$lib/spatial/galaxy-regions';
-import type { GalaxyStarViewport } from '$lib/spatial/galaxy-star-stream';
 import { readExploreAnchor, type ExploreAnchor } from './navigation';
 import {
   DEFAULT_RANKING_STATE,
@@ -43,9 +26,8 @@ export const MAX_RESULT_SCROLL_TOP = 10_000_000;
 
 /**
  * One instance per Explore route visit, supplied to every layout of that visit.
- * Owns view intent and immutable CPU-side map snapshots. Query observers and
- * renderer resources stay in the workspace/window. There are no effects, subscriptions or
- * timers here. URL inputs remain a projection of the router (including Back),
+ * Owns view intent. Query observers and the map itself stay in the
+ * workspace/window. There are no effects, subscriptions or timers here. URL inputs remain a projection of the router (including Back),
  * rather than a second writable copy that can dispatch another search.
  */
 export class ExploreViewState {
@@ -75,61 +57,12 @@ export class ExploreViewState {
   focusedAnchorRevision = 0;
   hydratedAnchorIdentity: string | undefined;
   hydratedExploreUrl: string | undefined;
-  selectionRevision = $state(0);
-  focusRevision = $state(0);
-  completedFocusRevision = 0;
-  focusTarget = $state<SpatialTarget | null>(null);
-  lastPickedId64 = $state<Id64 | null>(null);
-  selectedRegionId = $state<string | null>(null);
-  hoveredRegionId = $state<string | null>(null);
-  hoveredSystemId = $state<string | null>(null);
-  cameraRequest = $state<CameraState | null>(null);
-  cameraRequestRevision = $state(0);
-  appliedCameraRequestRevision = 0;
-  retainedCamera = $state<{
-    finderRevision: number;
-    camera: CameraState;
-  } | null>(null);
-  initialGalaxyViewRequested = false;
-  streamCamera = $state<CameraState | null>({
-    focusLy: { x: 0, y: 0, z: 0 },
-    distanceLy: 118_000,
-    bearingRad: 0,
-    pitchRad: 0.55,
-    projection: 'perspective',
-    revision: 0,
-  });
-  streamRevision = $state(0);
-  starDetailMode = $state<GalaxyDetailMode>('wide');
-  starViewportSize = $state<GalaxyCameraViewport | null>(null);
-  layerToggleRevision = $state(0);
-  showNebulae = $state(true);
   // The map is always on screen. Whether the Finder panel beside it is shown
   // is route-local presentation, never URL or storage state.
   finderPanelOpen = $state(true);
-  mapCameraPreset = $state<'local' | 'galaxy' | null>(null);
-  mapFocusedSystemId = $state<string | null>(null);
-  mapResetCamera = $state<CameraState | null>(null);
-  regions: GalaxyRegionsPayload | null = $state.raw(null);
-  regionContribution: SpatialContribution | null = $state.raw(null);
-  regionState = $state<'loading' | 'ready' | 'failed'>('loading');
-  regionResourceRevision = $state(0);
-  nebulae: GalaxyNebulaePayload | null = $state.raw(null);
-  nebulaState = $state<'loading' | 'ready' | 'failed'>('loading');
-  nebulaResourceRevision = $state(0);
-  renderedNebulaReceipt: RenderedLayerReceipt | null = $state.raw(null);
-  nebulaCameraDistanceLy = $state<number | null>(null);
-  reservedPoints: readonly GalaxySystemPoint[] = $state.raw([]);
-  appliedCataloguePacket: CatalogueViewportResponse | null = $state.raw(null);
-  appliedCatalogueViewport: GalaxyStarViewport | null = $state.raw(null);
-  appliedCatalogueRevision = $state(0);
-  appliedFootprintKey = '';
-  lastGoodDensity: Extract<GalaxyDensityResult, { kind: 'ready' }> | null =
-    $state.raw(null);
-  densityContribution: SpatialContribution | null = $state.raw(null);
-  appliedDensityData: MapHeatmapResponse | undefined;
-  densityRevision = $state(0);
-  densityRemovalRevision = $state(0);
+  // Where the galaxy map's camera was when the page last left it. Not page
+  // state: nothing is drawn from it.
+  mapResume: MapResume | null = null;
   // A picked selection is immutable too; never proxy a retained API row.
   retainedSelectedSystem = $state.raw<ExploreSystem | null>(null);
   resultScrollTop = $state(0);

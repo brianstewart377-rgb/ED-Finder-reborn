@@ -592,6 +592,60 @@ What the trial showed, all with Almanac exactly as published (0.7.1):
 The build work stays where the roadmap below puts it: after the Pi move.
 `scripts/almanac-trial` stays until the map is built into the site, as the
 working example of how our data goes into Almanac. It goes after that.
+(15 November: it is built into the site; see the next section.)
+
+### The Almanac map on Explore (15 November)
+
+Step 1 of the map's roadmap ("Show on map", below) is in the site. Explore's
+map is Almanac's, exactly as published (0.7.1), in place of our Babylon map.
+
+What it does:
+
+- A system selected in Find is on the map: a result, the star searched near,
+  or a link to one. The map flies to it (70 ly out), draws the 15 ly range
+  around it, and shows the real stars in range, each in its star class's
+  colour, from one request to `GET /api/map/systems`.
+- A star clicked on the map opens Almanac's own panel, with SHOW ON MAP
+  (selects that star in Find) and INSPECT.
+- "My journeys" is a set of quiet markers on the same map: one request for
+  everything the signed-in player has visited, up to 20,000 systems.
+- The page says in words what the map shows, for every reader.
+
+Rules that came from looking at it, not from the trial:
+
+- **The map's own panel opens by itself only where it has room.** Almanac
+  lays its panels out for the whole window, not for the space it is given.
+  Beside the Finder on a screen under about 1,700 px wide, or on any window
+  under 1,400 px (where Almanac turns its panels into drawers that open over
+  the map), the panel would cover what was asked to be shown. There the
+  system is flown to and marked by its range, and the panel opens when the
+  player clicks the system.
+- **A map nobody can see is given nothing to draw.** On a phone the Finder
+  and the map take turns. A browser draws a hidden map's frames without
+  pacing them, so a flight nobody saw piled up work; in a browser with no
+  graphics card this froze the page for minutes. The map now catches up, and
+  flies, when it is shown.
+- **Stars are added to the map, not swapped in.** Almanac can only be
+  emptied whole. When a system's stars arrive they are added to what is
+  drawn, so the selection, the flight and the panel are left alone. The
+  panel's count of stars waits for them (Almanac's own "loading").
+- The map's movement keys (W A S D R F Q E) work only while the pointer or
+  the focus is on the map. Almanac itself ignores them while typing in a box.
+
+Known and left as it is: Almanac listens for the Escape key on the whole
+page, so Escape pressed anywhere (to close a list in the Finder, say) also
+closes the map's own panel. The system stays on the map.
+
+What went with our Babylon map, and is not on Almanac's: the density glow,
+our own nebula layer and region list (Almanac draws its own nebulae and
+regions), hover cards, the Layers button, and pinned and watched systems as
+markers on the map.
+
+How to look at the map with no graphics card: Almanac refuses a browser that
+draws on the processor, by the name the browser gives for its renderer. In a
+test browser that name can be replaced, and the map then draws, slowly (about
+a second a frame up close). That is how the rules above were found. How it
+looks and moves on a real card is still for the owner's gaming PC to say.
 
 ### The System Map: is Babylon still right? (13 November, open)
 
