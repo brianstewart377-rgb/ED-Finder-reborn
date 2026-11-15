@@ -1,43 +1,31 @@
 """
-ED Finder — Search Module (PostgreSQL / asyncpg)
-=================================================
-Version: 5.0 (V3 Finder routes)
-Target:  PostgreSQL 18 + asyncpg
+Find: the searches behind the Finder, over the published V3 projections.
 
-Changes in v5.0 (F3 slices 1, 2 and 2b):
-  • `/api/local/search` (`local_db_search_v3`), `/api/search/galaxy`
-    (`local_db_galaxy_search_v3`) and `/api/search/cluster`
-    (`local_db_cluster_search_v3`) read only the published V3 projections
-    behind the migration-015 Finder product gate; the legacy galaxy/cluster
-    readers over `cluster_summary` are deleted. `local_db_search` is kept
-    as an unreachable legacy reference (see the F3 section comment).
+  • `/api/local/search` (`local_db_search_v3`): the search near a star, or
+    galaxy-wide, with the count of matches asked for within a time budget;
+  • `/api/search/galaxy` (`local_db_galaxy_search_v3`): the galaxy-wide
+    Any-mode window, a validated call into the same search;
+  • `/api/search/cluster` (`local_db_cluster_search_v3`): fails closed
+    until a Finder cluster product is published and designed for;
+  • `/api/local/autocomplete` and `/api/local/status`.
 
-Changes in v4.0 (historical):
-  • Fixed schema/API disconnect: removed references to non-existent columns
-    (main_star_class is now a generated column, needs_permit is now real).
-  • Added galaxy_region filter: players can filter by named ED codex region
-    (Inner Orion Spur, Formorian Frontier, etc.).
-  • Searched economy score: when filtering by economy, the score shown in
-    results is the economy-specific score, not the overall score.
-  • Updated cluster search to use the new cluster_summary schema (v4.0).
-  • Removed the stale server-side rate_system() fallback — all systems now
-    have pre-computed ratings from build_ratings.py v3.0.
+Every search reads only the published V3 projections behind the
+migration-015 Finder product gate. The V2 search and system-page readers
+were removed on 15 November 2026; git history keeps them.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import json
 import logging
 import math
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import asyncpg
 from fastapi import HTTPException
 
 from edfinder_api.helpers import (
-    SOL_ID64,
     safe_coords_from_row,
     status_failure_reason_code_for_exception,
 )
@@ -70,7 +58,6 @@ from edfinder_api.ranking.ranking_sql import (
 from edfinder_api.search_economies import (
     ratings_score_column,
     archetype_score_column,
-    economy_enum_value,
     BODY_FILTER_COLS,
     BODY_FILTER_ALIASES,
     normalise_body_filters,
@@ -88,116 +75,11 @@ MAX_SEARCH_RADIUS = float(os.getenv(
 DEFAULT_PAGE_SIZE = 50_000
 MAX_PAGE_SIZE     = 200_000
 CLUSTER_RADIUS_LY = float(os.getenv("CLUSTER_RADIUS_LY", "500"))
-GALAXY_WIDE_COUNT_CAP = 10_000
 V3_DEFAULT_PAGE_SIZE = 50
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def _economy_str(val: Any) -> str:
-    if val is None:
-        return "Unknown"
-    s = str(val)
-    if "<" in s:
-        s = s.split("'")[-2] if "'" in s else s.split(".")[-1].strip(">")
-    return s
 
 
 def _safe_coords(row: Any) -> dict:
     return safe_coords_from_row(row)
-
-
-def _safe_distance(val: Any) -> float | None:
-    """Return a valid positive distance or None.
-
-    Older galaxy-wide searches projected ``0.0`` when there was no reference.
-    Converting that to ``float(0.0)`` on the wire made the frontend show
-    ``0.00 LY`` for every system. Treat ``None``, non-finite, and zero as
-    unknown so the UI can render ``—`` instead.
-    """
-    if val is None:
-        return None
-    try:
-        f = float(val)
-    except (TypeError, ValueError):
-        return None
-    if not __import__('math').isfinite(f) or f <= 0:
-        return None
-    return round(f, 2)
-
-
-def _archetype_tier(score: Any) -> str | None:
-    if score is None:
-        return None
-    try:
-        s = float(score)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(s):
-        return None
-    if s >= 88:
-        return "S"
-    if s >= 76:
-        return "A"
-    if s >= 60:
-        return "B"
-    if s >= 45:
-        return "C"
-    return "D"
-
-
-def _build_system_record(row: asyncpg.Record, bodies: list | None = None) -> dict:
-    bodies = bodies or []
-
-    return {
-        "id64":              row["id64"],
-        "id":                str(row["id64"]),
-        "name":              row["name"],
-        "coords":            _safe_coords(row),
-        "distance":          _safe_distance(row.get("dist")),
-        # main_star_class is a generated column (= main_star_type) — always present
-        "main_star":         row.get("main_star_class") or row.get("main_star_type"),
-        "archetype_score":   row.get("archetype_score"),
-        "archetype_tier":    _archetype_tier(row.get("archetype_score")),
-        "primary_archetype": row.get("primary_archetype"),
-        "secondary_archetype": row.get("secondary_archetype"),
-        "archetype_confidence": row.get("archetype_confidence"),
-        "overall_development_potential": row.get("overall_development_potential"),
-        "buildability_score": row.get("buildability_score"),
-        "build_complexity": row.get("build_complexity"),
-        "purity_score":     row.get("purity_score"),
-        "contamination_risk": row.get("contamination_risk"),
-        "est_total_slots":  row.get("est_total_slots"),
-        "elw_count":        row.get("elw_count"),
-        "ww_count":         row.get("ww_count"),
-        "ammonia_count":    row.get("ammonia_count"),
-        "gas_giant_count":  row.get("gas_giant_count"),
-        "neutron_count":    row.get("neutron_count"),
-        "black_hole_count": row.get("black_hole_count"),
-        "white_dwarf_count": row.get("white_dwarf_count"),
-        "landable_count":   row.get("landable_count"),
-        "terraformable_count": row.get("terraformable_count"),
-        "bio_signal_total": row.get("bio_signal_total"),
-        "geo_signal_total": row.get("geo_signal_total"),
-        "tags":             list(row.get("display_tags") or []),
-        "needs_permit":      bool(row.get("needs_permit", False)),
-        "population":        row.get("population"),
-        "is_colonised":      int(bool(row.get("is_colonised", False))),
-        "is_being_colonised": int(bool(row.get("is_being_colonised", False))),
-        "controlling_minor_faction": row.get("controlling_faction"),
-        "government":        _economy_str(row.get("government")),
-        "allegiance":        _economy_str(row.get("allegiance")),
-        "security":          _economy_str(row.get("security")),
-        "primaryEconomy":    _economy_str(row.get("primary_economy")),
-        "secondaryEconomy":  _economy_str(row.get("secondary_economy")),
-        # Galaxy region (named ED codex region)
-        "galaxy_region_id":  row.get("galaxy_region_id"),
-        "galaxy_region":     row.get("galaxy_region_name"),
-        "updated_at":        row["updated_at"].isoformat() if row.get("updated_at") else None,
-        "bodies":            bodies,
-        "source":            "local_db",
-    }
 
 
 @dataclass(frozen=True)
@@ -352,280 +234,17 @@ def _parse_local_search_context(body: dict) -> LocalSearchContext:
     )
 
 
-def _apply_local_search_filters(ctx: LocalSearchContext, builder: SearchSqlBuilder) -> None:
-    add = builder.add_where
-
-    if not ctx.galaxy_wide:
-        builder.wheres.append(
-            f"(s.x IS NOT NULL AND s.y IS NOT NULL AND s.z IS NOT NULL "
-            f"AND NOT (s.x = 0 AND s.y = 0 AND s.z = 0 AND s.id64 != {SOL_ID64}))"
-        )
-        builder.wheres.append(f"s.x BETWEEN {add(ctx.rx - ctx.max_dist)} AND {add(ctx.rx + ctx.max_dist)}")
-        builder.wheres.append(f"s.y BETWEEN {add(ctx.ry - ctx.max_dist)} AND {add(ctx.ry + ctx.max_dist)}")
-        builder.wheres.append(f"s.z BETWEEN {add(ctx.rz - ctx.max_dist)} AND {add(ctx.rz + ctx.max_dist)}")
-        builder.wheres.append(
-            f"((s.x-{add(ctx.rx)})*(s.x-{add(ctx.rx)}) + "
-            f"(s.y-{add(ctx.ry)})*(s.y-{add(ctx.ry)}) + "
-            f"(s.z-{add(ctx.rz)})*(s.z-{add(ctx.rz)})) "
-            f"BETWEEN {add(ctx.min_dist * ctx.min_dist)} AND {add(ctx.max_dist * ctx.max_dist)}"
-        )
-
-    if ctx.require_empty:
-        builder.wheres.append("s.population = 0")
-        builder.wheres.append("s.is_colonised = FALSE")
-    elif ctx.population_value is not None and ctx.population_comparison is not None:
-        population_ops = {
-            "equal": "=",
-            "=": "=",
-            "==": "=",
-            "not_equal": "!=",
-            "!=": "!=",
-            "<>": "!=",
-            "gt": ">",
-            ">": ">",
-            "gte": ">=",
-            ">=": ">=",
-            "lt": "<",
-            "<": "<",
-            "lte": "<=",
-            "<=": "<=",
-        }
-        operator = population_ops.get(ctx.population_comparison)
-        if operator is not None:
-            builder.wheres.append(f"s.population {operator} {add(ctx.population_value)}")
-
-    if ctx.economy_filter and ctx.economy_filter not in ("any", "Any", "Unknown", ""):
-        enum_val = economy_enum_value(ctx.economy_filter)
-        if enum_val is not None:
-            builder.wheres.append(f"s.primary_economy = {add(enum_val)}::economy_type")
-
-    if ctx.sec_econ_filter and ctx.sec_econ_filter not in ("any", "Any", "Unknown", ""):
-        sec_enum_val = economy_enum_value(ctx.sec_econ_filter)
-        if sec_enum_val is not None:
-            builder.wheres.append(f"s.secondary_economy = {add(sec_enum_val)}::economy_type")
-
-    if ctx.galaxy_region_id:
-        builder.wheres.append(f"s.galaxy_region_id = {add(int(ctx.galaxy_region_id))}")
-
-    if ctx.star_types:
-        placeholders = ", ".join(add(st) for st in ctx.star_types)
-        builder.wheres.append(f"s.main_star_class IN ({placeholders})")
-
-    if ctx.min_development_score > 0:
-        builder.wheres.append(f"{ctx.finder_score_expr} >= {add(ctx.min_development_score)}")
-
-    body_filters = normalise_body_filters(ctx.body_filters)
-    for filter_key, col in BODY_FILTER_COLS.items():
-        rng = body_filters.get(filter_key) or {}
-        if not isinstance(rng, dict):
-            continue
-        min_val = int(rng.get("min", 0) or 0)
-        max_val = rng.get("max")
-        qcol = f"r.{col}"
-        if min_val > 0:
-            builder.wheres.append(f"({qcol} IS NOT NULL AND {qcol} >= {add(min_val)})")
-        if max_val is not None:
-            builder.wheres.append(f"({qcol} IS NULL OR {qcol} <= {add(max_val)})")
-
-    if ctx.require_bio:
-        builder.wheres.append("(r.bio_signal_total IS NOT NULL AND r.bio_signal_total > 0)")
-    if ctx.require_geo:
-        builder.wheres.append("(r.geo_signal_total IS NOT NULL AND r.geo_signal_total > 0)")
-    if ctx.require_terra:
-        builder.wheres.append("(r.terraformable_count IS NOT NULL AND r.terraformable_count > 0)")
-
-
-def _build_distance_expr(ctx: LocalSearchContext, builder: SearchSqlBuilder) -> str:
-    coord_guard = (
-        f"CASE WHEN s.x = 0 AND s.y = 0 AND s.z = 0 AND s.id64 != {SOL_ID64} "
-        "THEN NULL::float "
-    )
-    if ctx.galaxy_wide and not ctx.has_reference_coords:
-        return "NULL::float"
-    return (
-        f"{coord_guard}ELSE SQRT((s.x-{builder.add_select(ctx.rx)})*(s.x-{builder.add_select(ctx.rx)}) + "
-        f"(s.y-{builder.add_select(ctx.ry)})*(s.y-{builder.add_select(ctx.ry)}) + "
-        f"(s.z-{builder.add_select(ctx.rz)})*(s.z-{builder.add_select(ctx.rz)})) END"
-    )
-
-
-def _build_local_search_count_sql(where_sql: str, galaxy_wide: bool) -> str:
-    if galaxy_wide:
-        return f"""
-            SELECT COUNT(*) FROM (
-                SELECT 1
-                FROM systems s
-                LEFT JOIN ratings r ON r.system_id64 = s.id64
-                LEFT JOIN mv_archetype_rankings m ON m.id64 = s.id64
-                {where_sql}
-                LIMIT {GALAXY_WIDE_COUNT_CAP}
-            ) t
-        """
-    return f"""
-        SELECT COUNT(*)
-        FROM systems s
-        LEFT JOIN ratings r ON r.system_id64 = s.id64
-        LEFT JOIN mv_archetype_rankings m ON m.id64 = s.id64
-        {where_sql}
-    """
-
-
-def _build_local_search_sql(
-    ctx: LocalSearchContext,
-    builder: SearchSqlBuilder,
-    where_sql: str,
-    dist_expr: str,
-) -> str:
-    order_sql = (
-        f"ORDER BY {ctx.finder_score_expr} DESC NULLS LAST, dist ASC"
-        if ctx.sort_by == "development"
-        else "ORDER BY dist ASC"
-    )
-    return f"""
-        SELECT
-            s.id64, s.name, s.x, s.y, s.z,
-            s.main_star_class,
-            s.main_star_type,
-            s.needs_permit,
-            s.population,
-            s.is_colonised,
-            s.is_being_colonised,
-            s.controlling_faction,
-            s.government::text    AS government,
-            s.allegiance::text    AS allegiance,
-            s.security::text      AS security,
-            s.primary_economy::text   AS primary_economy,
-            s.secondary_economy::text AS secondary_economy,
-            s.galaxy_region_id,
-            gr.name               AS galaxy_region_name,
-            s.updated_at,
-            r.score,
-            {ctx.display_score_col}   AS display_score,
-            {ctx.finder_score_expr}   AS archetype_score,
-            r.score_extraction,
-            r.economy_suggestion,
-            r.slots               AS r_slots,
-            r.body_quality        AS r_body_quality,
-            r.compactness         AS r_compactness,
-            r.signal_quality      AS r_signal_quality,
-            r.orbital_safety      AS r_orbital_safety,
-            r.star_bonus          AS r_star_bonus,
-            r.elw_count, r.ww_count, r.ammonia_count,
-            r.gas_giant_count, r.neutron_count, r.black_hole_count,
-            r.white_dwarf_count, r.landable_count, r.terraformable_count,
-            r.bio_signal_total, r.geo_signal_total,
-            r.terraforming_potential, r.body_diversity,
-            r.confidence, r.rationale,
-            r.rating_version,
-            m.primary_archetype,
-            m.secondary_archetype,
-            m.archetype_confidence,
-            m.overall_development_potential,
-            m.buildability_score,
-            m.build_complexity,
-            m.purity_score,
-            m.contamination_risk,
-            m.est_total_slots,
-            m.display_tags,
-            {dist_expr} AS dist
-        FROM systems s
-        LEFT JOIN ratings r ON r.system_id64 = s.id64
-        LEFT JOIN mv_archetype_rankings m ON m.id64 = s.id64
-        LEFT JOIN galaxy_regions gr ON gr.id = s.galaxy_region_id
-        {where_sql}
-        {order_sql}
-        LIMIT {builder.add_select(ctx.size)} OFFSET {builder.add_select(ctx.from_idx)}
-    """
-
-
-def _build_local_search_response(
-    rows: list[asyncpg.Record],
-    total: int,
-    ctx: LocalSearchContext,
-    elapsed: int,
-) -> Dict[str, Any]:
-    results = []
-    for row in rows:
-        rec = _build_system_record(row)
-        rec["distance"] = _safe_distance(row["dist"])
-        results.append(rec)
-
-    resp: Dict[str, Any] = {
-        "results":  results,
-        "count":    len(results),
-        "total":    total,
-        "source":   "local_db",
-        "query_ms": elapsed,
-        "display_economy": ctx.economy_filter or "overall",
-    }
-    if ctx.galaxy_wide and total is not None and total >= GALAXY_WIDE_COUNT_CAP:
-        resp["total_is_capped"] = True
-    if ctx.radius_capped:
-        resp["warning"] = (
-            f"Search radius capped at {int(MAX_SEARCH_RADIUS):,} LY "
-            f"(requested {int(ctx.max_dist_req):,} LY)."
-        )
-    return resp
-
-
-# ---------------------------------------------------------------------------
-# Core search
-# ---------------------------------------------------------------------------
-async def local_db_search(body: dict, pool: asyncpg.Pool) -> dict:
-    """
-    Execute a filtered system search against the PostgreSQL DB.
-
-    Key features:
-    - Body filters pushed into SQL via pre-computed ratings columns.
-    - Galaxy region filter (named ED codex regions 1-42).
-    - When filtering by economy, display_score = economy-specific score.
-    - When browsing without economy filter, display_score = overall score.
-    - Unified local and galaxy-wide search (galaxy_wide=True skips distance).
-    """
-    t0 = time.time()
-
-    ctx = _parse_local_search_context(body)
-    builder = SearchSqlBuilder()
-    _apply_local_search_filters(ctx, builder)
-    where_sql = builder.where_sql
-    where_param_count = len(builder.params)
-    dist_expr = _build_distance_expr(ctx, builder)
-    count_sql = _build_local_search_count_sql(where_sql, ctx.galaxy_wide)
-    sql = _build_local_search_sql(ctx, builder, where_sql, dist_expr)
-
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, *builder.params)
-        assert len(builder.params) == where_param_count + len(builder.select_params), (
-            "param accounting drifted: WHERE+SELECT must equal total"
-        )
-        total = await conn.fetchval(count_sql, *builder.params[:where_param_count])
-
-    elapsed = round((time.time() - t0) * 1000)
-    log.debug("local_db_search: %d total, returning %d (from=%d) in %dms",
-              total, len(rows), ctx.from_idx, elapsed)
-
-    return _build_local_search_response(rows, total, ctx, elapsed)
-
-
 # ---------------------------------------------------------------------------
 # V3 ranked search (F3 slice 1) — POST /api/local/search, and since F3
 # slice 2b also the read behind POST /api/search/galaxy.
 # ---------------------------------------------------------------------------
-# No route reads the legacy `local_db_search` above any more. F3 slice 1
-# repointed `/api/local/search` onto `local_db_search_v3`; F3 slice 2b
-# (this section onward) repointed `/api/search/galaxy` onto
+# `/api/local/search` reads `local_db_search_v3`; `/api/search/galaxy` reads
 # `local_db_galaxy_search_v3` (a validated galaxy-wide Any-mode call into
-# `local_db_search_v3`) and `/api/search/cluster` onto
+# `local_db_search_v3`); `/api/search/cluster` reads
 # `local_db_cluster_search_v3` (the V3 `v3_spatial.cluster_run` product gate;
-# see that function for the flagged data gap). The legacy
-# `local_db_galaxy_search` / `local_db_cluster_search` / `_resolve_slot_matches`
-# readers over `cluster_summary` / `systems` / `ratings` were deleted with that
-# repoint. `local_db_search` and its SQL helpers are retained only as the
-# legacy reference implementation (its record builder still serves
-# `local_db_system`, and the data-trust/population contract tests pin it);
-# it is reachable from no route. The "ONE search implementation" rule in
-# `routers/search.py` is per route: each search route has exactly one read
-# path and never a competing fallback.
+# see that function for the flagged data gap). The "ONE search
+# implementation" rule in `routers/search.py` is per route: each search route
+# has exactly one read path and never a competing fallback.
 #
 # `star_types`, `require_bio`, and `require_geo` map onto the
 # `main_star_class_in` / `has_biologicals` / `has_geologicals`
@@ -1741,153 +1360,6 @@ async def local_db_cluster_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# System detail
-# ---------------------------------------------------------------------------
-async def local_db_system(id64: int, pool: asyncpg.Pool) -> Optional[dict]:
-    """Return full system data including bodies and stations."""
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow("""
-            SELECT
-                s.id64, s.name, s.x, s.y, s.z,
-                s.main_star_class,
-                s.main_star_type,
-                s.needs_permit,
-                s.population,
-                s.is_colonised,
-                s.is_being_colonised,
-                s.controlling_faction,
-                s.government::text    AS government,
-                s.allegiance::text    AS allegiance,
-                s.security::text      AS security,
-                s.primary_economy::text   AS primary_economy,
-                s.secondary_economy::text AS secondary_economy,
-                s.galaxy_region_id,
-                gr.name               AS galaxy_region_name,
-                s.updated_at,
-                r.score,
-                r.score               AS display_score,
-                r.score_extraction,
-                r.economy_suggestion,
-                r.slots               AS r_slots,
-                r.body_quality        AS r_body_quality,
-                r.compactness         AS r_compactness,
-                r.signal_quality      AS r_signal_quality,
-                r.orbital_safety      AS r_orbital_safety,
-                r.star_bonus          AS r_star_bonus,
-                r.elw_count, r.ww_count, r.ammonia_count,
-                r.gas_giant_count, r.neutron_count, r.black_hole_count,
-                r.white_dwarf_count, r.landable_count, r.terraformable_count,
-                r.bio_signal_total, r.geo_signal_total,
-                r.rocky_count, r.rocky_ice_count, r.icy_count, r.hmc_count,
-                r.terraforming_potential, r.body_diversity,
-                r.confidence, r.rationale, r.rating_version,
-                NULL::float           AS dist
-            FROM systems s
-            LEFT JOIN ratings r ON r.system_id64 = s.id64
-            LEFT JOIN galaxy_regions gr ON gr.id = s.galaxy_region_id
-            WHERE s.id64 = $1
-        """, id64)
-
-        if not row:
-            return None
-
-        body_rows = await conn.fetch("""
-            SELECT
-                b.id, b.name,
-                b.body_type::text AS type,
-                b.subtype,
-                b.distance_from_star,
-                b.is_landable,
-                b.is_tidal_lock,
-                b.atmosphere_type AS atmosphere,
-                b.volcanism,
-                b.terraforming_state AS terraform_state,
-                b.gravity AS surface_gravity,
-                b.surface_temp,
-                b.mass,
-                b.radius,
-                b.bio_signal_count AS bio_signals,
-                b.geo_signal_count AS geo_signals,
-                b.estimated_mapping_value AS mapped_value,
-                b.estimated_scan_value AS scan_value,
-                NULL::text AS ring_types,
-                NULL::text AS signals,
-                (b.bio_signal_count > 0 OR b.geo_signal_count > 0) AS has_signals,
-                EXISTS (
-                    SELECT 1 FROM body_rings br
-                    WHERE br.system_id64 = b.system_id64
-                      AND br.body_id = b.id
-                      AND br.association_status = 'local_matched'
-                ) AS has_rings
-            FROM bodies b
-            WHERE b.system_id64 = $1
-            ORDER BY b.distance_from_star
-        """, id64)
-
-    body_list = [_normalize_body(b) for b in body_rows]
-    record = _build_system_record(row, body_list)
-    record["body_count"] = len(body_list)
-
-    # Fetch stations
-    async with pool.acquire() as conn:
-        station_rows = await conn.fetch("""
-            SELECT
-                id, name,
-                station_type::text AS type,
-                distance_from_star,
-                body_name,
-                landing_pad_size::text AS landing_pad_size,
-                primary_economy::text AS primary_economy,
-                secondary_economy::text AS secondary_economy,
-                has_market, has_shipyard, has_outfitting,
-                has_refuel, has_repair, has_rearm,
-                has_black_market, has_material_trader,
-                has_technology_broker, has_interstellar_factors,
-                has_universal_cartographics, has_search_rescue,
-                updated_at
-            FROM stations
-            WHERE system_id64 = $1
-            ORDER BY distance_from_star
-        """, id64)
-
-    stations = []
-    for st in station_rows:
-        services = []
-        if st["has_market"]:          services.append("Market")
-        if st["has_shipyard"]:        services.append("Shipyard")
-        if st["has_outfitting"]:      services.append("Outfitting")
-        if st["has_refuel"]:          services.append("Refuel")
-        if st["has_repair"]:          services.append("Repair")
-        if st["has_rearm"]:           services.append("Restock")
-        if st["has_black_market"]:    services.append("Black Market")
-        if st["has_material_trader"]: services.append("Material Trader")
-        if st["has_technology_broker"]: services.append("Technology Broker")
-        if st["has_interstellar_factors"]: services.append("Interstellar Factors")
-        if st["has_universal_cartographics"]: services.append("Universal Cartographics")
-        if st["has_search_rescue"]:   services.append("Search and Rescue")
-
-        stations.append({
-            "id":                   st["id"],
-            "name":                 st["name"],
-            "type":                 st["type"],
-            "distance_to_arrival":  st["distance_from_star"],
-            "body_name":            st["body_name"],
-            "landingPads":          {"large": 1 if st["landing_pad_size"] == "L" else 0},
-            "economies":            [
-                {"name": st["primary_economy"]} if st["primary_economy"] else None,
-                {"name": st["secondary_economy"]} if st["secondary_economy"] else None,
-            ],
-            "services":             services,
-            "updated_at":           st["updated_at"].isoformat() if st["updated_at"] else None,
-        })
-
-    record["stations"] = stations
-    record["source"]   = "local_db"
-
-    return {"record": record}
-
-
-# ---------------------------------------------------------------------------
 # Autocomplete
 # ---------------------------------------------------------------------------
 AUTOCOMPLETE_CANDIDATE_LIMIT = 100
@@ -2051,60 +1523,3 @@ async def local_db_status(pool: asyncpg.Pool) -> dict:
         return {"available": False, "reason": reason}
 
 
-# ---------------------------------------------------------------------------
-# Body normalizer (for system detail modal)
-# ---------------------------------------------------------------------------
-def _stored_list(row: asyncpg.Record, column: str) -> list:
-    """A body's stored list (its ring types, its signals), however it is kept.
-
-    Text that cannot be read counts as an empty list, and the log says so. A
-    body shown with no rings because its stored text is broken must not look
-    the same, to whoever runs the site, as a body that has none.
-    """
-    raw = row.get(column) or []
-    if isinstance(raw, str):
-        try:
-            raw = json.loads(raw)
-        except ValueError:
-            log.warning("body %s: its stored %s could not be read, so it is shown with none",
-                        row.get("id"), column)
-            return []
-    return raw
-
-
-def _normalize_body(row: asyncpg.Record) -> dict:
-    rings_raw = _stored_list(row, "ring_types")
-    rings = [{"type": t} for t in rings_raw if t]
-
-    signals_raw = _stored_list(row, "signals")
-
-    if not signals_raw and row.get("has_signals"):
-        volc = (row.get("volcanism") or "").strip()
-        if volc and volc not in ("", "No volcanism"):
-            signals_raw = [{"name": "Geological", "count": 1}]
-        else:
-            signals_raw = [{"name": "Biological", "count": 1}]
-
-    return {
-        "id":                    row.get("id"),
-        "name":                  row.get("name"),
-        "type":                  row.get("type"),
-        "subtype":               row.get("subtype"),
-        "distance_to_arrival":   row.get("distance_from_star"),
-        "is_landable":           bool(row.get("is_landable", False)),
-        "is_rotational_period_tidally_locked": bool(row.get("is_tidal_lock", False)),
-        "atmosphere":            row.get("atmosphere"),
-        "volcanism":             row.get("volcanism"),
-        "terraforming_state":    row.get("terraform_state"),
-        "gravity":               row.get("surface_gravity"),
-        "surface_temperature":   row.get("surface_temp"),
-        "mass":                  row.get("mass"),
-        "radius":                row.get("radius"),
-        "estimated_mapping_value":  row.get("mapped_value"),
-        "estimated_scan_value":     row.get("scan_value"),
-        "bio_signals":           row.get("bio_signals") or 0,
-        "geo_signals":           row.get("geo_signals") or 0,
-        "has_signals":           bool(row.get("has_signals", False)),
-        "rings":                 rings,
-        "signals":               signals_raw,
-    }

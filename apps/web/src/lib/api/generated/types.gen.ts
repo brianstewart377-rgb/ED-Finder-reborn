@@ -487,8 +487,8 @@ export type BodyCountFilter = {
 /**
  * BodyFilters
  *
- * `LocalSearchRequest.body_filters`. Keys mirror the
- * `helpers.sys_row_to_dict` body-count column names. All optional —
+ * `LocalSearchRequest.body_filters`. Keys are the body-count column
+ * names (`search_economies.BODY_FILTER_COLS`). All optional —
  * a missing key means "no filter on that body type".
  */
 export type BodyFilters = {
@@ -3144,8 +3144,8 @@ export type SystemRatingsResponse = {
  *
  * One result row inside `SearchResponse.results`.
  *
- * Keep aligned with `helpers.sys_row_to_dict` (single source of truth
- * for the camelCase translator).
+ * Keep aligned with `local_search._build_v3_system_record`, which builds
+ * each row.
  */
 export type SystemRow = {
     /**

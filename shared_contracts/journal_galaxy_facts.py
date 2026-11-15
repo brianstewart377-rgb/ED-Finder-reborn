@@ -33,7 +33,6 @@ FIELDS = {
     'Age_MY': ('stellar_age_myr', 1, 0, None),
     'AbsoluteMagnitude': ('absolute_magnitude', 1, None, None),
 }
-CANONICAL_FIELDS = frozenset(row[0] for row in FIELDS.values()) | {'is_landable'}
 
 
 def exact_id(value: object, *, zero: bool = False) -> int:
@@ -88,44 +87,3 @@ def normalize_scan(event: dict, *, now: datetime | None = None) -> dict:
     }
 
 
-def reconcile_fields(current: dict, observation: dict, field_times: dict[str, datetime], *,
-                     conflicting_fields: frozenset[str] = frozenset()) -> tuple[dict, dict]:
-    """No last-upload-wins. Conflicting unknown/equal/newer facts are preserved.
-
-    Missing stable physical values may be filled by an older valid observation.
-    A non-null value only changes when evidence proves the incoming observation
-    is newer. Field-level provenance is used before the row's source timestamp.
-    """
-    observed = datetime.fromisoformat(observation['observed_at'])
-    if observed.tzinfo is None:
-        raise ValueError('invalid_observation_time')
-    bounds = {target: (lower, upper) for target, _, lower, upper in FIELDS.values()}
-    changes, decisions = {}, {}
-    for field, value in observation['fields'].items():
-        if field not in CANONICAL_FIELDS:
-            raise ValueError('unsupported_canonical_field')
-        if field == 'is_landable':
-            if type(value) is not bool:
-                raise ValueError('invalid_physical_value')
-        else:
-            lower, upper = bounds[field]
-            try:
-                valid = (type(value) in (int, float) and math.isfinite(value)
-                         and (lower is None or value >= lower) and (upper is None or value <= upper))
-            except OverflowError:
-                valid = False
-            if not valid:
-                raise ValueError('invalid_physical_value')
-        existing = current.get(field)
-        recorded = field_times.get(field, current.get('source_updated_at'))
-        if field in conflicting_fields:
-            decisions[field] = 'PRESERVE_CONFLICT'
-        elif existing is None:
-            changes[field], decisions[field] = value, 'FILL_MISSING'
-        elif existing == value:
-            decisions[field] = 'UNCHANGED'
-        elif recorded is not None and observed > recorded:
-            changes[field], decisions[field] = value, 'NEWER_OBSERVATION'
-        else:
-            decisions[field] = 'PRESERVE_CONFLICT'
-    return changes, decisions

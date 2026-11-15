@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Protocol
 
 from .rules import rule
-
-
-class _RuleStep(Protocol):
-    rule_ids: tuple[str, ...]
 
 
 def explain_rule(rule_id: str) -> dict[str, str | int | None]:
@@ -24,6 +19,3 @@ def explain_rule(rule_id: str) -> dict[str, str | int | None]:
     }
 
 
-def explain_step(step: _RuleStep) -> list[dict[str, str | int | None]]:
-    """Explain each rule cited by an evaluated step, preserving its order."""
-    return [explain_rule(rule_id) for rule_id in step.rule_ids]
