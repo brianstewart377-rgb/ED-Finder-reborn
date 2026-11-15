@@ -18,7 +18,7 @@ import {
   type CompareEntry,
   type PinnedEntry,
 } from '$lib/persistence/storage';
-import type { CameraState } from '$lib/spatial/contracts';
+import type { MapResume } from '$lib/galaxy-map/GalaxyMap.svelte';
 import { ExploreViewState } from './explore-view-state.svelte';
 import type { ExploreAnchor } from './navigation';
 import { DEFAULT_RANKING_STATE } from './ranking-state';
@@ -73,14 +73,6 @@ const anchor: ExploreAnchor = {
   y: -3,
   z: 40,
 };
-const camera: CameraState = {
-  focusLy: { x: 110, y: -22, z: 330 },
-  distanceLy: 4_000,
-  bearingRad: 0.3,
-  pitchRad: 0.8,
-  projection: 'perspective',
-  revision: 7,
-};
 const detail: SystemDetail = {
   ...anchor,
   lifecycleState: 'ACTIVE',
@@ -107,32 +99,10 @@ describe('Explore view lifetime', () => {
       focusedAnchorRevision: 0,
       hydratedAnchorIdentity: undefined,
       hydratedExploreUrl: undefined,
-      selectionRevision: 0,
-      focusRevision: 0,
-      completedFocusRevision: 0,
-      focusTarget: null,
-      lastPickedId64: null,
-      selectedRegionId: null,
-      hoveredRegionId: null,
-      hoveredSystemId: null,
-      cameraRequest: null,
-      cameraRequestRevision: 0,
-      appliedCameraRequestRevision: 0,
-      retainedCamera: null,
-      streamRevision: 0,
-      starDetailMode: 'wide',
-      starViewportSize: null,
-      layerToggleRevision: 0,
-      showNebulae: true,
       finderPanelOpen: true,
-      mapFocusedSystemId: null,
-      reservedPoints: [],
-      renderedNebulaReceipt: null,
-      appliedCataloguePacket: null,
-      lastGoodDensity: null,
+      mapResume: null,
       retainedSelectedSystem: null,
       displayedResultsKey: null,
-      initialGalaxyViewRequested: false,
       hasMounted: false,
       resultScrollTop: 0,
       nearId: null,
@@ -146,14 +116,6 @@ describe('Explore view lifetime', () => {
       canonicalSearch: '',
       invalidAnchorState: false,
       rankingUrlReady: true,
-    });
-    expect(view.streamCamera).toEqual({
-      focusLy: { x: 0, y: 0, z: 0 },
-      distanceLy: 118_000,
-      bearingRad: 0,
-      pitchRad: 0.55,
-      projection: 'perspective',
-      revision: 0,
     });
     expect(get(view.layerPreferences).value).toEqual({
       density: true,
@@ -179,6 +141,12 @@ describe('Explore view lifetime', () => {
       'explore',
       { reference_coords: { x: anchor.x, y: anchor.y, z: anchor.z } },
     ];
+    // Where the galaxy map's camera was left, as the map hands it back.
+    const mapResume = {
+      view: { cursor: [1, 2, 3], distance: 70, yaw: 20, pitch: 35 },
+      home: { cursor: [0, 0, 25_000], distance: 100_000, yaw: 0, pitch: 50 },
+      shownId: anchor.id64,
+    } satisfies MapResume;
     const changed = {
       query: 'Unsubmitted query',
       rankingNotice: 'Unsupported link option',
@@ -187,36 +155,10 @@ describe('Explore view lifetime', () => {
       focusedAnchorRevision: 3,
       hydratedAnchorIdentity: anchor.id64,
       hydratedExploreUrl: '?near=9007199254740993',
-      selectionRevision: 8,
-      focusRevision: 9,
-      completedFocusRevision: 8,
-      focusTarget: { kind: 'system' as const, systemId64: anchor.id64 },
-      lastPickedId64: anchor.id64,
-      selectedRegionId: '18',
-      hoveredRegionId: '19',
-      hoveredSystemId: '42',
-      cameraRequest: camera,
-      cameraRequestRevision: 10,
-      appliedCameraRequestRevision: 9,
-      retainedCamera: { finderRevision: 4, camera },
-      streamCamera: camera,
-      streamRevision: 11,
-      starDetailMode: 'local' as const,
-      starViewportSize: { width: 1200, height: 800 },
-      layerToggleRevision: 12,
-      showNebulae: false,
       finderPanelOpen: false,
-      mapFocusedSystemId: anchor.id64,
-      reservedPoints: [
-        {
-          systemId64: anchor.id64,
-          name: anchor.name,
-          positionLy: camera.focusLy,
-        },
-      ],
+      mapResume,
       retainedSelectedSystem: selected,
       displayedResultsKey,
-      initialGalaxyViewRequested: true,
       hasMounted: true,
     };
     Object.assign(view, changed);
@@ -231,28 +173,20 @@ describe('Explore view lifetime', () => {
     expect(other).toMatchObject({
       query: '',
       resolvedAnchor: null,
-      lastPickedId64: null,
-      focusTarget: null,
-      retainedCamera: null,
       retainedSelectedSystem: null,
       displayedResultsKey: null,
-      completedFocusRevision: 0,
-      appliedCameraRequestRevision: 0,
-      showNebulae: true,
       finderPanelOpen: true,
-      reservedPoints: [],
+      mapResume: null,
       resultScrollTop: 0,
-      initialGalaxyViewRequested: false,
     });
     expect(other.layerPreferences).not.toBe(view.layerPreferences);
-    // Panel visibility and renderer receipts never become URL/storage keys.
+    // Panel visibility and the map's camera never become URL/storage keys.
     const beforeToggle = view.serialize().toString();
     view.finderPanelOpen = true;
     expect(view.serialize().toString()).toBe(beforeToggle);
     view.finderPanelOpen = false;
     expect(view.serialize().toString()).toBe(beforeToggle);
-    expect(view.retainedCamera?.camera).toEqual(camera);
-    expect(view.reservedPoints).toEqual(changed.reservedPoints);
+    expect(view.mapResume).toBe(mapResume);
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
   });

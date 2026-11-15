@@ -204,3 +204,40 @@ MIT License. Their licence texts are served beside the site, at
 Cosmos: Copyright (c) 2026 Eluvade. Pixel Planets: Copyright (c) 2020
 Deep-Fold. The pictures are drawn by these programs from each body's class;
 they are illustrations, not pictures of the real surface or Frontier media.
+
+## Almanac Galaxy-Map
+
+The galaxy map on Explore (`apps/web/src/lib/galaxy-map/`) is
+[Galaxy-Map](https://github.com/Elite-Dangerous-Almanac/Galaxy-Map) by the
+Elite Dangerous Almanac project (`@elite-dangerous-almanac/galaxy-map` 0.7.1, an
+npm dependency of `apps/web`), used exactly as published. It is under the
+**PolyForm Noncommercial License 1.0.0**, which allows noncommercial use only
+and requires this line to be passed on with it:
+
+> Required Notice: Copyright 2026 Dark Session (https://github.com/Elite-Dangerous-Almanac/Galaxy-Map)
+
+The page shows that line beside the map, with links to the licence and to the
+library's own third-party notices. ED-Finder is a noncommercial, invite-only
+fan project; a commercial use would need new permission from the licensor and
+from every holder the library's notices name.
+
+The library draws the game's galaxy: its nebula art, galaxy pictures and marker
+shapes are Frontier Developments plc's, used by the library under Frontier's
+noncommercial media rules (see "Frontier Developments fan-media boundary"
+above). It bundles the Chakra Petch and IBM Plex Mono fonts (SIL Open Font
+License 1.1) for its own panels, and its region lookup comes from
+EliteDangerousRegionMap (MIT; see the section above).
+
+It depends on `@elite-dangerous-almanac/core` 0.2.16 (MIT, Copyright 2026 Elite
+Dangerous Community) and `gl-matrix` 3.4.4 (MIT). The licence texts and notices
+of all three are served beside the site, copied unchanged from the installed
+packages (`apps/web/static/licences/`):
+
+- `/licences/galaxy-map-LICENSE.txt`
+- `/licences/galaxy-map-THIRD_PARTY_NOTICES.txt`
+- `/licences/almanac-core-LICENSE.txt`
+- `/licences/almanac-core-THIRD_PARTY_NOTICES.txt`
+- `/licences/gl-matrix-LICENSE.txt`
+
+A test compares each of these with the package's own file, so a version change
+that alters a licence or notice fails until the copy is renewed.

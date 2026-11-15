@@ -17,6 +17,9 @@ importers:
       '@ed-finder/planner-core':
         specifier: file:../../packages/planner-core
         version: file:../../packages/planner-core(@ed-finder/api-client@file:../../packages/api-client)
+      '@elite-dangerous-almanac/galaxy-map':
+        specifier: 0.7.1
+        version: 0.7.1
       '@eluvade/cosmos':
         specifier: 1.3.0
         version: 1.3.0
@@ -205,6 +208,13 @@ packages:
     resolution: {directory: ../../packages/planner-core, type: directory}
     peerDependencies:
       '@ed-finder/api-client': 0.1.0
+
+  '@elite-dangerous-almanac/core@0.2.16':
+    resolution: {integrity: sha512-tIzded2zhAfpsnxjhQU1FZ/2oQiSwvcb9c0ZZUcppwLjvJbb4Z9rWHWhIzohZE20kilx3004w7lqqm14X+S6XA==}
+    engines: {node: '>=22'}
+
+  '@elite-dangerous-almanac/galaxy-map@0.7.1':
+    resolution: {integrity: sha512-KSM6wl9n0L0RSjN/iXcXgL0WzvyekcTcfq0HixWt/4KS50MgPZhfs7UOZ7FGDC3AxgzuGrWfatKV7p3o0M3diQ==}
 
   '@eluvade/cosmos@1.3.0':
     resolution: {integrity: sha512-3TISb5wnCtgO2owk+MVOrUclWZjjzBw+QMTX3IJwRVUWr9fShJryznZNayWiqneU4Sejsl3MQm1tkYRwMyTDnQ==}
@@ -1337,6 +1347,9 @@ packages:
   giget@3.3.1:
     resolution: {integrity: sha512-r+mvuDjrjMpsdw46Kmeydb8bdHm7wOKw8wNBtTndkjbPjgAp5oUJUxRE76wZFknxIPokfWvep2qSXK37aXE6zg==}
     hasBin: true
+
+  gl-matrix@3.4.4:
+    resolution: {integrity: sha512-latSnyDNt/8zYUB6VIJ6PCh2jBjJX6gnDsoCZ7LyW7GkqrD51EWwa9qCoGixj8YqBtETQK/xY7OmpTF8xz1DdQ==}
 
   glob-parent@6.0.2:
     resolution: {integrity: sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A==}
@@ -2632,6 +2645,13 @@ snapshots:
       '@ed-finder/api-client': file:../../packages/api-client
       json-with-bigint: 3.5.11
 
+  '@elite-dangerous-almanac/core@0.2.16': {}
+
+  '@elite-dangerous-almanac/galaxy-map@0.7.1':
+    dependencies:
+      '@elite-dangerous-almanac/core': 0.2.16
+      gl-matrix: 3.4.4
+
   '@eluvade/cosmos@1.3.0': {}
 
   '@eslint-community/eslint-utils@4.10.1(eslint@10.9.1(jiti@2.7.0)(supports-color@8.1.1))':
@@ -3772,6 +3792,8 @@ snapshots:
       assert-plus: 1.0.0
 
   giget@3.3.1: {}
+
+  gl-matrix@3.4.4: {}
 
   glob-parent@6.0.2:
     dependencies:

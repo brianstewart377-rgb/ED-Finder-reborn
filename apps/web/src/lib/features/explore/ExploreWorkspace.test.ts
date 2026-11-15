@@ -6,39 +6,23 @@ import {
   waitFor,
   within,
 } from '@testing-library/svelte';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import axe from 'axe-core';
 import { tick, type ComponentProps } from 'svelte';
-import { isTopmostPopout, registerPopout } from '$lib/components/popout-stack';
 import * as api from '$lib/api/client';
 import { queryClient, queryKeys } from '$lib/api/query';
 import { auth } from '$lib/auth/auth';
 import { FINDER_F4_ENABLED } from '$lib/config';
-import { PERSISTENCE_KEYS } from '$lib/persistence/storage';
 import { parseId64 } from '$lib/domain/id64';
-import { applicationStores, pins, syncKey } from '$lib/persistence/stores';
-import { createHeadlessEngine } from '$lib/spatial/babylon/test-support';
-import type {
-  RuntimeEvent,
-  RuntimeCommand,
-  SpatialRuntimeStatus,
-  GalaxySceneContract,
-  GalaxySystemsPayload,
-} from '$lib/spatial/contracts';
-import type { ExploreAnchor } from './navigation';
-import * as galaxyRegions from '$lib/spatial/galaxy-regions';
-import * as galaxyNebulae from '$lib/spatial/galaxy-nebulae';
-import { galaxyCameraPlanePoint } from '$lib/spatial/galaxy-camera';
+import { applicationStores } from '$lib/persistence/stores';
 import {
-  DENSITY_CROSSFADE_NEAR_LY,
-  GALAXY_WIDE_STAR_LIMIT,
-  LOCAL_STAR_ENTER_LY,
-  LOCAL_STAR_EXIT_LY,
-} from '$lib/spatial/galaxy-detail-policy';
-import { createManagedSpatialRuntime } from '$lib/spatial/lifecycle';
-import { COMMANDER_HISTORY_GALAXY_BOUNDS } from '$lib/spatial/commander-history-viewport';
+  failNextMap,
+  fakeMaps,
+  resetFakeMaps,
+  type FakeMap,
+} from '$lib/galaxy-map/fake-almanac';
+import solBox from '$lib/galaxy-map/fixtures/map-systems-sol-box.json';
+import type { ExploreAnchor } from './navigation';
 import ExploreWorkspaceTestHost from './ExploreWorkspaceTestHost.svelte';
 import { ExploreViewState } from './explore-view-state.svelte';
 
@@ -86,79 +70,19 @@ vi.mock('$lib/api/client', async (loadOriginal) => {
     getCommanderTravelHeatmap: vi.fn(),
     getCommanderJournalSummary: vi.fn(),
     getAuthSession: vi.fn(),
-    getMapHeatmap: vi.fn(),
     getWatchlist: vi.fn(),
   };
 });
 
-const runtimeAdapter = vi.hoisted(() => ({ create: vi.fn() }));
-vi.mock('$lib/spatial/babylon/adapter', () => ({
-  createBabylonSpatialRuntime: runtimeAdapter.create,
+// The map draws with WebGL2, which the test browser does not have. A stand-in
+// keeps what the page hands the map (see $lib/galaxy-map/fake-almanac.ts).
+vi.mock(
+  '@elite-dangerous-almanac/galaxy-map',
+  () => import('$lib/galaxy-map/fake-almanac'),
+);
+vi.mock('@elite-dangerous-almanac/galaxy-map/nebulae', () => ({
+  nebulae: {},
 }));
-
-const pyramidFixture: api.MapHeatmapPyramidResponse = {
-  source: 'pyramid',
-  generation_id: 'gen-1',
-  spatial_generation_id: 'gen-1',
-  spatial_pyramid_version: 'v1',
-  source_system_count: 200,
-  coverage_at: '2026-01-01T00:00:00Z',
-  level: 0,
-  requested_level: 0,
-  served_level: 0,
-  level_cell_count: 2,
-  coverage: 'complete',
-  cell_size_ly: 1000,
-  voxel_size: 1000,
-  bounds: {
-    min_x: 0,
-    max_x: 2000,
-    min_y: 0,
-    max_y: 1000,
-    min_z: 0,
-    max_z: 1000,
-  },
-  cells: [
-    {
-      origin_x_ly: 0,
-      origin_y_ly: 0,
-      origin_z_ly: 0,
-      centroid_x_ly: 500,
-      centroid_y_ly: 500,
-      centroid_z_ly: 500,
-      system_count: 120,
-    },
-    {
-      origin_x_ly: 1000,
-      origin_y_ly: 0,
-      origin_z_ly: 0,
-      centroid_x_ly: 1500,
-      centroid_y_ly: 500,
-      centroid_z_ly: 500,
-      system_count: 80,
-    },
-  ],
-  count: 2,
-  max_cells: 40_000,
-  truncated: false,
-};
-
-const coarsePyramidFixture: api.MapHeatmapPyramidResponse = {
-  ...pyramidFixture,
-  cells: [{ ...pyramidFixture.cells[0], system_count: 200 }],
-  count: 1,
-  level_cell_count: 1,
-};
-
-const legacyFixture: api.MapHeatmapResponse = { source: 'legacy-fallback' };
-
-const emptyPyramidFixture: api.MapHeatmapPyramidResponse = {
-  ...pyramidFixture,
-  cells: [],
-  count: 0,
-  level_cell_count: 0,
-  source_system_count: 0,
-};
 
 const catalogueFixture: api.CatalogueViewportResponse = {
   systems: [
@@ -175,52 +99,22 @@ const catalogueFixture: api.CatalogueViewportResponse = {
   truncated: false,
 };
 
-async function openLayers(): Promise<HTMLElement> {
-  const trigger = screen.getByRole('button', { name: /^Layers/ });
-  if (trigger.getAttribute('aria-expanded') !== 'true')
-    await fireEvent.click(trigger);
-  return screen.getByRole('dialog', { name: 'Map layers' });
-}
-
-function densityStatus(): HTMLElement {
-  return screen.getByRole('status', { name: 'Catalogue density' });
-}
-
-function exactStarStatus(): HTMLElement {
-  return document.querySelector<HTMLElement>('[data-catalogue-star-count]')!;
-}
-
-async function waitForCatalogueCells(): Promise<void> {
-  await vi.waitFor(
-    () => {
-      const cells = queryClient
-        .getQueryCache()
-        .getAll()
-        .filter(
-          (query) =>
-            query.queryKey[2] === 'catalogue-stars' &&
-            query.getObserversCount() > 0,
-        );
-      expect(cells.length).toBeGreaterThan(0);
-      expect(cells.every((query) => query.state.status === 'success')).toBe(
-        true,
-      );
-    },
-    { interval: 1 },
+/** The map of the page under test, once it has started. */
+async function theMap(): Promise<FakeMap> {
+  await waitFor(() =>
+    expect(document.querySelector('[data-galaxy-map="ready"]')).not.toBeNull(),
   );
-  await tick();
+  return fakeMaps.at(-1)!;
 }
 
-let runtimeResizeObserverCallback: ResizeObserverCallback;
+/** The ids of the systems on the map, in the order the map was given them. */
+const onTheMap = (map: FakeMap) => [...map.systems.keys()];
 
 function stubRuntime(): void {
+  resetFakeMaps();
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      constructor(callback: ResizeObserverCallback) {
-        runtimeResizeObserverCallback = callback;
-      }
-
       observe = vi.fn();
       disconnect = vi.fn();
       unobserve = vi.fn();
@@ -229,37 +123,10 @@ function stubRuntime(): void {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query === '(prefers-reduced-motion: reduce)',
   }));
-  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(640);
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(360);
-  runtimeAdapter.create.mockImplementation(
-    (_canvas, onStatus: (status: SpatialRuntimeStatus) => void) => {
-      let listener: ((event: RuntimeEvent) => void) | undefined;
-      return {
-        getStatus: () => ({ state: 'created' as const }),
-        start: vi.fn(async () => {
-          const ready = { state: 'ready' as const, backend: 'WEBGL2' as const };
-          onStatus(ready);
-          return ready;
-        }),
-        dispatch: vi.fn((command: RuntimeCommand) => {
-          if (command.type === 'FLY_TO')
-            queueMicrotask(() =>
-              listener?.({
-                type: 'TRANSITION_FINISHED',
-                target: command.target,
-              }),
-            );
-          return { status: 'executed' as const };
-        }),
-        subscribe: vi.fn((next: (event: RuntimeEvent) => void) => {
-          listener = next;
-          return vi.fn();
-        }),
-        resize: vi.fn(),
-        dispose: vi.fn(),
-      };
-    },
-  );
+  // The map beside the Finder on a 1920 by 1080 screen, as measured on the
+  // built page: wide enough for the map's own panel to open beside it.
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1446);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(765);
 }
 
 function mockFacadeDefaults(): void {
@@ -326,1126 +193,12 @@ function mockFacadeDefaults(): void {
   });
 }
 
-describe('ExploreWorkspace density cross-fade wiring', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    queryClient.clear();
-    stubRuntime();
-    mockFacadeDefaults();
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-  });
-
-  it('fetches the galaxy heatmap when zoomed out and shows the live density cell count', async () => {
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-
-    await waitFor(() => expect(api.getMapHeatmap).toHaveBeenCalled());
-    expect(await screen.findByText(/2 density cells/)).toBeInTheDocument();
-    await waitForCatalogueCells();
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'ready');
-    expect(exactStarStatus()).toHaveTextContent('0 exact stars');
-    expect(
-      screen.queryByText(/Known-system density · zoom in/),
-    ).not.toBeInTheDocument();
-    // Ask for every occupied cell in a finite camera-derived area; the server
-    // can coarsen the discrete requested resolution to retain sparse regions.
-    expect(api.getMapHeatmap).toHaveBeenCalledWith(
-      expect.objectContaining({
-        min_systems: 1,
-        voxel_size: 590,
-        max_cells: 40_000,
-        coverage: 'complete',
-        min_x: expect.any(Number),
-        max_x: expect.any(Number),
-        min_y: expect.any(Number),
-        max_y: expect.any(Number),
-        min_z: expect.any(Number),
-        max_z: expect.any(Number),
-      }),
-      expect.anything(),
-    );
-    expect(
-      screen.getByLabelText('Known-system density legend'),
-    ).toHaveTextContent('Complete at 1,000 LY');
-  });
-
-  it('debounces camera movement and keys density requests by the bounds bucket', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await vi.waitFor(() => expect(api.getMapHeatmap).toHaveBeenCalled(), {
-      interval: 1,
-    });
-    await vi.waitFor(() => expect(currentScene()).toBeDefined(), {
-      interval: 1,
-    });
-    const initial = vi.mocked(api.getMapHeatmap).mock.calls.at(-1)![0];
-    const initialCalls = vi.mocked(api.getMapHeatmap).mock.calls.length;
-    const camera = currentScene().camera;
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...camera,
-        distanceLy: 118_050,
-        focusLy: { x: 20, y: 0, z: 0 },
-        revision: 1,
-      },
-    });
-    await vi.advanceTimersByTimeAsync(180);
-    expect(api.getMapHeatmap).toHaveBeenCalledTimes(initialCalls);
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...camera,
-        distanceLy: 10_000,
-        focusLy: { x: 10_000, y: 0, z: 0 },
-        revision: 2,
-      },
-    });
-    await vi.advanceTimersByTimeAsync(100);
-    expect(api.getMapHeatmap).toHaveBeenCalledTimes(initialCalls);
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...camera,
-        distanceLy: 10_000,
-        focusLy: { x: 30_000, y: 0, z: 0 },
-        revision: 3,
-      },
-    });
-    await vi.advanceTimersByTimeAsync(180);
-    await vi.waitFor(
-      () => expect(api.getMapHeatmap).toHaveBeenCalledTimes(initialCalls + 1),
-      { interval: 1 },
-    );
-    const moved = vi.mocked(api.getMapHeatmap).mock.calls.at(-1)![0];
-    expect(moved.coverage).toBe('complete');
-    expect(moved.max_x! - moved.min_x!).toBeLessThan(
-      initial.max_x! - initial.min_x!,
-    );
-    const farCorner = galaxyCameraPlanePoint(
-      {
-        ...camera,
-        distanceLy: 10_000,
-        focusLy: { x: 30_000, y: 0, z: 0 },
-      },
-      { x: 640, y: 0 },
-      { width: 640, height: 360 },
-    )!;
-    expect(moved.max_x).toBeGreaterThanOrEqual(farCorner.x);
-    expect(moved.max_z).toBeGreaterThanOrEqual(farCorner.z);
-    expect(moved.min_x).toBeGreaterThan(0);
-  });
-
-  it('refreshes density bounds and query keys when the canvas aspect changes at a fixed camera', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    let finishDensity!: (response: api.MapHeatmapResponse) => void;
-    vi.mocked(api.getMapHeatmap).mockReturnValue(
-      new Promise((resolve) => (finishDensity = resolve)),
-    );
-    render(ExploreWorkspaceTestHost);
-    await vi.waitFor(() => expect(currentScene()).toBeDefined(), {
-      interval: 1,
-    });
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...currentScene().camera,
-        focusLy: { x: 0, y: 0, z: 0 },
-        distanceLy: 10_000,
-        pitchRad: 0.55,
-        revision: 1,
-      },
-    });
-    await vi.advanceTimersByTimeAsync(180);
-    await vi.waitFor(
-      () =>
-        expect(api.getMapHeatmap).toHaveBeenLastCalledWith(
-          expect.objectContaining({ voxel_size: 200 }),
-          expect.anything(),
-        ),
-      { interval: 1 },
-    );
-    const initial = vi.mocked(api.getMapHeatmap).mock.calls.at(-1)![0];
-    const initialCalls = vi.mocked(api.getMapHeatmap).mock.calls.length;
-    const initialKeys = queryClient
-      .getQueryCache()
-      .findAll({ queryKey: ['map-heatmap'] })
-      .map((query) => query.queryHash);
-
-    // A proportional resize has the same bounds. It must preserve even an
-    // in-flight query, rather than aborting and restarting identical work.
-    runtimeResizeObserverCallback(
-      [
-        {
-          contentRect: { width: 1280, height: 720 },
-        } as unknown as ResizeObserverEntry,
-      ],
-      {} as ResizeObserver,
-    );
-    await tick();
-    expect(api.getMapHeatmap).toHaveBeenCalledTimes(initialCalls);
-    expect(
-      queryClient
-        .getQueryCache()
-        .findAll({ queryKey: ['map-heatmap'] })
-        .map((query) => query.queryHash),
-    ).toEqual(initialKeys);
-
-    runtimeResizeObserverCallback(
-      [
-        {
-          contentRect: { width: 1280, height: 360 },
-        } as unknown as ResizeObserverEntry,
-      ],
-      {} as ResizeObserver,
-    );
-    await vi.waitFor(
-      () => expect(api.getMapHeatmap).toHaveBeenCalledTimes(initialCalls + 1),
-      { interval: 1 },
-    );
-    const resized = vi.mocked(api.getMapHeatmap).mock.calls.at(-1)![0];
-    expect(resized.min_x).toBeLessThan(initial.min_x!);
-    expect(resized.max_x).toBeGreaterThan(initial.max_x!);
-    expect(resized.min_z).toBe(initial.min_z);
-    expect(resized.max_z).toBe(initial.max_z);
-    expect(
-      queryClient
-        .getQueryCache()
-        .findAll({ queryKey: ['map-heatmap'] })
-        .some((query) => !initialKeys.includes(query.queryHash)),
-    ).toBe(true);
-    expect(document.querySelector('.spatial-canvas')).toHaveAttribute(
-      'data-camera-revision',
-      '1',
-    );
-    finishDensity(pyramidFixture);
-    await vi.waitFor(
-      () =>
-        expect(queryClient.isFetching({ queryKey: ['map-heatmap'] })).toBe(0),
-      { interval: 1 },
-    );
-  });
-
-  it('disables density requests and removes its cached cells without changing stars, camera or selection', async () => {
-    featureGate.enabled = true;
-    mockRankedPages();
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
-      catalogueFixture,
-    );
-    renderEnabled('page_size=1');
-    await screen.findByText('Ranked 1');
-    await fireEvent.click(
-      screen.getByRole('button', { name: /Ranked 1.*9007199254741001/ }),
-    );
-    await openLayers();
-    await screen.findByText('2 density cells');
-    await waitFor(() =>
-      expect(currentScene().selection).toContainEqual({
-        kind: 'system',
-        systemId64: rankedRows[0].id64,
-      }),
-    );
-    // The stub runtime reports completed flights but does not emit their camera
-    // receipts. Supply a settled overview camera before testing a layer change.
-    // Focus the overview on the fixture star so the viewport-aware catalogue
-    // sample keeps it in frame at galaxy scale.
-    const camera = {
-      ...currentScene().camera,
-      focusLy: { x: 0, y: 0, z: 0 },
-      distanceLy: 118_000,
-      revision: 10,
-    };
-    emitRuntime({ type: 'CAMERA_CHANGED', camera });
-    await waitFor(() =>
-      expect(document.querySelector('[data-camera-distance]')).toHaveAttribute(
-        'data-camera-distance',
-        '118000',
-      ),
-    );
-    const selection = currentScene().selection;
-    await waitFor(() =>
-      expect(scenePointIds()).toContain(catalogueFixture.systems[0].id64),
-    );
-    const stars = scenePointIds();
-    const fetches = vi.mocked(api.getMapHeatmap).mock.calls.length;
-    const density = screen.getByRole('switch', {
-      name: 'Known-system density',
-    });
-
-    await fireEvent.click(density);
-
-    expect(density).toHaveAttribute('aria-checked', 'false');
-    await waitFor(() =>
-      expect(
-        currentScene().contributions.flatMap(({ layers }) => layers),
-      ).not.toContainEqual(
-        expect.objectContaining({ id: 'catalogue-density' }),
-      ),
-    );
-    expect(scenePointIds()).toEqual(stars);
-    expect(currentScene().camera).toEqual(camera);
-    expect(currentScene().selection).toEqual(selection);
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'off');
-    expect(densityStatus()).not.toHaveTextContent('2 density cells');
-
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: { ...camera, distanceLy: 180_000, revision: 1 },
-    });
-    await vi.advanceTimersByTimeAsync(300);
-    await queryClient.invalidateQueries({ queryKey: ['map-heatmap'] });
-    await tick();
-    expect(api.getMapHeatmap).toHaveBeenCalledTimes(fetches);
-    expect(scenePointIds()).toEqual(stars);
-    expect(currentScene().selection).toEqual(selection);
-
-    await fireEvent.click(density);
-    await vi.waitFor(() =>
-      expect(api.getMapHeatmap).toHaveBeenCalledTimes(fetches + 1),
-    );
-    expect(api.getMapHeatmap).toHaveBeenLastCalledWith(
-      expect.objectContaining({ voxel_size: 900 }),
-      expect.anything(),
-    );
-    expect(density).toHaveAttribute('aria-checked', 'true');
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'ready');
-    expect(currentScene().selection).toEqual(selection);
-  });
-
-  it('refetches after density is turned off and on at the same zoom', async () => {
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await screen.findByText('2 density cells');
-    const fetches = vi.mocked(api.getMapHeatmap).mock.calls.length;
-    const density = screen.getByRole('switch', {
-      name: 'Known-system density',
-    });
-    await fireEvent.click(density);
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(coarsePyramidFixture);
-
-    await fireEvent.click(density);
-
-    await waitFor(() =>
-      expect(api.getMapHeatmap).toHaveBeenCalledTimes(fetches + 1),
-    );
-    await screen.findByText('1 density cells');
-  });
-
-  it('does not restore density cells when an in-flight response arrives after the switch is off', async () => {
-    let finish!: (response: api.MapHeatmapResponse) => void;
-    const pending = new Promise<api.MapHeatmapResponse>((resolve) => {
-      finish = resolve;
-    });
-    vi.mocked(api.getMapHeatmap).mockReturnValueOnce(pending);
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await waitFor(() =>
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'loading'),
-    );
-    await fireEvent.click(
-      screen.getByRole('switch', { name: 'Known-system density' }),
-    );
-
-    finish(pyramidFixture);
-    await pending;
-    await tick();
-    await tick();
-
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'off');
-    expect(densityStatus()).not.toHaveTextContent('2 density cells');
-    await waitFor(() => expect(currentScene()).toBeDefined());
-    expect(
-      currentScene().contributions.flatMap(({ layers }) => layers),
-    ).not.toContainEqual(expect.objectContaining({ id: 'catalogue-density' }));
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(coarsePyramidFixture);
-    await fireEvent.click(
-      screen.getByRole('switch', { name: 'Known-system density' }),
-    );
-    await screen.findByText('1 density cells');
-  });
-
-  it('restores browser switches on remount without persisting journal content or nebula visibility', async () => {
-    await auth.bootstrap();
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await screen.findByText('2 density cells');
-    await fireEvent.click(
-      screen.getByRole('switch', { name: 'Known-system density' }),
-    );
-    await fireEvent.click(screen.getByRole('switch', { name: 'My journeys' }));
-    await fireEvent.click(screen.getByRole('switch', { name: 'Nebulae' }));
-    expect(
-      JSON.parse(localStorage.getItem(PERSISTENCE_KEYS.mapLayers)!),
-    ).toEqual({
-      version: 1,
-      density: false,
-      journeys: true,
-    });
-    cleanup();
-    queryClient.clear();
-    vi.mocked(api.getMapHeatmap).mockClear();
-
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await screen.findByText(/exact stars/);
-
-    expect(
-      screen.getByRole('switch', { name: 'Known-system density' }),
-    ).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('switch', { name: 'My journeys' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(screen.getByRole('switch', { name: 'Nebulae' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(
-      screen.getByRole('button', { name: 'Layers · 2' }),
-    ).toBeInTheDocument();
-    expect(api.getMapHeatmap).not.toHaveBeenCalled();
-    expect(api.getCommanderTravelHeatmap).not.toHaveBeenCalled();
-  });
-
-  it('reports no published pyramid separately from exact stars for a legacy fallback', async () => {
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
-
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-
-    await waitFor(() => expect(api.getMapHeatmap).toHaveBeenCalled());
-    await screen.findByText(/exact stars/);
-    await waitFor(() =>
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'none'),
-    );
-    expect(densityStatus()).toHaveTextContent(/no published/i);
-    expect(
-      within(densityStatus()).queryByRole('button'),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText(/density cells/)).not.toBeInTheDocument();
-    expect(
-      within(screen.getByRole('dialog', { name: 'Map layers' })).queryByRole(
-        'alert',
-      ),
-    ).not.toBeInTheDocument();
-  });
-
-  it('prioritizes the initial density query before loading exact stars', async () => {
-    let finish!: (response: api.MapHeatmapResponse) => void;
-    vi.mocked(api.getMapHeatmap).mockImplementation(
-      () => new Promise((resolve) => (finish = resolve)),
-    );
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
-      catalogueFixture,
-    );
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-
-    await waitFor(() => expect(api.getMapHeatmap).toHaveBeenCalled());
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'loading');
-    expect(densityStatus()).toHaveTextContent(/loading/i);
-    await waitFor(() =>
-      expect(exactStarStatus()).toHaveTextContent(
-        'Loading exact catalogue stars',
-      ),
-    );
-    expect(api.getCatalogueViewportSystems).not.toHaveBeenCalled();
-    finish(pyramidFixture);
-    await waitFor(() =>
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'ready'),
-    );
-    await screen.findByText('1 exact stars');
-  });
-
-  it.each([
-    { name: '503', error: new api.ApiError(503, '/api/map/heatmap', {}) },
-    { name: 'network', error: new TypeError('Failed to fetch') },
-  ])(
-    'offers a density-only Retry after a $name failure and recovers',
-    async ({ error }) => {
-      vi.mocked(api.getMapHeatmap).mockRejectedValue(error);
-      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
-        catalogueFixture,
-      );
-      render(ExploreWorkspaceTestHost);
-      await openLayers();
-
-      await waitFor(
-        () =>
-          expect(densityStatus()).toHaveAttribute(
-            'data-density-state',
-            'unavailable',
-          ),
-        { timeout: 3_000 },
-      );
-      await waitForCatalogueCells();
-      expect(exactStarStatus()).toHaveTextContent('1 exact stars');
-      expect(
-        screen.queryByText('Exact-star layer unavailable'),
-      ).not.toBeInTheDocument();
-      const calls = vi.mocked(api.getMapHeatmap).mock.calls.length;
-      const starCalls = vi.mocked(api.getCatalogueViewportSystems).mock.calls
-        .length;
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-      await fireEvent.click(
-        within(densityStatus()).getByRole('button', { name: 'Retry' }),
-      );
-
-      await waitFor(() =>
-        expect(densityStatus()).toHaveAttribute('data-density-state', 'ready'),
-      );
-      expect(api.getMapHeatmap).toHaveBeenCalledTimes(calls + 1);
-      expect(densityStatus()).toHaveTextContent('2 density cells');
-      expect(
-        within(densityStatus()).queryByRole('button'),
-      ).not.toBeInTheDocument();
-      expect(api.getCatalogueViewportSystems).toHaveBeenCalledTimes(starCalls);
-      expect(exactStarStatus()).toHaveTextContent('1 exact stars');
-    },
-  );
-
-  it('reports an invalid density payload with Retry independently from exact stars', async () => {
-    featureGate.enabled = true;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue({
-      source: 'pyramid',
-    } as api.MapHeatmapPyramidResponse);
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
-      catalogueFixture,
-    );
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-
-    await waitFor(() =>
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'invalid'),
-    );
-    await waitForCatalogueCells();
-    expect(exactStarStatus()).toHaveTextContent('1 exact stars');
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    await fireEvent.click(
-      within(densityStatus()).getByRole('button', { name: 'Retry' }),
-    );
-    await waitFor(() =>
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'ready'),
-    );
-    expect(densityStatus()).toHaveTextContent('2 density cells');
-  });
-
-  it.each([
-    { state: 'empty', fixture: emptyPyramidFixture },
-    {
-      state: 'truncated',
-      fixture: {
-        ...coarsePyramidFixture,
-        truncated: true,
-        coverage: 'truncated' as const,
-        level_cell_count: null,
-      },
-    },
-  ])(
-    'distinguishes a valid $state density area from failure',
-    async ({ state, fixture }) => {
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(fixture);
-      render(ExploreWorkspaceTestHost);
-      await openLayers();
-
-      await waitFor(() =>
-        expect(densityStatus()).toHaveAttribute('data-density-state', state),
-      );
-      await waitForCatalogueCells();
-      expect(
-        within(densityStatus()).queryByRole('button'),
-      ).not.toBeInTheDocument();
-      expect(exactStarStatus()).toHaveTextContent('0 exact stars');
-      if (state === 'truncated') {
-        expect(densityStatus()).toHaveTextContent('1 density cells');
-        expect(densityStatus()).toHaveTextContent(
-          'Truncated · 1 cells shown at 1,000 LY',
-        );
-      }
-    },
-  );
-
-  it.each([false, true])(
-    'keeps the exact-star failure status independent of ready density (F4=%s)',
-    async (enabled) => {
-      featureGate.enabled = enabled;
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-      vi.mocked(api.getCatalogueViewportSystems).mockRejectedValue(
-        new api.ApiError(503, '/api/map/catalogue-viewport', {}),
-      );
-      render(ExploreWorkspaceTestHost);
-      await openLayers();
-
-      await screen.findByText(
-        'Exact-star layer unavailable',
-        {},
-        { timeout: 3_000 },
-      );
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'ready');
-      expect(densityStatus()).toHaveTextContent('2 density cells');
-      expect(exactStarStatus()).toHaveTextContent(
-        'Exact-star layer unavailable',
-      );
-    },
-  );
-
-  it.each([
-    { enabled: false, failure: 'unavailable' },
-    { enabled: true, failure: 'unavailable' },
-    { enabled: false, failure: 'invalid' },
-    { enabled: true, failure: 'invalid' },
-  ])(
-    'keeps last good density after $failure on refetch (F4=$enabled)',
-    async ({ enabled, failure }) => {
-      featureGate.enabled = enabled;
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-      render(ExploreWorkspaceTestHost);
-      await openLayers();
-      await screen.findByText('2 density cells');
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      await waitForCatalogueCells();
-      const loads = runtimeCommands().filter(
-        (command) => command.type === 'LOAD_SCENE',
-      ).length;
-      const patches = runtimeCommands().filter(
-        (command) => command.type === 'PATCH_CONTRIBUTION',
-      ).length;
-      if (failure === 'unavailable') {
-        vi.mocked(api.getMapHeatmap).mockRejectedValue(
-          new api.ApiError(503, '/api/map/heatmap', {}),
-        );
-      } else {
-        vi.mocked(api.getMapHeatmap).mockResolvedValue({
-          source: 'pyramid',
-        } as api.MapHeatmapPyramidResponse);
-      }
-      await queryClient.invalidateQueries({ queryKey: ['map-heatmap'] });
-
-      await waitFor(
-        () =>
-          expect(densityStatus()).toHaveAttribute(
-            'data-density-state',
-            'stale',
-          ),
-        { timeout: 3_000 },
-      );
-      expect(densityStatus().getAttribute('data-density-reason')).toBeTruthy();
-      expect(densityStatus()).toHaveTextContent(/stale/i);
-      expect(densityStatus()).toHaveTextContent('2 density cells');
-      expect(densityStatus()).toHaveAttribute('data-density-cell-count', '2');
-      expect(
-        runtimeCommands().filter((command) => command.type === 'LOAD_SCENE'),
-      ).toHaveLength(loads);
-      expect(
-        runtimeCommands().filter(
-          (command) => command.type === 'PATCH_CONTRIBUTION',
-        ),
-      ).toHaveLength(patches);
-      expect(exactStarStatus()).toHaveTextContent('0 exact stars');
-
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(coarsePyramidFixture);
-      await fireEvent.click(
-        within(densityStatus()).getByRole('button', { name: 'Retry' }),
-      );
-      await waitFor(() =>
-        expect(densityStatus()).toHaveAttribute('data-density-state', 'ready'),
-      );
-      expect(densityStatus()).toHaveTextContent('1 density cells');
-      expect(densityStatus()).not.toHaveAttribute('data-density-reason');
-    },
-  );
-
-  it.each([false, true])(
-    'retains last good density when a different viewport fails (F4=%s)',
-    async (enabled) => {
-      featureGate.enabled = enabled;
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-      render(ExploreWorkspaceTestHost);
-      await openLayers();
-      await screen.findByText('2 density cells');
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      vi.mocked(api.getMapHeatmap).mockRejectedValue(
-        new TypeError('Failed to fetch'),
-      );
-      emitRuntime({
-        type: 'CAMERA_CHANGED',
-        camera: { ...currentScene().camera, distanceLy: 180_000, revision: 1 },
-      });
-
-      await waitFor(
-        () =>
-          expect(densityStatus()).toHaveAttribute(
-            'data-density-state',
-            'stale',
-          ),
-        { timeout: 3_000 },
-      );
-      expect(api.getMapHeatmap).toHaveBeenLastCalledWith(
-        expect.objectContaining({ voxel_size: 900 }),
-        expect.anything(),
-      );
-      expect(densityStatus()).toHaveTextContent('2 density cells');
-      expect(densityStatus()).toHaveAttribute('data-density-reason', 'network');
-      expect(
-        currentScene().contributions.flatMap(
-          (contribution) => contribution.layers,
-        ),
-      ).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ id: 'catalogue-density', targetCount: 2 }),
-        ]),
-      );
-    },
-  );
-
-  it('patches an older cached density viewport without reloading the scene', async () => {
-    featureGate.enabled = true;
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    vi.mocked(api.getMapHeatmap).mockImplementation(async (request) =>
-      request.voxel_size === 590 ? pyramidFixture : coarsePyramidFixture,
-    );
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await vi.waitFor(
-      () => {
-        expect(screen.getByText(/2 density cells/)).toBeInTheDocument();
-        expect(
-          runtimeCommands().some((command) => command.type === 'LOAD_SCENE'),
-        ).toBe(true);
-      },
-      { interval: 1 },
-    );
-    await waitForCatalogueCells();
-    const initialLoads = runtimeCommands().filter(
-      (command) => command.type === 'LOAD_SCENE',
-    ).length;
-    const densityPatches = () =>
-      runtimeCommands().filter(
-        (command) => command.type === 'PATCH_CONTRIBUTION',
-      );
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: { ...currentScene().camera, distanceLy: 180_000, revision: 1 },
-    });
-    await vi.advanceTimersByTimeAsync(180);
-    await vi.waitFor(
-      () => expect(screen.getByText(/1 density cells/)).toBeInTheDocument(),
-      { interval: 1 },
-    );
-    const newerRevision = densityPatches().at(-1)!.contribution.revision;
-    const densityQueries = () =>
-      queryClient.getQueryCache().findAll({ queryKey: ['map-heatmap'] });
-    const queryAt = (voxel: number) =>
-      densityQueries().find(
-        (query) => JSON.parse(String(query.queryKey[1])).voxel_size === voxel,
-      )!;
-    const cachedUpdatedAt = queryAt(590).state.dataUpdatedAt;
-    expect(cachedUpdatedAt).toBeLessThan(queryAt(900).state.dataUpdatedAt);
-    const fetchesBeforeReturn = vi.mocked(api.getMapHeatmap).mock.calls.length;
-
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: { ...currentScene().camera, distanceLy: 118_000, revision: 2 },
-    });
-    await vi.advanceTimersByTimeAsync(180);
-    await vi.waitFor(
-      () => expect(screen.getByText(/2 density cells/)).toBeInTheDocument(),
-      { interval: 1 },
-    );
-    expect(api.getMapHeatmap).toHaveBeenCalledTimes(fetchesBeforeReturn);
-    expect(queryAt(590).state.dataUpdatedAt).toBe(cachedUpdatedAt);
-    expect(densityPatches().at(-1)!.contribution.revision).toBeGreaterThan(
-      newerRevision,
-    );
-    expect(densityPatches().at(-1)!.contribution.layers[0].targetCount).toBe(2);
-    expect(
-      runtimeCommands().filter((command) => command.type === 'LOAD_SCENE'),
-    ).toHaveLength(initialLoads);
-  });
-
-  it('removes a density contribution once when a refreshed response reports no published pyramid', async () => {
-    featureGate.enabled = true;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await screen.findByText(/2 density cells/);
-    await waitFor(() => expect(currentScene()).toBeDefined());
-    await waitForCatalogueCells();
-    const initialLoads = runtimeCommands().filter(
-      (command) => command.type === 'LOAD_SCENE',
-    ).length;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
-    await queryClient.invalidateQueries({ queryKey: ['map-heatmap'] });
-    await waitFor(() =>
-      expect(
-        runtimeCommands().filter((command) => command.type === 'LOAD_SCENE'),
-      ).toHaveLength(initialLoads + 1),
-    );
-    expect(
-      currentScene()
-        .contributions.flatMap((contribution) => contribution.layers)
-        .some((layer) => layer.id === 'catalogue-density'),
-    ).toBe(false);
-    expect(screen.queryByText(/density cells/)).not.toBeInTheDocument();
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'none');
-    await queryClient.invalidateQueries({ queryKey: ['map-heatmap'] });
-    await tick();
-    expect(
-      runtimeCommands().filter((command) => command.type === 'LOAD_SCENE'),
-    ).toHaveLength(initialLoads + 1);
-  });
-
-  it('coordinates local detail with the density overlap and retains the wide sample until detail arrives', async () => {
-    featureGate.enabled = true;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    const wideFixture = {
-      ...catalogueFixture,
-      systems: [
-        ...catalogueFixture.systems,
-        {
-          ...catalogueFixture.systems[0],
-          id64: parseId64('9007199254740995'),
-          name: 'Masked galaxy corner',
-          x: 52_000,
-          z: 78_000,
-        },
-      ],
-    };
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(wideFixture);
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await screen.findByText('1 exact stars');
-    await screen.findByText('2 density cells');
-    await waitFor(() =>
-      expect(scenePointIds()).toEqual([catalogueFixture.systems[0].id64]),
-    );
-    let finish!: (response: api.CatalogueViewportResponse) => void;
-    const pendingLocal = new Promise<api.CatalogueViewportResponse>(
-      (resolve) => (finish = resolve),
-    );
-    vi.mocked(api.getCatalogueViewportSystems).mockImplementation((request) =>
-      request.limit === GALAXY_WIDE_STAR_LIMIT
-        ? Promise.resolve(wideFixture)
-        : pendingLocal,
-    );
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...currentScene().camera,
-        distanceLy: LOCAL_STAR_ENTER_LY,
-        revision: 1,
-      },
-    });
-    await waitFor(() =>
-      expect(api.getCatalogueViewportSystems).toHaveBeenLastCalledWith(
-        expect.objectContaining({ limit: 40_000 }),
-        expect.anything(),
-      ),
-    );
-    expect(api.getCatalogueViewportSystems).toHaveBeenLastCalledWith(
-      expect.objectContaining({ limit: 40_000 }),
-      expect.anything(),
-    );
-    expect(api.getMapHeatmap).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        voxel_size: 200,
-        min_systems: 1,
-        max_cells: 40_000,
-      }),
-      expect.anything(),
-    );
-    await waitFor(() =>
-      expect(densityStatus()).toHaveAttribute('data-density-state', 'ready'),
-    );
-    expect(exactStarStatus()).toHaveTextContent('1 exact stars');
-    expect(exactStarStatus()).toHaveAttribute('data-catalogue-star-count', '1');
-    expect(scenePointIds()).toEqual([catalogueFixture.systems[0].id64]);
-    const localStars = {
-      systems: [
-        ...catalogueFixture.systems,
-        {
-          ...catalogueFixture.systems[0],
-          id64: parseId64('9007199254740994'),
-          name: 'Local star',
-        },
-      ],
-      truncated: false,
-    };
-    finish(localStars);
-    await waitFor(() =>
-      expect(scenePointIds()).toEqual(
-        localStars.systems.map((system) => system.id64),
-      ),
-    );
-    expect(exactStarStatus()).toHaveAttribute('data-catalogue-star-count', '2');
-
-    const starFetches = vi.mocked(api.getCatalogueViewportSystems).mock.calls
-      .length;
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...currentScene().camera,
-        distanceLy: DENSITY_CROSSFADE_NEAR_LY,
-        revision: 2,
-      },
-    });
-    await new Promise((resolve) => setTimeout(resolve, 220));
-    await tick();
-    // A closer camera inside the same budget band can reuse the covering
-    // cells; the old shifted-box request would have refetched here.
-    expect(api.getCatalogueViewportSystems).toHaveBeenCalledTimes(starFetches);
-    // Active-query invalidation must still refetch at the fade endpoint;
-    // cached data alone would also be visible with an incorrectly disabled query.
-    // The finer bounds now select a new cache entry at this same voxel size;
-    // let that fetch finish so invalidation isn't deduplicated with it.
-    await waitFor(() =>
-      expect(queryClient.isFetching({ queryKey: ['map-heatmap'] })).toBe(0),
-    );
-    const fetches = vi.mocked(api.getMapHeatmap).mock.calls.length;
-    await queryClient.invalidateQueries({ queryKey: ['map-heatmap'] });
-    await waitFor(() =>
-      expect(api.getMapHeatmap).toHaveBeenCalledTimes(fetches + 1),
-    );
-    expect(densityStatus()).toHaveAttribute('data-density-state', 'ready');
-  });
-
-  it('filters retained local detail against the current footprint while the returning wide cells load', async () => {
-    featureGate.enabled = true;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
-      catalogueFixture,
-    );
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await screen.findByText('1 exact stars');
-    await waitFor(() => expect(currentScene()).toBeDefined());
-    const focusLy = { x: 52_000, y: 0, z: 78_000 };
-    const localFixture = {
-      ...catalogueFixture,
-      systems: [
-        {
-          ...catalogueFixture.systems[0],
-          ...focusLy,
-          id64: parseId64('9007199254740994'),
-          name: 'Local rim star',
-        },
-        {
-          ...catalogueFixture.systems[0],
-          x: 59_000,
-          z: 85_000,
-          id64: parseId64('9007199254740995'),
-          name: 'Masked local corner',
-        },
-      ],
-    };
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(localFixture);
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...currentScene().camera,
-        focusLy,
-        distanceLy: LOCAL_STAR_ENTER_LY,
-        revision: 1,
-      },
-    });
-    await waitFor(() =>
-      expect(scenePointIds()).toEqual([localFixture.systems[0].id64]),
-    );
-    queryClient.removeQueries({
-      queryKey: [...queryKeys.all, 'map', 'catalogue-stars'],
-      type: 'inactive',
-    });
-    let finish!: (response: api.CatalogueViewportResponse) => void;
-    const pendingWide = new Promise<api.CatalogueViewportResponse>(
-      (resolve) => (finish = resolve),
-    );
-    vi.mocked(api.getCatalogueViewportSystems).mockImplementation(
-      () => pendingWide,
-    );
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...currentScene().camera,
-        focusLy,
-        distanceLy: LOCAL_STAR_EXIT_LY + 100,
-        revision: 2,
-      },
-    });
-    await waitFor(() =>
-      expect(api.getCatalogueViewportSystems).toHaveBeenLastCalledWith(
-        expect.objectContaining({ limit: GALAXY_WIDE_STAR_LIMIT }),
-        expect.anything(),
-      ),
-    );
-    expect(exactStarStatus()).toHaveTextContent('1 exact stars');
-    // Retained points remain constrained to the current camera footprint;
-    // the off-catalogue corner never becomes visible during the hand-off.
-    expect(scenePointIds()).toEqual([localFixture.systems[0].id64]);
-    finish(catalogueFixture);
-    await waitFor(() => expect(scenePointIds()).toEqual([]));
-  });
-
-  it('keeps the star viewport mode while the camera reverses inside the hysteresis band', async () => {
-    featureGate.enabled = true;
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
-    const localFixture: api.CatalogueViewportResponse = {
-      ...catalogueFixture,
-      systems: [
-        ...catalogueFixture.systems,
-        {
-          ...catalogueFixture.systems[0],
-          id64: parseId64('9007199254740994'),
-          name: 'Local star',
-        },
-      ],
-    };
-    vi.mocked(api.getCatalogueViewportSystems).mockImplementation(
-      async (request) =>
-        request.limit === GALAXY_WIDE_STAR_LIMIT
-          ? catalogueFixture
-          : localFixture,
-    );
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await vi.waitFor(
-      () => expect(exactStarStatus()).toHaveTextContent('1 exact stars'),
-      { interval: 1 },
-    );
-
-    await vi.waitFor(() => expect(currentScene()).toBeDefined(), {
-      interval: 1,
-    });
-
-    const path = [
-      { distance: LOCAL_STAR_ENTER_LY + 300, count: 1 },
-      { distance: LOCAL_STAR_ENTER_LY - 100, count: 2 },
-      { distance: LOCAL_STAR_ENTER_LY + 200, count: 2 },
-      { distance: LOCAL_STAR_EXIT_LY + 100, count: 1 },
-      { distance: LOCAL_STAR_ENTER_LY - 200, count: 2 },
-    ];
-    for (const [index, step] of path.entries()) {
-      emitRuntime({
-        type: 'CAMERA_CHANGED',
-        camera: {
-          ...currentScene().camera,
-          distanceLy: step.distance,
-          revision: index + 1,
-        },
-      });
-      await vi.advanceTimersByTimeAsync(180);
-      await vi.waitFor(
-        () =>
-          expect(exactStarStatus()).toHaveTextContent(
-            `${step.count} exact stars`,
-          ),
-        { interval: 1 },
-      );
-    }
-    const requests = vi
-      .mocked(api.getCatalogueViewportSystems)
-      .mock.calls.map(([request]) => request);
-    expect(new Set(requests.map((request) => request.limit))).toEqual(
-      new Set([GALAXY_WIDE_STAR_LIMIT, 40_000]),
-    );
-    // Revisiting the hysteresis band reuses whole cached cells; no shifted
-    // copy of an already requested cell is fetched during this reversal.
-    expect(
-      new Set(requests.map((request) => JSON.stringify(request))).size,
-    ).toBe(requests.length);
-  });
-
-  it('reuses cells for a small camera pan and updates their coverage when the viewport widens', async () => {
-    featureGate.enabled = true;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
-    let resizeViewport!: (width: number, height: number) => void;
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        constructor(callback: ResizeObserverCallback) {
-          resizeViewport = (width, height) =>
-            callback(
-              [{ contentRect: { width, height } } as ResizeObserverEntry],
-              this as unknown as ResizeObserver,
-            );
-        }
-        observe = vi.fn();
-        disconnect = vi.fn();
-        unobserve = vi.fn();
-      },
-    );
-    render(ExploreWorkspaceTestHost);
-    await waitForCatalogueCells();
-    resizeViewport(360, 360);
-    const camera = {
-      ...currentScene().camera,
-      focusLy: { x: 0, y: 0, z: 0 },
-      distanceLy: 1_000,
-      pitchRad: Math.PI / 2,
-      bearingRad: 0,
-      revision: 1,
-    };
-    emitRuntime({ type: 'CAMERA_CHANGED', camera });
-    await waitFor(() =>
-      expect(api.getCatalogueViewportSystems).toHaveBeenLastCalledWith(
-        expect.objectContaining({ limit: 12_000 }),
-        expect.anything(),
-      ),
-    );
-    await waitForCatalogueCells();
-    const localCalls = vi.mocked(api.getCatalogueViewportSystems).mock.calls
-      .length;
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: {
-        ...camera,
-        focusLy: { x: 50, y: 0, z: 0 },
-        revision: 2,
-      },
-    });
-    await new Promise((resolve) => setTimeout(resolve, 220));
-    await tick();
-    expect(api.getCatalogueViewportSystems).toHaveBeenCalledTimes(localCalls);
-
-    resizeViewport(840, 360);
-    await waitFor(() =>
-      expect(
-        vi.mocked(api.getCatalogueViewportSystems).mock.calls.length,
-      ).toBeGreaterThan(localCalls),
-    );
-    await waitForCatalogueCells();
-    const cachedCells = queryClient
-      .getQueryCache()
-      .getAll()
-      .filter((query) => query.queryKey[2] === 'catalogue-stars');
-    expect(cachedCells.length).toBeLessThanOrEqual(64);
-    expect(
-      cachedCells.filter((query) => query.getObserversCount() > 0).length,
-    ).toBeLessThanOrEqual(16);
-  });
-});
-
 describe('ExploreWorkspace Finder F4 gate (default off)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
     stubRuntime();
     mockFacadeDefaults();
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
   });
 
   afterEach(() => {
@@ -1505,7 +258,7 @@ describe('ExploreWorkspace Finder F4 gate (default off)', () => {
 
     render(ExploreWorkspaceTestHost);
 
-    await screen.findByText(/exact stars/);
+    await theMap();
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
     expect(mockedGoto).not.toHaveBeenCalled();
   });
@@ -1664,240 +417,6 @@ function renderEnabled(
   };
 }
 
-function runtimeCommands(): RuntimeCommand[] {
-  const runtime = runtimeAdapter.create.mock.results.at(-1)?.value;
-  return (
-    runtime?.dispatch.mock.calls.map(
-      ([command]: [RuntimeCommand]) => command,
-    ) ?? []
-  );
-}
-
-function currentScene(): GalaxySceneContract {
-  const runtime = runtimeAdapter.create.mock.results.at(-1)?.value;
-  const loads = runtime.dispatch.mock.calls.filter(
-    ([command]: [{ type: string }]) => command.type === 'LOAD_SCENE',
-  );
-  return loads.at(-1)?.[0].scene;
-}
-
-function scenePointIds(): string[] {
-  // The renderer deduplicates Finder points also retained in the reserved
-  // catalogue contribution; inspect the same visible system identity set.
-  return [
-    ...new Set(
-      currentScene().contributions.flatMap((contribution) =>
-        contribution.layers.flatMap((layer) => {
-          const payload = layer.payload as {
-            systems?: { systemId64: string }[];
-          };
-          return payload.systems?.map((point) => point.systemId64) ?? [];
-        }),
-      ),
-    ),
-  ];
-}
-
-function emitRuntime(event: RuntimeEvent): void {
-  const runtime = runtimeAdapter.create.mock.results.at(-1)?.value;
-  runtime.subscribe.mock.calls[0][0](event);
-}
-
-describe('ExploreWorkspace nebula inventory status', () => {
-  const publishedNebulae = galaxyNebulae.parseGalaxyNebulaeAsset(
-    JSON.parse(
-      readFileSync(
-        resolve(process.cwd(), 'static/assets/edastro-mapcharts-nebulae.json'),
-        'utf8',
-      ),
-    ) as unknown,
-  );
-  const diffuse = publishedNebulae.nebulae.find(
-    (nebula) => nebula.kind === 'nebula',
-  )!;
-  const planetary = publishedNebulae.nebulae
-    .filter((nebula) => nebula.kind === 'planetary-nebula')
-    .slice(0, 3);
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    queryClient.clear();
-    stubRuntime();
-    mockFacadeDefaults();
-    featureGate.enabled = true;
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
-    vi.spyOn(
-      galaxyRegions,
-      'fetchAuthoritativeGalaxyRegions',
-    ).mockRejectedValue(new Error('No region geometry in this fixture'));
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-  });
-
-  async function loadNebulaInventory(
-    nebulae: readonly galaxyNebulae.GalaxyNebula[],
-  ): Promise<void> {
-    vi.spyOn(galaxyNebulae, 'fetchGalaxyNebulae').mockResolvedValue({
-      ...publishedNebulae,
-      nebulae,
-    });
-    render(ExploreWorkspaceTestHost);
-    await openLayers();
-    await waitFor(() => {
-      expect(
-        document.querySelector('[data-nebula-resource-state]'),
-      ).toHaveAttribute('data-nebula-resource-state', 'ready');
-      expect(
-        currentScene()?.contributions.some(
-          (contribution) => contribution.id === 'catalogue:galaxy-nebulae',
-        ),
-      ).toBe(true);
-    });
-  }
-
-  function emitNebulaRendering(
-    renderedTargetCount: number,
-    distanceLy: number,
-    eventType: 'SCENE_APPLIED' | 'CONTRIBUTION_APPLIED' = 'SCENE_APPLIED',
-  ): void {
-    const scene = currentScene();
-    const contribution = scene.contributions.find(
-      (entry) => entry.id === 'catalogue:galaxy-nebulae',
-    )!;
-    const layer = contribution.layers[0];
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: { ...scene.camera, distanceLy },
-    });
-    const renderedLayers = [
-      {
-        contributionId: contribution.id,
-        contributionRevision: contribution.revision,
-        layerId: layer.id,
-        layerVersion: layer.version,
-        representation: layer.representation,
-        acceptedTargetCount: layer.targetCount,
-        renderedTargetCount,
-      },
-    ];
-    emitRuntime(
-      eventType === 'SCENE_APPLIED'
-        ? { type: eventType, sceneRevision: scene.revision, renderedLayers }
-        : {
-            type: eventType,
-            contributionId: contribution.id,
-            contributionRevision: contribution.revision,
-            renderedLayers,
-          },
-    );
-  }
-
-  function status(): Element | null {
-    return document.querySelector('[data-nebula-resource-state]');
-  }
-
-  it('distinguishes the complete catalogue from landmarks confirmed in the overview scene', async () => {
-    await loadNebulaInventory(publishedNebulae.nebulae);
-    expect(status()).toHaveTextContent(
-      '5,842 catalogue records · Preparing nebula landmarks…',
-    );
-    expect(status()).not.toHaveTextContent(/landmarks shown/);
-
-    emitNebulaRendering(249, 118_000);
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '5,842 catalogue records · 249 landmarks shown (diffuse nebulae)',
-      ),
-    );
-    expect(status()).not.toHaveTextContent('5,842 EDAstro nebula landmarks');
-    expect(
-      within(status() as HTMLElement).getByRole('link', {
-        name: publishedNebulae.attribution,
-      }),
-    ).toHaveAttribute('href', 'https://edastro.com/mapcharts/files.html');
-    expect(status()).toHaveTextContent(publishedNebulae.rightsNotice);
-  });
-
-  it('shows current planetary counts and persistent diffuse landmarks after zooming in', async () => {
-    await loadNebulaInventory([diffuse, ...planetary]);
-    emitNebulaRendering(1, 118_000);
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '4 catalogue records · 1 landmark shown (diffuse nebulae)',
-      ),
-    );
-
-    emitNebulaRendering(4, 2_000, 'CONTRIBUTION_APPLIED');
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '4 catalogue records · 4 landmarks shown (diffuse and planetary nebulae) · schematic extent (clouds fade on approach)',
-      ),
-    );
-    await fireEvent.click(screen.getByRole('switch', { name: 'Nebulae' }));
-    expect(status()).toHaveTextContent(
-      '4 catalogue records · Nebula layer hidden',
-    );
-    expect(status()).not.toHaveTextContent(/landmarks shown/);
-    await fireEvent.click(screen.getByRole('switch', { name: 'Nebulae' }));
-    expect(status()).toHaveTextContent('Preparing nebula landmarks…');
-  });
-
-  it('explains planetary-only inventories at overview and shows them at close range', async () => {
-    await loadNebulaInventory(planetary);
-    emitNebulaRendering(0, 118_000);
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '3 catalogue records · No landmarks at this zoom · planetary nebulae appear at close range',
-      ),
-    );
-    expect(status()).not.toHaveTextContent(/landmarks shown/);
-
-    emitNebulaRendering(3, 3_000, 'CONTRIBUTION_APPLIED');
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '3 catalogue records · 3 landmarks shown (planetary nebulae)',
-      ),
-    );
-  });
-
-  it('keeps the diffuse landmark count when decorative clouds fade out', async () => {
-    await loadNebulaInventory([diffuse]);
-    emitNebulaRendering(1, 400);
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '1 catalogue record · 1 landmark shown (diffuse nebulae) · schematic extent (clouds fade on approach)',
-      ),
-    );
-    expect(status()).not.toHaveTextContent('landmarks faded out');
-  });
-
-  it('makes an empty inventory explicit', async () => {
-    await loadNebulaInventory([]);
-    emitNebulaRendering(0, 118_000);
-    await waitFor(() =>
-      expect(status()).toHaveTextContent(
-        '0 catalogue records · No landmarks at this zoom',
-      ),
-    );
-  });
-
-  it('clears shown counts when renderer resources are lost', async () => {
-    await loadNebulaInventory([diffuse, ...planetary]);
-    emitNebulaRendering(1, 118_000);
-    await waitFor(() => expect(status()).toHaveTextContent('1 landmark shown'));
-    emitRuntime({ type: 'RESOURCE_LOST', detail: 'Test context loss' });
-    await waitFor(() =>
-      expect(status()).toHaveTextContent('Preparing nebula landmarks…'),
-    );
-    expect(status()).not.toHaveTextContent(/landmarks? shown/);
-  });
-});
-
 async function expectPage(index: number): Promise<void> {
   await waitFor(() =>
     expect(
@@ -1918,12 +437,6 @@ async function expectPage(index: number): Promise<void> {
   expect(
     screen.getByText(`Showing 1 of 3 (results ${index + 1}–${index + 1})`),
   ).toBeInTheDocument();
-  await waitFor(() =>
-    expect(scenePointIds()).toEqual([
-      rankedRows[index].id64,
-      ...(mockedPage.state.anchor ? [mockedPage.state.anchor.id64] : []),
-    ]),
-  );
 }
 
 const emptyResultsPrompt = 'Search for a system above to see what is near it.';
@@ -1937,10 +450,6 @@ function expectEmptyResults(): void {
   expect(
     screen.queryByRole('button', { name: /^(Pin|Compare|Watch) Ranked/ }),
   ).not.toBeInTheDocument();
-  const finder = currentScene().contributions.find(
-    ({ id }) => id === 'finder-results',
-  );
-  expect(finder?.layers.every((layer) => layer.targetCount === 0)).toBe(true);
 }
 
 describe.each([false, true])(
@@ -1954,7 +463,6 @@ describe.each([false, true])(
       mockFacadeDefaults();
       featureGate.enabled = enabled;
       mockRankedPages();
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
       vi.mocked(api.autocompleteSystems).mockResolvedValue({
         results: [anchorA],
       });
@@ -1967,7 +475,7 @@ describe.each([false, true])(
       vi.unstubAllGlobals();
     });
 
-    it('starts empty without requesting results, even with cached rows and catalogue stars', async () => {
+    it('starts empty without requesting results, even with cached rows, and with nothing on the map', async () => {
       const request = {
         galaxy_wide: true,
         sort_by: 'development' as const,
@@ -1978,28 +486,14 @@ describe.each([false, true])(
         queryKeys.explore(request, null, enabled ? 50 : null),
         finderPage(0, request.size),
       );
-      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
-        systems: [
-          {
-            id64: anchorA.id64,
-            name: anchorA.name,
-            x: 10,
-            y: 20,
-            z: 30,
-            mainStarClass: 'G',
-            populated: false,
-          },
-        ],
-        truncated: false,
-      });
       renderEnabled('');
-      await openLayers();
-
-      await screen.findByText(/2 density cells/);
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      await waitForCatalogueCells();
+      const map = await theMap();
       expectEmptyResults();
-      expect(api.getCatalogueViewportSystems).toHaveBeenCalled();
+      // Nothing is chosen, so the map shows the galaxy alone and no stars
+      // are asked for.
+      expect(map.systemCount()).toBe(0);
+      expect(map.flights).toHaveLength(0);
+      expect(api.getCatalogueViewportSystems).not.toHaveBeenCalled();
       expect(api.searchExploreSystems).not.toHaveBeenCalled();
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
       expect(
@@ -2023,7 +517,7 @@ describe.each([false, true])(
       ).toBe(500);
     });
 
-    it('loads nearby results only after an autocomplete anchor is chosen, then clears rows and markers', async () => {
+    it('loads nearby results only after an autocomplete anchor is chosen, then clears the rows', async () => {
       renderEnabled('');
       const input = screen.getByRole('combobox', { name: 'System name' });
       await fireEvent.input(input, { target: { value: 'Anchor' } });
@@ -2042,9 +536,6 @@ describe.each([false, true])(
         from: 0,
         reach_ly: 250,
       });
-      await waitFor(() =>
-        expect(scenePointIds()).toContain(rankedRows[0].id64),
-      );
       const calls = vi.mocked(api.searchExploreSystems).mock.calls.length;
       await fireEvent.input(input, { target: { value: '' } });
       await waitFor(expectEmptyResults);
@@ -2077,7 +568,7 @@ describe.each([false, true])(
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     });
 
-    it('removes catalogue fallback result markers when cleared before the response arrives', async () => {
+    it('stays empty when the search is cleared before its response arrives', async () => {
       let finish!: (page: ReturnType<typeof finderPage>) => void;
       vi.mocked(api.searchExploreSystems).mockImplementation(
         () =>
@@ -2085,31 +576,12 @@ describe.each([false, true])(
             finish = resolve;
           }),
       );
-      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
-        systems: [{ ...anchorA, populated: false }],
-        truncated: false,
-      });
-      // A retained catalogue packet can supply fallback markers while a new
-      // foreground search runs; new cell downloads now wait for that search.
       const navigation = renderEnabled('');
-      await waitForCatalogueCells();
+      await theMap();
       navigation.restore('', { anchor: anchorA });
       await waitFor(() =>
         expect(api.searchExploreSystems).toHaveBeenCalledTimes(1),
       );
-      await waitFor(() =>
-        expect(api.getCatalogueViewportSystems).toHaveBeenCalled(),
-      );
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      if (!enabled) {
-        await waitFor(() =>
-          expect(
-            currentScene().contributions.find(
-              ({ id }) => id === 'finder-results',
-            )?.layers[0].targetCount,
-          ).toBe(1),
-        );
-      }
       await fireEvent.input(
         screen.getByRole('combobox', { name: 'System name' }),
         { target: { value: '' } },
@@ -2133,7 +605,6 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     mockFacadeDefaults();
     featureGate.enabled = true;
     mockRankedPages();
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
     vi.mocked(api.getSystem).mockImplementation(async (id64) => ({
       id64,
       name: `Restored ${id64}`,
@@ -2230,7 +701,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
 
   it('loads galaxy-wide rankings when an archetype is chosen and returns to empty on Any', async () => {
     renderEnabled('');
-    await waitFor(() => expect(currentScene()).toBeDefined());
+    await theMap();
     expectEmptyResults();
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
     expect(api.getArchetypeRankings).not.toHaveBeenCalled();
@@ -2296,7 +767,10 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         expect.anything(),
       ),
     );
-    await waitFor(() => expect(scenePointIds()).toContain(anchorA.id64));
+    // The selected system is put on the map and flown to.
+    const map = await theMap();
+    await waitFor(() => expect(map.getSelection()?.id64).toBe(anchorA.id64));
+    expect(map.flights.at(-1)!.target).toMatchObject({ cursor: [50, 60, 70] });
     expectEmptyResults();
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
     expect(api.getArchetypeRankings).not.toHaveBeenCalled();
@@ -2412,7 +886,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
   });
 
   it.each(['any', 'selected'])(
-    'keeps %s one-row page requests, range, list and map together across three pages',
+    'keeps %s one-row page requests, range and list together across three pages',
     async (mode) => {
       renderEnabled(
         mode === 'any'
@@ -2487,7 +961,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(screen.queryByText(/No systems match/)).not.toBeInTheDocument();
   });
 
-  it('resets offset on tier and page-size commits and resizes the shared list/map page', async () => {
+  it('resets offset on tier and page-size commits and resizes the list page', async () => {
     renderEnabled(
       'archetype=manufacturing_hub&min-tier=A&page_size=1&offset=1',
     );
@@ -2529,9 +1003,6 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         'listitem',
       ),
     ).toHaveLength(2);
-    await waitFor(() =>
-      expect(scenePointIds()).toEqual([rankedRows[0].id64, rankedRows[1].id64]),
-    );
   });
 
   it('keeps a genuine zero-result selected page empty without rewriting its offset', async () => {
@@ -2815,7 +1286,21 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     );
   });
 
-  it('result and Babylon picks commit lossless passive selection without opening detail', async () => {
+  it('a result, and SHOW ON MAP in the map’s panel, commit lossless passive selection without opening detail', async () => {
+    // A star 3 ly from Ranked 1, so it is one of its stars in range.
+    const star = {
+      ...catalogueFixture.systems[0],
+      id64: parseId64('9007199254741200'),
+      name: 'Nearby star',
+      x: 12,
+      y: 1,
+      z: 22,
+      mainStarClass: 'M3',
+    };
+    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
+      systems: [star],
+      truncated: false,
+    });
     renderEnabled('page_size=1&view=cards', { anchor: anchorA });
     await screen.findByText('Ranked 1');
     await fireEvent.click(
@@ -2829,119 +1314,58 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedPage.url.searchParams.has('system')).toBe(false);
     expect(mockedPage.state.anchor).toEqual(anchorA);
     expect(mockedPage.url.searchParams.get('view')).toBe('cards');
-    await waitFor(() => expect(runtimeAdapter.create).toHaveBeenCalled());
-    emitRuntime({
-      type: 'TARGET_PICKED',
-      target: { kind: 'system', systemId64: rankedRows[1].id64 },
-    });
+
+    const map = await theMap();
     await waitFor(() =>
-      expect(mockedPage.url.searchParams.get('selected')).toBe(
-        rankedRows[1].id64,
-      ),
+      expect(onTheMap(map)).toEqual([rankedRows[0].id64, star.id64]),
     );
-    expect(mockedPage.url.searchParams.has('system')).toBe(false);
-    expect(mockedPage.state.anchor).toEqual(anchorA);
-  });
-
-  it('shows raw catalogue hover facts and selects the same known system from its card', async () => {
-    const star = {
-      ...catalogueFixture.systems[0],
-      id64: parseId64('9007199254741200'),
-      name: 'Nearby G2 catalogue star',
-      x: 13,
-      y: 24,
-      z: 42,
-      mainStarClass: 'G2',
-    };
-    vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
-      systems: [star],
-      truncated: false,
-    });
-    renderEnabled('page_size=1&view=cards', { anchor: anchorA });
-    await screen.findByText('Ranked 1');
-    await waitFor(() => expect(scenePointIds()).toContain(star.id64));
-
-    emitRuntime({
-      type: 'TARGET_HOVERED',
-      target: { kind: 'system', systemId64: star.id64, name: star.name },
-    });
-    const tooltip = await screen.findByRole('tooltip', {
-      name: `System ${star.name}`,
-    });
-    expect(screen.getByRole('region', { name: /Galaxy map$/ })).toHaveAttribute(
-      'data-hovered-system-id',
-      star.id64,
-    );
-    expect(
-      within(tooltip).getByText('G2', { exact: true }),
-    ).toBeInTheDocument();
-    expect(within(tooltip).queryByText('G class star')).not.toBeInTheDocument();
-    expect(
-      within(tooltip).getByText('Distance from Anchor A'),
-    ).toBeInTheDocument();
-    expect(within(tooltip).getByText('13.0 LY')).toBeInTheDocument();
-
-    await fireEvent.click(
-      within(tooltip).getByRole('button', { name: 'Select' }),
-    );
+    const panel = (await map.panel(star.id64))!;
+    expect(panel.actions!.map((action) => action.label)).toEqual([
+      'SHOW ON MAP',
+      'INSPECT',
+    ]);
+    panel.actions![0].onSelect(map.systems.get(star.id64)!);
     await waitFor(() =>
       expect(mockedPage.url.searchParams.get('selected')).toBe(star.id64),
     );
     expect(mockedPage.url.searchParams.has('system')).toBe(false);
     expect(mockedPage.state.anchor).toEqual(anchorA);
-    await waitFor(() =>
-      expect(currentScene().selection).toEqual([
-        { kind: 'system', systemId64: star.id64 },
-      ]),
+    // The star is now the chosen system: selected and flown to, with no
+    // request for a position the map already gave.
+    await waitFor(() => expect(map.getSelection()?.id64).toBe(star.id64));
+    expect(map.flights.at(-1)!.target).toMatchObject({ cursor: [12, 1, 22] });
+    expect(api.getSystem).not.toHaveBeenCalledWith(
+      star.id64,
+      expect.anything(),
     );
-    const selection = document.querySelector(
-      `[data-selected-system-card="${star.id64}"]`,
-    ) as HTMLElement;
-    expect(
-      within(selection).getByRole('heading', { name: star.name }),
-    ).toBeInTheDocument();
-    await fireEvent.click(
-      within(selection).getByRole('button', { name: 'Details' }),
-    );
-    expect(
-      within(selection).getByText('G2', { exact: true }),
-    ).toBeInTheDocument();
-    expect(api.getSystem).not.toHaveBeenCalled();
   });
 
-  it('carries catalogue identity, Finder query and committed anchor on hover-card Inspect navigation', async () => {
+  it('carries the Finder query and committed anchor when the map’s panel opens a star in Inspect', async () => {
     const star = {
       ...catalogueFixture.systems[0],
       id64: parseId64('9007199254741200'),
-      name: 'Nearby G2 catalogue star',
-      x: 13,
-      y: 24,
-      z: 42,
+      name: 'Nearby G2 star',
+      x: 12,
+      y: 1,
+      z: 22,
       mainStarClass: 'G2',
     };
     vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
       systems: [star],
       truncated: false,
     });
-    renderEnabled('page_size=1&view=cards', { anchor: anchorA });
-    await screen.findByText('Ranked 1');
-    await waitFor(() => expect(scenePointIds()).toContain(star.id64));
+    renderEnabled(`page_size=1&view=cards&selected=${rankedRows[0].id64}`, {
+      anchor: anchorA,
+    });
+    await screen.findAllByText('Ranked 1');
+    const map = await theMap();
+    await waitFor(() => expect(onTheMap(map)).toContain(star.id64));
     const origin = mockedPage.url.searchParams.toString();
-    emitRuntime({
-      type: 'TARGET_HOVERED',
-      target: { kind: 'system', systemId64: star.id64, name: star.name },
-    });
-    const tooltip = await screen.findByRole('tooltip', {
-      name: `System ${star.name}`,
-    });
-    const inspect = within(tooltip).getByRole('link', { name: 'Inspect' });
-    const href = new URL(inspect.getAttribute('href')!, mockedPage.url);
-    expect(href.pathname).toBe('/inspect');
-    expect(href.searchParams.get('system')).toBe(star.id64);
     mockedGoto.mockClear();
     mockedGoto.mockResolvedValueOnce(undefined);
 
-    await fireEvent.click(inspect);
+    const panel = (await map.panel(star.id64))!;
+    panel.actions![1].onSelect(map.systems.get(star.id64)!);
     await waitFor(() => expect(mockedGoto).toHaveBeenCalledOnce());
     const destination = new URL(mockedGoto.mock.calls[0][0], mockedPage.url);
     expect(destination.pathname).toBe('/inspect');
@@ -2950,133 +1374,33 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedGoto.mock.calls[0][1].state.anchor).toEqual(anchorA);
   });
 
-  it('keeps a selected page point once across pagination without refetching its known coordinates', async () => {
+  it('keeps the selected system on the map across pages without asking for its position again', async () => {
     renderEnabled('page_size=1');
     await expectPage(0);
     await fireEvent.click(
       screen.getByRole('button', { name: /Ranked 1.*9007199254741001/ }),
     );
+    const map = await theMap();
     await waitFor(() =>
-      expect(currentScene().selection).toEqual([
-        { kind: 'system', systemId64: rankedRows[0].id64 },
-      ]),
+      expect(map.getSelection()?.id64).toBe(rankedRows[0].id64),
     );
-    expect(scenePointIds()).toEqual([rankedRows[0].id64]);
+    expect(onTheMap(map)).toEqual([rankedRows[0].id64]);
     await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await screen.findByText('Ranked 2');
-    await waitFor(() =>
-      expect(scenePointIds().sort()).toEqual(
-        [rankedRows[0].id64, rankedRows[1].id64].sort(),
-      ),
-    );
+    // The map shows the selected system, not the page of results.
+    expect(onTheMap(map)).toEqual([rankedRows[0].id64]);
+    expect(map.getSelection()?.id64).toBe(rankedRows[0].id64);
+    expect(map.flights).toHaveLength(1);
     expect(api.getSystem).not.toHaveBeenCalled();
     await fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    await waitFor(() => expect(scenePointIds()).toEqual([rankedRows[0].id64]));
-  });
-
-  it('reserves selected, anchor, Finder, pinned and watched positions even when the cell sample is empty', async () => {
-    const pinnedId = parseId64('9007199254741200');
-    const watchedId = parseId64('9007199254741300');
-    pins.set([
-      {
-        id64: pinnedId,
-        name: 'Far pinned target',
-        x: 45_000,
-        y: -100,
-        z: 70_000,
-        pinned_at: '2026-11-02T00:00:00Z',
-      },
-      {
-        id64: parseId64('9007199254741400'),
-        name: 'Pin without coordinates',
-        pinned_at: '2026-11-02T00:00:00Z',
-      },
-    ]);
-    const priorSyncKey = syncKey.read().value;
-    syncKey.set({
-      state: { syncKey: 'm08watchlistfixture00000000' },
-      version: 0,
-    });
-    vi.mocked(api.getWatchlist).mockImplementation(async (key) => ({
-      sync_key: key,
-      watchlist: [
-        {
-          system_id64: watchedId,
-          name: 'Far watched target',
-          x: -45_000,
-          y: 100,
-          z: 60_000,
-        },
-      ],
-    }));
-    await auth.bootstrap();
-    try {
-      renderEnabled(`page_size=1&selected=${anchorB.id64}`, {
-        anchor: anchorA,
-      });
-      await screen.findByRole('heading', { name: `Restored ${anchorB.id64}` });
-      await waitFor(() => {
-        const contribution = currentScene().contributions.find(
-          ({ id }) => id === 'catalogue-viewport-stars',
-        );
-        const payload = contribution?.layers[0]?.payload as
-          GalaxySystemsPayload | undefined;
-        expect(
-          payload?.systems.map((point) => point.systemId64).sort(),
-        ).toEqual(
-          [
-            anchorA.id64,
-            anchorB.id64,
-            rankedRows[0].id64,
-            pinnedId,
-            watchedId,
-          ].sort(),
-        );
-        expect(payload?.systems.every((point) => point.reserved === true)).toBe(
-          true,
-        );
-        expect(
-          payload?.systems.find((point) => point.systemId64 === pinnedId),
-        ).toMatchObject({
-          positionLy: { x: 45_000, y: -100, z: 70_000 },
-        });
-        expect(
-          payload?.systems.find((point) => point.systemId64 === watchedId),
-        ).toMatchObject({
-          positionLy: { x: -45_000, y: 100, z: 60_000 },
-        });
-      });
-      await waitForCatalogueCells();
-      expect(api.getCatalogueViewportSystems).toHaveBeenCalled();
-      expect(exactStarStatus()).toHaveAttribute(
-        'data-catalogue-star-count',
-        '5',
-      );
-    } finally {
-      pins.clear();
-      syncKey.set(priorSyncKey);
-    }
+    await expectPage(0);
+    expect(onTheMap(map)).toEqual([rankedRows[0].id64]);
+    expect(map.flights).toHaveLength(1);
   });
 
   it.each(['any', 'selected'])(
-    'hydrates a clean off-page %s selection from getSystem when the catalogue arrives first',
+    'shows an off-page %s selection on the map only once getSystem has given its position',
     async (mode) => {
-      let finishResults!: () => void;
-      const pendingResults = new Promise<void>((resolve) => {
-        finishResults = resolve;
-      });
-      vi.mocked(api.searchExploreSystems).mockImplementation(async () => {
-        await pendingResults;
-        return finderPage(1);
-      });
-      vi.mocked(api.getArchetypeRankings).mockImplementation(async () => {
-        await pendingResults;
-        return {
-          ...finderPage(1, 1, 3, true),
-          archetype: 'manufacturing_hub',
-          archetype_label: 'Manufacturing Hub',
-        };
-      });
       let finishSelection!: (detail: api.SystemDetail) => void;
       vi.mocked(api.getSystem).mockImplementation(
         () =>
@@ -3084,38 +1408,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
             finishSelection = resolve;
           }),
       );
-      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
-        systems: [{ ...anchorA, populated: false }],
-        truncated: false,
-      });
-      // Retain the catalogue before starting foreground results. New cell
-      // downloads yield to results, but a cached point must still never supply
-      // the separate Finder selection contribution.
-      const navigation = renderEnabled('');
-      await waitFor(() =>
-        expect(
-          document.querySelector('[data-catalogue-star-count]'),
-        ).toHaveAttribute('data-catalogue-star-count', '1'),
-      );
-      navigation.restore(
+      renderEnabled(
         `${mode === 'selected' ? 'archetype=manufacturing_hub&' : ''}page_size=1&offset=1&selected=${anchorA.id64}`,
       );
-      await waitFor(() =>
-        expect(
-          mode === 'selected'
-            ? api.getArchetypeRankings
-            : api.searchExploreSystems,
-        ).toHaveBeenCalledOnce(),
-      );
-      expect(api.getSystem).not.toHaveBeenCalled();
-      await waitFor(() =>
-        expect(
-          currentScene().contributions.some(
-            (contribution) => contribution.id === 'finder-selection',
-          ),
-        ).toBe(false),
-      );
-      finishResults();
       await screen.findByText('Ranked 2');
       await waitFor(() =>
         expect(api.getSystem).toHaveBeenCalledExactlyOnceWith(
@@ -3123,14 +1418,14 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
           expect.anything(),
         ),
       );
+      const map = await theMap();
       expect(
         screen.getByRole('heading', { name: `System ${anchorA.id64}` }),
       ).toBeInTheDocument();
-      expect(
-        currentScene().contributions.some(
-          (contribution) => contribution.id === 'finder-selection',
-        ),
-      ).toBe(false);
+      // Its position is not known yet: nothing is on the map, least of all
+      // a marker at a made-up place.
+      expect(map.systemCount()).toBe(0);
+      expect(map.flights).toHaveLength(0);
       finishSelection({
         id64: anchorA.id64,
         name: 'Resolved selection',
@@ -3150,29 +1445,12 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
           screen.getByRole('list', { name: 'System results' }),
         ).queryByText('Resolved selection'),
       ).not.toBeInTheDocument();
-      await waitFor(() =>
-        expect(
-          currentScene()
-            .contributions.filter(
-              (contribution) => contribution.id === 'finder-selection',
-            )
-            .flatMap((contribution) => contribution.layers)
-            .map((layer) => layer.payload),
-        ).toEqual([
-          {
-            systems: [
-              expect.objectContaining({
-                systemId64: anchorA.id64,
-                positionLy: { x: 50, y: 60, z: 70 },
-              }),
-            ],
-          },
-        ]),
-      );
+      await waitFor(() => expect(onTheMap(map)).toEqual([anchorA.id64]));
+      expect(map.getSelection()).toMatchObject({
+        name: 'Resolved selection',
+        position: [50, 60, 70],
+      });
       expect(api.getSystem).toHaveBeenCalledTimes(1);
-      expect(currentScene().selection).toEqual([
-        { kind: 'system', systemId64: anchorA.id64 },
-      ]);
       expect(mockedPage.url.searchParams.get('selected')).toBe(anchorA.id64);
       expect(mockedPage.url.searchParams.has('system')).toBe(false);
     },
@@ -3220,7 +1498,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       visible: true,
     },
   ])(
-    'reconstructs selection from getSystem with $label without inventing a point',
+    'puts a selection read from getSystem on the map with $label, never at a place it does not have',
     async ({ id64, x, y, z, visible }) => {
       mockRankedPages(0);
       vi.mocked(api.getSystem).mockResolvedValue({
@@ -3239,33 +1517,34 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       renderEnabled(`page_size=1&selected=${id64}`);
       await screen.findByRole('heading', { name: 'Reconstructed selection' });
       expect(api.getSystem).toHaveBeenCalledWith(id64, expect.anything());
-      await waitFor(() =>
-        expect(currentScene().selection).toEqual([
-          { kind: 'system', systemId64: id64 },
-        ]),
-      );
-      expect(scenePointIds()).toEqual(visible ? [id64] : []);
+      const map = await theMap();
+      await waitFor(() => expect(onTheMap(map)).toEqual(visible ? [id64] : []));
+      if (visible)
+        expect(map.getSelection()).toMatchObject({ id64, position: [x, y, z] });
+      else {
+        expect(map.flights).toHaveLength(0);
+        expect(
+          screen.getAllByText(
+            'Map coordinates unavailable for the selected system.',
+          ).length,
+        ).toBeGreaterThan(0);
+      }
       expect(mockedPage.url.searchParams.get('selected')).toBe(id64);
       expect(mockedPage.url.searchParams.has('system')).toBe(false);
     },
   );
 
-  it('retains passive selection and an empty point set when getSystem fails', async () => {
+  it('retains passive selection and an empty map when getSystem fails', async () => {
     mockRankedPages(0);
     vi.mocked(api.getSystem).mockRejectedValue(
       new api.ApiError(503, '/api/system', {}),
     );
     renderEnabled(`page_size=1&selected=${anchorA.id64}`);
     await waitFor(() => expect(api.getSystem).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(currentScene().selection).toEqual([
-        { kind: 'system', systemId64: anchorA.id64 },
-      ]),
-    );
-    expect(
-      screen.getByRole('heading', { name: `System ${anchorA.id64}` }),
-    ).toBeInTheDocument();
-    expect(scenePointIds()).toEqual([]);
+    const map = await theMap();
+    await screen.findByRole('heading', { name: `System ${anchorA.id64}` });
+    expect(map.systemCount()).toBe(0);
+    expect(map.flights).toHaveLength(0);
     expect(mockedPage.url.searchParams.get('selected')).toBe(anchorA.id64);
   });
 
@@ -3313,24 +1592,27 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       bodies: [],
       stations: [],
     });
-    await waitFor(() => expect(scenePointIds()).toEqual([anchorB.id64]));
+    const map = await theMap();
+    await waitFor(() => expect(onTheMap(map)).toEqual([anchorB.id64]));
     expect(
       screen.queryByRole('heading', { name: 'Late A' }),
     ).not.toBeInTheDocument();
-    expect(currentScene().selection).toEqual([
-      { kind: 'system', systemId64: anchorB.id64 },
-    ]);
+    expect(map.getSelection()).toMatchObject({
+      id64: anchorB.id64,
+      position: [40, 50, 60],
+    });
   });
 
   it('clears URL-owned selection when a history entry omits selected while preserving explicit detail', async () => {
     const history = renderEnabled(`page_size=1&selected=${rankedRows[0].id64}`);
+    const map = await theMap();
     await waitFor(() =>
-      expect(currentScene().selection).toEqual([
-        { kind: 'system', systemId64: rankedRows[0].id64 },
-      ]),
+      expect(map.getSelection()?.id64).toBe(rankedRows[0].id64),
     );
     history.restore(`page_size=1&system=${rankedRows[0].id64}`);
-    await waitFor(() => expect(currentScene().selection).toEqual([]));
+    // Nothing is selected any more, so nothing is on the map.
+    await waitFor(() => expect(map.systemCount()).toBe(0));
+    expect(map.getSelection()).toBeNull();
     expect(mockedPage.url.searchParams.get('system')).toBe(rankedRows[0].id64);
   });
 
@@ -3433,255 +1715,31 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedPage.state.anchor).toEqual(anchorA);
   });
 
-  it.each(['during', 'after', 'first after'] as const)(
-    'bounds initial overview work when density arrives %s its flight',
-    async (densityTiming) => {
-      const { createBabylonSession } = await vi.importActual<
-        typeof import('$lib/spatial/babylon/adapter')
-      >('$lib/spatial/babylon/adapter');
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-      // Preserve the real overview extent and validated region contribution,
-      // with simple bands so constructor counts do not require production-sized
-      // boundary geometry. The adapter and camera state machine remain real.
-      const regions = galaxyRegions.buildGalaxyRegionsPayload(
-        {
-          version: 1,
-          origin: { x: -49_985, z: -24_105 },
-          pixel_scale: 49.34939759036145,
-          regions: ['', ...galaxyRegions.GALAXY_REGION_NAMES],
-          regionmap: Array.from({ length: 2_048 }, (_, row) => [
-            [2_048, row === 0 ? 0 : Math.min(42, Math.floor(row / 49) + 1)],
-          ]),
-        },
-        galaxyRegions.GALAXY_REGION_SOURCE_SHA256,
-      );
-      let finishRegions!: (value: galaxyRegions.GalaxyRegionsPayload) => void;
-      vi.spyOn(
-        galaxyRegions,
-        'fetchAuthoritativeGalaxyRegions',
-      ).mockImplementation(
-        () => new Promise((resolve) => (finishRegions = resolve)),
-      );
-      vi.spyOn(galaxyNebulae, 'fetchGalaxyNebulae').mockRejectedValue(
-        new Error('No nebulae in this fixture'),
-      );
-      let finishDensity!: (value: api.MapHeatmapResponse) => void;
-      const nextDensity = new Promise<api.MapHeatmapResponse>(
-        (resolve) => (finishDensity = resolve),
-      );
-      vi.mocked(api.getMapHeatmap).mockImplementation((request) =>
-        densityTiming === 'first after'
-          ? nextDensity
-          : request.voxel_size === 590
-            ? Promise.resolve(pyramidFixture)
-            : densityTiming === 'during'
-              ? Promise.resolve(coarsePyramidFixture)
-              : nextDensity,
-      );
-      vi.stubGlobal('matchMedia', () => ({ matches: false }));
-
-      const engine = createHeadlessEngine();
-      let animationTime = 0;
-      const session = createBabylonSession(
-        engine,
-        'WEBGL2',
-        () => animationTime,
-      );
-      const events = vi.fn<(event: RuntimeEvent) => void>();
-      const sceneCreated = vi.fn();
-      engine.onNewSceneAddedObservable.add((scene) => {
-        sceneCreated();
-        // NullEngine cannot provide GPU readiness; count actual scene creation
-        // without shader warmup or drawing, and advance real camera frames below.
-        vi.spyOn(scene, 'render').mockImplementation(() => undefined);
-        vi.spyOn(scene, 'isReady').mockReturnValue(true);
-      });
-      const frames = new Map<number, () => void>();
-      let nextFrame = 0;
-      runtimeAdapter.create.mockImplementation(
-        (_canvas, onStatus: (status: SpatialRuntimeStatus) => void) => {
-          const runtime = createManagedSpatialRuntime(
-            {
-              createWebGpu: async () => null,
-              createWebGl2: () => session,
-            },
-            onStatus,
-            {
-              request(callback) {
-                frames.set(++nextFrame, callback);
-                return nextFrame;
-              },
-              cancel(handle) {
-                frames.delete(handle);
-              },
-            },
-          );
-          runtime.subscribe(events);
-          vi.spyOn(runtime, 'dispatch');
-          return runtime;
-        },
-      );
-      const work = () => {
-        const runtime = runtimeAdapter.create.mock.results.at(-1)!.value;
-        const commands = runtime.dispatch.mock.calls.map(
-          ([command]: [RuntimeCommand]) => command,
-        ) as RuntimeCommand[];
-        return {
-          loads: commands.filter((command) => command.type === 'LOAD_SCENE')
-            .length,
-          scenes: sceneCreated.mock.calls.length,
-          transitions: commands.filter(
-            (command) =>
-              command.type === 'FLY_TO' ||
-              (command.type === 'SET_CAMERA' && command.transition),
-          ).length,
-        };
-      };
-      const finishFrames = async () => {
-        for (let index = 0; frames.size && index < 150; index += 1) {
-          animationTime += 1_000;
-          const callbacks = [...frames.values()];
-          frames.clear();
-          callbacks.forEach((callback) => callback());
-          await tick();
-        }
-        expect(frames.size).toBe(0);
-      };
-
-      const navigation = renderEnabled();
-      await openLayers();
-      await vi.waitFor(
-        () => {
-          expect(screen.getByText('Ranked 1')).toBeInTheDocument();
-          if (densityTiming !== 'first after')
-            expect(screen.getByText(/2 density cells/)).toBeInTheDocument();
-          expect(scenePointIds()).toEqual([rankedRows[0].id64]);
-        },
-        { interval: 1 },
-      );
-      await finishFrames();
-      expect(work()).toEqual({ loads: 1, scenes: 1, transitions: 0 });
-      finishRegions(regions);
-      await vi.waitFor(() => expect(work().transitions).toBe(1), {
-        interval: 1,
-      });
-      expect(work()).toEqual({ loads: 2, scenes: 2, transitions: 1 });
-
-      vi.mocked(api.searchExploreSystems).mockResolvedValueOnce({
-        ...finderPage(0),
-        results: [rankedRows[1]],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: [...queryKeys.all, 'explore', 'results'],
-      });
-      await vi.waitFor(
-        () => expect(screen.getByText('Ranked 2')).toBeInTheDocument(),
-        { interval: 1 },
-      );
-      expect(work()).toEqual({ loads: 2, scenes: 2, transitions: 1 });
-      // The 180 ms viewport debounce fires during the 650 ms overview flight.
-      // Both a prompt density reply and one arriving after settle must stay
-      // within the pre-part-3 scene/command budget.
-      await vi.advanceTimersByTimeAsync(180);
-      await finishFrames();
-      if (densityTiming !== 'during') finishDensity(coarsePyramidFixture);
-      await vi.advanceTimersByTimeAsync(180);
-      await finishFrames();
-      await waitForCatalogueCells();
-      await finishFrames();
-      expect(scenePointIds()).toEqual([rankedRows[1].id64]);
-      expect(work()).toEqual({ loads: 3, scenes: 3, transitions: 1 });
-      expect(
-        events.mock.calls.filter(
-          ([event]) => event.type === 'TRANSITION_FINISHED',
-        ),
-      ).toHaveLength(1);
-      expect(currentScene().camera.distanceLy).toBeGreaterThan(100_000);
-      expect(
-        engine.scenes.at(-1)?.getMeshByName('catalogue-density-cells')?.metadata
-          .spatialLayer.renderedCellCount,
-      ).toBe(1);
-      const cellRequests = vi.mocked(api.getCatalogueViewportSystems).mock
-        .calls;
-      expect(cellRequests.length).toBeGreaterThan(0);
-      expect(cellRequests.length).toBeLessThanOrEqual(16);
-      expect(
-        cellRequests.every(
-          ([request]) => request.limit === GALAXY_WIDE_STAR_LIMIT,
-        ),
-      ).toBe(true);
-      expect(api.getCatalogueViewportSystems).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: GALAXY_WIDE_STAR_LIMIT }),
-        expect.anything(),
-      );
-      // Even a first density response after settle must keep the same overlay
-      // order as the parent's next scene. Selection can then update its marker
-      // in place instead of rebuilding every mesh after a late density patch.
-      const settledCamera = currentScene().camera;
-      navigation.restore(`page_size=1&selected=${rankedRows[1].id64}`);
-      await vi.waitFor(
-        () =>
-          expect(currentScene().selection).toContainEqual({
-            kind: 'system',
-            systemId64: rankedRows[1].id64,
-          }),
-        { interval: 1 },
-      );
-      await finishFrames();
-      expect(work()).toEqual({ loads: 4, scenes: 3, transitions: 1 });
-      expect(currentScene().camera).toEqual(settledCamera);
-      expect(
-        engine.scenes.at(-1)?.getMeshByName('selected-system-marker'),
-      ).toBeTruthy();
-    },
-  );
-
-  it('keeps F4 results and the settled selection camera when a refetch arrives during fly-to', async () => {
-    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  it('keeps the map on the selected system when Find’s results are fetched again', async () => {
     renderEnabled('page_size=2', { anchor: anchorA });
     await screen.findByText('Showing 2 of 3 (results 1–2)');
-    await waitFor(() =>
-      expect(scenePointIds()).toEqual([
-        rankedRows[0].id64,
-        rankedRows[1].id64,
-        anchorA.id64,
-      ]),
-    );
-
-    const runtime = runtimeAdapter.create.mock.results.at(-1)!.value;
-    // Match the real adapter's synchronous camera receipt on scene replacement.
-    // The test controls the animation's completion while Finder data is pending.
-    runtime.dispatch.mockImplementation((command: RuntimeCommand) => {
-      if (command.type === 'LOAD_SCENE')
-        emitRuntime({ type: 'CAMERA_CHANGED', camera: command.scene.camera });
-      return { status: 'executed' as const };
-    });
-    const overviewCamera = {
-      ...currentScene().camera,
-      distanceLy: 118_000,
-      revision: 10,
-    };
-    emitRuntime({ type: 'CAMERA_CHANGED', camera: overviewCamera });
-    const target = {
-      kind: 'system' as const,
-      systemId64: rankedRows[0].id64,
-    };
     await fireEvent.click(
       within(screen.getByRole('list', { name: 'System results' })).getByRole(
         'button',
         { name: /Ranked 1.*9007199254741001/ },
       ),
     );
+    const map = await theMap();
     await waitFor(() =>
-      expect(runtime.dispatch).toHaveBeenCalledWith({
-        type: 'FLY_TO',
-        target,
-        reducedMotion: false,
-      }),
+      expect(map.getSelection()?.id64).toBe(rankedRows[0].id64),
     );
-    expect(mockedPage.url.searchParams.get('selected')).toBe(target.systemId64);
+    expect(map.flights).toHaveLength(1);
+    expect(map.flights[0].target).toEqual({
+      cursor: [10, 1, 20],
+      distance: 70,
+      pitch: 35,
+    });
+    expect(mockedPage.url.searchParams.get('selected')).toBe(
+      rankedRows[0].id64,
+    );
     expect(mockedPage.state.anchor).toEqual(anchorA);
 
+    // The results are fetched again while the flight is still in the air.
     let finish!: (
       response: Awaited<ReturnType<typeof api.searchExploreSystems>>,
     ) => void;
@@ -3692,11 +1750,6 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       queryKey: [...queryKeys.all, 'explore', 'results'],
     });
     await screen.findByText(/Updating…/);
-    expect(scenePointIds()).toEqual([
-      rankedRows[0].id64,
-      rankedRows[1].id64,
-      anchorA.id64,
-    ]);
     expect(screen.getByText('Ranked 2')).toBeInTheDocument();
     finish({
       ...finderPage(0, 2),
@@ -3705,34 +1758,12 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     await refetch;
     await screen.findByText('Ranked 3');
 
-    const settledCamera = {
-      ...overviewCamera,
-      focusLy: { x: 10, y: 1, z: 20 },
-      distanceLy: 60,
-      revision: 11,
-    };
-    emitRuntime({ type: 'CAMERA_CHANGED', camera: settledCamera });
-    emitRuntime({ type: 'TRANSITION_FINISHED', target });
-
-    await waitFor(() => expect(currentScene().camera).toEqual(settledCamera));
-    expect(scenePointIds()).toEqual([
-      rankedRows[0].id64,
-      rankedRows[2].id64,
-      anchorA.id64,
-    ]);
-    expect(currentScene().selection).toContainEqual(target);
-    expect(document.querySelector('[data-camera-distance]')).toHaveAttribute(
-      'data-camera-distance',
-      '60',
-    );
-    // Label layout deliberately follows the settled camera debounce.
-    await waitFor(() =>
-      expect(
-        document.querySelector(
-          `[data-map-label-key="system:${target.systemId64}"]`,
-        ),
-      ).toHaveTextContent('Ranked 1'),
-    );
+    // The flight lands where it was sent, and the system stays selected.
+    map.land();
+    await tick();
+    expect(map.getView()).toMatchObject({ cursor: [10, 1, 20], distance: 70 });
+    expect(map.getSelection()?.id64).toBe(rankedRows[0].id64);
+    expect(onTheMap(map)).toEqual([rankedRows[0].id64]);
   });
 
   it('cancels pending anchor autofocus when the user changes archetype before the anchored response', async () => {
@@ -3784,13 +1815,12 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
   });
 });
 
-describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
+describe('ExploreWorkspace My journeys (V3 journal store)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
     stubRuntime();
     mockFacadeDefaults();
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(legacyFixture);
   });
 
   afterEach(() => {
@@ -3812,21 +1842,69 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
     await auth.bootstrap();
   }
 
+  const journeysSwitch = () =>
+    screen.getByRole('switch', { name: 'My journeys' });
+
   async function showTravel(): Promise<HTMLElement> {
-    await openLayers();
-    const journeys = screen.getByRole('switch', { name: 'My journeys' });
-    if (journeys.getAttribute('aria-checked') !== 'true')
-      await fireEvent.click(journeys);
-    return screen.findByText(
-      (_, element) =>
-        element?.hasAttribute('data-commander-history-state') ?? false,
-    );
+    if (journeysSwitch().getAttribute('aria-checked') !== 'true')
+      await fireEvent.click(journeysSwitch());
+    return document.querySelector<HTMLElement>(
+      '[data-commander-history-state]',
+    )!;
   }
+
+  // Two real systems, with visits that are this test's own: nobody's
+  // journal is kept in the repository.
+  const visitTo = (
+    id64: string | null,
+    systemName: string,
+    position: [number, number, number],
+    visitCount: number,
+  ) => ({
+    kind: 'marker' as const,
+    systemId64: id64 === null ? null : parseId64(id64),
+    systemName,
+    x: position[0],
+    y: position[1],
+    z: position[2],
+    visitCount,
+    firstVisitedAt: '2026-01-01T00:00:00Z',
+    lastVisitedAt: '2026-01-02T00:00:00Z',
+    cellSizeLy: null,
+  });
+  const SOL_VISIT = visitTo('10477373803', 'Sol', [0, 0, 0], 3);
+  const ALPHA_VISIT = visitTo(
+    '1178708478315',
+    'Alpha Centauri',
+    [3.03125, -0.09375, 3.15625],
+    1,
+  );
+  const travel = (
+    visits: ReturnType<typeof visitTo>[],
+    truncated = false,
+  ): api.CommanderTravelHeatmapResponse => ({
+    mode: 'markers',
+    visits,
+    count: visits.length,
+    truncated,
+  });
+
+  it('is off until asked for, and asks for nothing while it is off', async () => {
+    await signIn();
+    render(ExploreWorkspaceTestHost);
+    const map = await theMap();
+    expect(journeysSwitch()).toHaveAttribute('aria-checked', 'false');
+    expect(
+      document.querySelector('[data-commander-history-state]'),
+    ).toHaveTextContent('My journeys hidden');
+    expect(api.getCommanderTravelHeatmap).not.toHaveBeenCalled();
+    expect(map.groups.has('My journeys')).toBe(false);
+  });
 
   it('asks a signed-out visitor to sign in and never requests travel', async () => {
     await auth.bootstrap();
     render(ExploreWorkspaceTestHost);
-    await screen.findByText(/exact stars/);
+    await theMap();
 
     const status = await showTravel();
 
@@ -3849,7 +1927,7 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
     );
     await auth.bootstrap();
     render(ExploreWorkspaceTestHost);
-    await screen.findByText(/exact stars/);
+    await theMap();
 
     const status = await showTravel();
 
@@ -3876,165 +1954,89 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
     );
   });
 
-  it('reads the signed-in account travel from the V3 route and counts it', async () => {
+  it('reads the signed-in account’s visited systems once, for the whole galaxy, and puts them on the map', async () => {
     await signIn();
-    vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue({
-      mode: 'markers',
-      visits: [
-        {
-          kind: 'marker',
-          systemId64: null,
-          systemName: 'Sol',
-          x: 0,
-          y: 0,
-          z: 0,
-          visitCount: 3,
-          firstVisitedAt: '2026-01-01T00:00:00Z',
-          lastVisitedAt: '2026-01-02T00:00:00Z',
-          cellSizeLy: null,
-        },
-      ],
-      count: 1,
-      truncated: false,
-    });
+    vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue(
+      travel([
+        SOL_VISIT,
+        ALPHA_VISIT,
+        // A visit the journal gave no system id for cannot be told apart
+        // from other systems, so it is not drawn.
+        visitTo(null, 'No id', [9, 9, 9], 1),
+      ]),
+    );
     render(ExploreWorkspaceTestHost);
-    await screen.findByText(/exact stars/);
+    const map = await theMap();
 
     const status = await showTravel();
 
     await waitFor(() =>
       expect(status).toHaveAttribute('data-commander-history-state', 'ready'),
     );
-    expect(status).toHaveAttribute('data-commander-history-count', '1');
-    expect(status.textContent).toMatch(/1 visited\s+systems/u);
-    expect(
-      within(screen.getByLabelText('My journeys visit-count legend')).getByText(
-        '3 visits',
-      ),
-    ).toBeInTheDocument();
-    const [request, distance] = vi.mocked(api.getCommanderTravelHeatmap).mock
-      .calls[0]!;
-    expect(request).toEqual(
-      expect.objectContaining({
-        minX: expect.any(Number),
-        limit: expect.any(Number),
-      }),
-    );
-    expect(distance).toBeGreaterThan(0);
-  });
-
-  it('requests the whole journey galaxy at overview independently of catalogue cells', async () => {
-    await signIn();
-    const distantVisit = {
-      kind: 'density' as const,
-      x: 25_000,
-      y: 4_000,
-      z: 60_000,
-      visitCount: 3,
-      firstVisitedAt: '2026-01-01T00:00:00Z',
-      lastVisitedAt: '2026-01-02T00:00:00Z',
-      cellSizeLy: 5_000,
-    };
-    vi.mocked(api.getCommanderTravelHeatmap).mockImplementation(
-      async (request) => {
-        const visits =
-          distantVisit.x >= request.minX &&
-          distantVisit.x <= request.maxX &&
-          distantVisit.y >= request.minY &&
-          distantVisit.y <= request.maxY &&
-          distantVisit.z >= request.minZ &&
-          distantVisit.z <= request.maxZ
-            ? [distantVisit]
-            : [];
-        return {
-          mode: 'density',
-          visits,
-          count: visits.length,
-          truncated: false,
-        };
+    expect(status).toHaveAttribute('data-commander-history-count', '3');
+    expect(status.textContent).toMatch(/3 visited\s+systems/u);
+    expect(status.textContent).not.toContain('most recent');
+    // One marker for each system (zoom 1), for the whole galaxy, as many as
+    // the API returns at once.
+    expect(api.getCommanderTravelHeatmap).toHaveBeenCalledExactlyOnceWith(
+      {
+        minX: -100_000,
+        maxX: 100_000,
+        minY: -100_000,
+        maxY: 100_000,
+        minZ: -100_000,
+        maxZ: 100_000,
+        limit: 20_000,
       },
-    );
-    render(ExploreWorkspaceTestHost);
-    await waitForCatalogueCells();
-    const status = await showTravel();
-
-    await waitFor(() =>
-      expect(status).toHaveAttribute('data-commander-history-count', '1'),
-    );
-    expect(api.getCommanderTravelHeatmap).toHaveBeenCalledWith(
-      { ...COMMANDER_HISTORY_GALAXY_BOUNDS, limit: 20_000 },
-      118_000,
+      1,
       expect.anything(),
     );
-    const catalogueRequests = vi.mocked(api.getCatalogueViewportSystems).mock
-      .calls;
-    expect(catalogueRequests.length).toBeGreaterThan(0);
-    for (const [request] of catalogueRequests) {
-      // Whole edge cells can extend beyond the 15,000-LY footprint window,
-      // but catalogue requests remain local and never absorb distant travel.
-      expect(request.maxX - request.minX).toBeLessThanOrEqual(15_000);
-      expect(request.maxZ - request.minZ).toBeLessThanOrEqual(15_000);
-      expect(request.maxX).toBeLessThan(distantVisit.x);
-      expect(request.maxZ).toBeLessThan(distantVisit.z);
-    }
     await waitFor(() =>
-      expect(
-        currentScene().contributions.find(
-          (contribution) => contribution.id === 'commander-history',
-        )?.layers[0].payload,
-      ).toEqual(
-        expect.objectContaining({
-          points: [
-            expect.objectContaining({
-              positionLy: { x: 25_000, y: 4_000, z: 60_000 },
-            }),
-          ],
-        }),
-      ),
+      expect(map.namesIn('My journeys')).toEqual(['Sol', 'Alpha Centauri']),
     );
-  });
-
-  it('debounces journey camera changes before requesting the final zoomed footprint', async () => {
-    await signIn();
-    render(ExploreWorkspaceTestHost);
-    await showTravel();
-    await waitFor(() =>
-      expect(api.getCommanderTravelHeatmap).toHaveBeenCalledTimes(1),
-    );
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    const camera = {
-      ...currentScene().camera,
-      focusLy: { x: 21_000, y: 3_500, z: 60_000 },
-      distanceLy: 500,
-      projection: 'orthographic' as const,
-      pitchRad: Math.PI / 2,
-      revision: 1,
-    };
-    emitRuntime({ type: 'CAMERA_CHANGED', camera });
-    await vi.advanceTimersByTimeAsync(100);
-    emitRuntime({
-      type: 'CAMERA_CHANGED',
-      camera: { ...camera, distanceLy: 100, revision: 2 },
+    expect(map.groups.get('My journeys')).toMatchObject({
+      markerStyle: 'disc',
+      visible: true,
     });
-    await vi.advanceTimersByTimeAsync(179);
-    expect(api.getCommanderTravelHeatmap).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    await vi.waitFor(() =>
-      expect(api.getCommanderTravelHeatmap).toHaveBeenCalledTimes(2),
+    // Showing them moves nothing: the camera stays where the player has it.
+    expect(map.flights).toHaveLength(0);
+    expect(map.getSelection()).toBeNull();
+    expect((await map.panel(SOL_VISIT.systemId64!))!.values).toEqual([
+      { label: 'YOUR VISITS', value: '3' },
+      { label: 'FIRST VISIT', value: '1 Jan 2026' },
+      { label: 'LAST VISIT', value: '2 Jan 2026' },
+      { label: 'ID', value: '10477373803', copy: '10477373803' },
+    ]);
+
+    // Switched off, they leave the map; switched on again, they come back
+    // without being asked for a second time.
+    await fireEvent.click(journeysSwitch());
+    await waitFor(() => expect(map.groups.has('My journeys')).toBe(false));
+    expect(status).toHaveTextContent('My journeys hidden');
+    await fireEvent.click(journeysSwitch());
+    await waitFor(() =>
+      expect(map.namesIn('My journeys')).toEqual(['Sol', 'Alpha Centauri']),
     );
-    const [request, distance] = vi.mocked(api.getCommanderTravelHeatmap).mock
-      .calls[1];
-    expect(distance).toBe(100);
-    expect(request.minX).toBeGreaterThan(20_900);
-    expect(request.maxX).toBeLessThan(21_100);
-    expect(request.minZ).toBeGreaterThan(59_900);
-    expect(request.maxZ).toBeLessThan(60_100);
-    expect(request.minY).toBe(3_466);
-    expect(request.maxY).toBe(3_534);
-    expect(request.limit).toBe(20_000);
+    expect(api.getCommanderTravelHeatmap).toHaveBeenCalledTimes(1);
   });
 
-  it('distinguishes an account without imported journals from an empty map viewport', async () => {
+  it('says so when only the most recently visited systems are shown', async () => {
+    await signIn();
+    vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue(
+      travel([SOL_VISIT], true),
+    );
+    render(ExploreWorkspaceTestHost);
+    await theMap();
+    const status = await showTravel();
+    await waitFor(() =>
+      expect(status).toHaveAttribute('data-commander-history-state', 'ready'),
+    );
+    expect(status.textContent).toMatch(
+      /1 visited\s+systems · your most recent/u,
+    );
+  });
+
+  it('distinguishes an account without imported journals from one with no travel', async () => {
     await signIn();
     vi.mocked(api.getCommanderJournalSummary).mockResolvedValue({
       imported_files: 0,
@@ -4046,6 +2048,7 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
       event_counts: {},
     });
     render(ExploreWorkspaceTestHost);
+    await theMap();
     const status = await showTravel();
 
     await waitFor(() =>
@@ -4058,12 +2061,13 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
     expect(api.getCommanderJournalSummary).toHaveBeenCalled();
   });
 
-  it('retries unavailable journal import metadata independently from the travel viewport', async () => {
+  it('retries unavailable journal import metadata independently from the travel request', async () => {
     await signIn();
     vi.mocked(api.getCommanderJournalSummary).mockRejectedValue(
       new api.ApiError(503, '/api/v1/journal/summary', {}),
     );
     render(ExploreWorkspaceTestHost);
+    await theMap();
     const status = await showTravel();
     await waitFor(
       () =>
@@ -4077,7 +2081,7 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
     expect(status).not.toHaveTextContent('No imported journals yet');
     const summaryCalls = vi.mocked(api.getCommanderJournalSummary).mock.calls
       .length;
-    const viewportCalls = vi.mocked(api.getCommanderTravelHeatmap).mock.calls
+    const travelCalls = vi.mocked(api.getCommanderTravelHeatmap).mock.calls
       .length;
     vi.mocked(api.getCommanderJournalSummary).mockResolvedValue({
       imported_files: 0,
@@ -4099,40 +2103,21 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
     expect(api.getCommanderJournalSummary).toHaveBeenCalledTimes(
       summaryCalls + 1,
     );
-    expect(api.getCommanderTravelHeatmap).toHaveBeenCalledTimes(viewportCalls);
+    expect(api.getCommanderTravelHeatmap).toHaveBeenCalledTimes(travelCalls);
   });
 
   it.each([false, true])(
-    'removes cached private visits when the journal summary reports an expired session (F4=%s)',
+    'takes cached private visits off the map when the journal summary reports an expired session (F4=%s)',
     async (enabled) => {
       featureGate.enabled = enabled;
       await signIn();
-      vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue({
-        mode: 'markers',
-        visits: [
-          {
-            kind: 'marker',
-            systemId64: null,
-            systemName: 'Sol',
-            x: 0,
-            y: 0,
-            z: 0,
-            visitCount: 3,
-            firstVisitedAt: '2026-01-01T00:00:00Z',
-            lastVisitedAt: '2026-01-02T00:00:00Z',
-            cellSizeLy: null,
-          },
-        ],
-        count: 1,
-        truncated: false,
-      });
-      render(ExploreWorkspaceTestHost);
-      const status = await showTravel();
-      await waitFor(() =>
-        expect(currentScene().contributions).toContainEqual(
-          expect.objectContaining({ id: 'commander-history' }),
-        ),
+      vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue(
+        travel([SOL_VISIT]),
       );
+      render(ExploreWorkspaceTestHost);
+      const map = await theMap();
+      const status = await showTravel();
+      await waitFor(() => expect(map.namesIn('My journeys')).toEqual(['Sol']));
       vi.mocked(api.getCommanderJournalSummary).mockRejectedValue(
         new api.ApiError(401, '/api/v1/journal/summary', {}),
       );
@@ -4148,25 +2133,21 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
         ),
       );
       expect(status).toHaveAttribute('data-commander-history-count', '0');
-      expect(
-        screen.queryByLabelText('My journeys visit-count legend'),
-      ).not.toBeInTheDocument();
-      expect(currentScene().contributions).not.toContainEqual(
-        expect.objectContaining({ id: 'commander-history' }),
-      );
+      await waitFor(() => expect(map.systemCount()).toBe(0));
+      expect(map.groups.has('My journeys')).toBe(false);
     },
   );
 
-  it('shows an honest empty state and a sign-in prompt on a 401', async () => {
+  it('shows an honest empty state, and a sign-in prompt on a 401', async () => {
     await signIn();
     render(ExploreWorkspaceTestHost);
-    await screen.findByText(/exact stars/);
+    await theMap();
     const status = await showTravel();
     await waitFor(() =>
       expect(status).toHaveAttribute('data-commander-history-state', 'empty'),
     );
     expect(status.textContent).toContain(
-      'No imported journal travel in this view',
+      'No travel in your imported journals yet',
     );
     cleanup();
     queryClient.clear();
@@ -4175,7 +2156,7 @@ describe('ExploreWorkspace travel heatmap (V3 journal store)', () => {
       new api.ApiError(401, '/api/v1/journal/travel-heatmap', {}),
     );
     render(ExploreWorkspaceTestHost);
-    await screen.findByText(/exact stars/);
+    await theMap();
     const expired = await showTravel();
     await waitFor(() =>
       expect(expired).toHaveAttribute(
@@ -4198,7 +2179,6 @@ describe.each([false, true])(
       mockFacadeDefaults();
       featureGate.enabled = enabled;
       mockRankedPages();
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
       vi.mocked(api.getSystem).mockImplementation(async (id64) =>
         anchorDetail(id64 === anchorB.id64 ? anchorB : anchorA),
       );
@@ -4853,7 +2833,6 @@ describe('Explore body filters in archetype mode', () => {
     mockFacadeDefaults();
     featureGate.enabled = true;
     mockRankedPages();
-    vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
   });
   afterEach(() => {
     cleanup();
@@ -5063,7 +3042,6 @@ describe.each([false, true])(
       mockFacadeDefaults();
       featureGate.enabled = enabled;
       mockRankedPages();
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
       vi.mocked(api.autocompleteSystems).mockResolvedValue({
         results: [anchorB],
       });
@@ -5128,7 +3106,7 @@ describe.each([false, true])(
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     });
 
-    it('replays an unfinished focus request after remount and stops replaying it once completed', async () => {
+    it('opens the map again where it was left, showing the same system, without another flight', async () => {
       const viewState = new ExploreViewState(
         () => mockedPage,
         enabled,
@@ -5141,69 +3119,44 @@ describe.each([false, true])(
       );
       await screen.findByText('Ranked 1');
       const list = screen.getByRole('list', { name: 'System results' });
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      const firstRuntime = runtimeAdapter.create.mock.results[0].value;
-      // The first layout disappears while the renderer still owes its flight
-      // completion receipt. The new layout must finish that explicit intent.
-      firstRuntime.dispatch.mockImplementation(() => ({
-        status: 'executed' as const,
-      }));
-      const target = {
-        kind: 'system' as const,
-        systemId64: rankedRows[1].id64,
-      };
       await fireEvent.click(
         within(list).getByRole('button', {
           name: /Ranked 2.*9007199254741002/,
         }),
       );
+      const first = await theMap();
       await waitFor(() =>
-        expect(firstRuntime.dispatch).toHaveBeenCalledWith({
-          type: 'FLY_TO',
-          target,
-          reducedMotion: true,
-        }),
+        expect(first.getSelection()?.id64).toBe(rankedRows[1].id64),
       );
-      expect(viewState.completedFocusRevision).toBeLessThan(
-        viewState.focusRevision,
-      );
+      expect(first.flights.at(-1)!.target).toMatchObject({
+        cursor: [20, 2, 40],
+        distance: 70,
+      });
+      first.land();
+      await tick();
+      // The player then looks somewhere else.
+      first.playerMovesTo({ cursor: [100, 20, 300], distance: 400, yaw: 25 });
 
       await host.rerender({ mounted: false });
+      expect(first.disposed).toBe(true);
+      expect(document.querySelectorAll('canvas')).toHaveLength(0);
       await host.rerender({ mounted: true });
+      await waitFor(() => expect(fakeMaps).toHaveLength(2));
+      const second = await theMap();
       await waitFor(() =>
-        expect(runtimeAdapter.create).toHaveBeenCalledTimes(2),
+        expect(onTheMap(second)).toEqual([rankedRows[1].id64]),
       );
-      const secondRuntime = runtimeAdapter.create.mock.results[1].value;
-      await waitFor(() =>
-        expect(secondRuntime.dispatch).toHaveBeenCalledWith({
-          type: 'FLY_TO',
-          target,
-          reducedMotion: true,
-        }),
-      );
-      expect(
-        secondRuntime.dispatch.mock.calls.filter(
-          ([command]: [RuntimeCommand]) => command.type === 'FLY_TO',
-        ),
-      ).toHaveLength(1);
-      await waitFor(() =>
-        expect(viewState.completedFocusRevision).toBe(viewState.focusRevision),
-      );
-
-      await host.rerender({ mounted: false });
-      await host.rerender({ mounted: true });
-      await waitFor(() =>
-        expect(runtimeAdapter.create).toHaveBeenCalledTimes(3),
-      );
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      expect(
-        runtimeCommands().filter((command) => command.type === 'FLY_TO'),
-      ).toHaveLength(0);
+      expect(second.getView()).toMatchObject({
+        cursor: [100, 20, 300],
+        distance: 400,
+        yaw: 25,
+      });
+      expect(second.flights).toHaveLength(0);
       expect(document.querySelectorAll('canvas')).toHaveLength(1);
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
     });
 
-    it('retains the draft, committed search, selection, scroll and Galaxy context without repeating a stale search', async () => {
+    it('retains the draft, committed search, selection, scroll and My journeys switch without repeating a stale search', async () => {
       const viewState = new ExploreViewState(
         () => mockedPage,
         enabled,
@@ -5231,47 +3184,13 @@ describe.each([false, true])(
           name: /Ranked 2.*9007199254741002/,
         }),
       );
+      const firstMap = await theMap();
       await waitFor(() =>
-        expect(currentScene().selection).toContainEqual({
-          kind: 'system',
-          systemId64: rankedRows[1].id64,
-        }),
-      );
-      emitRuntime({
-        type: 'TARGET_PICKED',
-        target: { kind: 'system', systemId64: rankedRows[1].id64 },
-      });
-
-      const layers = within(await openLayers());
-      await fireEvent.click(layers.getByRole('switch', { name: 'Nebulae' }));
-      await fireEvent.click(
-        layers.getByRole('switch', { name: 'Known-system density' }),
+        expect(firstMap.getSelection()?.id64).toBe(rankedRows[1].id64),
       );
       await fireEvent.click(
-        layers.getByRole('switch', { name: 'My journeys' }),
+        screen.getByRole('switch', { name: 'My journeys' }),
       );
-      await fireEvent.click(
-        layers.getByRole('button', { name: 'Close map layers' }),
-      );
-
-      const camera = {
-        ...currentScene().camera,
-        focusLy: { x: 100, y: 20, z: 300 },
-        distanceLy: 400,
-        bearingRad: 0.25,
-        pitchRad: 0.65,
-        revision: 17,
-      };
-      emitRuntime({ type: 'CAMERA_CHANGED', camera });
-      await waitFor(() => expect(viewState.streamCamera).toEqual(camera));
-      expect(viewState.starDetailMode).toBe('local');
-      // Region state belongs to the retained Galaxy context even while its
-      // independently loaded geometry is unavailable during a layout remount.
-      viewState.selectedRegionId = '1';
-      emitRuntime({
-        type: 'TARGET_HOVERED',
-        target: { kind: 'region', id: '2' },
-      });
       await fireEvent.input(
         screen.getByRole('combobox', { name: 'System name' }),
         { target: { value: 'Unsubmitted next destination' } },
@@ -5279,26 +3198,14 @@ describe.each([false, true])(
       list.scrollTop = 256;
       await fireEvent.scroll(list);
       expect(viewState.resultScrollTop).toBe(256);
-      expect(viewState.lastPickedId64).toBe(rankedRows[1].id64);
-      expect(viewState.focusTarget).toEqual({
-        kind: 'system',
-        systemId64: rankedRows[1].id64,
-      });
-      const focusRevision = viewState.focusRevision;
-      expect(focusRevision).toBeGreaterThan(0);
       const resultText = list.textContent;
       const committedUrl = mockedPage.url.href;
-      const firstRuntime = runtimeAdapter.create.mock.results[0].value;
       expect(document.querySelectorAll('canvas')).toHaveLength(1);
-      expect(runtimeAdapter.create).toHaveBeenCalledTimes(1);
-      expect(firstRuntime.subscribe).toHaveBeenCalledTimes(1);
+      expect(fakeMaps).toHaveLength(1);
 
       await host.rerender({ mounted: false });
       expect(document.querySelectorAll('canvas')).toHaveLength(0);
-      expect(firstRuntime.dispose).toHaveBeenCalledTimes(1);
-      expect(
-        firstRuntime.subscribe.mock.results[0].value,
-      ).toHaveBeenCalledTimes(1);
+      expect(firstMap.disposed).toBe(true);
       // A fresh TanStack cache alone must not mask an accidental search on
       // remount. A layout change also preserves results older than staleTime.
       const cachedResults = queryClient
@@ -5311,11 +3218,11 @@ describe.each([false, true])(
           updatedAt: 1,
         });
       }
+
       await host.rerender({ mounted: true });
       await screen.findByRole('list', { name: 'System results' });
-      await waitFor(() =>
-        expect(runtimeAdapter.create).toHaveBeenCalledTimes(2),
-      );
+      await waitFor(() => expect(fakeMaps).toHaveLength(2));
+      const secondMap = await theMap();
       const restoredList = screen.getByRole('list', { name: 'System results' });
       expect(restoredList.textContent).toBe(resultText);
       expect(restoredList.scrollTop).toBe(256);
@@ -5335,31 +3242,14 @@ describe.each([false, true])(
         }),
       ).toHaveAttribute('aria-pressed', 'true');
       expect(mockedPage.url.href).toBe(committedUrl);
-      expect(viewState.lastPickedId64).toBe(rankedRows[1].id64);
-      expect(viewState.focusRevision).toBe(focusRevision);
-      expect(viewState.focusTarget).toEqual({
-        kind: 'system',
-        systemId64: rankedRows[1].id64,
-      });
-      expect(viewState.retainedCamera?.camera).toEqual(camera);
-      expect(viewState.streamCamera).toEqual(camera);
-      expect(viewState.starDetailMode).toBe('local');
-      expect(viewState.selectedRegionId).toBe('1');
-      expect(viewState.hoveredRegionId).toBe('2');
-      expect(currentScene().camera).toEqual(camera);
+      // The same system is on the new map, and the switch is as it was left.
+      await waitFor(() =>
+        expect(onTheMap(secondMap)).toEqual([rankedRows[1].id64]),
+      );
+      expect(secondMap.disposed).toBe(false);
       expect(document.querySelectorAll('canvas')).toHaveLength(1);
-      const secondRuntime = runtimeAdapter.create.mock.results[1].value;
-      expect(secondRuntime.subscribe).toHaveBeenCalledTimes(1);
-      expect(secondRuntime.dispose).not.toHaveBeenCalled();
-      const restoredLayers = within(await openLayers());
       expect(
-        restoredLayers.getByRole('switch', { name: 'Nebulae' }),
-      ).toHaveAttribute('aria-checked', 'false');
-      expect(
-        restoredLayers.getByRole('switch', { name: 'Known-system density' }),
-      ).toHaveAttribute('aria-checked', 'false');
-      expect(
-        restoredLayers.getByRole('switch', { name: 'My journeys' }),
+        screen.getByRole('switch', { name: 'My journeys' }),
       ).toHaveAttribute('aria-checked', 'true');
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
@@ -5383,12 +3273,16 @@ describe.each([false, true])(
         from: 0,
         reach_ly: 250,
       });
+      // The star now searched near is selected, so the map flies to it.
+      await waitFor(() =>
+        expect(secondMap.getSelection()?.id64).toBe(anchorB.id64),
+      );
+      expect(secondMap.flights.at(-1)!.target).toMatchObject({
+        cursor: [-10, -20, -30],
+        distance: 70,
+      });
       await host.rerender({ mounted: false });
-      expect(firstRuntime.dispose).toHaveBeenCalledTimes(1);
-      expect(secondRuntime.dispose).toHaveBeenCalledTimes(1);
-      expect(
-        secondRuntime.subscribe.mock.results[0].value,
-      ).toHaveBeenCalledTimes(1);
+      expect(secondMap.disposed).toBe(true);
     });
 
     if (enabled) {
@@ -5560,21 +3454,6 @@ describe.each([false, true])(
 describe.each([false, true])(
   'Full-window map beside the Finder with F4=%s',
   (enabled) => {
-    function regionFixture() {
-      return galaxyRegions.buildGalaxyRegionsPayload(
-        {
-          version: 1,
-          origin: { x: -49_985, z: -24_105 },
-          pixel_scale: 49.34939759036145,
-          regions: ['', ...galaxyRegions.GALAXY_REGION_NAMES],
-          regionmap: Array.from({ length: 2_048 }, (_, row) => [
-            [2_048, row === 0 ? 0 : Math.min(42, Math.floor(row / 49) + 1)],
-          ]),
-        },
-        galaxyRegions.GALAXY_REGION_SOURCE_SHA256,
-      );
-    }
-
     beforeEach(() => {
       vi.clearAllMocks();
       queryClient.clear();
@@ -5583,15 +3462,7 @@ describe.each([false, true])(
       mockFacadeDefaults();
       featureGate.enabled = enabled;
       mockRankedPages();
-      vi.mocked(api.getMapHeatmap).mockResolvedValue(pyramidFixture);
       vi.mocked(api.getSystem).mockResolvedValue(anchorDetail(anchorA));
-      vi.spyOn(
-        galaxyRegions,
-        'fetchAuthoritativeGalaxyRegions',
-      ).mockRejectedValue(new Error('No region fixture'));
-      vi.spyOn(galaxyNebulae, 'fetchGalaxyNebulae').mockRejectedValue(
-        new Error('No nebula fixture'),
-      );
     });
 
     afterEach(() => {
@@ -5622,11 +3493,15 @@ describe.each([false, true])(
         name: 'Show on map',
       }))
         expect(opener).toBeDisabled();
-      expect(
-        screen.getByText(
-          'Map coordinates unavailable for the selected system.',
-        ),
-      ).toBeVisible();
+      // Said beside the button in the Finder, and again over the map.
+      const said = screen.getAllByText(
+        'Map coordinates unavailable for the selected system.',
+      );
+      expect(said).toHaveLength(2);
+      for (const place of said) expect(place).toBeVisible();
+      const map = await theMap();
+      expect(map.systemCount()).toBe(0);
+      expect(map.flights).toHaveLength(0);
     });
 
     it('opens with the map on screen beside the Finder and runs no Finder query', async () => {
@@ -5645,100 +3520,31 @@ describe.each([false, true])(
       expect(screen.queryByRole('dialog', { name: /Galaxy map$/ })).toBeNull();
       for (const name of ['Close map', 'Expand', 'Back to results'])
         expect(within(map).queryByRole('button', { name })).toBeNull();
-      const local = within(map).getByRole('button', { name: 'Local' });
-      expect(local).toBeDisabled();
-      expect(local).toHaveAccessibleDescription(/select.*system/i);
+      // Nothing is selected, so there is nothing to centre on.
+      expect(
+        within(map).getByRole('button', {
+          name: 'Centre on the selected system',
+        }),
+      ).toBeDisabled();
       expect(document.querySelector('[inert]')).toBeNull();
-      await waitFor(() =>
-        expect(runtimeAdapter.create).toHaveBeenCalledTimes(1),
-      );
-      expect(document.querySelectorAll('[data-spatial-canvas]')).toHaveLength(
-        1,
+      const galaxyMap = await theMap();
+      expect(fakeMaps).toHaveLength(1);
+      expect(galaxyMap.systemCount()).toBe(0);
+      expect(
+        within(map).getByRole('button', { name: 'Whole galaxy' }),
+      ).toBeEnabled();
+      expect(map.querySelectorAll('canvas')).toHaveLength(1);
+      expect(map.querySelector('.selection-status')).toHaveTextContent(
+        'Select a result to show it on the map.',
       );
       expect(api.searchExploreSystems).not.toHaveBeenCalled();
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     });
 
-    it.each(['regions', 'sources'] as const)(
-      'keeps the %s tool non-modal with topmost Escape ownership and focus return',
-      async (tool) => {
-        renderEnabled('');
-        const map = await screen.findByRole('region', { name: 'Galaxy map' });
-        const trigger = map.querySelector<HTMLButtonElement>(
-          `[data-map-${tool}-trigger]`,
-        )!;
-        expect(trigger).toBeInTheDocument();
-        trigger.focus();
-        await fireEvent.click(trigger);
-        const panel = map.querySelector<HTMLElement>(
-          `[data-map-${tool}-panel]`,
-        )!;
-        expect(panel).toHaveAttribute('role', 'dialog');
-        expect(panel).toHaveAttribute('aria-modal', 'false');
-        expect(trigger).toHaveAttribute('aria-expanded', 'true');
-        expect(trigger).toHaveAttribute('aria-controls', panel.id);
-        expect(isTopmostPopout(panel)).toBe(true);
-        expect(document.querySelector('[inert]')).toBeNull();
-        if (tool === 'sources') {
-          expect(panel).toHaveTextContent(
-            'Stars use exact catalogue coordinates',
-          );
-          expect(panel).toHaveTextContent(
-            'Region geometry is the pinned in-game source',
-          );
-        } else {
-          await waitFor(() =>
-            expect(panel).toHaveTextContent(
-              'The authoritative region resource failed validation.',
-            ),
-          );
-          expect(
-            within(panel).getByRole('button', { name: 'Retry regions' }),
-          ).toBeEnabled();
-        }
-        const accessibility = await axe.run(map, {
-          rules: { 'color-contrast': { enabled: false } },
-        });
-        expect(accessibility.violations).toEqual([]);
-        const later = document.createElement('div');
-        const unregister = registerPopout(later);
-        try {
-          await fireEvent.keyDown(window, { key: 'Escape' });
-          expect(panel).toBeInTheDocument();
-        } finally {
-          unregister();
-        }
-        await fireEvent.keyDown(window, { key: 'Escape' });
-        expect(panel).not.toBeInTheDocument();
-        expect(trigger).toHaveFocus();
-        expect(trigger).toHaveAttribute('aria-expanded', 'false');
-        // The map is part of the page, so a further Escape leaves it alone.
-        await fireEvent.keyDown(window, { key: 'Escape' });
-        expect(map).toBeInTheDocument();
-        expect(document.querySelectorAll('[data-spatial-canvas]')).toHaveLength(
-          1,
-        );
-        expect(runtimeAdapter.create).toHaveBeenCalledOnce();
-        expect(api.searchExploreSystems).not.toHaveBeenCalled();
-        expect(api.getArchetypeRankings).not.toHaveBeenCalled();
-      },
-    );
-
-    it('uses Local, Galaxy and Centre on as existing camera requests and retains region actions', async () => {
-      const regions = regionFixture();
-      vi.mocked(
-        galaxyRegions.fetchAuthoritativeGalaxyRegions,
-      ).mockResolvedValue(regions);
-      const viewState = new ExploreViewState(
-        () => mockedPage,
-        enabled,
-        applicationStores,
-      );
-      renderEnabled(
-        `${enabled ? 'page_size=3&' : ''}near=${anchorA.id64}`,
-        { anchor: anchorA },
-        viewState,
-      );
+    it('moves the map’s camera with Centre on and Whole galaxy without touching the search or the URL', async () => {
+      renderEnabled(`${enabled ? 'page_size=3&' : ''}near=${anchorA.id64}`, {
+        anchor: anchorA,
+      });
       const results = await screen.findByRole('list', {
         name: 'System results',
       });
@@ -5750,135 +3556,34 @@ describe.each([false, true])(
       const map = await screen.findByRole('region', {
         name: 'Ranked 2 · Galaxy map',
       });
-      await waitFor(() => expect(viewState.regionState).toBe('ready'));
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      const selected = currentScene().selection;
+      const galaxyMap = await theMap();
+      await waitFor(() =>
+        expect(galaxyMap.getSelection()?.id64).toBe(rankedRows[1].id64),
+      );
+      galaxyMap.land();
+      await tick();
       const searchCount = vi.mocked(api.searchExploreSystems).mock.calls.length;
       const url = mockedPage.url.href;
-      const local = within(map).getByRole('button', { name: 'Local' });
-      const galaxy = within(map).getByRole('button', { name: 'Galaxy' });
-      expect(local).toHaveAttribute('data-map-camera-preset', 'local');
-      expect(galaxy).toHaveAttribute('data-map-camera-preset', 'galaxy');
-      expect(local).toBeEnabled();
-      await fireEvent.click(galaxy);
-      expect(galaxy).toHaveAttribute('aria-pressed', 'true');
-      expect(local).toHaveAttribute('aria-pressed', 'false');
-      const overview = viewState.cameraRequest;
-      expect(overview?.pitchRad).toBe(Math.PI / 2);
-      expect(overview?.distanceLy).toBeGreaterThan(100_000);
-      await fireEvent.click(local);
-      expect(local).toHaveAttribute('aria-pressed', 'true');
-      expect(galaxy).toHaveAttribute('aria-pressed', 'false');
-      expect(viewState.cameraRequest).toMatchObject({
-        focusLy: rankedRows[1].coords,
-        distanceLy: 400,
-      });
-      expect(currentScene().kind).toBe('galaxy');
-      await fireEvent.click(galaxy);
+      const home = { ...galaxyMap.flights[0].target };
+
+      await fireEvent.click(
+        within(map).getByRole('button', { name: 'Whole galaxy' }),
+      );
+      // Out to the view the map first opened on.
+      expect(galaxyMap.flights.at(-1)!.target.distance).toBeGreaterThan(50_000);
+      galaxyMap.land();
+      await tick();
       await fireEvent.click(
         within(map).getByRole('button', { name: 'Centre on Ranked 2' }),
       );
-      expect(viewState.cameraRequest).toMatchObject({
-        focusLy: rankedRows[1].coords,
-        distanceLy: 400,
-      });
-      expect(currentScene().selection).toEqual(selected);
-      await fireEvent.click(
-        within(map).getByRole('button', { name: 'Regions 42' }),
-      );
-      const panel = map.querySelector<HTMLElement>('[data-map-regions-panel]')!;
-      expect(
-        panel.querySelectorAll('[data-galaxy-region-option]'),
-      ).toHaveLength(42);
-      const picker = within(panel).getByRole('combobox', {
-        name: 'Galactic region',
-      });
-      const viewSelected = within(panel).getByRole('button', {
-        name: 'View selected',
-      });
-      expect(viewSelected).toBeDisabled();
-      await fireEvent.change(picker, { target: { value: '1' } });
-      expect(viewState.selectedRegionId).toBe('1');
-      expect(
-        panel.querySelector('[data-selected-region-id="1"]'),
-      ).toBeInTheDocument();
-      await fireEvent.click(viewSelected);
-      expect(viewState.cameraRequest).toMatchObject({
-        focusLy: regions.regions[0].labelLy,
-        distanceLy: 18_000,
-      });
-      await fireEvent.click(
-        within(panel).getByRole('button', { name: 'All 42 regions' }),
-      );
-      expect(viewState.cameraRequest).toMatchObject({
-        focusLy: overview!.focusLy,
-        distanceLy: overview!.distanceLy,
-        pitchRad: overview!.pitchRad,
-      });
+      expect(galaxyMap.flights.at(-1)!.target).toEqual(home);
+      expect(home).toEqual({ cursor: [20, 2, 40], distance: 70, pitch: 35 });
+      // The selection, the search and the address are as they were.
+      expect(galaxyMap.getSelection()?.id64).toBe(rankedRows[1].id64);
       expect(mockedPage.url.href).toBe(url);
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(searchCount);
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
-      expect(
-        galaxyRegions.fetchAuthoritativeGalaxyRegions,
-      ).toHaveBeenCalledOnce();
-      expect(runtimeAdapter.create).toHaveBeenCalledOnce();
-      expect(document.querySelectorAll('[data-spatial-canvas]')).toHaveLength(
-        1,
-      );
-    });
-
-    it('keeps an explicit Local camera choice when pending regions arrive after the map starts unselected', async () => {
-      let finishRegions!: (regions: galaxyRegions.GalaxyRegionsPayload) => void;
-      vi.mocked(
-        galaxyRegions.fetchAuthoritativeGalaxyRegions,
-      ).mockImplementation(
-        () => new Promise((resolve) => (finishRegions = resolve)),
-      );
-      vi.mocked(api.autocompleteSystems).mockResolvedValue({
-        results: [anchorA],
-      });
-      const viewState = new ExploreViewState(
-        () => mockedPage,
-        enabled,
-        applicationStores,
-      );
-      renderEnabled('', {}, viewState);
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      expect(viewState.initialGalaxyViewRequested).toBe(false);
-      expect(viewState.regionState).toBe('loading');
-      await fireEvent.input(
-        screen.getByRole('combobox', { name: 'System name' }),
-        {
-          target: { value: 'Anchor A' },
-        },
-      );
-      await fireEvent.click(
-        await screen.findByRole('option', { name: /Anchor A/ }),
-      );
-      await fireEvent.click(
-        await screen.findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
-        }),
-      );
-      await fireEvent.click(screen.getByRole('button', { name: 'Local' }));
-      const local = viewState.cameraRequest;
-      expect(local).toMatchObject({
-        focusLy: rankedRows[1].coords,
-        distanceLy: 400,
-      });
-      const revision = viewState.cameraRequestRevision;
-      finishRegions(regionFixture());
-      await waitFor(() => expect(viewState.regionState).toBe('ready'));
-      await tick();
-      expect(viewState.cameraRequest).toEqual(local);
-      expect(viewState.cameraRequestRevision).toBe(revision);
-      expect(screen.getByRole('button', { name: 'Local' })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      expect(runtimeAdapter.create).toHaveBeenCalledOnce();
-      expect(api.searchExploreSystems).toHaveBeenCalledOnce();
-      expect(api.getArchetypeRankings).not.toHaveBeenCalled();
+      expect(fakeMaps).toHaveLength(1);
     });
 
     it('keeps Inspect and Plan here reachable from the selected-system footer', async () => {
@@ -5911,9 +3616,13 @@ describe.each([false, true])(
           `[data-selected-system-card="${rankedRows[1].id64}"]`,
         ),
       ).toBeInTheDocument();
-      expect(map.querySelector('.selection-status')).toHaveAttribute(
-        'aria-live',
-        'polite',
+      // What the map shows is also said in words, to every reader.
+      const said = map.querySelector('.selection-status')!;
+      expect(said).toHaveAttribute('role', 'status');
+      await waitFor(() =>
+        expect(said).toHaveTextContent(
+          'Ranked 2 and the 0 real stars within 15 ly of it.',
+        ),
       );
       if (enabled) {
         mockedGoto.mockClear();
@@ -5985,9 +3694,8 @@ describe.each([false, true])(
       );
       list.scrollTop = 256;
       await fireEvent.scroll(list);
-      await waitFor(() => expect(currentScene()).toBeDefined());
-      const canvas = document.querySelector('[data-spatial-canvas] canvas');
-      const first = runtimeAdapter.create.mock.results[0].value;
+      const first = await theMap();
+      const canvas = document.querySelector('canvas');
       const committedUrl = mockedPage.url.href;
       const beforeSearch = vi.mocked(api.searchExploreSystems).mock.calls
         .length;
@@ -6019,11 +3727,9 @@ describe.each([false, true])(
       expect(
         within(map).queryByRole('button', { name: 'Show Finder' }),
       ).toBeNull();
-      expect(document.querySelector('[data-spatial-canvas] canvas')).toBe(
-        canvas,
-      );
-      expect(runtimeAdapter.create).toHaveBeenCalledOnce();
-      expect(first.dispose).not.toHaveBeenCalled();
+      expect(document.querySelector('canvas')).toBe(canvas);
+      expect(fakeMaps).toHaveLength(1);
+      expect(first.disposed).toBe(false);
       expect(screen.getByRole('combobox', { name: 'System name' })).toHaveValue(
         'Unsubmitted draft',
       );
@@ -6067,12 +3773,27 @@ describe.each([false, true])(
       await fireEvent.scroll(list);
       const opener = within(list).getByRole('button', { name: 'Show on map' });
       opener.focus();
+      // The Finder is in the map's place, so the map cannot be seen: it is
+      // given nothing to draw and flies nowhere while nobody is looking.
+      const map = await theMap();
+      await tick();
+      expect(map.systemCount()).toBe(0);
+      expect(map.flights).toHaveLength(0);
+      // In words, the page already says what the map will show.
+      expect(document.querySelector('.selection-status')).toHaveTextContent(
+        'Ranked 2',
+      );
+
       await fireEvent.click(opener);
       expect(viewState.finderPanelOpen).toBe(false);
       expect(finderPanel()).toHaveAttribute('hidden');
-      expect(viewState.retainedCamera?.camera).toMatchObject({
-        focusLy: rankedRows[1].coords,
-        distanceLy: 400,
+      // Now it is seen: the system is on it and the one flight is seen too.
+      await waitFor(() => expect(onTheMap(map)).toEqual([rankedRows[1].id64]));
+      expect(map.flights).toHaveLength(1);
+      expect(map.flights[0].target).toEqual({
+        cursor: [20, 2, 40],
+        distance: 70,
+        pitch: 35,
       });
       const show = screen.getByRole('button', { name: 'Show Finder' });
       await waitFor(() => expect(show).toHaveFocus());
@@ -6080,7 +3801,16 @@ describe.each([false, true])(
       expect(viewState.finderPanelOpen).toBe(true);
       await waitFor(() => expect(opener).toHaveFocus());
       expect(list.scrollTop).toBe(96);
-      expect(runtimeAdapter.create).toHaveBeenCalledOnce();
+      // Back to the map for the same system: it is centred, not filled again.
+      const fills = map.fills;
+      map.land();
+      await tick();
+      map.playerMovesTo({ cursor: [900, 0, 900], distance: 5_000 });
+      await fireEvent.click(opener);
+      await waitFor(() => expect(map.flights).toHaveLength(2));
+      expect(map.flights[1].target).toEqual(map.flights[0].target);
+      expect(map.fills).toBe(fills);
+      expect(fakeMaps).toHaveLength(1);
     });
 
     it.each([true, false])(
@@ -6103,7 +3833,7 @@ describe.each([false, true])(
       },
     );
 
-    it('Show on map on a wide screen focuses the system and keeps the Finder panel', async () => {
+    it('Show on map on a wide screen flies back to the system and keeps the Finder panel', async () => {
       const viewState = new ExploreViewState(
         () => mockedPage,
         enabled,
@@ -6125,6 +3855,14 @@ describe.each([false, true])(
       )!;
       const scrollIntoView = vi.fn();
       mapSection.scrollIntoView = scrollIntoView;
+      const map = await theMap();
+      await waitFor(() =>
+        expect(map.getSelection()?.id64).toBe(rankedRows[1].id64),
+      );
+      map.land();
+      await tick();
+      // The player looks elsewhere, then asks to be shown the system again.
+      map.playerMovesTo({ cursor: [900, 0, 900], distance: 5_000 });
       await fireEvent.click(
         within(list).getByRole('button', { name: 'Show on map' }),
       );
@@ -6132,11 +3870,227 @@ describe.each([false, true])(
       expect(finderPanel()).not.toHaveAttribute('hidden');
       await tick();
       expect(scrollIntoView).not.toHaveBeenCalled();
-      expect(viewState.retainedCamera?.camera).toMatchObject({
-        focusLy: rankedRows[1].coords,
-        distanceLy: 400,
+      expect(map.flights).toHaveLength(2);
+      expect(map.flights[1].target).toEqual({
+        cursor: [20, 2, 40],
+        distance: 70,
+        pitch: 35,
       });
-      expect(viewState.mapCameraPreset).toBe('local');
+    });
+  },
+);
+
+// The live site's real answer for the 30 ly box around Sol on 13 Nov 2026
+// (see the fixture's own note), as the API client hands it on.
+const solBoxAnswer: api.CatalogueViewportResponse = {
+  systems: solBox.response.systems.map((system) => ({
+    id64: parseId64(String(system.id64)),
+    name: system.name,
+    x: system.x,
+    y: system.y,
+    z: system.z,
+    mainStarClass: system.main_star_class,
+    populated: system.populated,
+  })),
+  truncated: false,
+};
+const sol: ExploreAnchor = {
+  id64: parseId64('10477373803'),
+  name: 'Sol',
+  x: 0,
+  y: 0,
+  z: 0,
+};
+
+describe.each([false, true])(
+  'Explore shows the selected system on the map (F4=%s)',
+  (enabled) => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      queryClient.clear();
+      localStorage.clear();
+      stubRuntime();
+      mockFacadeDefaults();
+      featureGate.enabled = enabled;
+      mockRankedPages();
+      vi.mocked(api.autocompleteSystems).mockResolvedValue({ results: [sol] });
+      vi.mocked(api.getSystem).mockResolvedValue(anchorDetail(sol));
+      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
+        solBoxAnswer,
+      );
+    });
+
+    afterEach(() => {
+      cleanup();
+      queryClient.clear();
+      featureGate.enabled = false;
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    async function chooseSol(): Promise<FakeMap> {
+      renderEnabled('');
+      const map = await theMap();
+      const input = screen.getByRole('combobox', { name: 'System name' });
+      await fireEvent.input(input, { target: { value: 'Sol' } });
+      // The watchlist's sort list also has an option that names Sol.
+      const suggestions = await screen.findByRole('listbox', {
+        name: 'System suggestions',
+      });
+      await fireEvent.click(
+        await within(suggestions).findByRole('option', { name: /Sol/ }),
+      );
+      return map;
+    }
+
+    it('flies to a star searched near and shows the real stars within 15 ly of it, each by its star class', async () => {
+      const map = await chooseSol();
+      await waitFor(() => expect(map.getSelection()?.name).toBe('Sol'));
+      expect(map.flights.at(-1)!.target).toEqual({
+        cursor: [0, 0, 0],
+        distance: 70,
+        pitch: 35,
+      });
+      // One request, for the 30 ly box around Sol.
+      await waitFor(() => expect(map.systemCount()).toBe(51));
+      expect(api.getCatalogueViewportSystems).toHaveBeenCalledExactlyOnceWith(
+        {
+          minX: -15,
+          maxX: 15,
+          minY: -15,
+          maxY: 15,
+          minZ: -15,
+          maxZ: 15,
+          limit: 10_000,
+        },
+        expect.anything(),
+      );
+      // The box holds 84 systems; 33 are in its corners, beyond 15 ly.
+      expect(onTheMap(map)[0]).toBe(sol.id64);
+      expect(map.namesIn('G class star')).toEqual(
+        expect.arrayContaining(['Sol', 'Alpha Centauri']),
+      );
+      expect(map.namesIn('M class star')).toContain("Barnard's Star");
+      expect(map.groups.get('G class star')!.color).not.toEqual(
+        map.groups.get('M class star')!.color,
+      );
+      expect(map.spheres).toEqual([
+        expect.objectContaining({ position: [0, 0, 0], radius: 15 }),
+      ]);
+      // Find's results are a list beside the map; they are not on it.
+      await screen.findByText('Ranked 1');
+      expect(onTheMap(map)).not.toContain(rankedRows[0].id64);
+      // The same is said in words, and the map is named for the system.
+      expect(document.querySelector('.selection-status')).toHaveTextContent(
+        'Sol and the 50 real stars within 15 ly of it.',
+      );
+      expect(
+        screen.getByRole('region', { name: 'Sol · Galaxy map' }),
+      ).toBeInTheDocument();
+      expect(
+        (await map.panel(sol.id64))!.values!.find(
+          (value) => value.label === 'STARS IN RANGE',
+        ),
+      ).toEqual({ label: 'STARS IN RANGE', value: '50' });
+    });
+
+    it('says the map could not start, asks for no stars, and leaves Find working', async () => {
+      failNextMap('This map needs WebGL2.');
+      renderEnabled('');
+      await screen.findByRole('alert');
+      const input = screen.getByRole('combobox', { name: 'System name' });
+      await fireEvent.input(input, { target: { value: 'Sol' } });
+      const suggestions = await screen.findByRole('listbox', {
+        name: 'System suggestions',
+      });
+      await fireEvent.click(
+        await within(suggestions).findByRole('option', { name: /Sol/ }),
+      );
+      await screen.findByText('Ranked 1');
+      const said = document.querySelector<HTMLElement>('.selection-status')!;
+      expect(said).toHaveTextContent(
+        'The galaxy map could not start on this device.',
+      );
+      expect(within(said).queryByRole('button', { name: 'Retry' })).toBeNull();
+      expect(api.getCatalogueViewportSystems).not.toHaveBeenCalled();
+      // The camera buttons have nothing to move.
+      expect(
+        screen.getByRole('button', { name: 'Whole galaxy' }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /^Centre on / }),
+      ).toBeDisabled();
+      // Find's own list is there all the same.
+      expect(
+        within(
+          screen.getByRole('list', { name: 'System results' }),
+        ).getAllByRole('listitem').length,
+      ).toBeGreaterThan(0);
+    });
+
+    it('says so when the stars do not load, keeps the system on the map, and tries again when asked', async () => {
+      vi.mocked(api.getCatalogueViewportSystems).mockRejectedValue(
+        new api.ApiError(503, '/api/map/systems', {}),
+      );
+      const map = await chooseSol();
+      const said = document.querySelector<HTMLElement>('.selection-status')!;
+      await waitFor(
+        () =>
+          expect(said).toHaveTextContent(
+            'Sol is on the map. The stars within 15 ly of it did not load.',
+          ),
+        { timeout: 4_000 },
+      );
+      expect(said).toHaveAttribute('data-map-stars', 'failed');
+      expect(onTheMap(map)).toEqual([sol.id64]);
+      expect(map.getSelection()?.name).toBe('Sol');
+
+      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue(
+        solBoxAnswer,
+      );
+      await fireEvent.click(
+        within(said).getByRole('button', { name: 'Retry' }),
+      );
+      await waitFor(() => expect(map.systemCount()).toBe(51));
+      expect(said).toHaveTextContent(
+        'Sol and the 50 real stars within 15 ly of it.',
+      );
+      expect(within(said).queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
+
+    it('moves on to a result when one is selected, and asks for that system’s stars', async () => {
+      const map = await chooseSol();
+      await waitFor(() => expect(map.systemCount()).toBe(51));
+      vi.mocked(api.getCatalogueViewportSystems).mockResolvedValue({
+        systems: [],
+        truncated: false,
+      });
+      await fireEvent.click(
+        await screen.findByRole('button', {
+          name: /Ranked 2.*9007199254741002/,
+        }),
+      );
+      await waitFor(() =>
+        expect(map.getSelection()?.id64).toBe(rankedRows[1].id64),
+      );
+      expect(map.flights.at(-1)!.target).toMatchObject({
+        cursor: [20, 2, 40],
+        distance: 70,
+      });
+      await waitFor(() =>
+        expect(document.querySelector('.selection-status')).toHaveTextContent(
+          'Ranked 2 and the 0 real stars within 15 ly of it.',
+        ),
+      );
+      // Sol and its stars are gone: only the selected system is shown.
+      expect(onTheMap(map)).toEqual([rankedRows[1].id64]);
+      expect(map.spheres).toEqual([
+        expect.objectContaining({ position: [20, 2, 40], radius: 15 }),
+      ]);
+      expect(api.getCatalogueViewportSystems).toHaveBeenLastCalledWith(
+        expect.objectContaining({ minX: 5, maxX: 35, minZ: 25, maxZ: 55 }),
+        expect.anything(),
+      );
     });
   },
 );
