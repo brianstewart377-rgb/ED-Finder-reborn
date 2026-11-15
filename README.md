@@ -89,6 +89,8 @@ it. On a machine whose database has no Finder data yet, put
 Find counts its matches up to 1,000 ("1,000+ found") and pages through the
 first 1,000. Counting is most of a search's work, and the first search after
 the database's memory has been emptied has to read it all from the drive.
+A search is counted once: the count is kept for an hour for its other pages,
+and a page that comes back short shows the count itself.
 
 `warm` runs the searches visitors start with against the live site once:
 Find galaxy-wide, for Any and for each colony type, at 250 and 500 ly. It

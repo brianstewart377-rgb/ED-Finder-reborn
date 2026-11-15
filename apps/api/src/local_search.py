@@ -915,6 +915,74 @@ def _bounded_v3_total(qualifying: int | None) -> tuple[int, bool]:
     return min(count, LOCAL_SEARCH_RESULT_CAP), count > LOCAL_SEARCH_RESULT_CAP
 
 
+def total_from_short_page(row_count: int, limit: int, offset: int) -> int | None:
+    """The number of matches, where the page itself shows it.
+
+    A page that came back with fewer rows than it asked for has reached the
+    end of the matches, so there are ``offset + row_count`` of them and the
+    count need not be asked. An empty page past the first says only that
+    there are no more than ``offset``, so it is no answer.
+    """
+    if row_count >= limit:
+        return None
+    if row_count == 0 and offset > 0:
+        return None
+    return offset + row_count
+
+
+def known_qualifying(
+    known_count: Any, generation_row: Any, shown_to: int = 0,
+) -> int | None:
+    """A count kept from an earlier page of the same search, if it was made
+    on the generation this page is read from, and this page does not show it
+    to be too small. Anything else is no answer: the count is then asked
+    again.
+
+    ``shown_to`` is how far this page reaches (its offset plus its rows).
+    Which systems can be claimed changes each night with no new generation
+    (the claim rule reads the state tables), so a count kept across the
+    night's load can be a few out. A page that reaches past the kept count
+    proves it too small.
+    """
+    if not isinstance(known_count, dict):
+        return None
+    qualifying = known_count.get('qualifying')
+    if isinstance(qualifying, bool) or not isinstance(qualifying, int):
+        return None
+    if not 0 <= qualifying <= LOCAL_SEARCH_RESULT_CAP + 1:
+        return None
+    if qualifying < shown_to:
+        return None
+    if (
+        str(known_count.get('derived_generation_id'))
+        != str(generation_row['derived_generation_id'])
+        or known_count.get('publication_sequence')
+        != generation_row['publication_sequence']
+    ):
+        return None
+    return qualifying
+
+
+def count_to_keep(response: dict[str, Any]) -> dict[str, Any] | None:
+    """What to keep of a search's count for its other pages: the number of
+    matches as the count query gives it (one past the limit when there are
+    more), with the generation it was counted on."""
+    ranking = response.get('ranking') or {}
+    total = response.get('total')
+    if (
+        isinstance(total, bool)
+        or not isinstance(total, int)
+        or ranking.get('derived_generation_id') is None
+        or ranking.get('publication_sequence') is None
+    ):
+        return None
+    return {
+        'qualifying': total + (1 if response.get('total_is_capped') else 0),
+        'derived_generation_id': str(ranking['derived_generation_id']),
+        'publication_sequence': ranking['publication_sequence'],
+    }
+
+
 def _v3_tier(score: Any) -> str | None:
     if score is None:
         return None
@@ -1154,7 +1222,11 @@ def prepare_local_search_v3(
     return ctx, sort_mode, hard_filters, reference_coords
 
 
-async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
+async def local_db_search_v3(
+    body: dict,
+    pool: asyncpg.Pool,
+    known_count: dict[str, Any] | None = None,
+) -> dict:
     """V3-native ranked search for `POST /api/local/search`.
 
     Generation-pinned, reads `v3_app.system_search` +
@@ -1164,6 +1236,14 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
     Find's claim rule (`edfinder_api.claim_rule`): inhabited systems and
     systems being claimed are left out, and each result says whether it is
     free or a claim that ended with an unknown outcome.
+
+    The count is the costly half of a search near a system for one colony
+    type: it walks outwards to the 1,001st match. It does not depend on the
+    page asked for, so it is asked once for a search. A page that came back
+    short has reached the end of the matches: it shows the count itself, and
+    that is used before anything kept. Otherwise ``known_count``, the count
+    kept from an earlier page (`count_to_keep`), is used if it was made on
+    the generation this page is read from and the page does not disprove it.
     """
     t0 = time.time()
     ctx, sort_mode, hard_filters, reference_coords = prepare_local_search_v3(body)
@@ -1210,7 +1290,14 @@ async def local_db_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
             async with conn.transaction(isolation='repeatable_read', readonly=True):
                 generation_row = await _current_derived_generation(conn)
                 rows = await conn.fetch(sql, *params)
-                qualifying = await conn.fetchval(count_sql, *count_params)
+                qualifying = total_from_short_page(
+                    len(rows), ctx.size, ctx.from_idx)
+                if qualifying is None:
+                    qualifying = known_qualifying(
+                        known_count, generation_row,
+                        shown_to=ctx.from_idx + len(rows))
+                if qualifying is None:
+                    qualifying = await conn.fetchval(count_sql, *count_params)
                 notes = await claim_notes(conn, [row['system_id64'] for row in rows])
     except HTTPException:
         raise

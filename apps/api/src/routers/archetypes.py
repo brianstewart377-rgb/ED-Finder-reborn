@@ -61,7 +61,10 @@ from shared_contracts.v3_system_archetype_model import (
 )
 
 from edfinder_api.config import log, limiter
-from edfinder_api.local_search import _current_derived_generation
+from edfinder_api.local_search import (
+    _current_derived_generation,
+    total_from_short_page,
+)
 from edfinder_api.models import (
     ArchetypeRankingsResponse,
     ArchetypeRerankRequest,
@@ -350,7 +353,11 @@ async def _archetype_rankings_v3(
             async with conn.transaction(isolation='repeatable_read', readonly=True):
                 generation_row = await _current_derived_generation(conn)
                 rows = await conn.fetch(sql, *params)
-                total = await conn.fetchval(count_sql, *count_params)
+                # A page that came back short has reached the end of the
+                # matches, so the count need not be asked.
+                total = total_from_short_page(len(rows), limit, offset)
+                if total is None:
+                    total = await conn.fetchval(count_sql, *count_params)
                 notes = await claim_notes(conn, [row['system_id64'] for row in rows])
     except HTTPException:
         raise
