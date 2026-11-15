@@ -25,10 +25,10 @@ function bench(msPerBody: number) {
       step = null;
     },
   };
-  const asked: { type: string; time: number }[] = [];
+  const asked: { type: string; time: number; resolution?: number }[] = [];
   const generator = {
-    render: (params: { type: string }, time: number) => {
-      asked.push({ type: params.type, time });
+    render: (params: { type: string; resolution?: number }, time: number) => {
+      asked.push({ type: params.type, time, resolution: params.resolution });
       now += msPerBody;
       return {} as HTMLCanvasElement;
     },
@@ -106,6 +106,51 @@ describe('spinning', () => {
       [0, 0, 1 / 12, 1 / 12, 2 / 12, 2 / 12].map((t) => expect.closeTo(t)),
     );
     expect(drew).toEqual(targets.map((target) => target.id));
+  });
+
+  it('draws bodies of one size together, so Cosmos makes its drawing surface anew as seldom as it can', () => {
+    // Cosmos draws on one surface and makes it anew whenever the size asked
+    // for differs from the last. Seen on a gaming PC: Maia's 56 bodies took
+    // 9.7 ms a step, and spinning switched itself off.
+    const { clock, generator, asked, tick } = bench(0.1);
+    const sizes = [128, 32, 512, 32, 128, 64, 32, 512];
+    const names = [
+      'Sol',
+      'Mercury',
+      'Venus',
+      'Earth',
+      'Mars',
+      'Jupiter',
+      'Saturn',
+      'Uranus',
+    ];
+    const targets = targetsOf(names).map((target, at) => ({
+      ...target,
+      pixels: sizes[at],
+    }));
+    const drew: string[] = [];
+    startSpinning(
+      generator,
+      {
+        targets: () => targets,
+        lastStir: () => 0,
+        drew: (id) => drew.push(id),
+        tooSlow: () => {},
+        failed: () => {},
+      },
+      clock,
+    );
+    tick(0);
+    const order = asked.map((one) => one.resolution);
+    expect(order).toEqual([32, 32, 32, 64, 128, 128, 512, 512]);
+    // Listed as they came, the size would change seven times; now three.
+    const changes = (list: (number | undefined)[]) =>
+      list.filter((size, at) => at > 0 && size !== list[at - 1]).length;
+    expect(changes(sizes)).toBe(7);
+    expect(changes(order)).toBe(3);
+    // Every body is still drawn, and the page's own list is left as it was.
+    expect([...drew].sort()).toEqual(targets.map((t) => t.id).sort());
+    expect(targets.map((target) => target.pixels)).toEqual(sizes);
   });
 
   it('rests after 20 seconds without the mouse, the wheel or a key, and carries on from where it stopped', () => {

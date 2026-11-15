@@ -12,7 +12,12 @@
  *     movement, and carry on from where they stopped;
  *   - a frame may take 8 ms on average, a tenth of the time between frames.
  *     Where it takes more (no graphics card to speak of, or a very large
- *     system on screen), spinning stops itself and the still pictures stay.
+ *     system on screen), spinning stops itself and the still pictures stay;
+ *   - bodies of one size are drawn together. Cosmos draws every body on one
+ *     surface and makes that surface anew whenever the size asked for
+ *     differs from the last, which costs more than the drawing. A system's
+ *     bodies come in five sizes, mixed in the order they are listed: taken
+ *     in that order, nearly every body paid for a new surface.
  */
 import type { CelestialGenerator, CelestialType } from '@eluvade/cosmos';
 import type { CosmosAsk } from './cosmos-look';
@@ -88,7 +93,10 @@ export function startSpinning(
     const started = clock.now();
     // Each frame is one step on, so the bodies do not jump after a rest.
     const seconds = (frames * SPIN_EVERY_MS) / 1000;
-    const targets = hooks.targets();
+    // Smallest first, bodies of one size together: see the note above.
+    const targets = [...hooks.targets()].sort(
+      (one, other) => one.pixels - other.pixels,
+    );
     try {
       for (const target of targets) {
         const drawn = generator.render(
