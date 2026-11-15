@@ -1,0 +1,68 @@
+{
+  "what": "Real systems from the live site (https://ed-finder.app) on 15 Nov 2026, with their id, name and position unchanged. The first seven are the first system by name in each 24 ly box (GET /api/map/systems) centred on the line from Sol towards the galaxy's centre, 450 ly apart: at z = 450, 900, 1350, 1800, 2250, 2700 and 3150. Colonia and Sagittarius A* are from the name search (GET /api/local/autocomplete).",
+  "systems": [
+    {
+      "id64": 83852530482,
+      "name": "HIP 86404",
+      "x": 7.0625,
+      "y": 2,
+      "z": 461.90625
+    },
+    {
+      "id64": 83852530570,
+      "name": "HIP 86522",
+      "x": 11.90625,
+      "y": -1.125,
+      "z": 898.4375
+    },
+    {
+      "id64": 3686969379315,
+      "name": "Praea Euq EI-B d13-107",
+      "x": -9,
+      "y": -5.0625,
+      "z": 1345.53125
+    },
+    {
+      "id64": 83852530746,
+      "name": "Blu Thua DR-N c6-0",
+      "x": 11.40625,
+      "y": 8.21875,
+      "z": 1793.8125
+    },
+    {
+      "id64": 2175140891211,
+      "name": "Blu Thua KD-K d8-63",
+      "x": 4.71875,
+      "y": -3.125,
+      "z": 2259
+    },
+    {
+      "id64": 670954498529,
+      "name": "Blu Thua HK-Y b55-0",
+      "x": 11.8125,
+      "y": 2.5,
+      "z": 2704.59375
+    },
+    {
+      "id64": 2869977688729,
+      "name": "Smojai BN-S b17-1",
+      "x": -3.84375,
+      "y": -10.03125,
+      "z": 3158.15625
+    },
+    {
+      "id64": 3238296097059,
+      "name": "Colonia",
+      "x": -9530.5,
+      "y": -910.28125,
+      "z": 19808.125
+    },
+    {
+      "id64": 20578934,
+      "name": "Sagittarius A*",
+      "x": 25.21875,
+      "y": -20.90625,
+      "z": 25899.96875
+    }
+  ]
+}

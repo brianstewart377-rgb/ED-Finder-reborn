@@ -1,13 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import solBox from './fixtures/map-systems-sol-box.json';
 import findNearSol from './fixtures/find-sol-first-60.json';
+import towardsTheCore from './fixtures/systems-towards-the-core.json';
 import {
   boxAround,
   chosenFromFind,
   detailsFor,
+  JOURNEY_LINE_COLOUR,
+  JOURNEY_LINE_STEP_LY,
+  JOURNEY_LINE_WIDTH_PX,
+  JOURNEY_LINES_GROUP,
+  JOURNEY_LINES_IN_SHORT,
+  JOURNEY_LINES_WORDS,
+  JOURNEY_MARKERS_WITHIN_LY,
+  journeyLines,
   JOURNEYS_ASKED_FOR,
   JOURNEYS_COLOUR,
   JOURNEYS_GROUP,
+  JOURNEYS_WORDS,
+  LONGEST_JUMP_LY,
   mapContent,
   OPENING_DISTANCE_LY,
   RANGE_LY,
@@ -319,18 +330,39 @@ describe('what the map is handed', () => {
       groups: [],
       records: [],
       spheres: [],
+      lines: [],
     });
   });
 
   it('adds the visited systems as one quiet group, each system once', () => {
     const content = mapContent(solShowing(), JOURNEYS);
     // First of the groups: it stays while systems are chosen in Find.
-    expect(content.groups[0]).toMatchObject({
+    expect(content.groups[0]).toEqual({
       name: JOURNEYS_GROUP,
       color: JOURNEYS_COLOUR,
+      description: JOURNEYS_WORDS,
       markerStyle: 'disc',
+      // From further out the markers of a route run into one thick stroke.
+      maxDrawRange: 1_000,
     });
-    expect(content.groups[1].name).toBe('G class star');
+    expect(JOURNEY_MARKERS_WITHIN_LY).toBe(1_000);
+    expect(JOURNEYS_WORDS).toContain('within 1,000 ly');
+    // Then the lines' own group, named for what the lines are, so that
+    // nobody takes them for the whole of their travel. It holds no system.
+    expect(content.groups[1]).toEqual({
+      name: 'My trips over 1,000 ly',
+      color: JOURNEY_LINE_COLOUR,
+      description: JOURNEY_LINES_WORDS,
+    });
+    expect(JOURNEY_LINES_GROUP).toBe('My trips over 1,000 ly');
+    expect(JOURNEY_LINES_WORDS).toContain('Shorter travel has no line');
+    expect(JOURNEY_LINES_IN_SHORT).toBe('lines are trips over 1,000 ly');
+    expect(
+      content.records.some((made) =>
+        made.categories.includes(JOURNEY_LINES_GROUP),
+      ),
+    ).toBe(false);
+    expect(content.groups[2].name).toBe('G class star');
     // Alpha Centauri is a star in range and visited: one marker, in its
     // star's colour, counted in both groups.
     const alpha = content.records.filter((made) => made.id64 === ALPHA.id64);
@@ -349,14 +381,19 @@ describe('what the map is handed', () => {
 
   it('shows the visited systems with nothing chosen, and no range', () => {
     const content = mapContent(null, JOURNEYS);
-    expect(content.groups.map((group) => group.name)).toEqual([JOURNEYS_GROUP]);
+    expect(content.groups.map((group) => group.name)).toEqual([
+      JOURNEYS_GROUP,
+      JOURNEY_LINES_GROUP,
+    ]);
     expect(content.records.map((made) => made.name)).toEqual([
       'Alpha Centauri',
       WREGOE.name,
     ]);
     expect(content.spheres).toEqual([]);
-    // Switched on with no visits: the group is there, empty.
-    expect(mapContent(null, []).groups).toHaveLength(1);
+    // Alpha Centauri and a system 400 ly off are no long trip: no line.
+    expect(content.lines).toEqual([]);
+    // Switched on with no visits: the two groups are there, empty.
+    expect(mapContent(null, []).groups).toHaveLength(2);
     expect(JOURNEYS_ASKED_FOR).toBe(20_000);
   });
 });
@@ -375,7 +412,7 @@ describe('what to add to the map when nothing has to come off it', () => {
     // Sol is on the map already, and unchanged.
     expect(add.records).toHaveLength(50);
     expect(add.records.map((made) => made.name)).not.toContain('Sol');
-    expect(add.spheres).toBe(false);
+    expect(add.shapes).toBe(false);
     // Adding them gives the same groups, in the same order, as starting again.
     expect([...drawn.groups, ...add.groups]).toEqual(next.groups);
   });
@@ -388,7 +425,7 @@ describe('what to add to the map when nothing has to come off it', () => {
           ...JOURNEYS.map((journey) => ({ ...journey })),
         ]),
       ),
-    ).toEqual({ groups: [], records: [], spheres: false });
+    ).toEqual({ groups: [], records: [], shapes: false });
   });
 
   it('adds a system chosen while only the journeys were on the map, with its ball', () => {
@@ -397,7 +434,7 @@ describe('what to add to the map when nothing has to come off it', () => {
       mapContent(solShowing(), JOURNEYS),
     )!;
     expect(add.groups[0].name).toBe('G class star');
-    expect(add.spheres).toBe(true);
+    expect(add.shapes).toBe(true);
     // Alpha Centauri was a visited system; it is now also a star in range,
     // so it is given again, in its star's group first.
     expect(
@@ -433,6 +470,189 @@ describe('what to add to the map when nothing has to come off it', () => {
     expect(
       whatToAdd(mapContent(alone, null), mapContent(alone, JOURNEYS)),
     ).toBeNull();
+  });
+});
+
+describe('the routes the player travelled, as lines', () => {
+  // Real systems on the line from Sol towards the galaxy's centre, each
+  // within a jump (500 ly) of the next, then Colonia and Sagittarius A*
+  // (see the file's own note). When each was first reached is this test's
+  // own: nobody's journal is kept in the repository.
+  const [
+    HIP_86404, // 462 ly from Sol
+    HIP_86522, // 898 ly
+    PRAEA_EUQ, // 1,346 ly
+    BLU_THUA_C6, // 1,794 ly
+    BLU_THUA_D8, // 2,259 ly
+    BLU_THUA_B55, // 2,705 ly
+    SMOJAI, // 3,158 ly
+    COLONIA,
+    SAGITTARIUS_A,
+  ] = towardsTheCore.systems.map((system) => ({
+    ...system,
+    id64: String(system.id64),
+  }));
+  const HOME = { id64: SOL.id64, name: SOL.name, x: 0, y: 0, z: 0 };
+  type Place = typeof HOME;
+  /** Each place first reached a day after the one before it. */
+  const reachedInOrder = (...places: Place[]): Journey[] =>
+    places.map((place, day) => ({
+      ...place,
+      visits: 1,
+      firstVisit: `2026-03-${String(day + 1).padStart(2, '0')}T12:00:00Z`,
+      lastVisit: '2026-06-01T00:00:00Z',
+    }));
+  const at = (place: Place) => [place.x, place.y, place.z];
+  const pointsOf = (journeys: readonly Journey[]) =>
+    journeyLines(journeys).map((line) => line.points);
+
+  it('joins the systems of a long trip in the order they were first reached, a step at a time', () => {
+    const trip = reachedInOrder(
+      HOME,
+      HIP_86404,
+      HIP_86522,
+      PRAEA_EUQ,
+      BLU_THUA_C6,
+      BLU_THUA_D8,
+      BLU_THUA_B55,
+    );
+    // Its points are the first system, then each one at least 1,000 ly on
+    // from the point before: 1,346 ly from Sol, then 1,359 ly from there.
+    expect(JOURNEY_LINE_STEP_LY).toBe(1_000);
+    expect(journeyLines(trip)).toEqual([
+      {
+        name: 'Your route from Sol to Blu Thua HK-Y b55-0',
+        points: [at(HOME), at(PRAEA_EUQ), at(BLU_THUA_B55)],
+        color: JOURNEY_LINE_COLOUR,
+        width: JOURNEY_LINE_WIDTH_PX,
+        // Its group is named for what it is, and can be switched off in
+        // the map's own panel without the markers.
+        categories: [JOURNEY_LINES_GROUP],
+      },
+    ]);
+  });
+
+  it('ends the line at the last system reached, though that is less than a step on', () => {
+    expect(
+      pointsOf(
+        reachedInOrder(
+          HOME,
+          HIP_86404,
+          HIP_86522,
+          PRAEA_EUQ,
+          BLU_THUA_C6,
+          BLU_THUA_D8,
+        ),
+      ),
+    ).toEqual([[at(HOME), at(PRAEA_EUQ), at(BLU_THUA_D8)]]);
+  });
+
+  it('goes by when each system was first reached, not by the order of the list', () => {
+    const trip = reachedInOrder(
+      HOME,
+      HIP_86404,
+      HIP_86522,
+      PRAEA_EUQ,
+      BLU_THUA_C6,
+      BLU_THUA_D8,
+      BLU_THUA_B55,
+    );
+    const shuffled = [3, 6, 0, 5, 1, 4, 2].map((index) => trip[index]);
+    expect(journeyLines(shuffled)).toEqual(journeyLines(trip));
+  });
+
+  it('draws no line for a place never left', () => {
+    // Travel that stays within 1,000 ly of where it began: 898 ly at most.
+    expect(journeyLines(reachedInOrder(HOME, HIP_86404, HIP_86522))).toEqual(
+      [],
+    );
+    // And the 50 systems around Sol, reached one after another.
+    expect(
+      journeyLines(
+        reachedInOrder(
+          ...SOL_BOX.map(({ id64, name, x, y, z }) => ({
+            id64,
+            name,
+            x,
+            y,
+            z,
+          })),
+        ),
+      ),
+    ).toEqual([]);
+    expect(journeyLines([])).toEqual([]);
+  });
+
+  it('joins no two systems further apart than any jump goes, and starts again past the gap', () => {
+    expect(LONGEST_JUMP_LY).toBe(500);
+    // Out from Sol; then Colonia, 22,000 ly away, reached by a road already
+    // travelled or not in the journals; then a second trip further in.
+    const journeys = reachedInOrder(
+      HOME,
+      HIP_86404,
+      HIP_86522,
+      PRAEA_EUQ,
+      COLONIA,
+      BLU_THUA_C6,
+      BLU_THUA_D8,
+      BLU_THUA_B55,
+      SMOJAI,
+      SAGITTARIUS_A,
+    );
+    expect(pointsOf(journeys)).toEqual([
+      [at(HOME), at(PRAEA_EUQ)],
+      [at(BLU_THUA_C6), at(SMOJAI)],
+    ]);
+    // Colonia and Sagittarius A* are on no line: each was reached alone.
+    const drawn = pointsOf(journeys).flat();
+    expect(drawn).not.toContainEqual(at(COLONIA));
+    expect(drawn).not.toContainEqual(at(SAGITTARIUS_A));
+  });
+
+  it('leaves out a system whose first visit has no date it can read', () => {
+    const trip = reachedInOrder(
+      HOME,
+      HIP_86404,
+      HIP_86522,
+      PRAEA_EUQ,
+      BLU_THUA_C6,
+    );
+    // Without Praea Euq the trip is 1,794 ly long but has a 896 ly gap in
+    // it, so it is two places never left.
+    const undated = trip.map((journey) =>
+      journey.id64 === PRAEA_EUQ.id64
+        ? { ...journey, firstVisit: null }
+        : journey,
+    );
+    expect(journeyLines(undated)).toEqual([]);
+    const unreadable = trip.map((journey) =>
+      journey.id64 === PRAEA_EUQ.id64
+        ? { ...journey, firstVisit: 'not a date' }
+        : journey,
+    );
+    expect(journeyLines(unreadable)).toEqual([]);
+    expect(journeyLines(trip)).toHaveLength(1);
+  });
+
+  it('hands the map the lines with the journeys, and none without them', () => {
+    const trip = reachedInOrder(HOME, HIP_86404, HIP_86522, PRAEA_EUQ);
+    expect(mapContent(null, trip).lines).toEqual(journeyLines(trip));
+    expect(mapContent(solShowing(), trip).lines).toHaveLength(1);
+    expect(mapContent(solShowing(), null).lines).toEqual([]);
+    // More of a trip arriving changes its line: the map must draw it again.
+    const longer = reachedInOrder(
+      HOME,
+      HIP_86404,
+      HIP_86522,
+      PRAEA_EUQ,
+      BLU_THUA_C6,
+    );
+    expect(
+      whatToAdd(mapContent(null, trip), mapContent(null, longer))!.shapes,
+    ).toBe(true);
+    expect(
+      whatToAdd(mapContent(null, trip), mapContent(null, [...trip]))!.shapes,
+    ).toBe(false);
   });
 });
 

@@ -24,9 +24,14 @@ type Group = {
   name: string;
   color: readonly [number, number, number];
   markerStyle: string;
+  /** How far from the point looked at its markers are drawn, if it says. */
+  maxDrawRange?: number;
   visible: boolean;
+  /** The group's lines and balls have a switch of their own. */
+  shapesVisible: boolean;
 };
 type Sphere = Record<string, unknown>;
+type Line = Record<string, unknown>;
 type Flight = {
   target: FlyToTarget;
   settle: ((how: FlightOutcome) => void) | null;
@@ -44,6 +49,7 @@ export class FakeMap {
   readonly groups = new Map<string, Group>();
   readonly systems = new Map<string, RealSystem>();
   spheres: Sphere[] = [];
+  lines: Line[] = [];
   /** Every flight asked for, in order. */
   readonly flights: Flight[] = [];
   /** How many times the map was emptied to be filled again. */
@@ -103,7 +109,11 @@ export class FakeMap {
         name: String(group.name),
         color: group.color as Group['color'],
         markerStyle: String(group.markerStyle ?? 'glow'),
+        ...(typeof group.maxDrawRange === 'number'
+          ? { maxDrawRange: group.maxDrawRange }
+          : {}),
         visible: true,
+        shapesVisible: true,
       });
     return { added: groups.length, replaced: 0, rejected: [] };
   }
@@ -142,6 +152,7 @@ export class FakeMap {
     this.systems.clear();
     this.groups.clear();
     this.spheres = [];
+    this.lines = [];
     this.fills += 1;
     this.select(null);
   }
@@ -155,8 +166,21 @@ export class FakeMap {
     return { added: spheres.length, rejected: [] };
   }
 
+  /** A line that names a group the map does not hold is refused, as the real map does. */
+  addLines(lines: readonly Line[]) {
+    const rejected: { index: number; reason: string }[] = [];
+    lines.forEach((line, index) => {
+      const categories = (line.categories ?? []) as string[];
+      if (categories.some((name) => !this.groups.has(name)))
+        rejected.push({ index, reason: 'unknown-category' });
+      else this.lines.push(line);
+    });
+    return { added: lines.length - rejected.length, rejected };
+  }
+
   clearShapes(): void {
     this.spheres = [];
+    this.lines = [];
   }
 
   categoryCount(): number {
@@ -169,6 +193,15 @@ export class FakeMap {
 
   isCategoryVisible(name: string): boolean {
     return this.groups.get(name)?.visible ?? false;
+  }
+
+  isShapeCategoryVisible(name: string): boolean {
+    return this.groups.get(name)?.shapesVisible ?? false;
+  }
+
+  setShapeCategoryVisible(name: string, visible: boolean): void {
+    const group = this.groups.get(name);
+    if (group) group.shapesVisible = visible;
   }
 
   setCategoryVisible(name: string, visible: boolean): void {

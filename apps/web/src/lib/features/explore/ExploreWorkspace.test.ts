@@ -2039,6 +2039,68 @@ describe('ExploreWorkspace My journeys (V3 journal store)', () => {
     );
   });
 
+  it('draws a long trip as a line, and says the lines are only the trips over 1,000 ly', async () => {
+    await signIn();
+    // Sol and three real systems on the line towards the galaxy's centre,
+    // each within a jump of the next and the last 1,346 ly out (the live
+    // site, 15 Nov 2026). When each was first reached is this test's own.
+    const trip = [
+      SOL_VISIT,
+      visitTo('83852530482', 'HIP 86404', [7.0625, 2, 461.90625], 1),
+      visitTo('83852530570', 'HIP 86522', [11.90625, -1.125, 898.4375], 1),
+      visitTo(
+        '3686969379315',
+        'Praea Euq EI-B d13-107',
+        [-9, -5.0625, 1345.53125],
+        1,
+      ),
+    ].map((visit, day) => ({
+      ...visit,
+      firstVisitedAt: `2026-03-0${day + 1}T12:00:00Z`,
+    }));
+    vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue(travel(trip));
+    render(ExploreWorkspaceTestHost);
+    const map = await theMap();
+    const status = await showTravel();
+    await waitFor(() =>
+      expect(status).toHaveAttribute('data-commander-history-state', 'ready'),
+    );
+    expect(status.textContent).toMatch(
+      /4 visited\s+systems · lines are trips over 1,000 ly/u,
+    );
+    await waitFor(() => expect(map.lines).toHaveLength(1));
+    expect(map.lines[0]).toMatchObject({
+      name: 'Your route from Sol to Praea Euq EI-B d13-107',
+      points: [
+        [0, 0, 0],
+        [-9, -5.0625, 1345.53125],
+      ],
+      categories: ['My trips over 1,000 ly'],
+    });
+    // From far out a route is its line: the markers are drawn near where
+    // the map looks.
+    expect(map.groups.get('My journeys')).toMatchObject({
+      maxDrawRange: 1_000,
+    });
+  });
+
+  it('says nothing of lines where no trip is long enough to have one', async () => {
+    await signIn();
+    vi.mocked(api.getCommanderTravelHeatmap).mockResolvedValue(
+      travel([SOL_VISIT, ALPHA_VISIT]),
+    );
+    render(ExploreWorkspaceTestHost);
+    const map = await theMap();
+    const status = await showTravel();
+    await waitFor(() =>
+      expect(status).toHaveAttribute('data-commander-history-state', 'ready'),
+    );
+    await waitFor(() => expect(map.namesIn('My journeys')).toHaveLength(2));
+    expect(status.textContent).toMatch(/2 visited\s+systems/u);
+    expect(status.textContent).not.toContain('lines');
+    expect(map.lines).toEqual([]);
+  });
+
   it('distinguishes an account without imported journals from one with no travel', async () => {
     await signIn();
     vi.mocked(api.getCommanderJournalSummary).mockResolvedValue({

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import solBox from './fixtures/map-systems-sol-box.json';
+import towardsTheCore from './fixtures/systems-towards-the-core.json';
 import GalaxyMap, { type MapResume } from './GalaxyMap.svelte';
 import {
   failNextMap,
@@ -12,6 +13,9 @@ import {
   type FakeMap,
 } from './fake-almanac';
 import {
+  JOURNEY_LINE_COLOUR,
+  JOURNEY_LINE_WIDTH_PX,
+  JOURNEY_LINES_GROUP,
   JOURNEYS_GROUP,
   starsInRange,
   type BoxSystem,
@@ -549,6 +553,79 @@ describe('My journeys', () => {
     await rerender({ showing: found(), journeys: [VISITED] });
     expect(map.isCategoryVisible(JOURNEYS_GROUP)).toBe(false);
     expect(map.isCategoryVisible('G class star')).toBe(true);
+  });
+});
+
+describe('the routes of My journeys', () => {
+  // Sol and three real systems on the line towards the galaxy's centre, each
+  // within a jump of the next and the last 1,346 ly out (see the fixture's
+  // own note). When each was first reached is this test's own.
+  const PRAEA_EUQ = towardsTheCore.systems[2];
+  const TRIP: Journey[] = [
+    { id64: SOL.id64, name: SOL.name, x: 0, y: 0, z: 0 },
+    ...towardsTheCore.systems
+      .slice(0, 3)
+      .map((system) => ({ ...system, id64: String(system.id64) })),
+  ].map((place, day) => ({
+    ...place,
+    visits: 1,
+    firstVisit: `2026-03-0${day + 1}T12:00:00Z`,
+    lastVisit: '2026-06-01T00:00:00Z',
+  }));
+  const ROUTE = {
+    name: 'Your route from Sol to Praea Euq EI-B d13-107',
+    points: [
+      [0, 0, 0],
+      [PRAEA_EUQ.x, PRAEA_EUQ.y, PRAEA_EUQ.z],
+    ],
+    color: JOURNEY_LINE_COLOUR,
+    width: JOURNEY_LINE_WIDTH_PX,
+    categories: [JOURNEY_LINES_GROUP],
+  };
+
+  it('draws a long trip as a thin line, and its markers only near where the map looks', async () => {
+    const { map, rerender } = await started({ journeys: TRIP });
+    // Seen on the live site: from far out, the markers of a route ran into
+    // one thick dark stroke, "like someone drew in paint".
+    expect(map.lines).toEqual([ROUTE]);
+    expect(map.groups.get(JOURNEYS_GROUP)).toMatchObject({
+      markerStyle: 'disc',
+      maxDrawRange: 1_000,
+    });
+    expect(map.namesIn(JOURNEYS_GROUP)).toHaveLength(4);
+    // The lines are in a group of their own, named for what they are: the
+    // owner asked that nobody take them for the whole of their travel.
+    expect(JOURNEY_LINES_GROUP).toBe('My trips over 1,000 ly');
+    expect(map.groups.has(JOURNEY_LINES_GROUP)).toBe(true);
+    expect(map.namesIn(JOURNEY_LINES_GROUP)).toEqual([]);
+
+    // A system chosen in Find gets its ball; the line is there once.
+    await rerender({ showing: found(), journeys: TRIP });
+    expect(map.lines).toEqual([ROUTE]);
+    expect(map.spheres).toHaveLength(1);
+
+    // My journeys switched off: the line goes with the markers.
+    await rerender({ showing: found(), journeys: null });
+    expect(map.lines).toEqual([]);
+    expect(map.spheres).toHaveLength(1);
+  });
+
+  it('keeps the lines switched off, where the player switched them off, when the map is filled again', async () => {
+    const { map, rerender } = await started({
+      showing: found(),
+      journeys: TRIP,
+    });
+    expect(map.isShapeCategoryVisible(JOURNEY_LINES_GROUP)).toBe(true);
+    // The player switches the lines off in the map's own panel…
+    map.setShapeCategoryVisible(JOURNEY_LINES_GROUP, false);
+    const fills = map.fills;
+    // …and then chooses another system, which empties and fills the map.
+    await rerender({ showing: found(asChosen(ALPHA)), journeys: TRIP });
+    expect(map.fills).toBe(fills + 1);
+    expect(map.lines).toEqual([ROUTE]);
+    expect(map.isShapeCategoryVisible(JOURNEY_LINES_GROUP)).toBe(false);
+    expect(map.isShapeCategoryVisible(JOURNEYS_GROUP)).toBe(true);
+    expect(map.isCategoryVisible(JOURNEYS_GROUP)).toBe(true);
   });
 });
 

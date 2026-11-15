@@ -69,6 +69,8 @@
   import {
     boxAround,
     chosenFromFind,
+    JOURNEY_LINES_IN_SHORT,
+    journeyLines,
     JOURNEYS_ASKED_FOR,
     showingInWords,
     starClassInBox,
@@ -792,6 +794,11 @@
         : [],
     );
   });
+  // The map draws only the longer trips as lines: the page says so wherever
+  // there is such a line, so that the lines are not taken for all the travel.
+  const journeysHaveLines = $derived(
+    journeys !== null && journeyLines(journeys).length > 0,
+  );
   const systems = $derived(
     viewState.hasResultsIntent ? (displayedResults?.results ?? []) : [],
   );
@@ -1779,7 +1786,7 @@
                 {(commanderVisits.data?.count ?? 0).toLocaleString()} visited systems{commanderVisits
                   .data?.truncated
                   ? ' · your most recent'
-                  : ''}
+                  : ''}{journeysHaveLines ? ` · ${JOURNEY_LINES_IN_SHORT}` : ''}
               {/if}
             </span>
           </div>
