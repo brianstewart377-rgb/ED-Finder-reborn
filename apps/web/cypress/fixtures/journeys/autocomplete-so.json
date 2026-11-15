@@ -1,0 +1,175 @@
+{
+  "results": [
+    {
+      "id64": 703070877,
+      "name": "SO4-H1E 2000",
+      "x": 734.65625,
+      "y": 14.0,
+      "z": 2460.84375,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 703070877,
+        "name": "SO4-H1E 2000",
+        "x": 734.65625,
+        "y": 14.0,
+        "z": 2460.84375
+      }
+    },
+    {
+      "id64": 3382320370386,
+      "name": "Sobek",
+      "x": -34.46875,
+      "y": 67.78125,
+      "z": -21.09375,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 3382320370386,
+        "name": "Sobek",
+        "x": -34.46875,
+        "y": 67.78125,
+        "z": -21.09375
+      }
+    },
+    {
+      "id64": 672028370377,
+      "name": "Socanti",
+      "x": 77.59375,
+      "y": 46.90625,
+      "z": 82.03125,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 672028370377,
+        "name": "Socanti",
+        "x": 77.59375,
+        "y": 46.90625,
+        "z": 82.03125
+      }
+    },
+    {
+      "id64": 5070074553777,
+      "name": "Soch",
+      "x": 93.125,
+      "y": -60.6875,
+      "z": 23.40625,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 5070074553777,
+        "name": "Soch",
+        "x": 93.125,
+        "y": -60.6875,
+        "z": 23.40625
+      }
+    },
+    {
+      "id64": 9468658132433,
+      "name": "Sochet",
+      "x": 126.34375,
+      "y": 0.125,
+      "z": 101.03125,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 9468658132433,
+        "name": "Sochet",
+        "x": 126.34375,
+        "y": 0.125,
+        "z": 101.03125
+      }
+    },
+    {
+      "id64": 5067926938993,
+      "name": "Socho",
+      "x": -72.4375,
+      "y": -101.15625,
+      "z": -141.1875,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 5067926938993,
+        "name": "Socho",
+        "x": -72.4375,
+        "y": -101.15625,
+        "z": -141.1875
+      }
+    },
+    {
+      "id64": 3932076151498,
+      "name": "Sofagre",
+      "x": -54.21875,
+      "y": 48.53125,
+      "z": -30.15625,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 3932076151498,
+        "name": "Sofagre",
+        "x": -54.21875,
+        "y": 48.53125,
+        "z": -30.15625
+      }
+    },
+    {
+      "id64": 670686389665,
+      "name": "Soholia",
+      "x": -11.5,
+      "y": 96.3125,
+      "z": -21.96875,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 670686389665,
+        "name": "Soholia",
+        "x": -11.5,
+        "y": 96.3125,
+        "z": -21.96875
+      }
+    },
+    {
+      "id64": 5069806708129,
+      "name": "Sokandjiru",
+      "x": 66.71875,
+      "y": 128.3125,
+      "z": -5.96875,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 5069806708129,
+        "name": "Sokandjiru",
+        "x": 66.71875,
+        "y": 128.3125,
+        "z": -5.96875
+      }
+    },
+    {
+      "id64": 18261529667017,
+      "name": "Sokara",
+      "x": -105.21875,
+      "y": -65.15625,
+      "z": 83.34375,
+      "population": null,
+      "primaryEconomy": null,
+      "galaxy_region_id": null,
+      "record": {
+        "id64": 18261529667017,
+        "name": "Sokara",
+        "x": -105.21875,
+        "y": -65.15625,
+        "z": 83.34375
+      }
+    }
+  ],
+  "source": "local_db"
+}

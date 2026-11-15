@@ -34,7 +34,8 @@
 
 ## Code layout
 
-- `apps/web`: the only frontend. Svelte owns the app; Babylon only draws.
+- `apps/web`: the only frontend. Svelte owns the app; the two map libraries
+  (Almanac's Galaxy-Map, Cosmos) only draw.
   Use the generated API client in `apps/web/src/lib/api/`.
 - `apps/api`: Python 3.14, FastAPI, asyncpg. Parameterised SQL only.
 - Never commit secrets, passwords, tokens, keys or private `.env` files.

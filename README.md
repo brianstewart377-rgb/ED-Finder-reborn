@@ -19,7 +19,7 @@ reference: its history, PRs and research stay there.
 
 | Folder | What it is |
 |---|---|
-| `apps/web` | The app: SvelteKit 2, Svelte 5, TypeScript. Babylon.js draws the maps. |
+| `apps/web` | The app: SvelteKit 2, Svelte 5, TypeScript. Almanac's Galaxy-Map draws the galaxy map and Cosmos draws the System Map. |
 | `apps/api` | The API: Python 3.14, FastAPI, asyncpg. |
 | `apps/importer` | Loads the Spansh galaxy dumps into PostgreSQL. |
 | `apps/eddn_v3` | The live EDDN listener (written, not yet switched on). |
@@ -482,6 +482,24 @@ pnpm build
 
 Every pull request runs them too, with the lint and formatting checks and the
 shared packages' own checks (the `web` job in `.github/workflows/tests.yml`).
+
+The browser journeys (`apps/web/cypress/e2e/journeys.cy.ts`) are what a
+visitor does, start to finish, in a real browser: arriving, finding systems
+near Sol, opening one and reading its bodies and stations, and being told
+when Find cannot answer. Every pull request runs them in Chrome (the
+`journeys` job) and keeps a video. The API's answers are played back from
+files of real answers the live site gave (`apps/web/cypress/fixtures/journeys`),
+so they need no API and no database. A question the page asks that has no
+recorded answer fails the journey. To run them, in `apps/web`, in two
+terminals:
+
+```bash
+VITE_FINDER_F4_ENABLED=1 pnpm build && pnpm preview --port 4174
+```
+
+```bash
+pnpm test:e2e
+```
 
 None of that can say how the map looks or how smoothly it moves: CI has no
 graphics card. `scripts/map-recorder` records a fixed tour of the map in a

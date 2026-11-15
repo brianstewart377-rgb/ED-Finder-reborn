@@ -107,3 +107,48 @@ jobs:
       - name: Test the map recorder's own logic (no browser needed)
         working-directory: scripts/map-recorder
         run: node --test
+
+  journeys:
+    name: Browser journeys (Cypress)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Enable pnpm 11.25.0
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+      - name: Install the locked dependencies (Cypress comes with them)
+        run: pnpm install --frozen-lockfile
+      - name: Build the web app as the live site's image builds it
+        run: pnpm build
+        env:
+          VITE_FINDER_F4_ENABLED: "1"
+      # The journeys play back recorded real answers (cypress/fixtures/journeys),
+      # so only the built site is served: no API and no database.
+      - name: Serve the build and run the journeys in Chrome
+        run: |
+          pnpm preview --port 4174 --host 127.0.0.1 > preview.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:4174/; then break; fi
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:4174/
+          pnpm exec cypress run --browser chrome
+      - name: Keep the videos and screenshots, whichever way it ended
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cypress-journeys
+          path: |
+            apps/web/cypress/artifacts
+            apps/web/preview.log
+          if-no-files-found: ignore
+          retention-days: 7
