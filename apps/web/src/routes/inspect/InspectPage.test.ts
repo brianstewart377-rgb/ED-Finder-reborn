@@ -51,7 +51,6 @@ vi.mock('$lib/api/client', async (loadOriginal) => ({
   searchExploreSystems: vi.fn(),
   getArchetypeRankings: vi.fn(),
   getCatalogueViewportSystems: vi.fn(),
-  getMapHeatmap: vi.fn(),
 }));
 vi.mock('$lib/spatial/babylon/adapter', () => ({
   createBabylonSpatialRuntime: () => ({
@@ -164,7 +163,6 @@ beforeEach(() => {
     systems: [],
     truncated: false,
   });
-  vi.mocked(api.getMapHeatmap).mockResolvedValue({ source: 'legacy-fallback' });
   vi.stubGlobal(
     'ResizeObserver',
     class {

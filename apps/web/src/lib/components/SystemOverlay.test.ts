@@ -10,7 +10,6 @@ import type { Id64 } from '$lib/domain/id64';
 import {
   getAuthSession,
   getCatalogueViewportSystems,
-  getMapHeatmap,
   getSystem,
   getSystemRatings,
   searchExploreSystems,
@@ -47,7 +46,6 @@ vi.mock('$lib/api/client', async (loadOriginal) => {
     getSystemRatingExplanation: vi.fn(),
     getAuthSession: vi.fn(),
     getCatalogueViewportSystems: vi.fn(),
-    getMapHeatmap: vi.fn(),
     searchExploreSystems: vi.fn(),
   };
 });
@@ -266,7 +264,6 @@ describe('SystemOverlay', () => {
       systems: [],
       truncated: false,
     });
-    vi.mocked(getMapHeatmap).mockResolvedValue({ source: 'legacy-fallback' });
     vi.mocked(searchExploreSystems).mockResolvedValue({
       results: [],
       page: {
