@@ -333,18 +333,20 @@ describe('Explore load and interaction work budget', () => {
         activeQueries: 7,
         api: { ...quiet, finder: 0, stars: 0, autocomplete: 0 },
       });
-      // Choosing a star to search near: one search, one request for its
-      // stars, one flight, and the map's panel opened once. The system is
-      // added to the empty map with nothing taken off first. (With the type
-      // picker off the system is first shown before its star class is
-      // known, so it is taken off and put back in its class's colour: one
-      // more of each.)
+      // Choosing a star to search near: one search and one request for its
+      // stars. The star is shown and flown to at once, from the position
+      // its suggestion came with, before the search has answered. Its star
+      // class comes with its stars a moment later: it is taken off and put
+      // back in its class's colour, which is a second fill, add, flight and
+      // panel opening. (With the type picker on, what Find says of the star
+      // comes while the map is still flying there. The flight is left
+      // alone: the panel is opened again for it on landing.)
       expect(anchored).toEqual({
         maps: 1,
-        fills: enabled ? 1 : 2,
-        adds: enabled ? 2 : 3,
-        flights: enabled ? 1 : 2,
-        panelOpenings: enabled ? 1 : 2,
+        fills: 2,
+        adds: 3,
+        flights: 2,
+        panelOpenings: 2,
         onTheMap: 1,
         activeQueries: 7,
         api: { ...quiet, finder: 1, stars: 1, autocomplete: 1 },

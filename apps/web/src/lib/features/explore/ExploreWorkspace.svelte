@@ -848,11 +848,23 @@
         }
       : null,
   );
+  // The star searched near, when it is the selected system. Its position
+  // came with the suggestion that was chosen, so it can be shown at once.
+  const anchorAsSelected = $derived<ExploreSystem | null>(
+    anchor && anchor.id64 === selectedId
+      ? {
+          id64: anchor.id64,
+          name: anchor.name,
+          coords: { x: anchor.x, y: anchor.y, z: anchor.z },
+        }
+      : null,
+  );
   const selectedMapSystem = $derived.by((): ExploreSystem | null => {
     if (FINDER_F4_ENABLED)
       return (
         knownSelectedSystem ??
         reconstructedSelection ??
+        anchorAsSelected ??
         (viewState.urlSelection ? { id64: viewState.urlSelection } : null)
       );
     const finder = systems.find(
@@ -874,13 +886,7 @@
     if (viewState.retainedSelectedSystem?.id64 === selectedId)
       return viewState.retainedSelectedSystem;
     // The star searched near is selected when it is chosen.
-    return anchor && anchor.id64 === selectedId
-      ? {
-          id64: anchor.id64,
-          name: anchor.name,
-          coords: { x: anchor.x, y: anchor.y, z: anchor.z },
-        }
-      : null;
+    return anchorAsSelected;
   });
   const selectedMapName = $derived(
     selectedMapSystem
@@ -891,6 +897,21 @@
   // stars within 15 ly of it. A system whose position is not known cannot be
   // shown.
   const chosenSystem = $derived(chosenFromFind(selectedMapSystem));
+  // The selected system's position is still being asked for: from the page
+  // of results it may be on, or by its id. Until that is settled, the page
+  // does not say the position is unavailable.
+  const selectionBeingLookedUp = $derived(
+    FINDER_F4_ENABLED &&
+      viewState.urlSelection !== null &&
+      !chosenSystem &&
+      ((viewState.hasResultsIntent && results.isPending) ||
+        (needsSelectionResolution &&
+          (selectedDetail?.isPending ?? false) &&
+          !(selectedDetail?.isError ?? false))),
+  );
+  const selectionCannotBeShown = $derived(
+    selectedMapSystem !== null && !chosenSystem && !selectionBeingLookedUp,
+  );
   const starsNearChosen = createQuery(() => {
     const chosen = chosenSystem;
     const box = chosen ? boxAround(chosen) : null;
@@ -956,6 +977,14 @@
         viewState.retainedSelectedSystem?.id64 !== selected.id64)
     )
       viewState.retainedSelectedSystem = selected;
+    // The star searched near is kept too, where nothing fuller is held of
+    // it: its position came with its suggestion, so it is never looked up
+    // by its id, and it stays shown when the star is searched near no more.
+    else if (
+      anchorAsSelected &&
+      viewState.retainedSelectedSystem?.id64 !== anchorAsSelected.id64
+    )
+      viewState.retainedSelectedSystem = anchorAsSelected;
     else if (viewState.retainedSelectedSystem?.id64 !== viewState.urlSelection)
       viewState.retainedSelectedSystem = null;
   });
@@ -1373,7 +1402,7 @@
             disabled={selectedMapSystem !== null && !chosenSystem}
             onclick={(event) => showMap(event)}>Show on map</button
           >
-          {#if selectedMapSystem && !chosenSystem}
+          {#if selectionCannotBeShown}
             <span>Map coordinates unavailable for the selected system.</span>
           {/if}
           <label class="search-radius" for="search-radius">
@@ -1762,8 +1791,10 @@
           >
             {#if mapPhase === 'failed'}
               The galaxy map could not start on this device.
-            {:else if selectedMapSystem && !chosenSystem}
+            {:else if selectionCannotBeShown}
               Map coordinates unavailable for the selected system.
+            {:else if selectionBeingLookedUp}
+              Looking up the selected system…
             {:else}
               {showingInWords(showing)}
             {/if}

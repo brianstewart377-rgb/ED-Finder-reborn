@@ -4061,6 +4061,63 @@ describe.each([false, true])(
       expect(within(said).queryByRole('button', { name: 'Retry' })).toBeNull();
     });
 
+    it('flies to the star searched near at once, before the search has answered, and never looks it up', async () => {
+      // Seen on the live site: the flight waited a second for the search
+      // and a lookup of the star by its id, and meanwhile the page said its
+      // position was unavailable. The suggestion that was chosen carries it.
+      let answerSearch!: (page: ReturnType<typeof finderPage>) => void;
+      vi.mocked(api.searchExploreSystems).mockReturnValue(
+        new Promise((resolve) => {
+          answerSearch = resolve as typeof answerSearch;
+        }),
+      );
+      vi.mocked(api.getSystem).mockClear();
+      const map = await chooseSol();
+      await waitFor(() => expect(map.getSelection()?.name).toBe('Sol'));
+      expect(map.flights.at(-1)!.target).toEqual({
+        cursor: [0, 0, 0],
+        distance: 70,
+        pitch: 35,
+      });
+      await waitFor(() => expect(map.systemCount()).toBe(51));
+      const said = document.querySelector('.selection-status')!;
+      expect(said).toHaveTextContent(
+        'Sol and the 50 real stars within 15 ly of it.',
+      );
+      expect(
+        screen.queryByText(
+          'Map coordinates unavailable for the selected system.',
+        ),
+      ).toBeNull();
+      expect(screen.queryByText('Looking up the selected system…')).toBeNull();
+      // The search answers afterwards, without Sol among its results, and
+      // changes nothing that is shown.
+      const flights = map.flights.length;
+      answerSearch(finderPage(0, enabled ? 3 : 24));
+      await screen.findByText('Ranked 1');
+      expect(map.getSelection()?.name).toBe('Sol');
+      expect(map.flights).toHaveLength(flights);
+      expect(map.systemCount()).toBe(51);
+      expect(api.getSystem).not.toHaveBeenCalled();
+    });
+
+    it('keeps showing the star that was searched near when it is searched near no more', async () => {
+      vi.mocked(api.getSystem).mockClear();
+      const map = await chooseSol();
+      await waitFor(() => expect(map.systemCount()).toBe(51));
+      const flights = map.flights.length;
+      await fireEvent.click(
+        screen.getByRole('button', { name: 'Clear anchor Sol' }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByText(/Search anchor:/)).toBeNull(),
+      );
+      expect(map.getSelection()?.name).toBe('Sol');
+      expect(map.systemCount()).toBe(51);
+      expect(map.flights).toHaveLength(flights);
+      expect(api.getSystem).not.toHaveBeenCalled();
+    });
+
     it('shows a star in its own right when SHOW ON MAP is pressed in the map’s panel, though it is no result of Find', async () => {
       const map = await chooseSol();
       await waitFor(() => expect(map.systemCount()).toBe(51));

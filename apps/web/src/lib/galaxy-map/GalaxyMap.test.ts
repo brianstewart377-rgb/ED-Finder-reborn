@@ -347,31 +347,98 @@ describe('a system chosen in Find', () => {
     expect(map.flights).toHaveLength(1);
   });
 
-  it('opens the panel again, and draws nothing again, when what it says changes after it was told', async () => {
-    const { map, rerender } = await started({ showing: found() });
-    const said = async (label: string) =>
+  const withFacts = (): Showing => ({
+    ...found(),
+    facts: { potential: 53, primary: null, secondary: null, claim: 'free' },
+  });
+  const saidBy =
+    (map: FakeMap) =>
+    async (label: string): Promise<string | undefined> =>
       (await map.panel(SOL.id64))!.values!.find(
         (value) => value.label === label,
       )?.value;
+
+  it('opens the panel again, and draws nothing again, when what it says changes after it was told', async () => {
+    const { map, rerender } = await started({ showing: found() });
+    const said = saidBy(map);
+    map.land();
+    await settled();
     expect(await said('CLAIM')).toBeUndefined();
     const before = { fills: map.fills, adds: map.adds };
+    const landedAt = map.getView();
     // What Find says of Sol arrives after the panel opened.
-    await rerender({
-      showing: {
-        ...found(),
-        facts: { potential: 53, primary: null, secondary: null, claim: 'free' },
-      },
-    });
+    await rerender({ showing: withFacts() });
     expect(map.fills).toBe(before.fills);
     expect(map.adds).toBe(before.adds);
     // The map reads a panel once, so it was opened a second time.
     expect(map.opened).toEqual([SOL.id64, SOL.id64]);
     expect(await said('CLAIM')).toBe('free');
     expect(await said('STARS IN RANGE')).toBe('50');
-    // Opening it moved the camera; our flight to Sol was taken up again.
-    expect(map.flights).toHaveLength(2);
-    expect(map.flights[1].target).toEqual(map.flights[0].target);
+    // Opening it moves the camera: it was put back, with no flight.
+    expect(map.flights).toHaveLength(1);
+    expect(map.getView()).toEqual(landedAt);
     expect(map.getSelection()?.name).toBe('Sol');
+  });
+
+  it('leaves the flight alone when what the panel says changes on the way, and opens the panel again on landing', async () => {
+    const { map, rerender } = await started({ showing: found() });
+    const said = saidBy(map);
+    // What Find says of Sol arrives while the map is flying there. Opening
+    // the panel again now would stop the flight and start another.
+    await rerender({ showing: withFacts() });
+    expect(map.opened).toEqual([SOL.id64]);
+    expect(map.flights).toHaveLength(1);
+    expect(map.isFlying()).toBe(true);
+    expect(await said('CLAIM')).toBeUndefined();
+
+    map.land();
+    await settled();
+    expect(map.opened).toEqual([SOL.id64, SOL.id64]);
+    expect(await said('CLAIM')).toBe('free');
+    // Still one flight, and the camera is where it landed.
+    expect(map.flights).toHaveLength(1);
+    expect(map.getView()).toMatchObject({ cursor: [0, 0, 0], distance: 70 });
+    expect(map.getSelection()?.name).toBe('Sol');
+  });
+
+  it('opens the panel again where the player took the camera on the way, and leaves the camera with the player', async () => {
+    const { map, rerender } = await started({ showing: found() });
+    const said = saidBy(map);
+    await rerender({ showing: withFacts() });
+    map.playerMovesTo({ cursor: [40, 0, -30], distance: 900 });
+    await settled();
+    expect(map.opened).toEqual([SOL.id64, SOL.id64]);
+    expect(await said('CLAIM')).toBe('free');
+    expect(map.flights).toHaveLength(1);
+    expect(map.getView()).toMatchObject({
+      cursor: [40, 0, -30],
+      distance: 900,
+    });
+  });
+
+  it('opens the panel once where the stars come in after what Find says, both on the way', async () => {
+    const { map, rerender } = await started({ showing: looking() });
+    const said = saidBy(map);
+    // What Find says arrives first: the panel has not been told yet, as it
+    // waits for the stars, so nothing is owed for it.
+    await rerender({ showing: { ...looking(), facts: withFacts().facts } });
+    await rerender({ showing: withFacts() });
+    expect(await said('CLAIM')).toBe('free');
+    expect(await said('STARS IN RANGE')).toBe('50');
+    map.land();
+    await settled();
+    expect(map.opened).toEqual([SOL.id64]);
+    expect(map.flights).toHaveLength(1);
+  });
+
+  it('does not open the panel again on landing for a system the player has since closed it on', async () => {
+    const { map, rerender } = await started({ showing: found() });
+    await rerender({ showing: withFacts() });
+    map.setSelection(null);
+    map.land();
+    await settled();
+    expect(map.opened).toEqual([SOL.id64]);
+    expect(map.getSelection()).toBeNull();
   });
 
   it('flies to the chosen system without opening the map’s panel where the panel would cover the map', async () => {
