@@ -231,7 +231,7 @@ if settings.sentry_dsn:
 # The previous configuration used `storage_uri=settings.redis_url` so the
 # limit buckets were Redis-backed, on the premise that "limits apply
 # globally across workers & containers". In practice we run a single api
-# container with `--workers 1` (per the comment in apps/api/Dockerfile)
+# container with `--workers 1` (see apps/api/Dockerfile.release)
 # so there is no second process for the bucket to be shared with — the
 # Redis storage was buying nothing. What it WAS buying:
 #

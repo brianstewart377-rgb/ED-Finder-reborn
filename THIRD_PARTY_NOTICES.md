@@ -120,27 +120,12 @@ separate rights chain, and no such file is approved for commercial use without
 a recorded written commercial grant from Frontier and every other rights
 holder.
 
-## Community-researched exploration formula
-
-`apps/importer/src/exploration_value.py` is an original ED-Finder Python
-implementation of mathematical formulae and factual game constants documented
-by Elite Dangerous community researchers in the Frontier Forums thread
-[Exploration value formulae](https://forums.frontier.co.uk/threads/exploration-value-formulae.232000/).
-No third-party source code is copied and the thread is not represented as
-granting a source-code license. The implementation remains conservatively
-within ED-Finder's Frontier noncommercial fan-project posture because it
-reproduces Elite Dangerous game mechanics.
-
 ## EliteDangerousRegionMap
 
-ED-Finder's galactic-region lookup algorithm and the region grid in
-`apps/importer/src/region_map.py` and
-`apps/importer/src/data/region_map.json`, together with the generated public
-files `frontend/public/assets/elite-dangerous-region-map.svg` and
-`frontend/public/assets/elite-dangerous-region-map.LICENSE.txt`, derive from
+The galaxy map library's region lookup (see "Almanac Galaxy-Map" below) derives from
 [`klightspeed/EliteDangerousRegionMap`](https://github.com/klightspeed/EliteDangerousRegionMap).
-The audited upstream revision is commit
-[`6c1191a`](https://github.com/klightspeed/EliteDangerousRegionMap/tree/6c1191a58e1e593966f44f16235ab39d1ad24d84).
+ED-Finder's own copy of that lookup and its region grid, which the old importer
+used, was removed with it in November 2026; this notice is kept for the library's.
 
 MIT License
 

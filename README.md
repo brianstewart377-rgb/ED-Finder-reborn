@@ -31,9 +31,6 @@ reference: its history, PRs and research stay there.
 | `tests` | Python tests for the importer and the database loaders. |
 | `assets` | Asset provenance records. |
 
-`docker-compose.yml` and `env.example` are copied unchanged from the old
-server. They get cut down for the Pi during the move.
-
 ## System state: population, factions and claims
 
 The `v3_state` tables hold the latest picture of every system that has a

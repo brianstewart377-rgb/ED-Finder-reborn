@@ -25,7 +25,6 @@ on:
       - packages/**
       - shared_contracts/**
       - assets/**
-      - apps/importer/src/data/region_map.json
       - apps/importer/src/v3_spansh/**
       - apps/importer/src/spansh_delta/**
       - scripts/ratings_v4/**
