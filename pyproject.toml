@@ -23,7 +23,11 @@ classifiers = [
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["B905", "E4", "E7", "E9", "F"]
+# S110 and S112: an error caught and then dropped without a word ("except:
+# pass", "except: continue"). The code review of 15 November 2026 found that
+# these were how the site failed quietly. One that is meant has to say why,
+# beside it, with "# noqa: S110" and the reason.
+select = ["B905", "E4", "E7", "E9", "F", "S110", "S112"]
 # E701/E702 are accepted legacy one-line style, not defect-class findings.
 ignore = ["E701", "E702"]
 
@@ -31,6 +35,15 @@ ignore = ["E701", "E702"]
 # Retained canonical source must stay byte-identical to its published run hash.
 # Its unused Iterator import is harmless; new bridge code is linted normally.
 "apps/importer/src/v3_spansh/pipeline.py" = ["F401"]
+# Kept only because the frozen Ratings V4 record checks it by its contents
+# (docs/development/ratings-v4-freeze/manifest.json); it must not be edited.
+# The helper beside it is what it imports.
+"apps/importer/src/build_ratings.py" = ["S110"]
+"shared_contracts/bulk_update_helper.py" = ["S110"]
+# A test file that borrows another test file's fixtures names each one twice:
+# once in the import, once as the test's argument. That is how pytest
+# fixtures are shared, not a mistake.
+"tests/test_*.py" = ["F811"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
