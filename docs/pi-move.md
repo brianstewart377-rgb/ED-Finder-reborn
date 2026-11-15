@@ -632,11 +632,27 @@ What it does:
 - A star clicked on the map opens Almanac's own panel, with SHOW ON MAP
   (selects that star in Find) and INSPECT.
 - "My journeys" is a set of quiet markers on the same map: one request for
-  everything the signed-in player has visited, up to 20,000 systems.
+  everything the signed-in player has visited, up to 20,000 systems. Long
+  trips are also drawn as thin lines (see the rule below).
 - The page says in words what the map shows, for every reader.
 
 Rules that came from looking at it, not from the trial:
 
+- **From far out, a route is a line, not its markers.** Seen with a real
+  player's 2,237 visited systems: from the whole-galaxy view the markers of
+  a long trip ran into one thick dark stroke ("like someone drew in paint").
+  Making the markers glow instead was tried and was worse, a thicker
+  stroke: the map sets the size of a marker, not the page. So the journeys'
+  markers are drawn only within 1,000 ly of the point the map looks at, and
+  long trips are thin lines. Our data holds each visited system and when it
+  was first reached, not each jump, so a line joins systems in the order
+  they were first reached; it stops where the next one is more than 500 ly
+  on (further than any jump), and its points are at least 1,000 ly apart,
+  so travel that stays around one place is no line and the bubble is not a
+  scribble. Because that leaves the shorter travel without a line, the
+  lines are labelled for what they are: their group in the map's panel is
+  "My trips over 1,000 ly", and the page says "lines are trips over
+  1,000 ly" beside the count of visited systems.
 - **The map's own panel opens by itself only where it has room.** Almanac
   lays its panels out for the whole window, not for the space it is given.
   Beside the Finder on a screen under about 1,700 px wide, or on any window

@@ -250,12 +250,20 @@
     });
   }
 
-  /** The groups the player has switched off in the map's own Filters panel. */
-  function groupsSwitchedOff(held: GalaxyMap): string[] {
-    const off: string[] = [];
+  /**
+   * The groups the player has switched off in the map's own Filters panel:
+   * their markers, and their lines.
+   */
+  function groupsSwitchedOff(held: GalaxyMap): {
+    markers: string[];
+    shapes: string[];
+  } {
+    const off = { markers: [] as string[], shapes: [] as string[] };
     for (let index = 0; index < held.categoryCount(); index += 1) {
       const name = held.getCategory(index)?.name;
-      if (name && !held.isCategoryVisible(name)) off.push(name);
+      if (!name) continue;
+      if (!held.isCategoryVisible(name)) off.markers.push(name);
+      if (!held.isShapeCategoryVisible(name)) off.shapes.push(name);
     }
     return off;
   }
@@ -267,6 +275,23 @@
     if (report.rejected.length > 0)
       console.warn(
         `Galaxy map: ${report.rejected.length} of ${asked} systems were not drawn`,
+        report.rejected.slice(0, 5),
+      );
+  }
+
+  /** The shaded balls and the lines. A line names its group, so groups go first. */
+  function addShapes(held: GalaxyMap, content: MapContent): void {
+    held.addSpheres(content.spheres.map((sphere) => ({ ...sphere })));
+    if (content.lines.length === 0) return;
+    const report = held.addLines(
+      content.lines.map((line) => ({
+        ...line,
+        points: line.points.map((point) => [...point] as const),
+      })),
+    );
+    if (report.rejected.length > 0)
+      console.warn(
+        `Galaxy map: ${report.rejected.length} of ${content.lines.length} lines were not drawn`,
         report.rejected.slice(0, 5),
       );
   }
@@ -306,9 +331,9 @@
           held.addSystems(more.records.map((record) => ({ ...record }))),
           more.records.length,
         );
-      if (more.spheres) {
+      if (more.shapes) {
         held.clearShapes();
-        held.addSpheres(content.spheres.map((sphere) => ({ ...sphere })));
+        addShapes(held, content);
       }
     } else {
       const off = groupsSwitchedOff(held);
@@ -320,8 +345,9 @@
         held.addSystems(content.records.map((record) => ({ ...record }))),
         content.records.length,
       );
-      held.addSpheres(content.spheres.map((sphere) => ({ ...sphere })));
-      for (const name of off) held.setCategoryVisible(name, false);
+      addShapes(held, content);
+      for (const name of off.markers) held.setCategoryVisible(name, false);
+      for (const name of off.shapes) held.setShapeCategoryVisible(name, false);
       const keep =
         !chosenChanged &&
         selectedBefore !== null &&

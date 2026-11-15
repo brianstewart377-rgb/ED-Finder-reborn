@@ -33,6 +33,40 @@ export const JOURNEYS_GROUP = 'My journeys';
 export const JOURNEYS_COLOUR: Rgb = [150, 172, 204];
 /** The colour of the 15 ly ball around the chosen system. */
 export const RANGE_COLOUR: Rgb = [255, 170, 80];
+/**
+ * How far from the point the map looks at a visited system's marker is still
+ * drawn. From further out the markers of a route run into one thick stroke,
+ * so there the routes are thin lines (`journeyLines`) and the markers are
+ * left to the patch of the map being looked at.
+ */
+export const JOURNEY_MARKERS_WITHIN_LY = 1_000;
+/** The colour and width of the line along a route the player travelled. */
+export const JOURNEY_LINE_COLOUR: Rgb = [90, 225, 255];
+export const JOURNEY_LINE_WIDTH_PX = 2;
+/**
+ * Only a trip that goes at least this far gets a line, and the points of
+ * its line are at least this far apart. Travel that stays inside this
+ * distance, as around home, makes no line: its markers show it. Without
+ * this the lines around home are a scribble.
+ */
+export const JOURNEY_LINE_STEP_LY = 1_000;
+const STEP_IN_WORDS = `${JOURNEY_LINE_STEP_LY.toLocaleString('en-GB')} ly`;
+/**
+ * The group the lines belong to in the map's panel. Its name says what is
+ * drawn, so nobody takes the lines for the whole of their travel.
+ */
+export const JOURNEY_LINES_GROUP = `My trips over ${STEP_IN_WORDS}`;
+/** What the map's panel says of the visited systems and of the lines. */
+export const JOURNEYS_WORDS = `Systems you have visited, from your imported journals. Only you see these. Their markers show within ${JOURNEY_MARKERS_WITHIN_LY.toLocaleString('en-GB')} ly of where the map is centred.`;
+/** The same, short, for the page's line about the journeys. */
+export const JOURNEY_LINES_IN_SHORT = `lines are trips over ${STEP_IN_WORDS}`;
+export const JOURNEY_LINES_WORDS = `Your trips of over ${STEP_IN_WORDS}, from your imported journals: the systems you visited, joined in the order you first reached them. Shorter travel has no line, only its markers. Only you see these.`;
+/**
+ * The furthest one jump goes: a fleet carrier's. Two systems first reached
+ * one after the other but further apart than this were not one journey, so
+ * no line joins them.
+ */
+export const LONGEST_JUMP_LY = 500;
 
 export type Rgb = readonly [number, number, number];
 
@@ -84,6 +118,8 @@ export type MapGroup = Readonly<{
   color: Rgb;
   description?: string;
   markerStyle?: 'glow' | 'disc';
+  /** How far from the point the map looks at its markers are drawn, in ly. */
+  maxDrawRange?: number;
 }>;
 
 export type MapRecord = Readonly<{
@@ -102,10 +138,21 @@ export type MapSphere = Readonly<{
   opacity: number;
 }>;
 
+export type MapLine = Readonly<{
+  name: string;
+  points: readonly (readonly [number, number, number])[];
+  color: Rgb;
+  /** In CSS pixels. */
+  width: number;
+  /** The groups it belongs to: it can be switched off with them. */
+  categories: readonly string[];
+}>;
+
 export type MapContent = Readonly<{
   groups: readonly MapGroup[];
   records: readonly MapRecord[];
   spheres: readonly MapSphere[];
+  lines: readonly MapLine[];
 }>;
 
 export type DetailValue = Readonly<{
@@ -302,6 +349,62 @@ function record(system: MapSystem, groups: readonly string[]): MapRecord {
   return system.star ? { ...made, primaryStar: system.star } : made;
 }
 
+const routesOf = new WeakMap<readonly Journey[], readonly MapLine[]>();
+
+/**
+ * The routes the player travelled, as lines for the map: the visited systems
+ * joined in the order they were first reached.
+ *
+ * Our data holds each visited system and when it was first reached, not
+ * each jump. So a line is only drawn where that order can be a journey: it
+ * ends where the next system first reached is further than any jump goes,
+ * and starts again there. Its points are visited systems at least
+ * `JOURNEY_LINE_STEP_LY` apart, so wandering around one place adds nothing
+ * to it, and a place never left makes no line.
+ */
+export function journeyLines(journeys: readonly Journey[]): readonly MapLine[] {
+  const known = routesOf.get(journeys);
+  if (known) return known;
+  const dated = journeys
+    .map((journey) => ({
+      journey,
+      at: journey.firstVisit ? Date.parse(journey.firstVisit) : Number.NaN,
+    }))
+    .filter(({ at }) => Number.isFinite(at))
+    .sort(
+      (one, other) =>
+        one.at - other.at || one.journey.id64.localeCompare(other.journey.id64),
+    );
+  const apart = (one: Journey, other: Journey) =>
+    Math.hypot(one.x - other.x, one.y - other.y, one.z - other.z);
+  const lines: MapLine[] = [];
+  let route: Journey[] = [];
+  let last: Journey | null = null;
+  const finish = () => {
+    // A route ends at the last system reached on it.
+    if (last && route.length >= 2 && route.at(-1) !== last) route.push(last);
+    if (route.length >= 2)
+      lines.push({
+        name: `Your route from ${route[0].name} to ${route.at(-1)!.name}`,
+        points: route.map(({ x, y, z }) => [x, y, z] as const),
+        color: JOURNEY_LINE_COLOUR,
+        width: JOURNEY_LINE_WIDTH_PX,
+        categories: [JOURNEY_LINES_GROUP],
+      });
+    route = [];
+  };
+  for (const { journey } of dated) {
+    if (last && apart(last, journey) > LONGEST_JUMP_LY) finish();
+    if (route.length === 0) route = [journey];
+    else if (apart(route.at(-1)!, journey) >= JOURNEY_LINE_STEP_LY)
+      route.push(journey);
+    last = journey;
+  }
+  finish();
+  routesOf.set(journeys, lines);
+  return lines;
+}
+
 /**
  * Everything the map is handed: the chosen system first, then each real star
  * in range in its own star's group, then the systems the player has visited.
@@ -309,10 +412,10 @@ function record(system: MapSystem, groups: readonly string[]): MapRecord {
  * colour, and counts in both groups.
  *
  * The groups come in an order that only ever grows at its end as a showing
- * fills in: the player's journeys (which stay as systems are chosen), then
- * the chosen system's own star class, then the other classes, the commonest
- * first. So when a system's stars arrive they can be added to what is drawn
- * (`whatToAdd`) with nothing taken off the map first.
+ * fills in: the player's journeys and their lines (which stay as systems
+ * are chosen), then the chosen system's own star class, then the other
+ * classes, the commonest first. So when a system's stars arrive they can be
+ * added to what is drawn (`whatToAdd`) with nothing taken off the map first.
  */
 export function mapContent(
   showing: Showing | null,
@@ -325,9 +428,16 @@ export function mapContent(
     groups.push({
       name: JOURNEYS_GROUP,
       color: JOURNEYS_COLOUR,
-      description:
-        'Systems you have visited, from your imported journals. Only you see these.',
+      description: JOURNEYS_WORDS,
       markerStyle: 'disc',
+      maxDrawRange: JOURNEY_MARKERS_WITHIN_LY,
+    });
+  // The lines' own group, named for what they are. It holds no system.
+  if (journeys)
+    groups.push({
+      name: JOURNEY_LINES_GROUP,
+      color: JOURNEY_LINE_COLOUR,
+      description: JOURNEY_LINES_WORDS,
     });
   if (showing) {
     const own = starGroup(showing.chosen.star);
@@ -356,6 +466,7 @@ export function mapContent(
     groups,
     records,
     spheres: showing ? [rangeSphere(showing.chosen)] : [],
+    lines: journeys ? journeyLines(journeys) : [],
   };
 }
 
@@ -366,14 +477,14 @@ const same = (one: unknown, other: unknown) =>
  * What to add to the map to turn what is drawn into `next`, when nothing has
  * to come off it: the groups to add at the end, the systems that are new or
  * changed (the map replaces a system it already holds), and whether the
- * shaded balls differ. Null when a system or a group has gone, or the groups
+ * shaded balls or the lines differ. Null when a system or a group has gone, or the groups
  * would come in another order: for those the map can only be emptied whole
  * and filled again.
  */
 export function whatToAdd(
   drawn: MapContent,
   next: MapContent,
-): { groups: MapGroup[]; records: MapRecord[]; spheres: boolean } | null {
+): { groups: MapGroup[]; records: MapRecord[]; shapes: boolean } | null {
   if (drawn.groups.length > next.groups.length) return null;
   if (drawn.groups.some((group, at) => !same(group, next.groups[at])))
     return null;
@@ -387,7 +498,8 @@ export function whatToAdd(
     records: next.records.filter(
       (record) => before.get(record.id64) !== JSON.stringify(record),
     ),
-    spheres: !same(drawn.spheres, next.spheres),
+    shapes:
+      !same(drawn.spheres, next.spheres) || !same(drawn.lines, next.lines),
   };
 }
 
