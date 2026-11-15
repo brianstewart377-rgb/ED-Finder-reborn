@@ -11,11 +11,14 @@
  * Both are marked, so the page can say "placed by distance" and never pass a
  * guess off as a fact.
  *
- * 1. What a body orbits. Second stars, pairs of planets and some moons come
- *    with no parent. A body named as the game names a moon ("B 1 d", moon of
- *    "B 1") is hung from the body its name points to. Anything else goes in
- *    the row of the star it sits nearest to, by distance from the arrival
- *    point.
+ * 1. What a body orbits. Second stars, some moons and every pair (two
+ *    bodies that circle each other) come with no parent. A body named as the
+ *    game names a moon ("B 1 d", moon of "B 1") is hung from the body its
+ *    name points to; a pair, from the body both its members are named after
+ *    ("B 1 c" and "B 1 d" circle each other around "B 1"). A pair that
+ *    holds a star and hangs from nothing is the top of the system: its stars
+ *    head rows of their own. Anything else goes in the row of the star it
+ *    sits nearest to, by distance from the arrival point.
  * 2. Which body a station is at. Stations on the ground come with their
  *    body. Most stations in orbit do not. Those go to the body whose distance
  *    from the arrival point is nearest to theirs, if one is close enough.
@@ -130,10 +133,23 @@ export type GuessedParent = false | 'name' | 'distance';
 
 export type MapNode = MapBody & {
   short: string;
+  /** What hangs from this body in the picture. */
   children: MapNode[];
+  /**
+   * For a pair: the bodies that circle each other. In the game two do; what
+   * else our data puts under the pair goes around both of them, further out.
+   * Empty for anything that is not a pair.
+   */
+  members: MapNode[];
   rings: MapRing[];
   belts: MapRing[];
+  /** How this body's parent was found, where our data does not give it. */
   guessedParent: GuessedParent;
+  /**
+   * How this body came to be where it is on the map, where that is a guess:
+   * its own parent was one, or it is in a pair that was placed by one.
+   */
+  placedBy: GuessedParent;
   orbit: PlacedStation[];
   ground: PlacedStation[];
   unknownKind: PlacedStation[];
@@ -318,6 +334,25 @@ function sortOutward(children: MapNode[]): void {
   );
 }
 
+/**
+ * Which of the bodies our data puts under a pair circle each other. In the
+ * game two do, close in; anything else under the pair goes around both,
+ * further out. So, where every one has the size of its orbit, the two
+ * smallest orbits are the pair. Where one does not, there is no telling, and
+ * all are taken as the pair.
+ */
+export function pairMembers(below: readonly MapNode[]): MapNode[] {
+  if (below.length <= 2 || below.some((one) => one.axisKm == null))
+    return [...below];
+  return [...below]
+    .sort(
+      (one, other) =>
+        (one.axisKm as number) - (other.axisKm as number) ||
+        one.name.localeCompare(other.name),
+    )
+    .slice(0, 2);
+}
+
 type Built = {
   orbit: PlacedStation[];
   ground: PlacedStation[];
@@ -379,9 +414,16 @@ export function placeStations(system: MapSystem): {
 /**
  * The system as a tree. Each star is the head of a row; everything else
  * hangs from what it orbits. A body with no parent in our data is hung from
- * the body its name points to, or else from the star nearest to it by
- * distance from the arrival point. Either way it is marked: `guessedParent`
- * is 'name' or 'distance', and false for a parent our data gives.
+ * the body its name points to (a pair, from the body both members are named
+ * after), or else from the star nearest to it by distance from the arrival
+ * point. Either way it is marked: `guessedParent` is 'name' or 'distance',
+ * and false for a parent our data gives. `placedBy` says the same of where
+ * a body is drawn, so the members of a guessed pair carry the guess too.
+ *
+ * Two stars that circle each other at the top of the system each head a
+ * row. A planet that goes around both is drawn in the row of the nearer
+ * star; its parent in our data is still the pair (`parent`), and the pair
+ * keeps its two stars as `members`.
  */
 export function buildTree(system: MapSystem): MapTree {
   const built = placeStations(system);
@@ -394,9 +436,11 @@ export function buildTree(system: MapSystem): MapTree {
           ...body,
           short: shortName(body, system.name),
           children: [],
+          members: [],
           rings: [],
           belts: [],
           guessedParent: false,
+          placedBy: false,
           orbit: here.orbit,
           ground: here.ground,
           unknownKind: here.unknown,
@@ -416,70 +460,147 @@ export function buildTree(system: MapSystem): MapTree {
     );
     node.ringWords = ringsInWords(node.rings);
   }
+  // What our data puts under each body and each pair.
+  const under = new Map<string, MapNode[]>();
+  for (const node of nodes.values()) {
+    if (node.parent === null || !nodes.has(node.parent)) continue;
+    const list = under.get(node.parent) ?? [];
+    list.push(node);
+    under.set(node.parent, list);
+  }
+  for (const node of nodes.values()) {
+    if (node.type !== 'barycentre') continue;
+    const below = under.get(node.id) ?? [];
+    node.members = pairMembers(below);
+    // A pair has no distance of its own, so it takes that of its nearest body.
+    const known = below.filter((one) => one.arrivalLs != null);
+    if (node.arrivalLs == null && known.length > 0)
+      node.arrivalLs = Math.min(...known.map((one) => one.arrivalLs as number));
+  }
+
+  // What each body hangs from in the picture. Our data's own parents first.
+  const hungFrom = new Map<MapNode, MapNode>();
+  for (const node of nodes.values()) {
+    const parent = node.parent === null ? undefined : nodes.get(node.parent);
+    if (parent) hungFrom.set(node, parent);
+  }
+  /** Whether hanging `node` from `parent` would make a loop. */
+  const loops = (node: MapNode, parent: MapNode): boolean => {
+    let up: MapNode | undefined = parent;
+    for (let steps = 0; up && steps <= nodes.size; steps += 1) {
+      if (up === node) return true;
+      up = hungFrom.get(up);
+    }
+    return false;
+  };
+
+  // Then names. The game names a moon after its planet: "B 1 d" is a moon of
+  // "B 1". A pair is hung from the body both its members are named after.
+  const byName = new Map([...nodes.values()].map((node) => [node.name, node]));
+  const namedAfter = (named: readonly MapNode[]): MapNode | null => {
+    const stems = new Set(
+      named.map((one) =>
+        one.name.slice(0, Math.max(0, one.name.lastIndexOf(' '))),
+      ),
+    );
+    if (stems.size !== 1) return null;
+    const found = byName.get([...stems][0] as string) ?? null;
+    return found && !named.includes(found) ? found : null;
+  };
+  for (const node of nodes.values()) {
+    if (hungFrom.has(node) || node.type === 'star') continue;
+    const named = namedAfter(
+      node.type === 'barycentre'
+        ? node.members.filter((member) => member.type !== 'barycentre')
+        : [node],
+    );
+    if (named && named !== node && !loops(node, named)) {
+      hungFrom.set(node, named);
+      node.guessedParent = 'name';
+    }
+  }
+
+  // A pair that hangs from nothing and holds a star is the top of the
+  // system, or as near to it as our data goes (two stars that circle each
+  // other, with a third far away). Its stars head rows of their own.
+  const topPairs = [...nodes.values()].filter(
+    (node) =>
+      node.type === 'barycentre' &&
+      !hungFrom.has(node) &&
+      (under.get(node.id) ?? []).some((one) => one.type === 'star'),
+  );
+  for (const pair of topPairs)
+    for (const one of under.get(pair.id) ?? [])
+      if (one.type === 'star') hungFrom.delete(one);
+
   // Stars head the rows in the game's own order (A, then B), by the game's
   // number for each. That is not always the star a ship arrives at.
   const stars = [...nodes.values()]
-    .filter(
-      (node) =>
-        node.type === 'star' &&
-        (node.parent === null || !nodes.has(node.parent)),
-    )
+    .filter((node) => node.type === 'star' && !hungFrom.has(node))
     .sort(
       (one, other) =>
         (one.number ?? Infinity) - (other.number ?? Infinity) ||
         one.name.localeCompare(other.name),
     );
+  /** Of these stars, the one whose distance from the arrival point is nearest. */
+  const nearestOf = (from: readonly MapNode[], ls: number): MapNode =>
+    from.reduce((best, star) =>
+      Math.abs((star.arrivalLs ?? 0) - ls) <
+      Math.abs((best.arrivalLs ?? 0) - ls)
+        ? star
+        : best,
+    );
   const starsOutward = [...stars].sort(
     (one, other) => (one.arrivalLs ?? 0) - (other.arrivalLs ?? 0),
   );
 
-  // A pair has no distance of its own, so it takes that of its nearest member.
-  for (const node of nodes.values()) {
-    if (node.arrivalLs != null) continue;
-    const members = system.bodies.filter(
-      (body) => body.parent === node.id && body.arrivalLs != null,
-    );
-    if (members.length > 0)
-      node.arrivalLs = Math.min(
-        ...members.map((body) => body.arrivalLs as number),
-      );
+  // What goes around a top pair (a planet that circles both stars) is drawn
+  // in the row of the nearer of its stars. Our data gives its parent, the
+  // pair: only the row is our choice.
+  for (const pair of topPairs) {
+    const below = under.get(pair.id) ?? [];
+    const pairStars = below.filter((one) => one.type === 'star');
+    for (const one of below)
+      if (one.type !== 'star')
+        hungFrom.set(one, nearestOf(pairStars, one.arrivalLs ?? 0));
   }
 
-  const byName = new Map([...nodes.values()].map((node) => [node.name, node]));
-  const attached = new Set<MapNode>();
-  for (const node of nodes.values()) {
-    if (stars.includes(node)) continue;
-    let parent = node.parent === null ? null : (nodes.get(node.parent) ?? null);
-    if (!parent) {
-      // The game names a moon after its planet: "B 1 d" is a moon of "B 1".
-      const named = byName.get(
-        node.name.slice(0, Math.max(0, node.name.lastIndexOf(' '))),
-      );
-      if (named && named !== node && node.type !== 'barycentre') {
-        parent = named;
-        node.guessedParent = 'name';
-      }
-    }
-    if (!parent && stars.length > 0) {
-      // The star furthest from the arrival point that this body is still beyond.
-      const ls = node.arrivalLs ?? 0;
-      parent =
-        starsOutward.filter((star) => (star.arrivalLs ?? 0) <= ls).at(-1) ??
-        starsOutward[0];
+  // Whatever still hangs from nothing goes in the row of the star whose
+  // distance from the arrival point is nearest its own. Not "the last star
+  // it is beyond": half of what circles a far star is nearer the arrival
+  // point than the star is.
+  if (stars.length > 0)
+    for (const node of nodes.values()) {
+      if (hungFrom.has(node) || stars.includes(node)) continue;
+      if (topPairs.includes(node)) continue;
+      hungFrom.set(node, nearestOf(starsOutward, node.arrivalLs ?? 0));
       node.guessedParent = 'distance';
     }
-    if (parent) {
-      parent.children.push(node);
-      attached.add(node);
+
+  for (const [node, parent] of hungFrom) parent.children.push(node);
+  // Where each body is drawn is a guess if its own parent was one, or if it
+  // is in a pair that was placed by one.
+  for (const node of nodes.values()) {
+    let up: MapNode | undefined = node;
+    for (let steps = 0; up && steps <= nodes.size; steps += 1) {
+      if (up.guessedParent !== false) {
+        node.placedBy = up.guessedParent;
+        break;
+      }
+      const above = hungFrom.get(up);
+      up = above?.type === 'barycentre' ? above : undefined;
     }
   }
   for (const node of nodes.values()) sortOutward(node.children);
-  const heads =
-    stars.length > 0
-      ? stars
-      : [...nodes.values()]
-          .filter((node) => !attached.has(node))
-          .sort((one, other) => (one.arrivalLs ?? 0) - (other.arrivalLs ?? 0));
+  // A system whose catalogue holds no star: what hangs from nothing heads
+  // the rows. A pair is not drawn itself, so its bodies head rows instead.
+  const starless = (): MapNode[] => {
+    const loose = [...nodes.values()].filter((node) => !hungFrom.has(node));
+    return loose
+      .flatMap((node) => (node.type === 'barycentre' ? node.children : [node]))
+      .sort((one, other) => (one.arrivalLs ?? 0) - (other.arrivalLs ?? 0));
+  };
+  const heads = stars.length > 0 ? stars : starless();
   return {
     id64: system.id64,
     name: system.name,

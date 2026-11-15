@@ -1,0 +1,2700 @@
+{
+  "what": "The live site's answers for Alpha Centauri (id 1178708478315) on 15 Nov 2026: GET https://ed-finder.app/api/v1/systems/<id>, .../bodies, .../rings and .../stations, and the builder's list of the same bodies, GET https://ed-finder.app/api/v1/plan/systems/<id>/bodies. Nothing is changed.",
+  "system": {
+    "id64": "1178708478315",
+    "name": "Alpha Centauri",
+    "x_ly": 3.03125,
+    "y_ly": -0.09375,
+    "z_ly": 3.15625,
+    "source_body_count": 9,
+    "loaded_body_count": 10,
+    "lifecycle_state": "ACTIVE",
+    "source_updated_at": "2026-11-14T20:45:49+00:00"
+  },
+  "bodies": [
+    {
+      "body_id": "36029975727442283",
+      "source_body_id64": "36029975727442283",
+      "frontier_body_id": "1",
+      "direct_parent_body_id": null,
+      "name": "Alpha Centauri barycentre 1",
+      "body_type": "barycentre",
+      "body_class": null,
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": null,
+      "radius_km": null,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 109368634223.938,
+      "distance_from_arrival_ls": null,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "72058772746406251",
+      "source_body_id64": "72058772746406251",
+      "frontier_body_id": "2",
+      "direct_parent_body_id": "36029975727442283",
+      "name": "Alpha Centauri",
+      "body_type": "star",
+      "body_class": "G (White-Yellow) Star",
+      "body_class_source": null,
+      "is_main_star": true,
+      "spectral_class": "G2",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 767078.888019556,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 1.175781,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 693042242.5270075,
+      "distance_from_arrival_ls": 0,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "108087569765370219",
+      "source_body_id64": "108087569765370219",
+      "frontier_body_id": "3",
+      "direct_parent_body_id": "36029975727442283",
+      "name": "Alpha Centauri B",
+      "body_type": "star",
+      "body_class": "K (Yellow-Orange) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "K1",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 628758.3556002879,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.855469,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 952535688.8771051,
+      "distance_from_arrival_ls": 4544.371191,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "144116366784334187",
+      "source_body_id64": "144116366784334187",
+      "frontier_body_id": "4",
+      "direct_parent_body_id": null,
+      "name": "Proxima Centauri",
+      "body_type": "star",
+      "body_class": "M (Red dwarf) Star",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": "M6",
+      "luminosity_class": "V",
+      "is_landable": null,
+      "radius_km": 184646.68227174677,
+      "planet_mass_earth": null,
+      "stellar_mass_solar": 0.121094,
+      "surface_pressure_atm": null,
+      "semi_major_axis_km": 1835405051708.217,
+      "distance_from_arrival_ls": 6395212.684213,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "180145163803298155",
+      "source_body_id64": "180145163803298155",
+      "frontier_body_id": "5",
+      "direct_parent_body_id": "108087569765370219",
+      "name": "Alpha Centauri B 1",
+      "body_type": "planet",
+      "body_class": "Metal-rich body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 4314.73,
+      "planet_mass_earth": 0.674523,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 6260765.194892888,
+      "distance_from_arrival_ls": 4524.178423,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_geological",
+          "count": 2
+        },
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 19
+        },
+        {
+          "signal_type": "saa_signaltype_other",
+          "count": 1
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 16
+        }
+      ]
+    },
+    {
+      "body_id": "216173960822262123",
+      "source_body_id64": "216173960822262123",
+      "frontier_body_id": "6",
+      "direct_parent_body_id": "36029975727442283",
+      "name": "2045 PC2",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 684.213,
+      "planet_mass_earth": 0.001,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1431006014.347076,
+      "distance_from_arrival_ls": 4390.876813,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 23
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "body_id": "252202757841226091",
+      "source_body_id64": "252202757841226091",
+      "frontier_body_id": "7",
+      "direct_parent_body_id": "36029975727442283",
+      "name": "Lagrange",
+      "body_type": "planet",
+      "body_class": "Class I gas giant",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 70837.2,
+      "planet_mass_earth": 301.236633,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 1431006133.5563653,
+      "distance_from_arrival_ls": 4390.877,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 14
+        }
+      ]
+    },
+    {
+      "body_id": "288231554860190059",
+      "source_body_id64": "288231554860190059",
+      "frontier_body_id": "8",
+      "direct_parent_body_id": "252202757841226091",
+      "name": "2042 L1",
+      "body_type": "planet",
+      "body_class": "Rocky body",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": true,
+      "radius_km": 684.213,
+      "planet_mass_earth": 0.001,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 598391.9382095345,
+      "distance_from_arrival_ls": 4391.190546,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 17
+        },
+        {
+          "signal_type": "saa_signaltype_other",
+          "count": 1
+        },
+        {
+          "signal_type": "planetarymininglocation_name",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "body_id": "324260351879154027",
+      "source_body_id64": "324260351879154027",
+      "frontier_body_id": "9",
+      "direct_parent_body_id": "36029975727442283",
+      "name": "2071 AC3",
+      "body_type": "planet",
+      "body_class": "Class I gas giant",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 19579.4,
+      "planet_mass_earth": 16.729904,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 0,
+      "semi_major_axis_km": 3440753400.3257685,
+      "distance_from_arrival_ls": 11905.487311,
+      "lifecycle_state": "ACTIVE",
+      "signals": []
+    },
+    {
+      "body_id": "360289148898117995",
+      "source_body_id64": "360289148898117995",
+      "frontier_body_id": "10",
+      "direct_parent_body_id": "144116366784334187",
+      "name": "Eden",
+      "body_type": "planet",
+      "body_class": "High metal content world",
+      "body_class_source": null,
+      "is_main_star": null,
+      "spectral_class": null,
+      "luminosity_class": null,
+      "is_landable": false,
+      "radius_km": 5412.28,
+      "planet_mass_earth": 0.66,
+      "stellar_mass_solar": null,
+      "surface_pressure_atm": 2213.28627683198,
+      "semi_major_axis_km": 1495979.7263145477,
+      "distance_from_arrival_ls": 6395211.515721,
+      "lifecycle_state": "ACTIVE",
+      "signals": [
+        {
+          "signal_type": "saa_signaltype_human",
+          "count": 16
+        }
+      ]
+    }
+  ],
+  "rings": [],
+  "stations": [
+    {
+      "station_id": "3228728832",
+      "market_id": "3228728832",
+      "name": "Hutton Orbital",
+      "station_type": "outpost",
+      "distance_from_arrival_ls": 6395211.504154,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3228729088",
+      "market_id": "3228729088",
+      "name": "al-Din Prospect",
+      "station_type": "outpost",
+      "distance_from_arrival_ls": 4390.152012,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3534467328",
+      "market_id": "3534467328",
+      "name": "Michelson Vision",
+      "station_type": null,
+      "distance_from_arrival_ls": null,
+      "body_id": "288231554860190059",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "colony",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3700517632",
+      "market_id": "3700517632",
+      "name": "W0F-58M",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4060.049856,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701093632",
+      "market_id": "3701093632",
+      "name": "KBY-G9H",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701100288",
+      "market_id": "3701100288",
+      "name": "X3G-39J",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4125.088813,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701110016",
+      "market_id": "3701110016",
+      "name": "T3G-0XZ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4456.872122,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701135360",
+      "market_id": "3701135360",
+      "name": "H0G-L9Q",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3874.190337,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701158400",
+      "market_id": "3701158400",
+      "name": "HHW-BVG",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395238.843503,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701270528",
+      "market_id": "3701270528",
+      "name": "WLZ-2KG",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 517.461947,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701286144",
+      "market_id": "3701286144",
+      "name": "G6M-8QZ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701574656",
+      "market_id": "3701574656",
+      "name": "J2Q-5XY",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395216.019735,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3701726208",
+      "market_id": "3701726208",
+      "name": "X8B-0QW",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1013.955652,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702030848",
+      "market_id": "3702030848",
+      "name": "VNT-5KL",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3853.951574,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702154240",
+      "market_id": "3702154240",
+      "name": "VALLETTA",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702313472",
+      "market_id": "3702313472",
+      "name": "QZM-26X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6396996.274104,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702432256",
+      "market_id": "3702432256",
+      "name": "XarCorp Capital Ship",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4094.867095,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702554112",
+      "market_id": "3702554112",
+      "name": "LYUN PROTOTYPE-02",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702960128",
+      "market_id": "3702960128",
+      "name": "V3J-LVQ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1882.317689,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3702996224",
+      "market_id": "3702996224",
+      "name": "LAUREN FAUST",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4251.527771,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703124736",
+      "market_id": "3703124736",
+      "name": "J5Q-4KX",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 112.290544,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703193856",
+      "market_id": "3703193856",
+      "name": "GNM-B9Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703561728",
+      "market_id": "3703561728",
+      "name": "THE HEDONIC MOOSE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 37955.28255,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703572480",
+      "market_id": "3703572480",
+      "name": "QNJ-3HJ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 559.340296,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703692800",
+      "market_id": "3703692800",
+      "name": "T8M-2HH",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6396392.859012,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703729408",
+      "market_id": "3703729408",
+      "name": "BEWARE OF IMITATIONS",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4512.656957,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703846656",
+      "market_id": "3703846656",
+      "name": "V4B-BHH",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 260.444057,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3703929088",
+      "market_id": "3703929088",
+      "name": "JLT-BTV",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704009472",
+      "market_id": "3704009472",
+      "name": "T6H-29F",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 11944.395297,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704177920",
+      "market_id": "3704177920",
+      "name": "GHB-2XM",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4232.775454,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704370688",
+      "market_id": "3704370688",
+      "name": "K1J-0TL",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4030.386591,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704483328",
+      "market_id": "3704483328",
+      "name": "J1Y-WQN",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704515072",
+      "market_id": "3704515072",
+      "name": "Forward Unto Dawn",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 2783.229644,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704577280",
+      "market_id": "3704577280",
+      "name": "T9M-L2B",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704645632",
+      "market_id": "3704645632",
+      "name": "ASV - CAROLINE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3782.420096,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704691200",
+      "market_id": "3704691200",
+      "name": "GBY-9KQ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 2222.008226,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3704870144",
+      "market_id": "3704870144",
+      "name": "K2T-7KH",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705065472",
+      "market_id": "3705065472",
+      "name": "NA-CI-LA",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4194.136613,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705638144",
+      "market_id": "3705638144",
+      "name": "VFN-5TY",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705658624",
+      "market_id": "3705658624",
+      "name": "[Kuq E ZI]",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395241.408236,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705877504",
+      "market_id": "3705877504",
+      "name": "T8J-N7L",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1845.128763,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705899264",
+      "market_id": "3705899264",
+      "name": "[L.O.S.P] KORPORATE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4034.748883,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705918976",
+      "market_id": "3705918976",
+      "name": "[ FGOD ] CORDOBA",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4080.908461,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3705924864",
+      "market_id": "3705924864",
+      "name": "KZQ-95Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706071552",
+      "market_id": "3706071552",
+      "name": "WZX-L5N",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3583.587073,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706091008",
+      "market_id": "3706091008",
+      "name": "J1L-58X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4041.614713,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706170624",
+      "market_id": "3706170624",
+      "name": "V7J-GVJ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4169.488057,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706484480",
+      "market_id": "3706484480",
+      "name": "T1M-97X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1616.886563,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706575360",
+      "market_id": "3706575360",
+      "name": "H7B-G4Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395238.83009,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706670080",
+      "market_id": "3706670080",
+      "name": "FLYING SHELTER",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706811648",
+      "market_id": "3706811648",
+      "name": "KLX-B3F",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4041.622189,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3706873856",
+      "market_id": "3706873856",
+      "name": "X9G-W9Y",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1626.201872,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707100672",
+      "market_id": "3707100672",
+      "name": "M6K-9HZ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4080.338025,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707210752",
+      "market_id": "3707210752",
+      "name": "K8L-07J",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 102.886931,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707334400",
+      "market_id": "3707334400",
+      "name": "RCN DANIEL LEARY",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 2003.614424,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707416320",
+      "market_id": "3707416320",
+      "name": "BEAGLE ONE",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707441408",
+      "market_id": "3707441408",
+      "name": "agent 34",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4527.487045,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3707709952",
+      "market_id": "3707709952",
+      "name": "WOLF HOWL",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1908.097455,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3708078592",
+      "market_id": "3708078592",
+      "name": "[WIPE]<<<KORSAR>>>",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4328.789457,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3708414720",
+      "market_id": "3708414720",
+      "name": "H0G-B5F",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3709031936",
+      "market_id": "3709031936",
+      "name": "V2M-G9M",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4251.538032,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3709628672",
+      "market_id": "3709628672",
+      "name": "HLS Retribution",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4035.467062,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3709709824",
+      "market_id": "3709709824",
+      "name": "PEQUOD",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3709844992",
+      "market_id": "3709844992",
+      "name": "G1B-9VV",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710016768",
+      "market_id": "3710016768",
+      "name": "H3V-00N",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 2736.47488,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710047744",
+      "market_id": "3710047744",
+      "name": "G0Y-53Y",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710317312",
+      "market_id": "3710317312",
+      "name": "L9B-B2Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710413824",
+      "market_id": "3710413824",
+      "name": "W2Z-76Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": null,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710453760",
+      "market_id": "3710453760",
+      "name": "[IDA] Good samaritan",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710481152",
+      "market_id": "3710481152",
+      "name": "TBF-N0M",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710762496",
+      "market_id": "3710762496",
+      "name": "W4V-6QQ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395289.776385,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710809088",
+      "market_id": "3710809088",
+      "name": "K1Y-55V",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710822656",
+      "market_id": "3710822656",
+      "name": "W1X-4TB",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4037.696728,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3710941440",
+      "market_id": "3710941440",
+      "name": "GHG-1TN",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711012608",
+      "market_id": "3711012608",
+      "name": "GLN-GXX",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 357.468303,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711096064",
+      "market_id": "3711096064",
+      "name": "V4J-0QG",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711112192",
+      "market_id": "3711112192",
+      "name": "VNQ-G9M",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711136768",
+      "market_id": "3711136768",
+      "name": "XFQ-00T",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3418.81548,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711759360",
+      "market_id": "3711759360",
+      "name": "RZN-L6Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4037.690604,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711887104",
+      "market_id": "3711887104",
+      "name": "T1V-9TM",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3290.07845,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711971584",
+      "market_id": "3711971584",
+      "name": "SHADOW OF INTENT",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 956.04825,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3711996160",
+      "market_id": "3711996160",
+      "name": "G2M-78B",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712262656",
+      "market_id": "3712262656",
+      "name": "W6B-GHW",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1862.28781,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712393728",
+      "market_id": "3712393728",
+      "name": "J8B-96Y",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3699.8034,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712439040",
+      "market_id": "3712439040",
+      "name": "[FLCS] Narwhal",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712679680",
+      "market_id": "3712679680",
+      "name": "VNJ-00X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395216.009027,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712725248",
+      "market_id": "3712725248",
+      "name": "you-tube grimulas",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 24.668526,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712905728",
+      "market_id": "3712905728",
+      "name": "X7L-6VX",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1875.767146,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3712913152",
+      "market_id": "3712913152",
+      "name": "B2K-14Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 59.9684,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713072384",
+      "market_id": "3713072384",
+      "name": "HNY-W5B",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3847.367639,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713309952",
+      "market_id": "3713309952",
+      "name": "X9N-8QZ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4173.590321,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713515264",
+      "market_id": "3713515264",
+      "name": "ASTREA LEGIO",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1813.06984,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713588736",
+      "market_id": "3713588736",
+      "name": "W9V-L6Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 290.225686,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713707776",
+      "market_id": "3713707776",
+      "name": "H7X-00X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 2844.754575,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713764608",
+      "market_id": "3713764608",
+      "name": "G7L-NQT",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 324.064886,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713965312",
+      "market_id": "3713965312",
+      "name": "Royal Enfield",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 933.433353,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713969664",
+      "market_id": "3713969664",
+      "name": "X4M-89H",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3713973504",
+      "market_id": "3713973504",
+      "name": "LFZ-32Z",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4111.048112,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714071808",
+      "market_id": "3714071808",
+      "name": "QBK-8HZ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714178560",
+      "market_id": "3714178560",
+      "name": "H3X-G9X",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 1276.700991,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714259712",
+      "market_id": "3714259712",
+      "name": "TNJ-T0H",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 3737.082665,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714364416",
+      "market_id": "3714364416",
+      "name": "QFY-31G",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 376354.069579,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714481920",
+      "market_id": "3714481920",
+      "name": "H8F-LHZ",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714602240",
+      "market_id": "3714602240",
+      "name": "WHY-W3J",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4529.401909,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3714865920",
+      "market_id": "3714865920",
+      "name": "BBY-93N",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 6395213.787364,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3715479808",
+      "market_id": "3715479808",
+      "name": "KNW-03H",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4419.128124,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3715600128",
+      "market_id": "3715600128",
+      "name": "N6Z-L0W",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 0,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3715963392",
+      "market_id": "3715963392",
+      "name": "B3B-41Q",
+      "station_type": "fleet_carrier",
+      "distance_from_arrival_ls": 4346.346902,
+      "body_id": null,
+      "association_state": "SYSTEM_ONLY",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "private_enterprise",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868050944",
+      "market_id": "3868050944",
+      "name": "Kawle Genetics Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4369.294758,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868051200",
+      "market_id": "3868051200",
+      "name": "Markus Extraction Exchange",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4363.722911,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868051456",
+      "market_id": "3868051456",
+      "name": "Yan Excavation Hub",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4233.149805,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868051712",
+      "market_id": "3868051712",
+      "name": "Meghani Drilling Rigs",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4368.100602,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868051968",
+      "market_id": "3868051968",
+      "name": "Bailey Metallurgic Installation",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4388.801484,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "extraction",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868052224",
+      "market_id": "3868052224",
+      "name": "Bakshi Manufacturing Complex",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4384.682742,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3868052480",
+      "market_id": "3868052480",
+      "name": "Bourne Manufacturing Installation",
+      "station_type": "settlement",
+      "distance_from_arrival_ls": 4346.11642,
+      "body_id": "216173960822262123",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "industrial",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    },
+    {
+      "station_id": "3930444033",
+      "market_id": "3930444033",
+      "name": "Stronghold Carrier",
+      "station_type": "planetary_outpost",
+      "distance_from_arrival_ls": 4548.654066,
+      "body_id": "180145163803298155",
+      "association_state": "BODY_RESOLVED",
+      "lifecycle_state": "ACTIVE",
+      "economies": [
+        {
+          "economy": "high_tech",
+          "economy_weight": null,
+          "is_primary": true,
+          "is_secondary": false
+        }
+      ]
+    }
+  ],
+  "plan": {
+    "generation_id": "a7076522-54cd-52f3-a291-4e5406bea230",
+    "publication_sequence": "4",
+    "system_id64": "1178708478315",
+    "bodies": [
+      {
+        "body_id": "36029975727442283",
+        "name": "Alpha Centauri barycentre 1",
+        "direct_parent_body_id": null,
+        "body_type": "barycentre",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": null,
+        "surface_gravity_g": null,
+        "surface_temperature_k": null,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": null,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": null,
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "72058772746406251",
+        "name": "Alpha Centauri",
+        "direct_parent_body_id": "36029975727442283",
+        "body_type": "star",
+        "is_main_star": true,
+        "is_landable": null,
+        "radius_km": 767078.888019556,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 6557,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 0,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "other_star",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "108087569765370219",
+        "name": "Alpha Centauri B",
+        "direct_parent_body_id": "36029975727442283",
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 628758.3556002879,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 5240,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 4544.371191,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "other_star",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "144116366784334187",
+        "name": "Proxima Centauri",
+        "direct_parent_body_id": null,
+        "body_type": "star",
+        "is_main_star": null,
+        "is_landable": null,
+        "radius_km": 184646.68227174677,
+        "surface_gravity_g": null,
+        "surface_temperature_k": 1540,
+        "atmosphere": null,
+        "terraforming_state": null,
+        "volcanism": null,
+        "distance_from_arrival_ls": 6395212.684213,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "other_star",
+        "economy_parent_id": null,
+        "in_binary_pair": false,
+        "tidally_locked": null,
+        "volcanism_present": null,
+        "terraformable": null,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "surface prediction is not applicable to this body type"
+      },
+      {
+        "body_id": "180145163803298155",
+        "name": "Alpha Centauri B 1",
+        "direct_parent_body_id": "108087569765370219",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 4314.73,
+        "surface_gravity_g": 1.47252513510758,
+        "surface_temperature_k": 1080.859863,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Rocky Magma",
+        "distance_from_arrival_ls": 4524.178423,
+        "has_rings": false,
+        "geological_signals": 2,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "metal_rich_body",
+        "economy_parent_id": "108087569765370219",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": 0,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "216173960822262123",
+        "name": "2045 PC2",
+        "direct_parent_body_id": "36029975727442283",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 684.213,
+        "surface_gravity_g": 0.0868142143366983,
+        "surface_temperature_k": 85.062103,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 4390.876813,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "252202757841226091",
+        "name": "Lagrange",
+        "direct_parent_body_id": "36029975727442283",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 70837.2,
+        "surface_gravity_g": 2.43982257571123,
+        "surface_temperature_k": 131.690369,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 4390.877,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "gas_giant",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "288231554860190059",
+        "name": "2042 L1",
+        "direct_parent_body_id": "252202757841226091",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": true,
+        "radius_km": 684.213,
+        "surface_gravity_g": 0.0868142143366983,
+        "surface_temperature_k": 85.026001,
+        "atmosphere": "No atmosphere",
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 4391.190546,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "rocky_body",
+        "economy_parent_id": "252202757841226091",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": 1,
+        "prediction_version": "validated-slot-v1",
+        "prediction_status": "predicted",
+        "missing_inputs": [],
+        "prediction_reason": null
+      },
+      {
+        "body_id": "324260351879154027",
+        "name": "2071 AC3",
+        "direct_parent_body_id": "36029975727442283",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 19579.4,
+        "surface_gravity_g": 1.77364994391761,
+        "surface_temperature_k": 61.867744,
+        "atmosphere": null,
+        "terraforming_state": "Not terraformable",
+        "volcanism": null,
+        "distance_from_arrival_ls": 11905.487311,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": false,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "gas_giant",
+        "economy_parent_id": null,
+        "in_binary_pair": true,
+        "tidally_locked": false,
+        "volcanism_present": null,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      },
+      {
+        "body_id": "360289148898117995",
+        "name": "Eden",
+        "direct_parent_body_id": "144116366784334187",
+        "body_type": "planet",
+        "is_main_star": null,
+        "is_landable": false,
+        "radius_km": 5412.28,
+        "surface_gravity_g": 0.915707249923524,
+        "surface_temperature_k": 1223.599976,
+        "atmosphere": "Hot thick Water",
+        "terraforming_state": "Not terraformable",
+        "volcanism": "Minor Metallic Magma",
+        "distance_from_arrival_ls": 6395211.515721,
+        "has_rings": false,
+        "geological_signals": 0,
+        "biological_signals": 0,
+        "signals_complete": true,
+        "lifecycle_state": "ACTIVE",
+        "economy_kind": "high_metal_content_world",
+        "economy_parent_id": "144116366784334187",
+        "in_binary_pair": false,
+        "tidally_locked": true,
+        "volcanism_present": true,
+        "terraformable": false,
+        "predicted_surface_slots": null,
+        "prediction_version": null,
+        "prediction_status": null,
+        "missing_inputs": null,
+        "prediction_reason": "body is not landable"
+      }
+    ],
+    "belts": [],
+    "economy_facts_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
+    "reserve_level": null,
+    "has_black_hole": false,
+    "has_white_dwarf": false,
+    "has_neutron_star": false,
+    "economy_notes": []
+  }
+}

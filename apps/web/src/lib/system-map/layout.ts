@@ -204,7 +204,8 @@ function orbitKm(child: MapNode, parent: MapNode): number {
 /**
  * What hangs from a node, in drawing order: first what is built in orbit
  * around it, then its children going outward with its belts among them. A
- * pair is not drawn itself: its two members take its place, marked as a pair.
+ * pair is not drawn itself: its two members take its place, marked as a
+ * pair, and whatever goes around both of them follows, unmarked.
  */
 export function entriesOf(node: MapNode): Entry[] {
   const entries: Entry[] = node.orbit.map((station) => ({
@@ -220,7 +221,8 @@ export function entriesOf(node: MapNode): Entry[] {
     .sort((one, other) => one.at - other.at);
   const addBody = (child: MapNode, pair: string | null) => {
     if (child.type === 'barycentre') {
-      for (const member of child.children) addBody(member, pair ?? child.id);
+      for (const one of child.children)
+        addBody(one, child.members.includes(one) ? (pair ?? child.id) : pair);
       return;
     }
     entries.push({ kind: 'body', node: child, pair: pair ?? null });

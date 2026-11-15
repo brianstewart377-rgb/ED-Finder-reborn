@@ -138,7 +138,12 @@ export function spokenOf(node: MapNode): string {
     parts.push(`${slots} ground ${slots === 1 ? 'slot' : 'slots'} predicted`);
   if (node.ringWords) parts.push(node.ringWords);
   if (node.guessedParent === 'name') parts.push('placed by its name');
-  if (node.guessedParent === 'distance') parts.push('placed by its distance');
+  else if (node.guessedParent === 'distance')
+    parts.push('placed by its distance');
+  else if (node.placedBy === 'name')
+    parts.push('in a pair placed by its names');
+  else if (node.placedBy === 'distance')
+    parts.push('in a pair placed by its distance');
   return parts.join('; ');
 }
 

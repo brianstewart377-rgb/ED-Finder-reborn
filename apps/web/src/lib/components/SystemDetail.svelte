@@ -22,6 +22,7 @@
     builtHere,
     groundSlotsInWords,
     orbitsInWords,
+    placedInWords,
     stationInWords,
   } from '$lib/system-map/words';
   import { INSPECT_TABS, type InspectTab } from './inspect-tabs';
@@ -209,11 +210,14 @@
       ? (mapTree.nodes.get(selectedBodyKey) ?? null)
       : null,
   );
-  /** Bodies the map placed by their name or distance: our data gives no parent. */
+  /**
+   * Bodies the map placed by their name or distance: our data gives no
+   * parent for them, or for the pair they are in.
+   */
   const guessedBodies = $derived(
     mapTree
       ? [...mapTree.nodes.values()].filter(
-          (node) => node.guessedParent !== false && node.type !== 'barycentre',
+          (node) => node.placedBy !== false && node.type !== 'barycentre',
         )
       : [],
   );
@@ -679,14 +683,14 @@
               </p>
               {#if guessedBodies.length > 0}
                 <h3>Placed by name or distance</h3>
-                <p>Our data does not say what these bodies orbit.</p>
+                <p>
+                  Our data does not say what these bodies orbit, or what the
+                  pair they are in orbits.
+                </p>
                 <ul aria-label="Bodies placed by name or distance">
                   {#each guessedBodies as node (node.id)}
                     <li data-guessed-body-key={node.id}>
-                      <strong>{node.name}</strong> — {node.guessedParent ===
-                      'name'
-                        ? 'placed by its name'
-                        : 'placed by its distance from the arrival point'}
+                      <strong>{node.name}</strong> — {placedInWords(node)}
                     </li>
                   {/each}
                 </ul>
