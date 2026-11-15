@@ -674,6 +674,37 @@ Found on the way, and left for later:
 - The saved map preference still holds a `density` switch that nothing
   reads. It is left so that nobody's saved "My journeys" choice is lost.
 
+**Going back over it (15 November, later).** Found in the same test browser,
+and put right:
+
+- **The map did not open where it was left.** The page was written to, but
+  Explore's own state is made anew each time the page is opened, so the map
+  opened on the whole galaxy and flew in again every time someone came back
+  from Inspect. The last view is now kept for the visit to the site
+  (`left-at.ts`). It is used when the page opens on the system the map was
+  showing; for any other system the map flies there as it does the first
+  time. A map left while still flying to a system flies the rest of the way.
+- **A map could be handed systems and not draw them.** Almanac's map rests
+  when nothing moves. A change wakes it, but only for 1.2 s: if the page is
+  busy for longer than that before the map's next frame, it goes back to
+  rest with the change undrawn, until the camera moves. It showed on a map
+  opened where it was left (no flight to keep it awake): no markers, no
+  range ball, and `debug.frameStats()` said one frame had been drawn. After
+  handing the map anything, the page now wakes it once more from the next
+  animation frame, which only comes when the page is free to draw. The wake
+  is the map's names switch set to the value it already has: it ends no
+  flight and no zoom, as moving the camera would.
+- **The map's graphics memory is handed back when Explore is left.** A
+  browser keeps the memory of a canvas that has left the page until it next
+  tidies up; twenty visits to Explore drew its warning about too many.
+- **The map's own RANGE tile is off.** It measures from the camera's centre,
+  which is on a selected system once the camera has landed, so it read
+  "0 LY" on every panel. A star's panel gives its distance from the chosen
+  system instead.
+- **SHOW ON MAP in the map's panel did nothing with the type picker off**
+  (every build but the live site's). The star was selected without its
+  position being kept, so there was nothing to show.
+
 ### The System Map: is Babylon still right? (13 November, open)
 
 The owner, once the galaxy map was settled: "is Babylon still the right

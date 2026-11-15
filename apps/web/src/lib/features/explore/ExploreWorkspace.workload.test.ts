@@ -16,6 +16,7 @@ import {
   resetFakeMaps,
   type FakeMap,
 } from '$lib/galaxy-map/fake-almanac';
+import { forgetMapLeftAt } from '$lib/galaxy-map/left-at';
 import ExploreWorkloadTestHost from './ExploreWorkloadTestHost.svelte';
 import { ExploreViewState } from './explore-view-state.svelte';
 
@@ -142,6 +143,7 @@ describe('Explore load and interaction work budget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetFakeMaps();
+    forgetMapLeftAt();
     queryClient.clear();
     localStorage.clear();
     sessionStorage.clear();

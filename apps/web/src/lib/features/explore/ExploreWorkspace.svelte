@@ -65,6 +65,7 @@
   import MapToolPopout from './MapToolPopout.svelte';
   import ExploreMapWindow from './ExploreMapWindow.svelte';
   import GalaxyMap from '$lib/galaxy-map/GalaxyMap.svelte';
+  import { mapLeftAtFor, rememberMapLeftAt } from '$lib/galaxy-map/left-at';
   import {
     boxAround,
     chosenFromFind,
@@ -1056,7 +1057,9 @@
   }
 
   function selectResult(system: ExploreSystem): void {
-    if (FINDER_F4_ENABLED) viewState.retainedSelectedSystem = system;
+    // Kept with its position, so a system that is no result of Find (a star
+    // picked on the map) can still be shown.
+    viewState.retainedSelectedSystem = system;
     // The map shows the selected system, so selecting one flies it there.
     commitSelection(system.id64);
   }
@@ -1777,9 +1780,16 @@
         bind:phase={mapPhase}
         {showing}
         {journeys}
-        resume={untrack(() => viewState.mapResume)}
+        resume={untrack(
+          () =>
+            viewState.mapResume ??
+            mapLeftAtFor(selectedId ? String(selectedId) : null),
+        )}
         onScreen={mapOnScreen}
-        onLeave={(resume) => (viewState.mapResume = resume)}
+        onLeave={(resume) => {
+          viewState.mapResume = resume;
+          rememberMapLeftAt(resume);
+        }}
         onShowOnMap={showFromMap}
         onInspect={inspectFromMap}
       />
