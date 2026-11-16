@@ -76,11 +76,6 @@ def _canon(name: Optional[str]) -> Optional[str]:
     return n if n in ECONOMIES else None
 
 
-def canonical_economy_key(name: Optional[str]) -> Optional[str]:
-    """Resolve a user-supplied economy to the lower-case DB column key."""
-    return _canon(name)
-
-
 def economy_enum_value(name: Optional[str]) -> Optional[str]:
     """Resolve any user-supplied economy form to its PostgreSQL enum literal.
 
@@ -232,7 +227,6 @@ __all__ = [
     'ECONOMIES',
     'ECONOMY_ALIASES',
     'ECONOMY_ENUM_LITERALS',
-    'canonical_economy_key',
     'economy_enum_value',
     'ratings_score_column',
     'archetype_score_column',

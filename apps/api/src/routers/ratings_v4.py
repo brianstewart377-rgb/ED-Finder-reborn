@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import asdict
-from datetime import datetime
 import json
 from typing import Any, Mapping
 
@@ -93,17 +92,6 @@ class RatingExplanationResponse(RatingSummaryResponse):
     contributions: tuple[CandidateContributionResponse, ...]
     best_specialisation_candidate_id: str | None
     specialisation_candidates: tuple[CandidateSpecialisationResponse, ...]
-
-
-class GenerationResponse(BaseModel):
-    derived_generation_id: str
-    publication_sequence: int
-    published_at: datetime
-    canonical_generation_id: str
-    canonical_publication_sequence: int
-    scorer_version: str
-    mechanics_version: str
-    validation_receipt: dict[str, Any]
 
 
 class SystemRatingsResponse(BaseModel):
@@ -289,34 +277,6 @@ async def _read_system(pool: asyncpg.Pool, system_id64: int, *, explanation: boo
         raise HTTPException(503, 'Ratings V4 is temporarily unavailable') from exc
     except ValueError as exc:
         raise HTTPException(503, 'Ratings V4 generation failed integrity validation') from exc
-
-
-@router.get('/generation')
-async def generation(pool: asyncpg.Pool = Depends(get_readonly_pool)) -> GenerationResponse:
-    try:
-        async with pool.acquire() as connection:
-            async with connection.transaction(readonly=True):
-                current = await _current(connection)
-                return {
-                    'derived_generation_id': str(current['derived_generation_id']),
-                    'publication_sequence': current['publication_sequence'],
-                    'published_at': current['published_at'],
-                    'canonical_generation_id': str(current['canonical_generation_id']),
-                    'canonical_publication_sequence': current['canonical_publication_sequence'],
-                    'scorer_version': current['scorer_version'],
-                    'mechanics_version': current['mechanics_version'],
-                    'validation_receipt': current['validation_receipt'],
-                }
-    except HTTPException:
-        raise
-    except (asyncpg.exceptions.UndefinedTableError,
-            asyncpg.exceptions.InvalidSchemaNameError) as exc:
-        raise HTTPException(503, 'Ratings V4 generation is unavailable') from exc
-    except (asyncpg.exceptions.QueryCanceledError,
-            asyncpg.exceptions.LockNotAvailableError) as exc:
-        # A statement or lock timeout (for example while a purge swap holds a
-        # brief lock) is retryable, as on the Finder routes: 503, not 500.
-        raise HTTPException(503, 'Ratings V4 is temporarily unavailable') from exc
 
 
 @router.get('/systems/{system_id64}')

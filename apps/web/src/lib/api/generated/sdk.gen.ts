@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddWatchlistApiV2WatchlistSyncKeyId64PostData, AddWatchlistApiV2WatchlistSyncKeyId64PostErrors, AddWatchlistApiV2WatchlistSyncKeyId64PostResponses, AuthLogoutApiV1AuthLogoutPostData, AuthLogoutApiV1AuthLogoutPostResponses, AuthSessionApiV1AuthSessionGetData, AuthSessionApiV1AuthSessionGetResponses, AutocompleteApiLocalAutocompleteGetData, AutocompleteApiLocalAutocompleteGetErrors, AutocompleteApiLocalAutocompleteGetResponses, ClaimOwnerApiV1AuthOwnerClaimPostData, ClaimOwnerApiV1AuthOwnerClaimPostErrors, ClaimOwnerApiV1AuthOwnerClaimPostResponses, ClusterSearchApiSearchClusterPostData, ClusterSearchApiSearchClusterPostErrors, ClusterSearchApiSearchClusterPostResponses, CreateV3JournalImportData, CreateV3JournalImportErrors, CreateV3JournalImportResponses, CreateVerifiedJournalImportData, CreateVerifiedJournalImportErrors, CreateVerifiedJournalImportResponses, DecideJournalGalaxyContributionsData, DecideJournalGalaxyContributionsErrors, DecideJournalGalaxyContributionsResponses, DeleteProfileSyncApiProfileSyncSyncKeyDeleteData, DeleteProfileSyncApiProfileSyncSyncKeyDeleteErrors, DeleteProfileSyncApiProfileSyncSyncKeyDeleteResponses, EvaluateV3PlanData, EvaluateV3PlanErrors, EvaluateV3PlanResponses, FrontierCallbackApiV1AuthFrontierCallbackGetData, FrontierCallbackApiV1AuthFrontierCallbackGetErrors, FrontierCallbackApiV1AuthFrontierCallbackGetResponses, FrontierLinkApiV1AuthFrontierLinkPostData, FrontierLinkApiV1AuthFrontierLinkPostErrors, FrontierLinkApiV1AuthFrontierLinkPostResponses, FrontierLoginApiV1AuthFrontierLoginGetData, FrontierLoginApiV1AuthFrontierLoginGetErrors, FrontierLoginApiV1AuthFrontierLoginGetResponses, GalaxySearchApiSearchGalaxyPostData, GalaxySearchApiSearchGalaxyPostErrors, GalaxySearchApiSearchGalaxyPostResponses, GenerationApiRatingsV4GenerationGetData, GenerationApiRatingsV4GenerationGetResponses, GetArchetypeRankingsApiArchetypesRankingsGetData, GetArchetypeRankingsApiArchetypesRankingsGetErrors, GetArchetypeRankingsApiArchetypesRankingsGetResponses, GetJournalGalaxyImpactData, GetJournalGalaxyImpactResponses, GetProfilesApiArchetypesProfilesGetData, GetProfilesApiArchetypesProfilesGetResponses, GetProfileSyncApiProfileSyncSyncKeyGetData, GetProfileSyncApiProfileSyncSyncKeyGetErrors, GetProfileSyncApiProfileSyncSyncKeyGetResponses, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetData, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetErrors, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetResponses, GetSystemArchetypesApiArchetypesSystemId64GetData, GetSystemArchetypesApiArchetypesSystemId64GetErrors, GetSystemArchetypesApiArchetypesSystemId64GetResponses, GetV3CurrentGenerationData, GetV3CurrentGenerationResponses, GetV3JournalImportData, GetV3JournalImportErrors, GetV3JournalImportResponses, GetV3JournalSummaryData, GetV3JournalSummaryResponses, GetV3JournalTravelHeatmapData, GetV3JournalTravelHeatmapErrors, GetV3JournalTravelHeatmapResponses, GetV3PlanCatalogueData, GetV3PlanCatalogueResponses, GetV3SystemData, GetV3SystemErrors, GetV3SystemResponses, GetWatchlistApiV2WatchlistSyncKeyGetData, GetWatchlistApiV2WatchlistSyncKeyGetErrors, GetWatchlistApiV2WatchlistSyncKeyGetResponses, HealthApiHealthGetData, HealthApiHealthGetResponses, LegacyChangelogApiWatchlistChangelogGetData, LegacyChangelogApiWatchlistChangelogGetResponses, LegacyChangesApiWatchlistChangesGetData, LegacyChangesApiWatchlistChangesGetResponses, LegacyDeleteApiWatchlistId64DeleteData, LegacyDeleteApiWatchlistId64DeleteErrors, LegacyDeleteApiWatchlistId64DeleteResponses, LegacyGetApiWatchlistGetData, LegacyGetApiWatchlistGetResponses, LegacyPatchApiWatchlistId64AlertPatchData, LegacyPatchApiWatchlistId64AlertPatchErrors, LegacyPatchApiWatchlistId64AlertPatchResponses, LegacyPostApiWatchlistId64PostData, LegacyPostApiWatchlistId64PostErrors, LegacyPostApiWatchlistId64PostResponses, ListIdentitiesApiV1AuthIdentitiesGetData, ListIdentitiesApiV1AuthIdentitiesGetResponses, ListJournalGalaxyContributionsData, ListJournalGalaxyContributionsErrors, ListJournalGalaxyContributionsResponses, ListV3JournalBodiesData, ListV3JournalBodiesErrors, ListV3JournalBodiesResponses, ListV3JournalCodexData, ListV3JournalCodexResponses, ListV3JournalOrganicsData, ListV3JournalOrganicsResponses, ListV3JournalSalesData, ListV3JournalSalesErrors, ListV3JournalSalesResponses, ListV3JournalStationObservationsData, ListV3JournalStationObservationsErrors, ListV3JournalStationObservationsResponses, ListV3JournalSystemsData, ListV3JournalSystemsErrors, ListV3JournalSystemsResponses, ListV3PlanBodiesData, ListV3PlanBodiesErrors, ListV3PlanBodiesResponses, ListV3SystemBodiesData, ListV3SystemBodiesErrors, ListV3SystemBodiesResponses, ListV3SystemRingsData, ListV3SystemRingsErrors, ListV3SystemRingsResponses, ListV3SystemStationsData, ListV3SystemStationsErrors, ListV3SystemStationsResponses, ListVerifiedCommandersData, ListVerifiedCommandersResponses, LocalSearchEndpointApiLocalSearchPostData, LocalSearchEndpointApiLocalSearchPostErrors, LocalSearchEndpointApiLocalSearchPostResponses, LocalStatusApiLocalStatusGetData, LocalStatusApiLocalStatusGetResponses, MapSystemsApiMapSystemsGetData, MapSystemsApiMapSystemsGetErrors, MapSystemsApiMapSystemsGetResponses, OfferJournalGalaxyFactsData, OfferJournalGalaxyFactsErrors, OfferJournalGalaxyFactsResponses, OgImageApiShareOgId64GetData, OgImageApiShareOgId64GetErrors, OgImageApiShareOgId64GetResponses, PostArchetypeRerankApiArchetypesRerankPostData, PostArchetypeRerankApiArchetypesRerankPostErrors, PostArchetypeRerankApiArchetypesRerankPostResponses, PostSimulateApiArchetypesSimulatePostData, PostSimulateApiArchetypesSimulatePostErrors, PostSimulateApiArchetypesSimulatePostResponses, PutProfileSyncApiProfileSyncSyncKeyPutData, PutProfileSyncApiProfileSyncSyncKeyPutErrors, PutProfileSyncApiProfileSyncSyncKeyPutResponses, RemoveWatchlistApiV2WatchlistSyncKeyId64DeleteData, RemoveWatchlistApiV2WatchlistSyncKeyId64DeleteErrors, RemoveWatchlistApiV2WatchlistSyncKeyId64DeleteResponses, ReviewJournalGalaxyQueueData, ReviewJournalGalaxyQueueErrors, ReviewJournalGalaxyQueueResponses, ShareStopPageSId64GetData, ShareStopPageSId64GetErrors, ShareStopPageSId64GetResponses, StatusApiStatusGetData, StatusApiStatusGetResponses, SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetData, SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetErrors, SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetResponses, SystemScoresApiRatingsV4SystemsSystemId64GetData, SystemScoresApiRatingsV4SystemsSystemId64GetErrors, SystemScoresApiRatingsV4SystemsSystemId64GetResponses, UnlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDeleteData, UnlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDeleteErrors, UnlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDeleteResponses, UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchData, UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchErrors, UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchResponses, WatchlistChangesApiV2WatchlistSyncKeyChangesGetData, WatchlistChangesApiV2WatchlistSyncKeyChangesGetErrors, WatchlistChangesApiV2WatchlistSyncKeyChangesGetResponses, WithdrawJournalGalaxyContributionData, WithdrawJournalGalaxyContributionErrors, WithdrawJournalGalaxyContributionResponses } from './types.gen';
+import type { AddWatchlistApiV2WatchlistSyncKeyId64PostData, AddWatchlistApiV2WatchlistSyncKeyId64PostErrors, AddWatchlistApiV2WatchlistSyncKeyId64PostResponses, AuthLogoutApiV1AuthLogoutPostData, AuthLogoutApiV1AuthLogoutPostResponses, AuthSessionApiV1AuthSessionGetData, AuthSessionApiV1AuthSessionGetResponses, AutocompleteApiLocalAutocompleteGetData, AutocompleteApiLocalAutocompleteGetErrors, AutocompleteApiLocalAutocompleteGetResponses, ClaimOwnerApiV1AuthOwnerClaimPostData, ClaimOwnerApiV1AuthOwnerClaimPostErrors, ClaimOwnerApiV1AuthOwnerClaimPostResponses, CreateVerifiedJournalImportData, CreateVerifiedJournalImportErrors, CreateVerifiedJournalImportResponses, EvaluateV3PlanData, EvaluateV3PlanErrors, EvaluateV3PlanResponses, FrontierCallbackApiV1AuthFrontierCallbackGetData, FrontierCallbackApiV1AuthFrontierCallbackGetErrors, FrontierCallbackApiV1AuthFrontierCallbackGetResponses, FrontierLinkApiV1AuthFrontierLinkPostData, FrontierLinkApiV1AuthFrontierLinkPostErrors, FrontierLinkApiV1AuthFrontierLinkPostResponses, FrontierLoginApiV1AuthFrontierLoginGetData, FrontierLoginApiV1AuthFrontierLoginGetErrors, FrontierLoginApiV1AuthFrontierLoginGetResponses, GetArchetypeRankingsApiArchetypesRankingsGetData, GetArchetypeRankingsApiArchetypesRankingsGetErrors, GetArchetypeRankingsApiArchetypesRankingsGetResponses, GetJournalGalaxyImpactData, GetJournalGalaxyImpactResponses, GetProfileSyncApiProfileSyncSyncKeyGetData, GetProfileSyncApiProfileSyncSyncKeyGetErrors, GetProfileSyncApiProfileSyncSyncKeyGetResponses, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetData, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetErrors, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetResponses, GetSystemArchetypesApiArchetypesSystemId64GetData, GetSystemArchetypesApiArchetypesSystemId64GetErrors, GetSystemArchetypesApiArchetypesSystemId64GetResponses, GetV3CurrentGenerationData, GetV3CurrentGenerationResponses, GetV3JournalSummaryData, GetV3JournalSummaryResponses, GetV3JournalTravelHeatmapData, GetV3JournalTravelHeatmapErrors, GetV3JournalTravelHeatmapResponses, GetV3PlanCatalogueData, GetV3PlanCatalogueResponses, GetV3SystemData, GetV3SystemErrors, GetV3SystemResponses, GetWatchlistApiV2WatchlistSyncKeyGetData, GetWatchlistApiV2WatchlistSyncKeyGetErrors, GetWatchlistApiV2WatchlistSyncKeyGetResponses, HealthApiHealthGetData, HealthApiHealthGetResponses, LegacyChangelogApiWatchlistChangelogGetData, LegacyChangelogApiWatchlistChangelogGetResponses, LegacyChangesApiWatchlistChangesGetData, LegacyChangesApiWatchlistChangesGetResponses, LegacyDeleteApiWatchlistId64DeleteData, LegacyDeleteApiWatchlistId64DeleteErrors, LegacyDeleteApiWatchlistId64DeleteResponses, LegacyGetApiWatchlistGetData, LegacyGetApiWatchlistGetResponses, LegacyPatchApiWatchlistId64AlertPatchData, LegacyPatchApiWatchlistId64AlertPatchErrors, LegacyPatchApiWatchlistId64AlertPatchResponses, LegacyPostApiWatchlistId64PostData, LegacyPostApiWatchlistId64PostErrors, LegacyPostApiWatchlistId64PostResponses, ListIdentitiesApiV1AuthIdentitiesGetData, ListIdentitiesApiV1AuthIdentitiesGetResponses, ListJournalGalaxyContributionsData, ListJournalGalaxyContributionsErrors, ListJournalGalaxyContributionsResponses, ListV3PlanBodiesData, ListV3PlanBodiesErrors, ListV3PlanBodiesResponses, ListV3SystemBodiesData, ListV3SystemBodiesErrors, ListV3SystemBodiesResponses, ListV3SystemRingsData, ListV3SystemRingsErrors, ListV3SystemRingsResponses, ListV3SystemStationsData, ListV3SystemStationsErrors, ListV3SystemStationsResponses, ListVerifiedCommandersData, ListVerifiedCommandersResponses, LocalSearchEndpointApiLocalSearchPostData, LocalSearchEndpointApiLocalSearchPostErrors, LocalSearchEndpointApiLocalSearchPostResponses, LocalStatusApiLocalStatusGetData, LocalStatusApiLocalStatusGetResponses, MapSystemsApiMapSystemsGetData, MapSystemsApiMapSystemsGetErrors, MapSystemsApiMapSystemsGetResponses, OfferJournalGalaxyFactsData, OfferJournalGalaxyFactsErrors, OfferJournalGalaxyFactsResponses, OgImageApiShareOgId64GetData, OgImageApiShareOgId64GetErrors, OgImageApiShareOgId64GetResponses, PutProfileSyncApiProfileSyncSyncKeyPutData, PutProfileSyncApiProfileSyncSyncKeyPutErrors, PutProfileSyncApiProfileSyncSyncKeyPutResponses, RemoveWatchlistApiV2WatchlistSyncKeyId64DeleteData, RemoveWatchlistApiV2WatchlistSyncKeyId64DeleteErrors, RemoveWatchlistApiV2WatchlistSyncKeyId64DeleteResponses, ShareStopPageSId64GetData, ShareStopPageSId64GetErrors, ShareStopPageSId64GetResponses, StatusApiStatusGetData, StatusApiStatusGetResponses, SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetData, SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetErrors, SystemExplanationApiRatingsV4SystemsSystemId64ExplanationGetResponses, SystemScoresApiRatingsV4SystemsSystemId64GetData, SystemScoresApiRatingsV4SystemsSystemId64GetErrors, SystemScoresApiRatingsV4SystemsSystemId64GetResponses, UnlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDeleteData, UnlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDeleteErrors, UnlinkIdentityApiV1AuthIdentitiesExternalIdentityIdDeleteResponses, WithdrawJournalGalaxyContributionData, WithdrawJournalGalaxyContributionErrors, WithdrawJournalGalaxyContributionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -146,25 +146,6 @@ export const removeWatchlistApiV2WatchlistSyncKeyId64Delete = <ThrowOnError exte
 export const addWatchlistApiV2WatchlistSyncKeyId64Post = <ThrowOnError extends boolean = false>(options: Options<AddWatchlistApiV2WatchlistSyncKeyId64PostData, ThrowOnError>): RequestResult<AddWatchlistApiV2WatchlistSyncKeyId64PostResponses, AddWatchlistApiV2WatchlistSyncKeyId64PostErrors, ThrowOnError> => (options.client ?? client).post<AddWatchlistApiV2WatchlistSyncKeyId64PostResponses, AddWatchlistApiV2WatchlistSyncKeyId64PostErrors, ThrowOnError>({ url: '/api/v2/watchlist/{sync_key}/{id64}', ...options });
 
 /**
- * Update Alert
- */
-export const updateAlertApiV2WatchlistSyncKeyId64AlertPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchData, ThrowOnError>): RequestResult<UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchResponses, UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchResponses, UpdateAlertApiV2WatchlistSyncKeyId64AlertPatchErrors, ThrowOnError>({
-    url: '/api/v2/watchlist/{sync_key}/{id64}/alert',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Watchlist Changes
- *
- * Changes for systems currently in this sync_key's watchlist.
- */
-export const watchlistChangesApiV2WatchlistSyncKeyChangesGet = <ThrowOnError extends boolean = false>(options: Options<WatchlistChangesApiV2WatchlistSyncKeyChangesGetData, ThrowOnError>): RequestResult<WatchlistChangesApiV2WatchlistSyncKeyChangesGetResponses, WatchlistChangesApiV2WatchlistSyncKeyChangesGetErrors, ThrowOnError> => (options.client ?? client).get<WatchlistChangesApiV2WatchlistSyncKeyChangesGetResponses, WatchlistChangesApiV2WatchlistSyncKeyChangesGetErrors, ThrowOnError>({ url: '/api/v2/watchlist/{sync_key}/changes', ...options });
-
-/**
  * Legacy Get
  */
 export const legacyGetApiWatchlistGet = <ThrowOnError extends boolean = false>(options?: Options<LegacyGetApiWatchlistGetData, ThrowOnError>): RequestResult<LegacyGetApiWatchlistGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<LegacyGetApiWatchlistGetResponses, unknown, ThrowOnError>({ url: '/api/watchlist', ...options });
@@ -202,13 +183,6 @@ export const legacyChangesApiWatchlistChangesGet = <ThrowOnError extends boolean
 export const legacyChangelogApiWatchlistChangelogGet = <ThrowOnError extends boolean = false>(options?: Options<LegacyChangelogApiWatchlistChangelogGetData, ThrowOnError>): RequestResult<LegacyChangelogApiWatchlistChangelogGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<LegacyChangelogApiWatchlistChangelogGetResponses, unknown, ThrowOnError>({ url: '/api/watchlist/changelog', ...options });
 
 /**
- * Delete Profile Sync
- *
- * Wipe a sync slot. Safe to call when the slot doesn't exist.
- */
-export const deleteProfileSyncApiProfileSyncSyncKeyDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteProfileSyncApiProfileSyncSyncKeyDeleteData, ThrowOnError>): RequestResult<DeleteProfileSyncApiProfileSyncSyncKeyDeleteResponses, DeleteProfileSyncApiProfileSyncSyncKeyDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProfileSyncApiProfileSyncSyncKeyDeleteResponses, DeleteProfileSyncApiProfileSyncSyncKeyDeleteErrors, ThrowOnError>({ url: '/api/profile/sync/{sync_key}', ...options });
-
-/**
  * Get Profile Sync
  */
 export const getProfileSyncApiProfileSyncSyncKeyGet = <ThrowOnError extends boolean = false>(options: Options<GetProfileSyncApiProfileSyncSyncKeyGetData, ThrowOnError>): RequestResult<GetProfileSyncApiProfileSyncSyncKeyGetResponses, GetProfileSyncApiProfileSyncSyncKeyGetErrors, ThrowOnError> => (options.client ?? client).get<GetProfileSyncApiProfileSyncSyncKeyGetResponses, GetProfileSyncApiProfileSyncSyncKeyGetErrors, ThrowOnError>({ url: '/api/profile/sync/{sync_key}', ...options });
@@ -224,11 +198,6 @@ export const putProfileSyncApiProfileSyncSyncKeyPut = <ThrowOnError extends bool
         ...options.headers
     }
 });
-
-/**
- * Generation
- */
-export const generationApiRatingsV4GenerationGet = <ThrowOnError extends boolean = false>(options?: Options<GenerationApiRatingsV4GenerationGetData, ThrowOnError>): RequestResult<GenerationApiRatingsV4GenerationGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GenerationApiRatingsV4GenerationGetResponses, unknown, ThrowOnError>({ url: '/api/ratings/v4/generation', ...options });
 
 /**
  * System Scores
@@ -250,30 +219,6 @@ export const autocompleteApiLocalAutocompleteGet = <ThrowOnError extends boolean
  */
 export const localSearchEndpointApiLocalSearchPost = <ThrowOnError extends boolean = false>(options: Options<LocalSearchEndpointApiLocalSearchPostData, ThrowOnError>): RequestResult<LocalSearchEndpointApiLocalSearchPostResponses, LocalSearchEndpointApiLocalSearchPostErrors, ThrowOnError> => (options.client ?? client).post<LocalSearchEndpointApiLocalSearchPostResponses, LocalSearchEndpointApiLocalSearchPostErrors, ThrowOnError>({
     url: '/api/local/search',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Galaxy Search
- */
-export const galaxySearchApiSearchGalaxyPost = <ThrowOnError extends boolean = false>(options: Options<GalaxySearchApiSearchGalaxyPostData, ThrowOnError>): RequestResult<GalaxySearchApiSearchGalaxyPostResponses, GalaxySearchApiSearchGalaxyPostErrors, ThrowOnError> => (options.client ?? client).post<GalaxySearchApiSearchGalaxyPostResponses, GalaxySearchApiSearchGalaxyPostErrors, ThrowOnError>({
-    url: '/api/search/galaxy',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Cluster Search
- */
-export const clusterSearchApiSearchClusterPost = <ThrowOnError extends boolean = false>(options: Options<ClusterSearchApiSearchClusterPostData, ThrowOnError>): RequestResult<ClusterSearchApiSearchClusterPostResponses, ClusterSearchApiSearchClusterPostErrors, ThrowOnError> => (options.client ?? client).post<ClusterSearchApiSearchClusterPostResponses, ClusterSearchApiSearchClusterPostErrors, ThrowOnError>({
-    url: '/api/search/cluster',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -308,44 +253,11 @@ export const getArchetypeRankingsApiArchetypesRankingsGet = <ThrowOnError extend
 export const getSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGet = <ThrowOnError extends boolean = false>(options: Options<GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetData, ThrowOnError>): RequestResult<GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetResponses, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetErrors, ThrowOnError> => (options.client ?? client).get<GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetResponses, GetSystemArchetypeExplanationApiArchetypesSystemId64ExplanationGetErrors, ThrowOnError>({ url: '/api/archetypes/system/{id64}/explanation', ...options });
 
 /**
- * Preset rerank weight profiles (V3 archetype keys)
- */
-export const getProfilesApiArchetypesProfilesGet = <ThrowOnError extends boolean = false>(options?: Options<GetProfilesApiArchetypesProfilesGetData, ThrowOnError>): RequestResult<GetProfilesApiArchetypesProfilesGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetProfilesApiArchetypesProfilesGetResponses, unknown, ThrowOnError>({ url: '/api/archetypes/profiles', ...options });
-
-/**
- * Rerank systems by a weighted blend of their V3 archetype fits
- *
- * Reorders the supplied systems by a client-weighted blend of their stored, uncertainty-modified V3 archetype keys, read generation-pinned from the published `v3_app.system_archetype` projection. Runs no new search and persists nothing.
- */
-export const postArchetypeRerankApiArchetypesRerankPost = <ThrowOnError extends boolean = false>(options: Options<PostArchetypeRerankApiArchetypesRerankPostData, ThrowOnError>): RequestResult<PostArchetypeRerankApiArchetypesRerankPostResponses, PostArchetypeRerankApiArchetypesRerankPostErrors, ThrowOnError> => (options.client ?? client).post<PostArchetypeRerankApiArchetypesRerankPostResponses, PostArchetypeRerankApiArchetypesRerankPostErrors, ThrowOnError>({
-    url: '/api/archetypes/rerank',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
  * Full V3 archetype breakdown for a single system
  *
  * Reads the published `v3_app.system_archetype` wide row and the `v3_app.system_search` facts for one system, generation-pinned. Explanations are served on demand by `/system/{id64}/explanation`.
  */
 export const getSystemArchetypesApiArchetypesSystemId64Get = <ThrowOnError extends boolean = false>(options: Options<GetSystemArchetypesApiArchetypesSystemId64GetData, ThrowOnError>): RequestResult<GetSystemArchetypesApiArchetypesSystemId64GetResponses, GetSystemArchetypesApiArchetypesSystemId64GetErrors, ThrowOnError> => (options.client ?? client).get<GetSystemArchetypesApiArchetypesSystemId64GetResponses, GetSystemArchetypesApiArchetypesSystemId64GetErrors, ThrowOnError>({ url: '/api/archetypes/system/{id64}', ...options });
-
-/**
- * Build simulation — score a planned archetype against the V3 fit
- *
- * Scores a planned build against the system's published V3 fit for the planned archetype, generation-pinned. Best-effort guidance only: economy outcomes depend on construction order and undocumented Frontier weighting, and no V3 projection carries contamination, purity or buildability estimates.
- */
-export const postSimulateApiArchetypesSimulatePost = <ThrowOnError extends boolean = false>(options: Options<PostSimulateApiArchetypesSimulatePostData, ThrowOnError>): RequestResult<PostSimulateApiArchetypesSimulatePostResponses, PostSimulateApiArchetypesSimulatePostErrors, ThrowOnError> => (options.client ?? client).post<PostSimulateApiArchetypesSimulatePostResponses, PostSimulateApiArchetypesSimulatePostErrors, ThrowOnError>({
-    url: '/api/archetypes/simulate',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
 
 /**
  * Current Generation
@@ -395,23 +307,6 @@ export const evaluateV3Plan = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Create V3 Journal Import
- */
-export const createV3JournalImport = <ThrowOnError extends boolean = false>(options: Options<CreateV3JournalImportData, ThrowOnError>): RequestResult<CreateV3JournalImportResponses, CreateV3JournalImportErrors, ThrowOnError> => (options.client ?? client).post<CreateV3JournalImportResponses, CreateV3JournalImportErrors, ThrowOnError>({
-    url: '/api/v1/journal/imports',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Get V3 Journal Import
- */
-export const getV3JournalImport = <ThrowOnError extends boolean = false>(options: Options<GetV3JournalImportData, ThrowOnError>): RequestResult<GetV3JournalImportResponses, GetV3JournalImportErrors, ThrowOnError> => (options.client ?? client).get<GetV3JournalImportResponses, GetV3JournalImportErrors, ThrowOnError>({ url: '/api/v1/journal/imports/{import_id}', ...options });
-
-/**
  * Create Verified Journal Import
  */
 export const createVerifiedJournalImport = <ThrowOnError extends boolean = false>(options: Options<CreateVerifiedJournalImportData, ThrowOnError>): RequestResult<CreateVerifiedJournalImportResponses, CreateVerifiedJournalImportErrors, ThrowOnError> => (options.client ?? client).post<CreateVerifiedJournalImportResponses, CreateVerifiedJournalImportErrors, ThrowOnError>({
@@ -442,42 +337,6 @@ export const getV3JournalTravelHeatmap = <ThrowOnError extends boolean = false>(
 export const getV3JournalSummary = <ThrowOnError extends boolean = false>(options?: Options<GetV3JournalSummaryData, ThrowOnError>): RequestResult<GetV3JournalSummaryResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetV3JournalSummaryResponses, unknown, ThrowOnError>({ url: '/api/v1/journal/summary', ...options });
 
 /**
- * List V3 Journal Systems
- */
-export const listV3JournalSystems = <ThrowOnError extends boolean = false>(options?: Options<ListV3JournalSystemsData, ThrowOnError>): RequestResult<ListV3JournalSystemsResponses, ListV3JournalSystemsErrors, ThrowOnError> => (options?.client ?? client).get<ListV3JournalSystemsResponses, ListV3JournalSystemsErrors, ThrowOnError>({ url: '/api/v1/journal/systems', ...options });
-
-/**
- * List V3 Journal Bodies
- */
-export const listV3JournalBodies = <ThrowOnError extends boolean = false>(options?: Options<ListV3JournalBodiesData, ThrowOnError>): RequestResult<ListV3JournalBodiesResponses, ListV3JournalBodiesErrors, ThrowOnError> => (options?.client ?? client).get<ListV3JournalBodiesResponses, ListV3JournalBodiesErrors, ThrowOnError>({ url: '/api/v1/journal/bodies', ...options });
-
-/**
- * List V3 Journal Codex
- */
-export const listV3JournalCodex = <ThrowOnError extends boolean = false>(options?: Options<ListV3JournalCodexData, ThrowOnError>): RequestResult<ListV3JournalCodexResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListV3JournalCodexResponses, unknown, ThrowOnError>({ url: '/api/v1/journal/codex', ...options });
-
-/**
- * List V3 Journal Organics
- */
-export const listV3JournalOrganics = <ThrowOnError extends boolean = false>(options?: Options<ListV3JournalOrganicsData, ThrowOnError>): RequestResult<ListV3JournalOrganicsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListV3JournalOrganicsResponses, unknown, ThrowOnError>({ url: '/api/v1/journal/organics', ...options });
-
-/**
- * List V3 Journal Sales
- */
-export const listV3JournalSales = <ThrowOnError extends boolean = false>(options?: Options<ListV3JournalSalesData, ThrowOnError>): RequestResult<ListV3JournalSalesResponses, ListV3JournalSalesErrors, ThrowOnError> => (options?.client ?? client).get<ListV3JournalSalesResponses, ListV3JournalSalesErrors, ThrowOnError>({ url: '/api/v1/journal/sales', ...options });
-
-/**
- * List V3 Journal Station Observations
- *
- * Your own Docked history per station (MarketID), newest station first.
- *
- * Built only from journals you imported. Each observation is one docking
- * with the station's economy mix and services at that moment, listed
- * oldest first, so a before/after experiment reads top-down.
- */
-export const listV3JournalStationObservations = <ThrowOnError extends boolean = false>(options?: Options<ListV3JournalStationObservationsData, ThrowOnError>): RequestResult<ListV3JournalStationObservationsResponses, ListV3JournalStationObservationsErrors, ThrowOnError> => (options?.client ?? client).get<ListV3JournalStationObservationsResponses, ListV3JournalStationObservationsErrors, ThrowOnError>({ url: '/api/v1/journal/station-observations', ...options });
-
-/**
  * Offer Journal Galaxy Facts
  */
 export const offerJournalGalaxyFacts = <ThrowOnError extends boolean = false>(options: Options<OfferJournalGalaxyFactsData, ThrowOnError>): RequestResult<OfferJournalGalaxyFactsResponses, OfferJournalGalaxyFactsErrors, ThrowOnError> => (options.client ?? client).post<OfferJournalGalaxyFactsResponses, OfferJournalGalaxyFactsErrors, ThrowOnError>({
@@ -493,23 +352,6 @@ export const offerJournalGalaxyFacts = <ThrowOnError extends boolean = false>(op
  * List Journal Galaxy Contributions
  */
 export const listJournalGalaxyContributions = <ThrowOnError extends boolean = false>(options?: Options<ListJournalGalaxyContributionsData, ThrowOnError>): RequestResult<ListJournalGalaxyContributionsResponses, ListJournalGalaxyContributionsErrors, ThrowOnError> => (options?.client ?? client).get<ListJournalGalaxyContributionsResponses, ListJournalGalaxyContributionsErrors, ThrowOnError>({ url: '/api/v1/journal/galaxy-contributions', ...options });
-
-/**
- * Review Journal Galaxy Queue
- */
-export const reviewJournalGalaxyQueue = <ThrowOnError extends boolean = false>(options?: Options<ReviewJournalGalaxyQueueData, ThrowOnError>): RequestResult<ReviewJournalGalaxyQueueResponses, ReviewJournalGalaxyQueueErrors, ThrowOnError> => (options?.client ?? client).get<ReviewJournalGalaxyQueueResponses, ReviewJournalGalaxyQueueErrors, ThrowOnError>({ url: '/api/v1/journal/galaxy-contributions/review', ...options });
-
-/**
- * Decide Journal Galaxy Contributions
- */
-export const decideJournalGalaxyContributions = <ThrowOnError extends boolean = false>(options: Options<DecideJournalGalaxyContributionsData, ThrowOnError>): RequestResult<DecideJournalGalaxyContributionsResponses, DecideJournalGalaxyContributionsErrors, ThrowOnError> => (options.client ?? client).post<DecideJournalGalaxyContributionsResponses, DecideJournalGalaxyContributionsErrors, ThrowOnError>({
-    url: '/api/v1/journal/galaxy-contributions/review',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
 
 /**
  * Withdraw Journal Galaxy Contribution

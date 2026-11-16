@@ -1,22 +1,20 @@
 """
-Find: the search near a star, and galaxy-wide, over the published V3 projections.
-
-  • `/api/local/search` (`local_db_search_v3`): the search near a star, or
-    galaxy-wide, with the count of matches asked for within a time budget;
-  • `/api/search/galaxy` (`local_db_galaxy_search_v3`): the galaxy-wide
-    Any-mode window, a validated call into the same search.
+Find: the search behind `/api/local/search` (`local_db_search_v3`), near a
+star or galaxy-wide, over the published V3 projections, with the count of
+matches asked for within a time budget.
 
 The rest of Find lives beside this file:
 
   • find_generation.py: the published data set every Finder read is pinned to;
   • find_count.py: the count of matches, and keeping it for a search's other pages;
-  • find_cluster.py: `/api/search/cluster`, which fails closed for now;
   • find_autocomplete.py: name suggestions for `/api/local/autocomplete`;
   • find_status.py: the database status for `/api/local/status`.
 
 Every search reads only the published V3 projections behind the
 migration-015 Finder product gate. The V2 search and system-page readers
-were removed on 15 November 2026; git history keeps them.
+were removed on 15 November 2026, and `/api/search/galaxy` and
+`/api/search/cluster` (which no page called) on 16 November; git history
+keeps them.
 """
 from __future__ import annotations
 
@@ -52,7 +50,6 @@ from edfinder_api.ranking.profile import (
     LOCAL_SEARCH_RESULT_CAP,
     LOCAL_SEARCH_SIZE_MIN,
     PROFILE_SPEC,
-    RANKING_PAGE_LIMIT_MAX,
     RANKING_VERSION,
     TIER_THRESHOLDS,
     ranking_sha256,
@@ -238,14 +235,9 @@ def _parse_local_search_context(body: dict) -> LocalSearchContext:
 
 
 # ---------------------------------------------------------------------------
-# V3 ranked search (F3 slice 1) — POST /api/local/search, and since F3
-# slice 2b also the read behind POST /api/search/galaxy.
+# V3 ranked search (F3 slice 1) — POST /api/local/search.
 # ---------------------------------------------------------------------------
-# `/api/local/search` reads `local_db_search_v3`; `/api/search/galaxy` reads
-# `local_db_galaxy_search_v3` (a validated galaxy-wide Any-mode call into
-# `local_db_search_v3`); `/api/search/cluster` reads
-# `local_db_cluster_search_v3` (the V3 `v3_spatial.cluster_run` product gate;
-# see that function for the flagged data gap). The "ONE search
+# `/api/local/search` reads `local_db_search_v3`. The "ONE search
 # implementation" rule in `routers/search.py` is per route: each search route
 # has exactly one read path and never a competing fallback.
 #
@@ -828,114 +820,5 @@ async def local_db_search_v3(
             f"(requested {int(ctx.max_dist_req):,} LY)."
         )
     return resp
-
-
-# ---------------------------------------------------------------------------
-# V3 galaxy-wide search (F3 slice 2b) — POST /api/search/galaxy ONLY.
-# ---------------------------------------------------------------------------
-# On V3 the galaxy route *is* the galaxy-wide Any-mode window of the ranked
-# search: the same bounded access path (`summary_window`, top 10,000 by
-# `weighted_potential`), the same ranking profile, the same generation pin
-# and product gate, and the same envelope as `POST /api/local/search` with
-# `galaxy_wide=true`. Every legacy request feature that has no V3 projection
-# is rejected with 422 before any database access rather than silently
-# dropped (slice-1 rule); see `prepare_galaxy_search_v3`.
-GALAXY_SEARCH_LIMIT_DEFAULT = 100
-_ECONOMY_ANY_VALUES: frozenset[str] = frozenset({'any', 'Any', 'Unknown', ''})
-
-
-def _int_or_422(value: Any, field: str, *, default: int | None = None) -> int:
-    """Coerce a request integer, answering 422 (not 503) for garbage."""
-    if value is None:
-        if default is None:
-            raise HTTPException(422, f'{field} is required')
-        return default
-    if isinstance(value, bool):
-        raise HTTPException(422, f'{field} must be an integer')
-    try:
-        return int(value)
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(422, f'{field} must be an integer') from exc
-
-
-def prepare_galaxy_search_v3(body: dict) -> dict:
-    """Validate a galaxy-wide search request without touching the database
-    and return the equivalent `local_db_search_v3` body.
-
-    Rejections (HTTP 422), each a legacy feature with no V3 projection:
-
-    - a concrete ``economy``: no per-economy potential projection exists
-      (the slice-1 rule for `/api/local/search`); ``economy="any"`` ranks
-      by best colony potential;
-    - ``min_score`` above 0: a hard filter on a galaxy-wide Any request,
-      which the F2d bounded-access contract refuses
-      (`LOCAL_SEARCH_GALAXY_WIDE_FILTER_REJECTION_REASON`);
-    - ``include_colonised=false``: `v3_app.system_search` has no population
-      column. The legacy route silently forced uncolonised-only results;
-      the V3 route ranks every system in the published generation, and a
-      caller that explicitly asks for the restriction is told so;
-    - ``galaxy_region_id``: a galaxy-wide hard filter, rejected by
-      `prepare_local_search_v3`;
-    - a result window outside the ranking window (``limit`` 1..500,
-      ``offset`` >= 0, ``offset + limit`` <= FIND_COUNT_LIMIT, 1,000).
-    """
-    economy = body.get('economy')
-    if economy is None:
-        economy = 'any'
-    if not isinstance(economy, str):
-        raise HTTPException(422, 'economy must be a string')
-
-    min_score = _int_or_422(body.get('min_score'), 'min_score', default=0)
-    if min_score < 0:
-        raise HTTPException(422, 'min_score must be greater than or equal to 0')
-    if min_score > 0:
-        raise HTTPException(
-            422,
-            f'min_score: {LOCAL_SEARCH_GALAXY_WIDE_FILTER_REJECTION_REASON}',
-        )
-
-    if body.get('include_colonised') is False:
-        raise HTTPException(
-            422,
-            'include_colonised=false (uncolonised-only) is not supported by V3 '
-            'Finder search (v3_app.system_search has no population column).',
-        )
-
-    limit = _int_or_422(body.get('limit'), 'limit', default=GALAXY_SEARCH_LIMIT_DEFAULT)
-    offset = _int_or_422(body.get('offset'), 'offset', default=0)
-    if limit > RANKING_PAGE_LIMIT_MAX:
-        raise HTTPException(
-            422, f'limit must be less than or equal to {RANKING_PAGE_LIMIT_MAX}',
-        )
-
-    local_body: dict[str, Any] = {
-        'galaxy_wide': True,
-        'reference_coords': None,
-        'economy': economy if economy not in _ECONOMY_ANY_VALUES else 'any',
-        'filters': {'economy': economy if economy not in _ECONOMY_ANY_VALUES else 'any'},
-        'min_development_score': 0,
-        'sort_by': 'development',
-        'size': limit,
-        'from': offset,
-        'galaxy_region_id': body.get('galaxy_region_id'),
-        'reach_ly': body.get('reach_ly'),
-    }
-    # The shared validator enforces the window, the concrete-economy
-    # rejection and the galaxy-wide hard-filter rule (region) in one place.
-    prepare_local_search_v3(local_body)
-    return local_body
-
-
-async def local_db_galaxy_search_v3(body: dict, pool: asyncpg.Pool) -> dict:
-    """V3 galaxy-wide search for `POST /api/search/galaxy`.
-
-    A validated galaxy-wide Any-mode call into `local_db_search_v3`: reads
-    only `v3_app.system_search` + `v3_app.system_archetype_summary`,
-    generation-pinned inside one REPEATABLE READ snapshot, and returns the
-    same `SearchResponse` envelope (results, sentinel-bounded total, ranking
-    identity) as `/api/local/search`.
-    """
-    local_body = prepare_galaxy_search_v3(body)
-    return await local_db_search_v3(local_body, pool)
 
 

@@ -137,17 +137,14 @@ def test_one_key_cannot_see_or_change_what_is_kept_under_another(database):
     async def scenario(client):
         assert (await client.post("/api/v2/watchlist/%s/%d" % (MINE, system["id64"]))).status_code == 200
         seen_by_them = await listed(client, THEIRS)
-        # They remove "their" entry for the same system, and set an alert on it.
+        # They remove "their" entry for the same system.
         removed = await client.delete("/api/v2/watchlist/%s/%d" % (THEIRS, system["id64"]))
-        alerted = await client.patch("/api/v2/watchlist/%s/%d/alert" % (THEIRS, system["id64"]),
-                                     json={"min_development_score": 99, "economy": "Theirs"})
-        return seen_by_them, removed.status_code, alerted.status_code, await listed(client, MINE)
+        return seen_by_them, removed.status_code, await listed(client, MINE)
 
-    seen_by_them, removed, alerted, mine = through_the_routes(database, scenario)
+    seen_by_them, removed, mine = through_the_routes(database, scenario)
     assert seen_by_them == []
-    assert removed == 200 and alerted == 200, "nothing of theirs to change, and it says nothing either way"
+    assert removed == 200, "nothing of theirs to remove, and it says nothing either way"
     assert [row["system_id64"] for row in mine] == [system["id64"]]
-    assert mine[0]["alert_min_development_score"] is None and mine[0]["alert_economy"] is None
 
 
 def test_removing_takes_a_system_off_and_removing_it_again_is_harmless(database):
@@ -175,49 +172,6 @@ def test_a_system_the_database_does_not_have_is_refused_and_nothing_is_kept(data
     status, body, kept = through_the_routes(database, scenario)
     assert status == 404 and "not found" in body["detail"]
     assert kept == []
-
-
-def test_an_alert_is_kept_with_the_system(database):
-    (system,) = real_systems(database, 1)
-
-    async def scenario(client):
-        await client.post("/api/v2/watchlist/%s/%d" % (MINE, system["id64"]))
-        answer = await client.patch("/api/v2/watchlist/%s/%d/alert" % (MINE, system["id64"]),
-                                    json={"min_development_score": 70, "economy": "Refinery"})
-        assert answer.status_code == 200
-        too_high = await client.patch("/api/v2/watchlist/%s/%d/alert" % (MINE, system["id64"]),
-                                      json={"min_development_score": 101})
-        return too_high.status_code, await listed(client, MINE)
-
-    too_high, kept = through_the_routes(database, scenario)
-    assert too_high == 422, "a score above 100 is refused before it reaches the database"
-    assert kept[0]["alert_min_development_score"] == 70 and kept[0]["alert_economy"] == "Refinery"
-
-
-def test_changes_are_shown_only_under_the_key_they_were_noticed_for(database):
-    (system,) = real_systems(database, 1)
-
-    async def scenario(client):
-        for key in (MINE, THEIRS):
-            await client.post("/api/v2/watchlist/%s/%d" % (key, system["id64"]))
-        # What the job that watches for changes would write, for my entry only.
-        database.execute(
-            """
-            INSERT INTO v3_private.watchlist_changelog
-                (sync_key, system_id64, system_name, change_type, old_value, new_value)
-            VALUES (%s, %s, %s, 'population', '0', '1200')
-            """, (MINE, system["id64"], system["name"]))
-        mine = (await client.get("/api/v2/watchlist/%s/changes" % MINE)).json()["changes"]
-        theirs = (await client.get("/api/v2/watchlist/%s/changes" % THEIRS)).json()["changes"]
-        # Taking the system off my list takes its changes with it.
-        await client.delete("/api/v2/watchlist/%s/%d" % (MINE, system["id64"]))
-        after = (await client.get("/api/v2/watchlist/%s/changes" % MINE)).json()["changes"]
-        return mine, theirs, after
-
-    mine, theirs, after = through_the_routes(database, scenario)
-    assert [(row["system_id64"], row["change_type"], row["old_value"], row["new_value"]) for row in mine] == [
-        (system["id64"], "population", "0", "1200")]
-    assert theirs == [] and after == []
 
 
 @pytest.mark.parametrize("key, status", [

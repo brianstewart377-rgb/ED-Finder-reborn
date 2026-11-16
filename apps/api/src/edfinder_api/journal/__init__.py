@@ -15,12 +15,7 @@ from edfinder_api.journal.event_contract import (
 from edfinder_api.journal.identity import bio_data_sha256, canonical_key, event_identity
 from edfinder_api.journal.projections import (
     BODY_OBSERVATION_TYPES,
-    codex_entries,
     journal_summary,
-    organic_progress,
-    sale_history,
-    scanned_bodies,
-    visited_systems,
 )
 from edfinder_api.journal.store import (
     MAX_DAILY_EVENTS_PER_ACCOUNT,
@@ -38,13 +33,8 @@ __all__ = [
     'MAX_DAILY_EVENTS_PER_ACCOUNT',
     'bio_data_sha256',
     'canonical_key',
-    'codex_entries',
     'event_identity',
     'import_journal_batch',
     'journal_summary',
-    'organic_progress',
-    'sale_history',
-    'scanned_bodies',
     'strip_payload',
-    'visited_systems',
 ]

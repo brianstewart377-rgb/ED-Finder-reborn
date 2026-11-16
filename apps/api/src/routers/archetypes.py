@@ -4,16 +4,16 @@ Version: 2.0 (V3-native)
 
 Endpoints:
     GET  /api/archetypes/rankings                 ranked list by archetype (V3, generation-pinned)
-    POST /api/archetypes/rerank                   client-weighted blend of stored V3 archetype fits
     GET  /api/archetypes/system/{id64}            full V3 archetype breakdown for one system
     GET  /api/archetypes/system/{id64}/explanation on-demand, version-gated V3 explanations
-    POST /api/archetypes/simulate                 build plan scored against the stored V3 fit
-    GET  /api/archetypes/profiles                 static preset rerank blends (V3 keys)
+
+`/rerank`, `/simulate` and `/profiles` were removed on 16 November 2026: no
+page of the site called them. Git history keeps them.
 
 Every database-backed route here reads generation-pinned from the published
 V3 `v3_app.system_search` / `v3_app.system_archetype` projections through
-`edfinder_api.ranking` (`/rankings` since F3 Task 4; `/rerank`,
-`/system/{id64}` and `/simulate` since F3 slice 2). The legacy V2 relations
+`edfinder_api.ranking` (`/rankings` since F3 Task 4; `/system/{id64}` since
+F3 slice 2). The legacy V2 relations
 (`mv_archetype_rankings`, `system_archetype_scores`,
 `system_archetype_traits`, `systems`, `system_slot_topology`,
 `economy_pair_synergy`, `body_scan_facts`, `bodies`) are no longer referenced
@@ -27,14 +27,14 @@ database access so a 422 is never masked by that 503.
 
 Known V3 data gaps, flagged rather than silently degraded: no projection
 carries slot/topology estimates, economy-pair synergy, contamination risk,
-purity or buildability, so the legacy `/system` topology/pair/trait fields and
-the legacy `/simulate` risk estimates are retired from the response models.
+purity or buildability, so the legacy `/system` topology/pair/trait fields are
+retired from the response models.
 
 There is no Redis cache layer in this router any more: every response is
 pinned to the generation resolved inside its own REPEATABLE READ snapshot.
 
 Route scope:
-    Development rerank and archetype endpoints live under /api/archetypes/*.
+    Archetype endpoints live under /api/archetypes/*.
 """
 
 from collections.abc import Mapping
@@ -65,12 +65,6 @@ from edfinder_api.find_count import total_from_short_page
 from edfinder_api.find_generation import _current_derived_generation
 from edfinder_api.models import (
     ArchetypeRankingsResponse,
-    ArchetypeRerankRequest,
-    ArchetypeRerankResponse,
-    ArchetypeRerankWeights,
-    ArchetypesProfilesResponse,
-    BuildSimulateRequest,
-    BuildSimulateResponse,
     SystemArchetypeExplanationResponse,
     SystemArchetypeResponse,
 )
@@ -98,10 +92,6 @@ from edfinder_api.ranking.rerank import (
     PPM,
     archetype_entry,
     build_system_archetype_detail_query,
-    equal_weights,
-    rerank_rows,
-    single_archetype_weights,
-    validate_id64s,
 )
 from edfinder_api.state import get_pool_singleton as get_pool
 
@@ -778,7 +768,7 @@ async def get_system_archetype_explanation(
 
 
 # ---------------------------------------------------------------------------
-# Shared F3 slice-2 wide-row read (/rerank, /system/{id64}, /simulate)
+# Shared F3 slice-2 wide-row read (/system/{id64})
 # ---------------------------------------------------------------------------
 # One generation-pinned read of `v3_app.system_search` joined to the published
 # `v3_app.system_archetype` wide row for a bounded id64 list. The caller has
@@ -818,119 +808,6 @@ async def _read_system_archetype_rows(
 def _distance_to_sol(row: asyncpg.Record) -> float:
     x, y, z = float(row['x_ly']), float(row['y_ly']), float(row['z_ly'])
     return round(math.sqrt(x * x + y * y + z * z), 2)
-
-
-# ---------------------------------------------------------------------------
-# GET /api/archetypes/profiles — static preset rerank blends
-# ---------------------------------------------------------------------------
-# One single-archetype preset per V3 key plus the generalist equal blend.
-# Derived from `ARCHETYPE_KEYS`, never hand-tuned: a preset is a documented
-# weight vector, not product tuning.
-_PROFILES: list[dict[str, Any]] = [
-    {
-        'id':          key,
-        'label':       _V3_ARCHETYPE_LABELS[key],
-        'description': f'{_V3_ARCHETYPE_LABELS[key]} fit only',
-        'archetype':   key,
-        'weights':     single_archetype_weights(key),
-    }
-    for key in ARCHETYPE_KEYS
-] + [
-    {
-        'id':          'generalist',
-        'label':       'Generalist',
-        'description': 'Equal weight on every V3 archetype fit',
-        'archetype':   None,
-        'weights':     equal_weights(),
-    },
-]
-_PROFILE_BY_ID: dict[str, dict[str, Any]] = {profile['id']: profile for profile in _PROFILES}
-
-
-@router.get(
-    '/profiles',
-    response_model=ArchetypesProfilesResponse,
-    summary='Preset rerank weight profiles (V3 archetype keys)',
-)
-@limiter.limit('120/minute')
-async def get_profiles(request: Request):
-    return {'profiles': _PROFILES}
-
-
-# ---------------------------------------------------------------------------
-# POST /api/archetypes/rerank (F3 slice 2 — V3, generation-pinned)
-# ---------------------------------------------------------------------------
-
-def _resolve_rerank_weights(
-    body: ArchetypeRerankRequest,
-) -> tuple[ArchetypeRerankWeights, Optional[str]]:
-    """Resolve the effective blend before any database access.
-
-    Order: `profile` (unknown id -> 422, never a silent fallback), explicit
-    `weights`, a single-archetype blend when only `archetype` is given, else
-    the generalist equal blend.
-    """
-    if body.profile is not None:
-        preset = _PROFILE_BY_ID.get(body.profile)
-        if preset is None:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"Unknown profile {body.profile!r}. "
-                    f"Valid values: {sorted(_PROFILE_BY_ID)}"
-                ),
-            )
-        return ArchetypeRerankWeights(**preset['weights']), preset['id']
-    if body.weights is not None:
-        return body.weights, None
-    if body.archetype is not None:
-        return ArchetypeRerankWeights(**single_archetype_weights(body.archetype)), None
-    return ArchetypeRerankWeights(**equal_weights()), None
-
-
-async def _archetype_rerank_v3(*, body: ArchetypeRerankRequest, pool: asyncpg.Pool) -> dict:
-    t0 = time.monotonic()
-    weights, profile_applied = _resolve_rerank_weights(body)
-    try:
-        id64s = validate_id64s(body.id64s)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    generation_row, rows = await _read_system_archetype_rows(
-        pool, id64s, surface='Archetype rerank',
-    )
-    results = rerank_rows(
-        rows,
-        weights=weights.model_dump(),
-        picked_archetype=body.archetype,
-    )
-    found = {result['id64'] for result in results}
-    query_ms = int((time.monotonic() - t0) * 1000)
-    return {
-        'archetype':       body.archetype,
-        'profile_applied': profile_applied,
-        'weights_applied': weights.model_dump(),
-        'results':         results,
-        'missing_id64s':   [id64 for id64 in id64s if id64 not in found],
-        'query_ms':        query_ms,
-        'ranking':         _ranking_identity(generation_row),
-    }
-
-
-@router.post(
-    '/rerank',
-    response_model=ArchetypeRerankResponse,
-    summary='Rerank systems by a weighted blend of their V3 archetype fits',
-    description=(
-        'Reorders the supplied systems by a client-weighted blend of their '
-        'stored, uncertainty-modified V3 archetype keys, read generation-pinned '
-        'from the published `v3_app.system_archetype` projection. Runs no new '
-        'search and persists nothing.'
-    ),
-)
-@limiter.limit('30/minute')
-async def post_archetype_rerank(request: Request, body: ArchetypeRerankRequest):
-    return await _archetype_rerank_v3(body=body, pool=get_pool())
 
 
 # ---------------------------------------------------------------------------
@@ -1014,100 +891,3 @@ async def get_system_archetypes(
     id64: int = Path(ge=0, le=9_223_372_036_854_775_807),
 ):
     return await _system_archetype_v3(id64=id64, pool=get_pool())
-
-
-# ---------------------------------------------------------------------------
-# POST /api/archetypes/simulate (F3 slice 2 — V3, generation-pinned)
-# ---------------------------------------------------------------------------
-
-_SIMULATE_DISCLAIMER = (
-    'simulation_score is the published V3 archetype fit for the planned '
-    'archetype. It does not model construction order or facility placement, '
-    'and no V3 projection carries contamination, purity, buildability or '
-    'slot-topology estimates.'
-)
-_LOW_COMPLETENESS_THRESHOLD = 0.5
-
-
-def _simulation_recommendations(
-    row: asyncpg.Record,
-    *,
-    planned: str,
-    planned_fit: dict[str, Any],
-    planned_facilities: list,
-) -> list[str]:
-    recs: list[str] = []
-    primary = row['primary_archetype']
-    if primary != planned:
-        primary_fit = archetype_entry(row, primary)
-        recs.append(
-            f'The published V3 model rates this system strongest as '
-            f'{_V3_ARCHETYPE_LABELS.get(primary, primary)} '
-            f'({primary_fit["score"]}, tier {primary_fit["tier"]}); the planned '
-            f'{_V3_ARCHETYPE_LABELS[planned]} fit scores {planned_fit["score"]} '
-            f'(tier {planned_fit["tier"]}).'
-        )
-    completeness = float(row['completeness'])
-    if completeness < _LOW_COMPLETENESS_THRESHOLD:
-        recs.append(
-            f'Body data is {completeness:.0%} complete and the planned fit\'s '
-            f'confidence is {planned_fit["confidence"]:.0%}. Scan more bodies '
-            'before committing to this plan.'
-        )
-    t3_count = sum(1 for facility in planned_facilities if facility.tier == 3)
-    if t3_count > 0:
-        recs.append(
-            f'{t3_count} T3 facilities planned. '
-            'T3 scaling requires at least one strong-link anchor body.'
-        )
-    return recs or ['No V3 model warnings for this plan.']
-
-
-async def _build_simulate_v3(*, body: BuildSimulateRequest, pool: asyncpg.Pool) -> dict[str, Any]:
-    generation_row, rows = await _read_system_archetype_rows(
-        pool, [body.id64], surface='Build simulation',
-    )
-    if not rows:
-        raise HTTPException(
-            status_code=404,
-            detail=f'No published archetype row for system {body.id64}',
-        )
-    row = rows[0]
-    planned = body.planned_archetype
-    planned_fit = archetype_entry(row, planned)
-    return {
-        'id64':                  body.id64,
-        'planned_archetype':     planned,
-        'simulation_score':      planned_fit['score'],
-        'tier':                  planned_fit['tier'],
-        'confidence':            planned_fit['confidence'],
-        'completeness':          float(row['completeness']),
-        'primary_archetype':     row['primary_archetype'],
-        'secondary_archetype':   row['secondary_archetype'],
-        'best_colony_potential': int(row['best_colony_potential']),
-        'recommendations':       _simulation_recommendations(
-            row,
-            planned=planned,
-            planned_fit=planned_fit,
-            planned_facilities=body.planned_facilities,
-        ),
-        'disclaimer':            _SIMULATE_DISCLAIMER,
-        'ranking':               _ranking_identity(generation_row),
-    }
-
-
-@router.post(
-    '/simulate',
-    response_model=BuildSimulateResponse,
-    summary='Build simulation — score a planned archetype against the V3 fit',
-    description=(
-        'Scores a planned build against the system\'s published V3 fit for the '
-        'planned archetype, generation-pinned. Best-effort guidance only: '
-        'economy outcomes depend on construction order and undocumented '
-        'Frontier weighting, and no V3 projection carries contamination, purity '
-        'or buildability estimates.'
-    ),
-)
-@limiter.limit('20/minute')
-async def post_simulate(request: Request, body: BuildSimulateRequest):
-    return await _build_simulate_v3(body=body, pool=get_pool())
