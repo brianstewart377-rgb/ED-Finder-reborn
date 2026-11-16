@@ -12,14 +12,14 @@ Endpoint surface (see individual router docstrings for detail):
   routers/meta.py       health, status, local/status, metrics
   routers/auth.py       Frontier sign-in, sessions, the invite list
   routers/profile.py    settings kept in step between one person's browsers
-  routers/watchlist.py  watchlist CRUD + changelog
-  routers/ratings_v4.py sealed V4 generation and independent economy scores
-  routers/search.py     autocomplete + local/galaxy/cluster search
+  routers/watchlist.py  each browser's watchlist, kept under its own key
+  routers/ratings_v4.py independent economy scores for one system
+  routers/search.py     autocomplete and the local search
   routers/v3.py         system, body and station pages (Inspect)
   routers/plan.py       the Plan page
   routers/v3_journal*.py  journal upload, travel and contributions
-  routers/map.py        galaxy regions, cluster hulls, heatmap, timeline
-  routers/archetypes.py archetype rankings, rerank, system detail, simulate, profiles
+  routers/map.py        the stars the galaxy map draws
+  routers/archetypes.py archetype rankings and one system's archetypes
   share_router.py       /s/{id64} OG-tagged share preview + PNG
 """
 import asyncio
@@ -186,28 +186,6 @@ async def lifespan(app: FastAPI):
     if redis is None:
         _cache_reconnect_task = asyncio.create_task(connect_cache_when_it_is_back())
         log.info("Trying the cache again in the background")
-
-    # Load facility catalogue into memory (simulation engine domain layer)
-    try:
-        async with pool.acquire() as _conn:
-            _rows = await _conn.fetch('SELECT * FROM facility_templates ORDER BY tier, id')
-            from edfinder_api.domain.facilities import load_bundled_catalogue, load_catalogue_from_rows
-            if _rows:
-                load_catalogue_from_rows([dict(r) for r in _rows])
-                log.info(f"Facility catalogue loaded ✓ ({len(_rows)} facilities)")
-            else:
-                _catalogue = load_bundled_catalogue()
-                log.info(f"Bundled facility catalogue loaded ✓ ({len(_catalogue)} facilities)")
-    except Exception as _e:
-        try:
-            from edfinder_api.domain.facilities import load_bundled_catalogue
-            _catalogue = load_bundled_catalogue()
-            log.warning(f"Facility catalogue DB load failed ({_e}) — using bundled catalogue ({len(_catalogue)} facilities)")
-        except Exception as _fallback_e:
-            log.warning(
-                f"Facility catalogue load failed ({_e}); bundled fallback failed ({_fallback_e}) "
-                "— simulation endpoints will use empty catalogue"
-            )
 
     log.info("PostgreSQL pool ready ✓")
     app.state.pool  = pool

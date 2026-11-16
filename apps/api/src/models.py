@@ -49,11 +49,11 @@ frontend useful types out of the box.
 """
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from edfinder_api.models_economy import EconomyFilterField, EconomyNameField
+from edfinder_api.models_economy import EconomyFilterField
 from edfinder_api.ranking.profile import (
     RANKING_OFFSET_PLUS_LIMIT_MAX,
     RANKING_PAGE_LIMIT_MAX,
@@ -426,157 +426,6 @@ class LocalSearchRequest(BaseModel):
         return self
 
 
-class GalaxySearchRequest(BaseModel):
-    # extra='forbid' (F3 slice 2b): the V3 galaxy search rejects every legacy
-    # feature it cannot honour, so an undeclared field (e.g. a legacy
-    # `galaxy_region_id`) must be a 422, never silently discarded.
-    model_config = ConfigDict(extra='forbid')
-
-    # `EconomyFilter` — Agriculture | Refinery | Industrial | HighTech
-    # | Military | Tourism | Extraction | 'any'. Old wire forms are
-    # accepted via the model's normalising validator; see SearchFilters.
-    economy:   EconomyFilterField = 'any'
-    min_score: int = Field(default=0, ge=0, le=100)
-    limit:     int = Field(default=100, le=500)
-    offset:    int = Field(default=0, ge=0)
-    # Declared so the legacy uncolonised-only request is explicit: `false`
-    # answers 422 (v3_app.system_search has no population column); `true` or
-    # omitted ranks every system in the published generation.
-    include_colonised: Optional[bool] = None
-    # Find's reach rule, as on `LocalSearchRequest`.
-    reach_ly: Literal[250, 500] = 250
-
-
-class ClusterRequirement(BaseModel):
-    # Cluster requirements MUST name a real economy — there's no
-    # 'any' here, an empty cluster requirement is meaningless.
-    economy:   EconomyNameField
-    min_count: int = Field(default=1, ge=1)
-    min_score: int = Field(default=40, ge=0, le=100)
-
-
-class SlotRequirement(BaseModel):
-    """One colony world the user wants to build.
-
-    economies: 1-2 economy names that must ALL score >= min_score
-    on a single system (same-world constraint).
-
-    archetype_key: optional shorthand — if provided, economies and
-    min_score are derived from TARGET_PROFILES and can be omitted.
-    """
-    economies:     list[EconomyNameField] = Field(default_factory=list)
-    archetype_key: Optional[str] = None
-    min_score:     int = Field(default=65, ge=0, le=100)
-    label:         Optional[str] = None  # display label, auto-generated if omitted
-
-    @model_validator(mode='after')
-    def resolve_archetype(self) -> 'SlotRequirement':
-        if self.archetype_key and not self.economies:
-            from edfinder_api.domain.colonisation_rules import get_target_profile
-            profile = get_target_profile(self.archetype_key)
-            self.economies = [
-                e for e in profile.expected_economies
-                if e != 'Extraction'  # no cluster_summary column for Extraction
-            ]
-            if not self.label:
-                self.label = self.archetype_key.replace('_', ' ').title()
-        if not self.economies:
-            raise ValueError(
-                'Slot must specify at least one economy or a valid archetype_key'
-            )
-        if len(self.economies) > 2:
-            raise ValueError(
-                'A slot can have at most 2 economies (same-world constraint)'
-            )
-        if not self.label:
-            self.label = ' + '.join(self.economies)
-        return self
-
-
-class ClusterSearchRequest(BaseModel):
-    # Legacy format (still works)
-    requirements:     list[ClusterRequirement] = Field(default_factory=list)
-    # New slot-based format
-    slots:            list[SlotRequirement] = Field(default_factory=list)
-    limit:            int = Field(default=50, le=200)
-    offset:           int = Field(default=0, ge=0)
-    reference_coords: Optional[CoordsModel] = None
-    galaxy_region_id: Optional[int] = Field(default=None, ge=1, le=42)
-
-    @model_validator(mode='after')
-    def validate_input(self) -> 'ClusterSearchRequest':
-        if not self.requirements and not self.slots:
-            raise ValueError(
-                'At least one economy requirement must be specified'
-            )
-        if self.requirements and self.slots:
-            raise ValueError(
-                'Provide requirements OR slots, not both'
-            )
-        return self
-
-
-class ClusterResult(BaseModel):
-    # Result model — extra='allow' per models.py strictness policy (SQL
-    # projections legitimately carry enriched fields). Fields typed here drive
-    # the generated api.gen.ts. The shape is the retained legacy
-    # `cluster_summary` row contract; F3 slice 2b repointed the route onto
-    # the V3 cluster product (`find_cluster.local_db_cluster_search_v3`),
-    # which fails closed (503) until a Finder cluster run and its summary
-    # contract exist -- the reshape onto V3 fields happens with that
-    # product, not before.
-    model_config = ConfigDict(extra='allow')
-
-    anchor_id64:       int
-    system_id64:       int
-    anchor_name:       str
-    anchor_x:          float
-    anchor_y:          float
-    anchor_z:          float
-    anchor_coords:     CoordsModel
-    galaxy_region_id:  Optional[int] = None
-    galaxy_region:     Optional[str] = None
-    coverage_score:    Optional[float] = None
-    economy_diversity: int
-    total_viable:      int
-    agriculture_count: int
-    agriculture_best:  Optional[int] = None
-    agriculture_top_id: Optional[int] = None
-    refinery_count:    int
-    refinery_best:     Optional[int] = None
-    refinery_top_id:   Optional[int] = None
-    industrial_count:  int
-    industrial_best:   Optional[int] = None
-    industrial_top_id: Optional[int] = None
-    hightech_count:    int
-    hightech_best:     Optional[int] = None
-    hightech_top_id:   Optional[int] = None
-    military_count:    int
-    military_best:     Optional[int] = None
-    military_top_id:   Optional[int] = None
-    tourism_count:     int
-    tourism_best:      Optional[int] = None
-    tourism_top_id:    Optional[int] = None
-    distance_ly:       Optional[float] = None
-    cluster_radius_ly: float
-    slots:             Optional[list[dict]] = None
-
-
-class ClusterSearchResponse(BaseModel):
-    # Response envelope for POST /api/search/cluster. extra='allow' (not
-    # 'forbid') because the endpoint has success and error-dict return shapes;
-    # error is optional to cover the {error, clusters:[]} early-return paths.
-    model_config = ConfigDict(extra='allow')
-
-    clusters:          list[ClusterResult] = Field(default_factory=list)
-    count:             Optional[int] = None
-    cluster_radius_ly: Optional[float] = None
-    query_ms:          Optional[int] = None
-    slots:             Optional[list[dict]] = None
-    requirements:      Optional[list[dict]] = None
-    error:             Optional[str] = None
-
-
 # ══════════════════════════════════════════════════════════════════════
 # Archetype engine models (v4.0 — Phase 3)
 #
@@ -640,38 +489,6 @@ class SystemArchetypeExplanationResponse(BaseModel):
     summary: SystemArchetypeExplanationSummary
     completeness: float
     ranking: RankingIdentity
-
-
-class ArchetypeRerankWeights(BaseModel):
-    """
-    Per-archetype blend weights for `POST /api/archetypes/rerank` (F3 slice 2).
-
-    One weight per V3 archetype key, each in [0, 1]; every key is required
-    (a partial vector is a 422, never silently filled) and at least one must
-    be greater than zero. The blend is normalised by the weight sum, so the
-    weights need not sum to 1.0 and a single non-zero weight reranks by that
-    archetype alone. A request that omits `weights` entirely gets the
-    generalist (equal) blend from the route, not from field defaults.
-
-    The legacy five V2 dimensions (`purity`, `buildability`, `slots`,
-    `expansion`, `logistics`) have no V3 projection and are retired.
-    """
-    model_config = ConfigDict(extra='forbid')
-
-    paradise:           float = Field(ge=0.0, le=1.0)
-    mining_hub:         float = Field(ge=0.0, le=1.0)
-    manufacturing_hub:  float = Field(ge=0.0, le=1.0)
-    megacomplex:        float = Field(ge=0.0, le=1.0)
-    research_hub:       float = Field(ge=0.0, le=1.0)
-    stronghold:         float = Field(ge=0.0, le=1.0)
-    population_capital: float = Field(ge=0.0, le=1.0)
-    flexible:           float = Field(ge=0.0, le=1.0)
-
-    @model_validator(mode='after')
-    def _at_least_one_positive(self) -> 'ArchetypeRerankWeights':
-        if sum(self.model_dump().values()) <= 0.0:
-            raise ValueError('at least one rerank weight must be greater than zero')
-        return self
 
 
 class ArchetypeScore(BaseModel):
@@ -829,110 +646,6 @@ class ArchetypeRankingsResponse(BaseModel):
     ranking:         RankingIdentity
 
 
-# ── Request: POST /api/archetypes/rerank ─────────────────────────────
-class ArchetypeRerankRequest(BaseModel):
-    """
-    Rerank a set of systems by a client-weighted blend of their stored V3
-    archetype fits (F3 slice 2).
-
-    Weight resolution order: `profile` (a preset from
-    `GET /api/archetypes/profiles`; unknown ids are rejected with 422), then
-    explicit `weights`, then -- when only `archetype` is given -- a blend that
-    weights that archetype alone, else the generalist equal blend.
-    `archetype` also selects which raw stored score `original_score` reports
-    (default: the summary `best_colony_potential`).
-    """
-    model_config = ConfigDict(extra='forbid')
-
-    id64s:     list[Annotated[int, Field(ge=0, le=9_223_372_036_854_775_807)]] = Field(
-        ..., min_length=1, max_length=500,
-    )
-    archetype: Optional[ArchetypeKey]           = None
-    weights:   Optional[ArchetypeRerankWeights] = None
-    profile:   Optional[str]                    = Field(None, min_length=1, max_length=64)
-
-
-# ── Result row: POST /api/archetypes/rerank ───────────────────────────
-class ArchetypeRerankRow(BaseModel):
-    """One reranked system.
-
-    `reranked_score` is the blend of the stored uncertainty-modified keys
-    (`score x confidence x completeness`, see `ranking.rerank`) on the 0..100
-    scale and is the ordering key; `tier` is derived from it. `original_score`
-    is the raw stored score the request's `archetype` selects (or the summary
-    `best_colony_potential`). V3 stores no rationale; explanations are served
-    by `GET /api/archetypes/system/{id64}/explanation`.
-    """
-    model_config = ConfigDict(extra='forbid')
-
-    id64:                int
-    reranked_score:      int
-    tier:                TierValue
-    original_score:      Optional[float] = None
-    confidence:          Optional[float] = None
-    completeness:        Optional[float] = None
-    primary_archetype:   Optional[str]   = None
-    secondary_archetype: Optional[str]   = None
-
-
-# ── Response: POST /api/archetypes/rerank ─────────────────────────────
-class ArchetypeRerankResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    archetype:       Optional[str]              = None
-    profile_applied: Optional[str]              = None
-    weights_applied: ArchetypeRerankWeights
-    results:         list[ArchetypeRerankRow]
-    # Requested ids with no published wide row, so a caller can tell an
-    # unknown system from a low-ranked one.
-    missing_id64s:   list[int]                  = Field(default_factory=list)
-    query_ms:        Optional[int]              = None
-    ranking:         RankingIdentity
-
-
-# ── Request: POST /api/archetypes/simulate ───────────────────────────
-class PlannedFacility(BaseModel):
-    """One facility in a build simulation plan."""
-    model_config = ConfigDict(extra='allow')
-
-    type:   str = Field(min_length=1, max_length=128)  # e.g. 'StarPort', 'RefineryHub'
-    tier:   Optional[int] = Field(None, ge=1, le=3)
-    body:   Optional[str] = Field(None, max_length=256)  # body key or name
-
-
-class BuildSimulateRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    id64:              int = Field(ge=0, le=9_223_372_036_854_775_807)
-    planned_archetype: ArchetypeKey
-    planned_facilities: list[PlannedFacility] = Field(default_factory=list, max_length=200)
-
-
-# ── Response: POST /api/archetypes/simulate ──────────────────────────
-class BuildSimulateResponse(BaseModel):
-    """Build simulation against the published V3 archetype fit (F3 slice 2).
-
-    `simulation_score` is the system's stored fit for `planned_archetype`.
-    The legacy `contamination_risk`, `purity_score` and `buildability_score`
-    estimates have no V3 projection and are retired; `disclaimer` states
-    that gap on every response.
-    """
-    model_config = ConfigDict(extra='forbid')
-
-    id64:                  int
-    planned_archetype:     str
-    simulation_score:      int
-    tier:                  TierValue
-    confidence:            float
-    completeness:          float
-    primary_archetype:     str
-    secondary_archetype:   Optional[str] = None
-    best_colony_potential: int
-    recommendations:       list[str]     = Field(default_factory=list)
-    disclaimer:            str
-    ranking:               RankingIdentity
-
-
 SimulationSource = Literal['precomputed', 'computed', 'insufficient_data']
 SlotDataSource = Literal['eddn', 'spansh', 'none']
 SlotPredictionStatus = Literal['predicted', 'unknown', 'observed']
@@ -1022,25 +735,6 @@ class BuildabilityResponse(BuildabilityData):
 
 # Backwards-compatible public name used by older imports/docs.
 SystemBuildabilityResponse = BuildabilityResponse
-
-
-# ── Profile entry: GET /api/archetypes/profiles ──────────────────────
-class ArchetypeProfile(BaseModel):
-    """One static preset rerank blend (F3 slice 2: V3 archetype keys only)."""
-    model_config = ConfigDict(extra='forbid')
-
-    id:          str
-    label:       str
-    description: str
-    archetype:   Optional[ArchetypeKey]    = None
-    weights:     ArchetypeRerankWeights
-
-
-# ── Response: GET /api/archetypes/profiles ───────────────────────────
-class ArchetypesProfilesResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    profiles: list[ArchetypeProfile]
 
 
 # ── Optimiser V1: Candidate Generation (Stage 5A) ────────────────────

@@ -1,4 +1,8 @@
-"""Account-scoped offers, separate sharing permission, and owner-only review."""
+"""Account-scoped offers and separate sharing permission.
+
+The owner-only review queue (GET and POST `/review`) was removed on
+16 November 2026: no page called it. Git history keeps it.
+"""
 from __future__ import annotations
 
 import uuid
@@ -40,13 +44,6 @@ class ContributionRow(BaseModel):
     used_in_generation: bool
 
 
-class ReviewRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    contribution_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
-    decision: Literal['ELIGIBLE', 'REJECTED']
-    reason: str = Field(min_length=1, max_length=500)
-
-
 async def _user(request: Request, *, owner: bool = False, write: bool = False):
     user = await get_request_user(request)
     if user is None:
@@ -72,25 +69,6 @@ async def list_journal_galaxy_contributions(request: Request, offset: int = Quer
                                           pool: asyncpg.Pool = Depends(get_pool)):
     user = await _user(request)
     return await contributions.list_contributions(pool, account_id=user.account_id, offset=offset, limit=limit)
-
-
-@router.get('/review', response_model=list[ContributionRow], operation_id='reviewJournalGalaxyQueue')
-async def review_journal_galaxy_queue(request: Request, offset: int = Query(0, ge=0),
-                                     limit: int = Query(50, ge=1, le=200),
-                                     pool: asyncpg.Pool = Depends(get_pool)):
-    await _user(request, owner=True)
-    return await contributions.list_contributions(pool, account_id=None, offset=offset, limit=limit)
-
-
-@router.post('/review', response_model=dict[str, int], operation_id='decideJournalGalaxyContributions')
-@limiter.limit('10/minute')
-async def decide_journal_galaxy_contributions(request: Request, body: ReviewRequest,
-                                             pool: asyncpg.Pool = Depends(get_pool)):
-    user = await _user(request, owner=True, write=True)
-    count = await contributions.review(pool, ids=body.contribution_ids,
-                                       eligible=body.decision == 'ELIGIBLE', actor_id=user.account_id,
-                                       reason=body.reason)
-    return {'reviewed': count}
 
 
 @router.post('/{contribution_id}/withdraw', response_model=dict[str, bool], operation_id='withdrawJournalGalaxyContribution')

@@ -1,6 +1,9 @@
-"""Explicit account offers and operator review for journal galaxy enrichment.
+"""Explicit account offers for journal galaxy enrichment.
 
-Offering or reviewing a contribution never updates a canonical generation.
+The operator review (``review``) was removed on 16 November 2026 with the
+review queue's addresses, which no page called.
+
+Offering a contribution never updates a canonical generation.
 Research consent is deliberately not consulted or inferred by this module.
 """
 from __future__ import annotations
@@ -101,39 +104,6 @@ async def list_contributions(pool, *, account_id: uuid.UUID | None, offset: int,
         AUDIENCE, POLICY, account_id, offset, limit,
     )
     return [dict(row) for row in rows]
-
-
-async def review(pool, *, ids: list[uuid.UUID], eligible: bool, actor_id: uuid.UUID, reason: str) -> int:
-    from edfinder_api.auth import write_security_audit_event
-
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            rows = await conn.fetch(
-                '''SELECT cr.contribution_id FROM v3_private.contribution_receipt cr
-                     JOIN v3_private.private_fact pf USING (private_fact_id)
-                     JOIN v3_private.private_import pi ON pi.private_import_id = pf.private_import_id
-                     JOIN v3_private.journal_event e ON e.journal_event_id = pf.journal_event_id
-                     JOIN v3_identity.account_commander_access a
-                       ON a.account_id = e.owner_account_id AND a.commander_id = e.owner_commander_id
-                    WHERE cr.contribution_id = ANY($1::uuid[]) AND cr.audience_code = $2
-                      AND cr.sharing_policy_version = $3 AND cr.contribution_state = 'OFFERED'
-                      AND pf.withdrawn_at IS NULL AND pi.import_state = 'READY'
-                      AND a.revoked_at IS NULL AND a.access_role = 'OWNER'
-                    ORDER BY cr.contribution_id FOR UPDATE OF cr FOR SHARE OF a, pi, pf''',
-                ids, AUDIENCE, POLICY,
-            )
-            accepted_ids = [row['contribution_id'] for row in rows]
-            await conn.execute(
-                '''UPDATE v3_private.contribution_receipt
-                      SET contribution_state = $2, decided_at = clock_timestamp()
-                    WHERE contribution_id = ANY($1::uuid[])''',
-                accepted_ids, 'ELIGIBLE' if eligible else 'REJECTED',
-            )
-            await write_security_audit_event(
-                conn, event_type='journal.contribution.reviewed', succeeded=True,
-                account_id=actor_id, metadata={'count': len(accepted_ids), 'eligible': eligible, 'reason': reason},
-            )
-            return len(accepted_ids)
 
 
 async def withdraw(pool, account_id: uuid.UUID, contribution_id: uuid.UUID) -> bool:

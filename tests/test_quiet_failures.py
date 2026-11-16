@@ -191,7 +191,6 @@ def test_a_sign_in_that_gets_its_name_says_nothing(frontier, caplog):
 @pytest.mark.parametrize("asked, written", [
     ("/api/v2/watchlist/" + KEY, "/api/v2/watchlist/(hidden)"),
     ("/api/v2/watchlist/" + KEY + "/8216113749", "/api/v2/watchlist/(hidden)/8216113749"),
-    ("/api/v2/watchlist/" + KEY + "/changes?since=5", "/api/v2/watchlist/(hidden)/changes?since=5"),
     ("https://ed-finder.app/api/v2/watchlist/" + KEY, "https://ed-finder.app/api/v2/watchlist/(hidden)"),
     ("/api/profile/sync/" + KEY, "/api/profile/sync/(hidden)"),
     ("/api/profile/sync/" + KEY + "?v=2", "/api/profile/sync/(hidden)?v=2"),
@@ -209,11 +208,11 @@ def test_what_is_written_in_place_of_an_address(asked, written):
 def test_the_apis_access_log_hides_the_watchlist_key():
     record = logging.LogRecord(
         "uvicorn.access", logging.INFO, __file__, 1, '%s - "%s %s HTTP/%s" %d',
-        ("127.0.0.1:5000", "GET", "/api/v2/watchlist/" + KEY + "/changes", "1.1", 200), None)
+        ("127.0.0.1:5000", "GET", "/api/v2/watchlist/" + KEY, "1.1", 200), None)
     assert request_logging.FrontierOAuthAccessLogFilter().filter(record) is True
     line = record.getMessage()
     assert KEY not in line
-    assert '"GET /api/v2/watchlist/(hidden)/changes HTTP/1.1" 200' in line
+    assert '"GET /api/v2/watchlist/(hidden) HTTP/1.1" 200' in line
 
 
 def test_an_error_report_hides_the_watchlist_key_and_keeps_the_rest():

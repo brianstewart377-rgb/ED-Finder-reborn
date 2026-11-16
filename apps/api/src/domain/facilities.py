@@ -5,18 +5,14 @@ Reusable domain objects for facility rules and templates.
 
 Design rules:
   • Pure Python dataclasses — no DB imports, no FastAPI, no asyncio.
-  • Loaded once at startup from the facility_templates DB table.
-  • All simulation code operates on these objects, not raw dicts.
+  • Read from the bundled catalogue, facility_catalogue_v1.json, by the Plan
+    page's rules (cpe/catalogue.py). The API used to load a second copy at
+    start-up from a facility_templates table that V3 does not have; nothing
+    read that copy, and it was removed on 16 November 2026.
   • FacilityTemplate is immutable after construction.
-
-Separation:
-  raw DB row  →  FacilityTemplate (this file)
-  placement   →  FacilityPlacement (placements.py)
-  economy     →  EconomyState (economy_state.py)
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -182,56 +178,17 @@ def is_colony_ship(template: FacilityTemplate) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# In-memory catalogue — loaded once at startup by the loader function below
+# The bundled catalogue, read by the Plan page's rules (cpe/catalogue.py)
 # ---------------------------------------------------------------------------
-_CATALOGUE: dict[str, FacilityTemplate] = {}
 _BUNDLED_CATALOGUE_PATH = Path(__file__).with_name('facility_catalogue_v1.json')
 
 
-def get_catalogue() -> dict[str, FacilityTemplate]:
-    """Return the loaded facility catalogue. Empty until load_catalogue() called."""
-    return _CATALOGUE
-
-
-def load_catalogue_from_rows(rows: list[dict]) -> None:
-    """
-    Populate the in-memory catalogue from DB rows.
-    Call once at API startup from the lifespan handler.
-    Thread-safe for reads after initial load (GIL protects the dict swap).
-    """
-    global _CATALOGUE
-    _CATALOGUE = {r['id']: FacilityTemplate.from_db_row(r) for r in rows}
-
-
 def templates_from_json_data(data: dict[str, Any]) -> dict[str, FacilityTemplate]:
-    """Convert catalogue JSON to a fresh mapping without changing startup state."""
+    """Convert catalogue JSON to a mapping of facility id to template."""
     return {
         item['id']: FacilityTemplate.from_db_row(_template_json_to_row(item))
         for item in data.get('templates') or []
     }
-
-
-def load_catalogue_from_json_data(data: dict[str, Any]) -> None:
-    """
-    Populate the in-memory catalogue from a bundled/generated catalogue JSON.
-
-    The V1 JSON is generated from DaftMav's workbook and intentionally mirrors
-    the database row shape so the simulator can consume the richer catalogue
-    without needing a schema migration.
-    """
-    global _CATALOGUE
-    _CATALOGUE = templates_from_json_data(data)
-
-
-def load_catalogue_from_json_path(path: Path | str) -> None:
-    data = json.loads(Path(path).read_text(encoding='utf-8'))
-    load_catalogue_from_json_data(data)
-
-
-def load_bundled_catalogue() -> dict[str, FacilityTemplate]:
-    """Load and return the DaftMav-derived bundled catalogue."""
-    load_catalogue_from_json_path(_BUNDLED_CATALOGUE_PATH)
-    return get_catalogue()
 
 
 def _template_json_to_row(template: dict[str, Any]) -> dict[str, Any]:

@@ -115,49 +115,6 @@ async def remove_watchlist(
     return {'ok': True}
 
 
-@router.patch('/api/v2/watchlist/{sync_key}/{id64}/alert')
-@limiter.limit('20/minute')
-async def update_alert(
-    request: Request,
-    alert: WatchlistAlert,
-    id64: int = Path(..., ge=1, le=9223372036854775807),
-    sync_key: str = Path(..., min_length=16, max_length=128),
-    pool: asyncpg.Pool = Depends(get_pool),
-):
-    _validate_sync_key(sync_key)
-    async with pool.acquire() as conn:
-        await conn.execute("""
-            UPDATE v3_private.watchlist
-               SET alert_min_score = $1, alert_economy = $2
-             WHERE sync_key = $3 AND system_id64 = $4
-        """, alert.min_development_score, alert.economy, sync_key, id64)
-    return {'ok': True}
-
-
-@router.get('/api/v2/watchlist/{sync_key}/changes')
-@limiter.limit('60/minute')
-async def watchlist_changes(
-    request: Request,
-    sync_key: str = Path(..., min_length=16, max_length=128),
-    pool: asyncpg.Pool = Depends(get_pool),
-):
-    """Changes for systems currently in this sync_key's watchlist."""
-    _validate_sync_key(sync_key)
-    async with pool.acquire() as conn:
-        rows = await conn.fetch("""
-            SELECT c.id, c.system_id64, c.system_name, c.change_type,
-                   c.old_value, c.new_value, c.detected_at
-              FROM v3_private.watchlist_changelog c
-              JOIN v3_private.watchlist w
-                ON w.system_id64 = c.system_id64
-               AND w.sync_key    = c.sync_key
-               AND w.sync_key    = $1
-          ORDER BY c.detected_at DESC, c.id DESC
-             LIMIT 100
-        """, sync_key)
-    return {'changes': [dict(r) for r in rows]}
-
-
 # ---------------------------------------------------------------------------
 # Legacy un-scoped endpoints — HTTP 410 Gone
 # ---------------------------------------------------------------------------

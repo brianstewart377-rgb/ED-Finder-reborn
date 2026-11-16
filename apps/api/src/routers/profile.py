@@ -113,15 +113,3 @@ async def put_profile_sync(
     }
 
 
-@router.delete('/api/profile/sync/{sync_key}')
-@limiter.limit('5/minute')
-async def delete_profile_sync(
-    request: Request,
-    sync_key: str = Path(..., min_length=16, max_length=128),
-    pool: asyncpg.Pool = Depends(get_pool),
-):
-    """Wipe a sync slot. Safe to call when the slot doesn't exist."""
-    _validate_sync_key(sync_key)
-    async with pool.acquire() as conn:
-        await conn.execute('DELETE FROM profile_sync WHERE sync_key = $1', sync_key)
-    return {'ok': True}

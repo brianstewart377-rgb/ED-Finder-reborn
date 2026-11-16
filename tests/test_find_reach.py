@@ -194,21 +194,18 @@ def test_rule_is_outside_the_radius_candidates_subquery(shape):
 
 
 def test_the_requests_take_the_band_and_refuse_others():
-    from edfinder_api.local_search import prepare_galaxy_search_v3, reach_from_body
-    from edfinder_api.models import GalaxySearchRequest, LocalSearchRequest
+    from edfinder_api.local_search import reach_from_body
+    from edfinder_api.models import LocalSearchRequest
 
     assert LocalSearchRequest(galaxy_wide=True).reach_ly == 250
     assert LocalSearchRequest(galaxy_wide=True, reach_ly=500).reach_ly == 500
-    assert GalaxySearchRequest().reach_ly == 250
-    for model in (LocalSearchRequest, GalaxySearchRequest):
-        with pytest.raises(ValidationError):
-            model(reach_ly=300)
+    with pytest.raises(ValidationError):
+        LocalSearchRequest(reach_ly=300)
     assert reach_from_body({}) is None
     assert reach_from_body({"reach_ly": 500}) == 500
     with pytest.raises(HTTPException) as refused:
         reach_from_body({"reach_ly": 300})
     assert refused.value.status_code == 422
-    assert prepare_galaxy_search_v3({"reach_ly": 500})["reach_ly"] == 500
 
 
 def _ask_rankings(monkeypatch, query: str) -> tuple[int, dict, dict]:

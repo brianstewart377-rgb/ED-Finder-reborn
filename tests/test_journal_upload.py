@@ -1,22 +1,28 @@
 """The journal upload: a person's own flight log, kept private to their account.
 
 The code review of 15 November 2026 found nothing tested these routes. They
-matter for two reasons. They hold the most personal thing on the site, so
-"only the account that sent it can read it" has to be true. And they load
-their store by name at run time (routers/v3_journal.py, ``_store``), which is
-the kind of link a clean-up can cut without any import failing.
+matter for three reasons. They hold the most personal thing on the site, so
+"only the account that sent it can read it" has to be true. A journal is
+kept only for a commander the account has proved it owns through Frontier's
+sign-in. And they load their store by name at run time (routers/v3_journal.py,
+``_store``), which is the kind of link a clean-up can cut without any import
+failing.
 
 These tests go through the routes themselves, rate limiter included, against
-real PostgreSQL 18 with every real migration. Being signed in is stood in
-for: the session cookie's lookup is replaced by a header that names one of
-two accounts made for the test, so everything after "who is asking" is the
-real code.
+real PostgreSQL 18 with every real migration: ``/verified-imports``, the
+address the site's journal page sends to, and the addresses that read a
+journal back. Being signed in is stood in for: the session cookie's lookup is
+replaced by a header that names one of two accounts made for the test, so
+everything after "who is asking" is the real code. Each account's commander
+is linked by ``associate_verified_commander``, the function Frontier's
+sign-in calls.
 
 The journal sent is written for the test, because no player's journal belongs
-in this repo. Every fact in it is real: it is a jump to LP 634-1 and a scan of
-each of its five bodies, with the system's real address and position and the
-bodies' real names, read from the answers the live site gave on 15 November
-2026 (apps/web/cypress/fixtures/journeys/lp-634-1).
+in this repo; the commander in it, its name and Frontier ID, is made up for
+the same reason. Every other fact in it is real: it is a jump to LP 634-1 and
+a scan of each of its five bodies, with the system's real address and position
+and the bodies' real names, read from the answers the live site gave on 15
+November 2026 (apps/web/cypress/fixtures/journeys/lp-634-1).
 
 Needs RATINGS_V4_VALIDATION_DATABASE_URL. CI sets EDF_DB_TESTS_REQUIRED=1 so
 it cannot be skipped there.
@@ -40,26 +46,33 @@ os.environ.setdefault("CORS_ORIGINS", "https://journal-upload-test.invalid")
 from edfinder_api.auth import AuthenticatedUser  # noqa: E402
 from edfinder_api.config import limiter, settings  # noqa: E402
 from edfinder_api.deps import get_pool  # noqa: E402
+from edfinder_api.journal.commanders import ISSUER, associate_verified_commander  # noqa: E402
 from edfinder_api.main import init_connection  # noqa: E402
 from edfinder_api.routers import v3_journal as journal_route  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORDED = ROOT / "apps/web/cypress/fixtures/journeys/lp-634-1"
 MINE, THEIRS = uuid.uuid4(), uuid.uuid4()
+# Each account's commander, made up for the test.
+MY_FID, THEIR_FID = "F1000001", "F1000002"
+UPLOAD = "/api/v1/journal/verified-imports"
 # The site's own address, as the API's settings have it: uploads are taken
 # from pages of the site only.
 THE_SITE = settings.cors_origins.split(",")[0].strip().rstrip("/")
 FILE_NAME = "Journal.2026-11-15T180000.01.log"
 
 
-def the_journal() -> tuple[dict, list[dict]]:
-    """One journal file, as the page sends it: the file's facts and its events."""
+def the_journal(fid: str | None = MY_FID) -> tuple[dict, list[dict]]:
+    """One journal file, as the page sends it: the file's facts and its events.
+    The commander record says whose it is; ``fid=None`` leaves it out."""
     system = json.loads((RECORDED / "system.json").read_text())
     bodies = json.loads((RECORDED / "bodies.json").read_text())
     address = int(system["id64"])
     lines = [
         {"timestamp": "2026-11-15T18:00:00Z", "event": "Fileheader", "part": 1, "language": "English/UK",
          "Odyssey": True, "gameversion": "4.2.0.0", "build": "r312744/r0 "},
+        *([{"timestamp": "2026-11-15T18:00:05Z", "event": "Commander", "FID": fid, "Name": "Test Pilot"}]
+          if fid else []),
         {"timestamp": "2026-11-15T18:02:10Z", "event": "FSDJump", "StarSystem": system["name"],
          "SystemAddress": address, "StarPos": [system["x_ly"], system["y_ly"], system["z_ly"]],
          "StarClass": "DA", "JumpDist": 11.2, "FuelUsed": 1.9, "FuelLevel": 14.1},
@@ -104,7 +117,20 @@ def journal_database():
             connection.execute((publication.MIGRATIONS / name).read_text(encoding="utf-8"))
         for account in (MINE, THEIRS):
             connection.execute("INSERT INTO v3_identity.account (account_id) VALUES (%s)", (account,))
+        asyncio.run(link_the_commanders(connection))
         yield connection
+
+
+async def link_the_commanders(connection):
+    """Each account's commander, linked as Frontier's sign-in links one."""
+    pool = await the_apis_own_pool(connection)
+    try:
+        async with pool.acquire() as conn, conn.transaction():
+            for account, fid in ((MINE, MY_FID), (THEIRS, THEIR_FID)):
+                await associate_verified_commander(
+                    conn, account_id=account, issuer=ISSUER, fid=fid, verified_at=datetime.now(timezone.utc))
+    finally:
+        await pool.close()
 
 
 @pytest.fixture
@@ -166,10 +192,8 @@ def stored(connection) -> int:
     return connection.execute("SELECT count(*) FROM v3_private.journal_event").fetchone()[0]
 
 
-READS = ["/summary", "/systems", "/bodies", "/codex", "/organics", "/sales", "/galaxy-impact",
-         "/station-observations",
-         "/travel-heatmap?min_x=-50&max_x=50&min_y=-50&max_y=50&min_z=-50&max_z=50&zoom=1",
-         "/imports/00000000-0000-4000-8000-000000000000"]
+READS = ["/summary", "/galaxy-impact",
+         "/travel-heatmap?min_x=-50&max_x=50&min_y=-50&max_y=50&min_z=-50&max_z=50&zoom=1"]
 
 
 @pytest.mark.parametrize("path", READS)
@@ -185,7 +209,7 @@ def test_nobody_sends_a_journal_without_signing_in(database):
     file, events = the_journal()
 
     async def scenario(client):
-        return await client.post("/api/v1/journal/imports", json=upload(file, events),
+        return await client.post(UPLOAD, json=upload(file, events),
                                  headers={"Origin": THE_SITE})
 
     assert through_the_routes(database, scenario).status_code == 401
@@ -199,7 +223,7 @@ def test_a_journal_is_taken_only_from_a_page_of_the_site_itself(database, origin
     headers = {"X-Test-Account": "mine", **({"Origin": origin} if origin else {})}
 
     async def scenario(client):
-        return await client.post("/api/v1/journal/imports", json=upload(file, events), headers=headers)
+        return await client.post(UPLOAD, json=upload(file, events), headers=headers)
 
     answer = through_the_routes(database, scenario)
     assert answer.status_code == 403 and answer.json()["detail"] == "Trusted request origin required"
@@ -210,62 +234,76 @@ def test_a_journal_is_kept_and_its_receipt_says_what_was_taken(database):
     file, events = the_journal()
 
     async def scenario(client):
-        sent = await client.post("/api/v1/journal/imports", json=upload(file, events), headers=me())
+        sent = await client.post(UPLOAD, json=upload(file, events), headers=me())
         assert sent.status_code == 200, sent.text
-        receipt = sent.json()
-        again = await client.get("/api/v1/journal/imports/%s" % receipt["import_id"], headers=me())
         summary = await client.get("/api/v1/journal/summary", headers=me())
-        return receipt, again, summary.json()
+        return sent.json(), summary.json()
 
-    receipt, again, summary = through_the_routes(database, scenario)
-    assert receipt["status"] == "READY"
-    assert (receipt["files_received"], receipt["files_admitted"], receipt["files_skipped"]) == (1, 1, 0)
-    assert (receipt["events_received"], receipt["events_inserted"], receipt["duplicates_skipped"]) == (7, 7, 0)
-    assert receipt["event_counts"] == {"Fileheader": 1, "FSDJump": 1, "Scan": 5}
-    assert receipt["privacy_stripped_fields"] == 0
-    # The receipt can be read again by the account that sent it.
-    assert again.status_code == 200 and again.json()["import_id"] == receipt["import_id"]
-    assert summary["events_stored"] == 7
-    assert stored(database) == 7
-    # What is kept is the real system, under the account that sent it.
+    receipt, summary = through_the_routes(database, scenario)
+    assert len(receipt["import_ids"]) == 1 and receipt["held_files"] == []
+    assert (receipt["files_admitted"], receipt["files_skipped"]) == (1, 0)
+    assert (receipt["events_inserted"], receipt["duplicates_skipped"]) == (8, 0)
+    assert summary["events_stored"] == 8
+    assert stored(database) == 8
+    # What is kept is the real system, under the account and the commander
+    # that sent it, and the commander has the name its journal gives it.
     kept = database.execute(
-        """SELECT owner_account_id, event_payload->>'StarSystem', (event_payload->>'SystemAddress')::bigint
-             FROM v3_private.journal_event WHERE event_type = 'FSDJump'""").fetchall()
-    assert kept == [(MINE, "LP 634-1", 6131166483162)]
+        """SELECT e.owner_account_id, c.commander_name, e.event_payload->>'StarSystem',
+                  (e.event_payload->>'SystemAddress')::bigint
+             FROM v3_private.journal_event e
+             JOIN v3_identity.commander c ON c.commander_id = e.owner_commander_id
+            WHERE e.event_type = 'FSDJump'""").fetchall()
+    assert kept == [(MINE, "Test Pilot", "LP 634-1", 6131166483162)]
 
 
 def test_the_same_file_sent_twice_is_kept_once(database):
     file, events = the_journal()
 
     async def scenario(client):
-        first = await client.post("/api/v1/journal/imports", json=upload(file, events), headers=me())
-        second = await client.post("/api/v1/journal/imports", json=upload(file, events), headers=me())
+        first = await client.post(UPLOAD, json=upload(file, events), headers=me())
+        second = await client.post(UPLOAD, json=upload(file, events), headers=me())
         return first.json(), second
 
     first, second = through_the_routes(database, scenario)
-    assert first["events_inserted"] == 7
+    assert first["events_inserted"] == 8
     assert second.status_code == 200, second.text
-    assert second.json()["events_inserted"] == 0
-    assert stored(database) == 7
+    again = second.json()
+    assert (again["files_admitted"], again["files_skipped"], again["events_inserted"]) == (0, 1, 0)
+    assert again["import_ids"] == first["import_ids"], "the second answer points at the import that kept it"
+    assert stored(database) == 8
 
 
 def test_what_one_account_sent_another_cannot_read(database):
     file, events = the_journal()
 
     async def scenario(client):
-        sent = await client.post("/api/v1/journal/imports", json=upload(file, events), headers=me())
-        receipt = sent.json()
+        sent = await client.post(UPLOAD, json=upload(file, events), headers=me())
+        assert sent.status_code == 200, sent.text
         their_summary = await client.get("/api/v1/journal/summary", headers=them())
-        their_look = await client.get("/api/v1/journal/imports/%s" % receipt["import_id"], headers=them())
-        their_systems = await client.get("/api/v1/journal/systems", headers=them())
         my_summary = await client.get("/api/v1/journal/summary", headers=me())
-        return their_summary.json(), their_look.status_code, their_systems.json(), my_summary.json()
+        return their_summary.json(), my_summary.json()
 
-    their_summary, their_look, their_systems, my_summary = through_the_routes(database, scenario)
-    assert my_summary["events_stored"] == 7
+    their_summary, my_summary = through_the_routes(database, scenario)
+    assert my_summary["events_stored"] == 8
     assert their_summary["events_stored"] == 0 and their_summary["systems_observed"] == 0
-    assert their_look == 404, "another account is not even told that the import exists"
-    assert their_systems == []
+
+
+@pytest.mark.parametrize("whose, reason", [
+    (MY_FID, "commander_not_linked"),       # my commander's journal, sent by the other account
+    (None, "missing_commander_header"),     # a journal that does not say whose it is
+])
+def test_a_journal_is_held_unless_its_commander_is_the_senders_own(database, whose, reason):
+    file, events = the_journal(fid=whose)
+
+    async def scenario(client):
+        return await client.post(UPLOAD, json=upload(file, events), headers=them())
+
+    answer = through_the_routes(database, scenario)
+    assert answer.status_code == 200, answer.text
+    receipt = answer.json()
+    assert receipt["held_files"] == [{"name": FILE_NAME, "reason": reason}]
+    assert (receipt["files_admitted"], receipt["events_inserted"], receipt["import_ids"]) == (0, 0, [])
+    assert stored(database) == 0
 
 
 def test_fields_the_site_has_no_use_for_are_not_kept(database):
@@ -277,11 +315,11 @@ def test_fields_the_site_has_no_use_for_are_not_kept(database):
     jump["payload"] = {**jump["payload"], "Commander": "Somebody", "FID": "F0000000", "Wanted": True}
 
     async def scenario(client):
-        return await client.post("/api/v1/journal/imports", json=upload(file, events), headers=me())
+        return await client.post(UPLOAD, json=upload(file, events), headers=me())
 
     answer = through_the_routes(database, scenario)
     assert answer.status_code == 200, answer.text
-    assert answer.json()["privacy_stripped_fields"] == 3
+    assert answer.json()["events_inserted"] == 8
     (payload,) = database.execute(
         "SELECT event_payload FROM v3_private.journal_event WHERE event_type = 'FSDJump'").fetchone()
     assert not {"Commander", "FID", "Wanted"} & set(payload)
@@ -290,11 +328,11 @@ def test_fields_the_site_has_no_use_for_are_not_kept(database):
 
 def test_an_event_the_site_does_not_take_is_refused_and_nothing_is_kept(database):
     file, events = the_journal()
-    events[1] = {**events[1], "event_type": "ReceiveText", "payload": {"From": "Somebody", "Message": "o7"}}
+    events[2] = {**events[2], "event_type": "ReceiveText", "payload": {"From": "Somebody", "Message": "o7"}}
 
     async def scenario(client):
-        return await client.post("/api/v1/journal/imports", json=upload(file, events), headers=me())
+        return await client.post(UPLOAD, json=upload(file, events), headers=me())
 
     answer = through_the_routes(database, scenario)
     assert answer.status_code == 422
-    assert stored(database) == 0, "not the six good events either: a batch is taken whole or not at all"
+    assert stored(database) == 0, "not the seven good events either: a batch is taken whole or not at all"

@@ -389,7 +389,7 @@ def test_the_web_servers_log_keeps_no_sign_in_code_and_no_watchlist_key(site):
         "/api/v1/auth/frontier/callback?code=one-time-code&state=its-state",
         "/api/auth/frontier/callback?code=one-time-code",
         "/api/v2/watchlist/the-browsers-key",
-        "/api/v2/watchlist/the-browsers-key/changes?since=5",
+        "/api/v2/watchlist/the-browsers-key/8216113749",
         "/api/profile/sync/the-browsers-key",
         "/api/stub/visitor-address?kept=yes",
     )
@@ -414,7 +414,7 @@ def test_the_web_servers_log_keeps_no_sign_in_code_and_no_watchlist_key(site):
     assert '"GET /api/v1/auth/frontier/callback HTTP/1.1"' in log
     assert '"GET /api/auth/frontier/callback HTTP/1.1"' in log
     assert '"GET /api/v2/watchlist/(hidden) HTTP/1.1"' in log
-    assert '"GET /api/v2/watchlist/(hidden)/changes?since=5 HTTP/1.1"' in log
+    assert '"GET /api/v2/watchlist/(hidden)/8216113749 HTTP/1.1"' in log
     assert '"GET /api/profile/sync/(hidden) HTTP/1.1"' in log
 
 
