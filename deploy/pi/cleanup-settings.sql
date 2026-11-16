@@ -17,8 +17,9 @@
 -- and does not stop the app reading or writing it. Safe to run more than
 -- once. To undo one table's: ALTER TABLE <table> RESET (<setting>, ...).
 --
--- Run on the Pi, as the user pi, once the copy's checks (copy_to_pi.py
--- validate) have finished:
+-- Run on the Pi, as the user pi, once the copy's checks have finished (they
+-- had by 13 November 2026, when this was run; the copy script has since been
+-- removed):
 --   docker exec -i edfinder-v3-phase4c-full-20260827_r5-postgres psql -X -v ON_ERROR_STOP=1 -U edfinder_v3 -d edfinder_v3_phase4c_full_20260827_r5 < /opt/edfinder/cleanup-settings.sql
 BEGIN;
 

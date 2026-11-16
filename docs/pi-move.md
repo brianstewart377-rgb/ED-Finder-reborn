@@ -137,6 +137,8 @@ is scored "on request". Confirmed by the owner on 11 November.
       10 minutes (17 GB). For the whole copy that suggests half a day, a day at
       most; the copy script fetches several tables at once and leaves the
       checks of the rows to the end, which should bring it under that.
+      (16 Nov) The script was removed with the copy script: the server it
+      fetched from has gone. Git history keeps it.
 
 - [ ] (11 Nov) **Everything else the Pi does every day.** Only scoring is
       measured above. Find matters most: the app gives up on any database
@@ -274,7 +276,9 @@ In order:
       takes the small tables the app's views and the scoring read (which
       galaxy data and which scores are current), and sets up the database's
       users, which a dump does not carry. (12 Nov) Built:
-      `scripts/pi/copy_to_pi.py`, run on the Pi. See section 4.
+      `scripts/pi/copy_to_pi.py`, run on the Pi. See section 4. (16 Nov)
+      Removed, with its test, once the server had gone: there is nothing left
+      to copy from. Git history keeps it.
 
 ## 4. The copy
 
