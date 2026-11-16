@@ -67,6 +67,12 @@ def base(fixture_data):
     return fixture_data[0]
 
 
+@pytest.fixture(scope="module")
+def filled_base(fixture_data):
+    """The base with what bodies orbit filled in (see parents_filled_in)."""
+    return parents_filled_in(fixture_data[0], *fixture_data[1].values())
+
+
 def _compact(record) -> bytes:
     return json.dumps(record, separators=(",", ":"), ensure_ascii=False).encode()
 
@@ -218,12 +224,33 @@ BASE_TABLES = ("systems", "bodies", "body_composition", "rings",
                "body_signal_current", "body_genus_current")
 
 
+def parents_filled_in(base, *records):
+    """The base rows with what bodies orbit filled in, as spansh_delta.parents
+    fills them in on a galaxy imported before 16 November 2026."""
+    from spansh_delta.parents import fills
+
+    filled = {body: parent for record in records for _, body, parent in fills(record)}
+    rows = deepcopy(base)
+    for row in rows["bodies"]:
+        if row["direct_parent_body_pk"] is None and row["body_pk"] in filled:
+            row["direct_parent_body_pk"] = filled[row["body_pk"]]
+    return rows
+
+
 def test_unchanged_real_system_matches_production_base_exactly(records, base):
     # HD 38179 was last updated in Spansh in 2021: its later record must map to
     # the very rows the published generation holds, float4 composition included.
+    # Those rows were imported before 16 November 2026, when the importer read
+    # only the first link of a body's list of what it orbits: planets 5 and 6
+    # orbit a centre point nobody scanned, so they held no parent. That is the
+    # one difference, and once it is filled in the rows match exactly.
     system = normalize_system(records[HD_38179])
+    verdict = classify_material_change(system, base, policy="strict", tables=BASE_TABLES)
+    assert verdict.changed_columns == ("bodies.direct_parent_body_pk",)
+    assert verdict.rows_added == verdict.rows_removed == 0
+    filled = parents_filled_in(base, records[HD_38179])
     for policy in ("strict", "stable"):
-        verdict = classify_material_change(system, base, policy=policy, tables=BASE_TABLES)
+        verdict = classify_material_change(system, filled, policy=policy, tables=BASE_TABLES)
         assert verdict.status == "unchanged", verdict
         assert not verdict.admit
 
@@ -231,7 +258,7 @@ def test_unchanged_real_system_matches_production_base_exactly(records, base):
 MINING_LOCATIONS = "$PlanetaryMiningLocation_Name;"
 
 
-def test_mining_locations_in_a_real_record_are_a_change_to_its_signals(records, base):
+def test_mining_locations_in_a_real_record_are_a_change_to_its_signals(records, filled_base):
     """Alioth's record of September 2026 lists mining locations on seven
     bodies. The base was written before the importer knew that signal
     (migration 029), so it holds none of them."""
@@ -242,8 +269,8 @@ def test_mining_locations_in_a_real_record_are_a_change_to_its_signals(records, 
                       "Mackenzie's Legacy": 10, "Ousey Rock": 12, "Miller Rock": 29}
 
     system = normalize_system(records[ALIOTH])
-    strict = classify_material_change(system, base, policy="strict", tables=BASE_TABLES)
-    stable = classify_material_change(system, base, policy="stable", tables=BASE_TABLES)
+    strict = classify_material_change(system, filled_base, policy="strict", tables=BASE_TABLES)
+    stable = classify_material_change(system, filled_base, policy="stable", tables=BASE_TABLES)
 
     assert strict.status == "changed" and strict.changed_tables == ("bodies", "body_signal_current")
     assert (strict.rows_added, strict.rows_removed) == (7, 0)
@@ -253,24 +280,24 @@ def test_mining_locations_in_a_real_record_are_a_change_to_its_signals(records, 
     assert (stable.rows_added, stable.rows_removed) == (7, 0)
 
 
-def test_rescan_only_moves_orbital_phase_columns(records, base):
+def test_rescan_only_moves_orbital_phase_columns(records, filled_base):
     # Without its mining locations (see the test above), Alioth's later record
     # differs from the base only by where each body is on its orbit.
     for body in records[ALIOTH]["bodies"]:
         ((body.get("signals") or {}).get("signals") or {}).pop(MINING_LOCATIONS, None)
     system = normalize_system(records[ALIOTH])
-    strict = classify_material_change(system, base, policy="strict", tables=BASE_TABLES)
-    stable = classify_material_change(system, base, policy="stable", tables=BASE_TABLES)
+    strict = classify_material_change(system, filled_base, policy="strict", tables=BASE_TABLES)
+    stable = classify_material_change(system, filled_base, policy="stable", tables=BASE_TABLES)
     assert strict.status == "changed" and strict.changed_tables == ("bodies",)
     assert {tuple(column.split(".")) for column in strict.changed_columns} <= ORBITAL_PHASE_COLUMNS
     assert stable.status == "unchanged"
 
 
-def test_real_signal_changes_are_detected(records, base):
-    sol = classify_material_change(normalize_system(records[SOL]), base, tables=BASE_TABLES)
+def test_real_signal_changes_are_detected(records, filled_base):
+    sol = classify_material_change(normalize_system(records[SOL]), filled_base, tables=BASE_TABLES)
     assert sol.status == "changed"
     assert "body_signal_current" in sol.changed_tables and "bodies.signals_complete" in sol.changed_columns
-    maia = classify_material_change(normalize_system(records[MAIA]), base, tables=BASE_TABLES)
+    maia = classify_material_change(normalize_system(records[MAIA]), filled_base, tables=BASE_TABLES)
     assert maia.changed_tables == ("body_signal_current",) and maia.rows_removed == 44
 
 

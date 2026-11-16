@@ -19,7 +19,8 @@ YEARS_PER_MYR: Final[float] = 1_000_000.0
 GRID_EDGE_LY: Final[float] = 10.0
 
 IMPORTER_VERSION: Final[str] = "v3-spansh-4c-correction-gate.1"
-NORMALIZER_VERSION: Final[str] = "v3-spansh-normalizer-4c-correction-gate.1"
+# .2 (16 November 2026): a body's parent is read from its whole list (adapter.parent_links).
+NORMALIZER_VERSION: Final[str] = "v3-spansh-normalizer-4c-correction-gate.2"
 SELECTOR_VERSION: Final[str] = "v3-spansh-representative-prefix-1"
 EVENT_CONTRACT_VERSION: Final[str] = "v3.canonical-generation.published/1"
 

@@ -6,7 +6,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping, Sequence
 from uuid import UUID
 
 from .contracts import (
@@ -384,6 +384,112 @@ def _merge_station_observations(
     return merged, left_body_pk if left_body_pk is not None else right_body_pk
 
 
+def body_pk_of(system_id64: int, body: Mapping[str, Any]) -> int:
+    """A body's key: its Spansh id64, or a stable stand-in when it has none."""
+    body_id64 = body.get("id64")
+    if body_id64 is not None:
+        return int(body_id64)
+    return stable_int63("body", system_id64, body.get("bodyId"), body.get("name"))
+
+
+def _local_id(body: Mapping[str, Any]) -> int | None:
+    try:
+        return int(body["bodyId"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _parent_list(body: Mapping[str, Any]) -> list[tuple[str, int]]:
+    """The body's own list of what it orbits, nearest first, as (kind, bodyId)
+    pairs: read up to the first link that cannot be read."""
+    links: list[tuple[str, int]] = []
+    parents = body.get("parents")
+    for entry in parents if isinstance(parents, list) else ():
+        if not isinstance(entry, dict) or not entry:
+            break
+        kind, raw = next(iter(entry.items()))
+        try:
+            links.append((str(kind).casefold(), int(raw)))
+        except (TypeError, ValueError):
+            break
+    return links
+
+
+def _first_held(links: Sequence[tuple[str, int]], held: Mapping[int, int], own: int | None) -> int | None:
+    """The first link that is a body we hold. A centre point we do not hold is
+    passed over; any other body we do not hold ends the search."""
+    for kind, local in links:
+        if local == own:
+            return None
+        if local in held:
+            return held[local]
+        if kind != "null":
+            return None
+    return None
+
+
+def parent_links(bodies: Sequence[Mapping[str, Any]], held: Mapping[int, int]) -> list[int | None]:
+    """What each body orbits, as the key of a body in this system, or None.
+
+    ``held`` maps each listed body's bodyId to its key. Spansh gives a body the
+    list the game gives (``parents``): what the body orbits, then what that
+    orbits, out to the middle of the system. Two bodies that orbit each other
+    orbit a centre point between them, which the game calls a barycentre
+    (``{"Null": bodyId}`` in the list). Spansh lists such a point as a body of
+    its own only when someone has scanned it, and never gives it a list.
+
+      * The parent is the first link in the body's own list that is a body we
+        hold. A centre point we do not hold is passed over, so a body in a pair
+        whose point was never scanned hangs from what the pair orbits. A planet
+        or star we do not hold is never passed over: the search stops there,
+        so a moon is never hung straight from a star because its planet is
+        missing.
+      * A body with no list of its own takes the link that follows it in
+        another body's list, found the same way: Pluto's list (centre point
+        31, then Sol) says the Pluto-Charon pair orbits Sol.
+      * A body that would end up on a loop (only possible in damaged data)
+        keeps only what the first link of its own list gives.
+
+    Until 16 November 2026 only the first link of a body's own list was read,
+    so every centre point, and every body whose first link was a centre point
+    nobody scanned, had no parent, and the System Map had to guess them. On
+    Spansh's one-day file of 16 November that left the map guessing 53,146
+    bodies in 25,391 of 57,870 systems; this rule leaves 5,967 in 2,689.
+    """
+    lists = [_parent_list(body) for body in bodies]
+    own = [_local_id(body) for body in bodies]
+    first = [held.get(links[0][1]) if links else None for links in lists]
+    parents = [_first_held(links, held, me) for links, me in zip(lists, own, strict=True)]
+    following: dict[int, list[Sequence[tuple[str, int]]]] = {}
+    for links in lists:
+        for position, (_, local) in enumerate(links):
+            following.setdefault(local, []).append(links[position + 1:])
+    for index, (links, me) in enumerate(zip(lists, own, strict=True)):
+        if links or me is None:
+            continue
+        for rest in following.get(me, ()):
+            found = _first_held(rest, held, me)
+            if found is not None:
+                parents[index] = found
+                break
+    # Damaged data could make a loop: every body on one keeps its first link only.
+    index_of = {held[me]: index for index, me in enumerate(own) if me is not None and me in held}
+    on_loop = []
+    for index in range(len(parents)):
+        step = parents[index]
+        for _ in range(len(parents)):
+            upward = index_of.get(step) if step is not None else None
+            if upward is None:
+                break
+            if upward == index:
+                on_loop.append(index)
+                break
+            step = parents[upward]
+    for index in on_loop:
+        parents[index] = first[index]
+    return parents
+
+
 @dataclass
 class CanonicalBatch:
     rows: dict[str, list[tuple[Any, ...]]] = field(default_factory=dict)
@@ -472,15 +578,15 @@ class SpanshAdapter:
         for body in bodies:
             local_id = body.get("bodyId")
             body_id64 = body.get("id64")
-            body_pk = int(body_id64) if body_id64 is not None else stable_int63("body", id64, local_id, body.get("name"))
+            body_pk = body_pk_of(id64, body)
             if local_id is not None:
                 body_keys[int(local_id)] = body_pk
             if body_id64 is not None:
                 body_ids64[int(body_id64)] = body_pk
 
         nested_stations: list[tuple[dict[str, Any], int | None]] = []
-        for body in bodies:
-            self._adapt_body(batch, id64, body, body_keys, body_ids64)
+        for body, direct_parent in zip(bodies, parent_links(bodies, body_keys), strict=True):
+            self._adapt_body(batch, id64, body, direct_parent)
             local_id = body.get("bodyId")
             body_pk = body_keys.get(int(local_id)) if local_id is not None else body_ids64.get(int(body.get("id64", -1)))
             for station in body.get("stations") or []:
@@ -513,15 +619,11 @@ class SpanshAdapter:
         batch: CanonicalBatch,
         system_id64: int,
         body: dict[str, Any],
-        body_keys: dict[int, int],
-        body_ids64: dict[int, int],
+        direct_parent: int | None,
     ) -> None:
         local_id = body.get("bodyId")
         source_id64 = body.get("id64")
-        body_pk = (
-            int(source_id64) if source_id64 is not None
-            else stable_int63("body", system_id64, local_id, body.get("name"))
-        )
+        body_pk = body_pk_of(system_id64, body)
         name = _text(body.get("name"))
         if not name:
             raise ValueError(f"body {body_pk} is missing name")
@@ -531,17 +633,14 @@ class SpanshAdapter:
         if body_type:
             batch.feature_flags.add(body_type.casefold())
 
-        direct_parent = None
+        # What the body orbits is worked out for the whole system at once
+        # (parent_links). Counted, not stored: see parent_resolution.
         parents = body.get("parents")
         if isinstance(parents, list) and parents and isinstance(parents[0], dict) and parents[0]:
-            raw_label, raw_id = next(iter(parents[0].items()))
-            try:
-                raw_id_int = int(raw_id)
-            except (TypeError, ValueError):
-                raw_id_int = None
-            direct_parent = body_keys.get(raw_id_int) if raw_id_int is not None else None
             state = "resolved" if direct_parent is not None else "unresolved"
             batch.parent_resolution[state] = batch.parent_resolution.get(state, 0) + 1
+        elif direct_parent is not None:
+            batch.parent_resolution["resolved"] = batch.parent_resolution.get("resolved", 0) + 1
 
         semi_au = finite_float(body.get("semiMajorAxis"))
         radius = finite_float(body.get("radius"))

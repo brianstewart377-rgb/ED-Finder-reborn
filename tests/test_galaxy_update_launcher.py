@@ -305,6 +305,58 @@ def test_reach_by_hand_needs_no_file_and_works_it_out_in_the_container(spansh, d
     assert "FAILED: the work on reach ended with code 2" in capsys.readouterr().out
 
 
+# Filling in what bodies orbit, once (spansh_delta.parents): read from Spansh's
+# whole-galaxy file as it downloads, inside the job, so nothing is kept here.
+WHOLE_GALAXY = "galaxy.json.gz"
+
+
+@pytest.mark.parametrize("command, mode, said", [
+    ("check-parents", "check", "Running the check from "),
+    ("fill-parents", "apply", "Running the fill-in of parents from "),
+])
+def test_parents_are_read_from_the_whole_galaxy_file_inside_the_job(
+        spansh, docker, tmp_path, capsys, command, mode, said):
+    chosen = settings(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_URL="",
+                      EDFINDER_GALAXY_SOURCE=spansh.origin + "/")
+    assert tool.cmd_apply(chosen, command, None) == 0
+    job = docker.calls("run")[-1]
+    whole = spansh.origin + "/" + WHOLE_GALAXY
+    assert job[job.index("-m"):] == ["-m", "spansh_delta.parents", mode, whole]
+    assert modules(docker) == [("spansh_delta.parents", mode)]
+    out = capsys.readouterr().out
+    assert "Reading %s as it downloads." % whole in out and said + IMAGE in out
+    # Nothing is fetched here, and it never counts as an update applied.
+    assert spansh.requests == [] and not chosen.record.exists()
+
+
+def test_parents_take_a_limit_and_another_file_given_by_hand(spansh, docker, tmp_path):
+    chosen = settings(spansh, tmp_path / "galaxy")  # EDFINDER_GALAXY_URL: the 1-day file
+    assert tool.cmd_apply(chosen, "check-parents", 1_000_000) == 0
+    job = docker.calls("run")[-1]
+    assert job[job.index("-m"):] == ["-m", "spansh_delta.parents", "check",
+                                     spansh.origin + "/" + FILE, "--limit", "1000000"]
+    assert spansh.requests == []
+
+
+def test_a_failed_fill_in_of_parents_says_so(spansh, docker, tmp_path, capsys):
+    docker.state["module_exit"] = {"spansh_delta.parents": 1}
+    docker.save()
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "fill-parents", None) == 1
+    assert "FAILED: the fill-in ended with code 1; its own messages are above." in capsys.readouterr().out
+
+
+def test_main_knows_the_parents_commands(spansh, docker, tmp_path, monkeypatch):
+    monkeypatch.setenv("EDFINDER_GALAXY_DIR", str(tmp_path / "galaxy"))
+    monkeypatch.setenv("EDFINDER_GALAXY_SOURCE", spansh.origin + "/")
+    monkeypatch.setenv("EDFINDER_GALAXY_URL", "")
+    assert tool.main(["check-parents", "--limit", "10"]) == 0
+    assert tool.main(["fill-parents"]) == 0
+    jobs = docker.calls("run")
+    assert jobs[0][-4:] == ["check", spansh.origin + "/" + WHOLE_GALAXY, "--limit", "10"]
+    assert jobs[1][-2:] == ["apply", spansh.origin + "/" + WHOLE_GALAXY]
+
+
 def test_a_failed_score_check_says_so(spansh, docker, tmp_path, capsys):
     spansh.publish(FILE, b"night one", MONDAY)
     chosen = settings(spansh, tmp_path / "galaxy")
