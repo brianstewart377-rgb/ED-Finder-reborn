@@ -3,7 +3,8 @@
 Runs on PostgreSQL 18 with every migration applied. The database holds the
 twelve real fixture systems as production held them in August, with scores,
 archetypes and Find rows made for them by the frozen build code through its
-own paths (chunk 0). ``spansh_delta.scores`` then has to reproduce those rows
+own paths (chunk 0), and with what bodies orbit filled in as the one-time job
+of 16 November 2026 leaves them (no score reads it). ``spansh_delta.scores`` then has to reproduce those rows
 by its own route: reading our rows back out of the database, and asking for
 systems by id instead of by chunk.
 
@@ -35,7 +36,7 @@ from tests.helpers import finder_seed  # noqa: E402
 from tests.ratings_v4_pg_fixture import canonical_database  # noqa: E402
 from tests.test_galaxy_update import (  # noqa: E402
     HD_38179, SEPTEMBER, SMOJOO, SOL, THAILE, Galaxy, _environment, as_new_system, carrier_from,
-    queue, run, snapshot,
+    fill_parents, queue, run, snapshot,
 )
 from tests.test_spansh_delta import write_galaxy  # noqa: E402
 
@@ -53,7 +54,7 @@ def _insert(connection, table: str, columns, rows) -> None:
 
 
 @pytest.fixture(scope="module")
-def template():
+def template(tmp_path_factory):
     """Published scores for the twelve real systems, made by the frozen code's
     own chunk paths. Built once; each test gets its own copy."""
     from scripts import v3_system_archetype as archetype_build
@@ -83,6 +84,7 @@ def template():
             _insert(connection, "system_archetype", archetype_build.ALL_STORED_COLUMNS, [
                 archetype_build._wide_tuple(generation, system_id, model.score_raw_system(*raw[system_id]), now)
                 for system_id in sorted(records)])
+        fill_parents(connection, records.values(), tmp_path_factory.mktemp("galaxy"))
         database = connection.info.dbname
         connection.close()
         yield database, canonical["canonical_schema"], records, generation

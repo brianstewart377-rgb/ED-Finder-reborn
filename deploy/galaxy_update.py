@@ -41,6 +41,23 @@ Spansh's to say.
                                       (the Pi; migration 028). Needed once
                                       before the scoring can run there; after
                                       that the scoring does it each week.
+    python3 galaxy_update.py check-parents
+                                      say how many bodies imported before
+                                      16 November 2026 the whole-galaxy file
+                                      gives a parent we hold as unknown. Read
+                                      only.
+    python3 galaxy_update.py fill-parents
+                                      fill them in (python -m
+                                      spansh_delta.parents). Once, on a
+                                      database imported before then.
+
+Both read Spansh's whole-galaxy file (galaxy.json.gz, about 120 GB) as it
+downloads, so nothing is kept on disk; EDFINDER_GALAXY_URL gives another file.
+They take many hours (with --limit 1000000, minutes). fill-parents changes
+only what each body orbits, where we hold that as unknown, and re-scores
+nothing. It never runs at the same time as the update: a nightly run that
+starts meanwhile stops and says so. So stop the timer first
+(sudo systemctl stop edfinder-galaxy-update.timer) and start it again after.
 
 Every system the update changes goes on a waiting list for new scores. When
 EDFINDER_GALAXY_SCORES is "on", `run` also works through that list each time,
@@ -128,6 +145,7 @@ JOB_NAME = "edfinder-galaxy-update"
 DAY_FILE = "galaxy_1day.json.gz"
 WEEK_FILE = "galaxy_7days.json.gz"
 MONTH_FILE = "galaxy_1month.json.gz"
+FULL_FILE = "galaxy.json.gz"
 WEEK_REACH = timedelta(days=6)
 MONTH_REACH = timedelta(days=31)
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -393,6 +411,9 @@ JOBS = {
     "check-scores": ("spansh_delta.scores", "check", True),
     "score": ("spansh_delta.scores", "apply", False),
     "reach": ("spansh_delta.reach", "rebuild", False),
+    # These read the file as it downloads: they are given its address.
+    "check-parents": ("spansh_delta.parents", "check", True),
+    "fill-parents": ("spansh_delta.parents", "apply", True),
 }
 
 
@@ -426,7 +447,7 @@ def job_command(settings: Settings, route: str, image: str, command_name: str,
     if reads_file:
         if not name:
             raise UpdateError("no Spansh file was given for the %s" % command_name)
-        command.append("/data/" + name)
+        command.append(name if module == "spansh_delta.parents" else "/data/" + name)
     when = made_at(version) if module == "spansh_delta.apply" else None
     if when:
         command += ["--made-at", when]
@@ -448,7 +469,8 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
         if route == "app" and not os.path.isfile(settings.api_env_file):
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
         say("Running the %s from %s ..." % (
-            {"run": "update", "score": "scoring", "reach": "work on reach"}.get(command_name, "check"), image)
+            {"run": "update", "score": "scoring", "reach": "work on reach",
+             "fill-parents": "fill-in of parents"}.get(command_name, "check"), image)
             if position == 0 else
             "The database did not accept a local client. Trying the app's own connection "
             "settings instead ...")
@@ -489,6 +511,12 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         if mode == "reach":
             # Everything reach is worked out from is in the database too.
             return finished(run_job(settings, "reach", {}, None), "work on reach")
+        if mode in ("check-parents", "fill-parents"):
+            # Read as it downloads, inside the job: nothing is kept on disk.
+            url = settings.url or settings.source + FULL_FILE
+            say("Reading %s as it downloads. This takes hours." % url)
+            return finished(run_job(settings, mode, {}, limit, url),
+                            "fill-in" if mode == "fill-parents" else "check")
         if mode == "check-scores":
             # Compared with the file already here, normally the one the last
             # update applied, so nothing is fetched.
@@ -585,7 +613,8 @@ def cmd_status(settings: Settings) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's file of recent changes to the galaxy and apply it.")
-    parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score", "reach"))
+    parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score", "reach",
+                                            "check-parents", "fill-parents"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")
     args = parser.parse_args(argv)

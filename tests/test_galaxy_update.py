@@ -2,13 +2,16 @@
 
 Runs on PostgreSQL 18 with every migration applied. The galaxy is the twelve
 real systems of ``tests/fixtures/ratings_v4_sources`` as production held them
-on 2026-08-24; the files applied to it are built from the same systems'
-real Spansh records fetched on 2026-09-08, edited where a test says so.
+on 2026-08-24, with what bodies orbit filled in as the one-time job of
+16 November 2026 leaves them (``tests/test_fill_parents.py`` has the galaxy
+before it); the files applied to it are built from the same systems' real
+Spansh records fetched on 2026-09-08, edited where a test says so.
 
 Needs RATINGS_V4_VALIDATION_DATABASE_URL, like the other database tests.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -29,6 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "importer" / "src"))
 
 from spansh_delta import apply as galaxy_update  # noqa: E402
+from spansh_delta import parents  # noqa: E402
 from spansh_delta.normalize import CONTENT_TABLES  # noqa: E402
 from tests.helpers.finder_seed import apply_migration, migration_names  # noqa: E402
 from tests.ratings_v4_pg_fixture import canonical_database  # noqa: E402
@@ -66,14 +70,21 @@ def fill_classes(connection, schema: str, records) -> None:
             connection.execute(statement, (body_class(body.get("type"), body.get("subType")), body["id64"]))
 
 
-@pytest.fixture(scope="module")
-def template():
-    """One migrated galaxy, built once; each test gets its own copy of it.
+# Bodies of the twelve systems that the importer left without a parent before
+# 16 November 2026 and that the one-time job fills in (tests/test_fill_parents.py).
+PARENTS_FILLED = 34
 
-    Its bodies have their classes. A galaxy whose rows were all written
-    before migration 027 has none of its own and takes them from its score
-    rows: ``tests/test_galaxy_scores.py`` has that galaxy.
-    """
+
+def fill_parents(connection, records, directory: Path) -> None:
+    """Fill in what bodies orbit, as the one-time job of 16 November 2026
+    (``spansh_delta.parents``) leaves a galaxy imported before then."""
+    path = write_galaxy(directory / f"galaxy_{uuid4().hex[:8]}.json.gz", records)
+    report = parents.run(connection, str(path), mode="apply", progress=False)
+    assert report.filled == report.found == PARENTS_FILLED, report
+
+
+@contextmanager
+def migrated_galaxy(directory: Path, *, parents_filled: bool = True):
     migrations = ROOT / "sql" / "v3" / "migrations"
     with canonical_database() as (connection, canonical, _, payloads):
         for name in migration_names():
@@ -81,8 +92,22 @@ def template():
         database = connection.info.dbname
         records = {payload["system"]["id64"]: payload["system"] for payload in payloads}
         fill_classes(connection, canonical["canonical_schema"], records.values())
+        if parents_filled:
+            fill_parents(connection, records.values(), directory)
         connection.close()
         yield database, canonical["canonical_schema"], records
+
+
+@pytest.fixture(scope="module")
+def template(tmp_path_factory):
+    """One migrated galaxy, built once; each test gets its own copy of it.
+
+    Its bodies have their classes. A galaxy whose rows were all written
+    before migration 027 has none of its own and takes them from its score
+    rows: ``tests/test_galaxy_scores.py`` has that galaxy.
+    """
+    with migrated_galaxy(tmp_path_factory.mktemp("galaxy")) as built:
+        yield built
 
 
 @pytest.fixture
