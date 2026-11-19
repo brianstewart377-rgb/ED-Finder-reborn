@@ -45,7 +45,17 @@ if args[0] == "run":
     route = "app" if "--env-file" in args else "local"
     module = args[args.index("-m") + 1]
     print("%%s (%%s) by the %%s route" %% (module, args[args.index("-m") + 2], route))
-    sys.exit(state.get("module_exit", {}).get(module, state["run_exit"][route]))
+    code = state.get("module_exit", {}).get(module, state["run_exit"][route])
+    if module == "spansh_delta.recent" and code == 0:
+        folder = args[args.index("--volume") + 1].split(":")[0]
+        name = args[args.index("-m") + 4][len("/data/"):]
+        with open(os.path.join(folder, name), "wb") as saved:
+            saved.write(b"the systems changed since then")
+        with open(os.path.join(folder, name + ".json"), "w") as about:
+            json.dump({"since": args[args.index("--since") + 1], "systems_read": 1000,
+                       "systems_saved": state.get("saved", 42),
+                       "stopped_early": "--limit" in args}, about)
+    sys.exit(code)
 if args[0] == "exec":
     statement = args[-1]
     for needle, reply in state["psql"].items():
@@ -357,6 +367,143 @@ def test_main_knows_the_parents_commands(spansh, docker, tmp_path, monkeypatch):
     assert jobs[1][-2:] == ["apply", spansh.origin + "/" + WHOLE_GALAXY]
 
 
+# Catching up with Spansh's whole-galaxy file (spansh_delta.recent, then the
+# update): the changed systems are saved here, then applied, then scored.
+IMPORTED = "acquisition_kind = 'BULK_SNAPSHOT'"
+SAVED = "galaxy_since_2026-08-22.json.gz"
+
+
+def catching_up(spansh: Spansh, directory: Path, **extra: str):
+    """Settings with no fixed file: catch-up reads Spansh's whole-galaxy file."""
+    return settings(spansh, directory, EDFINDER_GALAXY_URL="",
+                    EDFINDER_GALAXY_SOURCE=spansh.origin + "/", **extra)
+
+
+def database_imported(docker, imported: str | None) -> None:
+    docker.state["psql"] = {IMPORTED: imported or ""}
+    docker.save()
+
+
+def jobs(docker) -> list[list[str]]:
+    return [call[call.index("-m") + 1:] for call in docker.calls("run")]
+
+
+def test_catch_up_saves_what_changed_since_the_import_then_applies_it(spansh, docker, tmp_path, capsys):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, "2026-08-24")
+    chosen = catching_up(spansh, tmp_path / "galaxy")
+
+    assert tool.cmd_apply(chosen, "catch-up", None) == 0
+
+    whole = spansh.origin + "/" + WHOLE_GALAXY
+    assert jobs(docker) == [
+        ["spansh_delta.recent", "save", whole, "/data/" + SAVED, "--since", "2026-08-22"],
+        ["spansh_delta.apply", "apply", "/data/" + SAVED, "--total", "42",
+         "--made-at", "2026-11-12T03:05:00+00:00"],
+    ]
+    save, apply = docker.calls("run")
+    # Only the saving job may write here.
+    assert "%s:/data" % chosen.directory in save and "%s:/data:ro" % chosen.directory in apply
+    # The whole-galaxy file is read inside the job as it downloads, never here;
+    # the saved file is removed once applied.
+    assert spansh.downloads() == [] and not list(chosen.directory.glob("galaxy_since_*"))
+    out = capsys.readouterr().out
+    assert ("The galaxy was imported from Spansh's file of 24 Aug 2026. Taking every system "
+            "Spansh has changed since 22 Aug 2026.") in out
+    assert "Applying the 42 systems saved." in out
+    assert "now up to date with Spansh's file of 12 Nov 2026 03:05 UTC" in out
+
+
+def test_catch_up_carries_on_from_the_saved_file_after_the_update_stopped(
+        spansh, docker, tmp_path, capsys):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, "2026-08-24")
+    docker.state["module_exit"] = {"spansh_delta.apply": 1}
+    docker.save()
+    chosen = catching_up(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "catch-up", None) == 1
+    out = capsys.readouterr().out
+    assert "What was applied stays. Running catch-up again carries on from the saved file." in out
+    assert chosen.path(SAVED).is_file()
+    asked = list(spansh.requests)
+
+    docker.state["module_exit"] = {}
+    docker.save()
+    assert tool.cmd_apply(chosen, "catch-up", None) == 0
+    # The second run did not read Spansh's file again: it applied the saved one.
+    assert [job[0] for job in jobs(docker)] == ["spansh_delta.recent", "spansh_delta.apply",
+                                                 "spansh_delta.apply"]
+    assert spansh.requests == asked
+    assert "Carrying on from the systems saved before: 42 changed since 22 Aug 2026" in capsys.readouterr().out
+    assert not list(chosen.directory.glob("galaxy_since_*"))
+
+
+def test_a_failed_first_half_applies_nothing_and_the_next_run_starts_afresh(
+        spansh, docker, tmp_path, capsys):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, "2026-08-24")
+    docker.state["module_exit"] = {"spansh_delta.recent": 1}
+    docker.save()
+    chosen = catching_up(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "catch-up", None) == 1
+    assert "FAILED: the first half of the catch-up ended with code 1" in capsys.readouterr().out
+    assert [job[0] for job in jobs(docker)] == ["spansh_delta.recent"]
+
+    docker.state["module_exit"] = {}
+    docker.save()
+    assert tool.cmd_apply(chosen, "catch-up", None) == 0
+    assert [job[0] for job in jobs(docker)] == ["spansh_delta.recent", "spansh_delta.recent",
+                                                 "spansh_delta.apply"]
+
+
+def test_catch_up_from_a_day_given_by_hand_and_none_without_an_import(spansh, docker, tmp_path):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, None)
+    chosen = catching_up(spansh, tmp_path / "galaxy")
+    with pytest.raises(tool.UpdateError, match="no import of the whole galaxy.*--since YYYY-MM-DD"):
+        tool.cmd_apply(chosen, "catch-up", None)
+    assert docker.calls("run") == []
+
+    assert tool.cmd_apply(chosen, "catch-up", None, tool.date(2026, 10, 1)) == 0
+    assert jobs(docker)[0][-2:] == ["--since", "2026-10-01"]
+    assert jobs(docker)[1][2] == "/data/galaxy_since_2026-10-01.json.gz"
+
+
+def test_a_catch_up_trial_applies_nothing_and_keeps_nothing(spansh, docker, tmp_path, capsys):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, "2026-08-24")
+    chosen = catching_up(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "catch-up", 1_000_000) == 0
+    trial = "/data/galaxy_since_2026-08-22.trial.json.gz"
+    assert jobs(docker) == [["spansh_delta.recent", "save", spansh.origin + "/" + WHOLE_GALAXY, trial,
+                             "--since", "2026-08-22", "--limit", "1000000"]]
+    assert not list(chosen.directory.glob("galaxy_since_*"))
+    assert "Nothing will be applied." in capsys.readouterr().out
+
+
+def test_catch_up_gives_new_scores_afterwards_when_scoring_is_on(spansh, docker, tmp_path):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, "2026-08-24")
+    chosen = catching_up(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
+    assert tool.cmd_apply(chosen, "catch-up", None) == 0
+    assert [job[:2] for job in jobs(docker)] == [
+        ["spansh_delta.recent", "save"], ["spansh_delta.apply", "apply"], ["spansh_delta.scores", "apply"]]
+
+
+def test_main_knows_catch_up_and_since_is_for_it_only(spansh, docker, tmp_path, monkeypatch, capsys):
+    spansh.publish(WHOLE_GALAXY, b"the whole galaxy", TONIGHT)
+    database_imported(docker, "2026-08-24")
+    monkeypatch.setenv("EDFINDER_GALAXY_DIR", str(tmp_path / "galaxy"))
+    monkeypatch.setenv("EDFINDER_GALAXY_SOURCE", spansh.origin + "/")
+    monkeypatch.setenv("EDFINDER_GALAXY_URL", "")
+    assert tool.main(["catch-up", "--since", "2026-09-01"]) == 0
+    assert jobs(docker)[0][-2:] == ["--since", "2026-09-01"]
+    assert tool.main(["run", "--since", "2026-09-01"]) == 1
+    assert "FAILED: --since is for catch-up only" in capsys.readouterr().out
+    assert tool.main(["catch-up", "--since", "1 September"]) == 1
+    assert "is not a day like 2026-08-22" in capsys.readouterr().out
+
+
 def test_a_failed_score_check_says_so(spansh, docker, tmp_path, capsys):
     spansh.publish(FILE, b"night one", MONDAY)
     chosen = settings(spansh, tmp_path / "galaxy")
@@ -615,19 +762,72 @@ def test_up_to_31_days_away_is_the_32_day_file_and_more_stops_without_changing_a
         tool.cmd_apply(chosen, "run", None)
     message = str(refused.value)
     assert "12 Oct 2026 03:04 UTC, more than 31 days ago" in message
-    assert "only the full galaxy file" in message and "EDFINDER_GALAXY_URL" in message
+    assert "only its whole-galaxy file" in message
+    assert "python3 galaxy_update.py catch-up" in message
     assert "Nothing was changed." in message
     assert applied(docker) == ["/data/" + MONTH]  # no second update was started
 
 
-def test_with_no_finished_update_in_the_database_it_will_not_guess(spansh, docker, tmp_path):
+def test_with_neither_an_import_nor_an_update_in_the_database_it_will_not_guess(
+        spansh, docker, tmp_path):
     spansh.publish(WEEK, b"seven days", TONIGHT)
     chosen = choosing(spansh, tmp_path / "galaxy")
     database_says(docker, None)
     for mode in ("run", "check"):
-        with pytest.raises(tool.UpdateError, match="no galaxy update has finished"):
+        with pytest.raises(tool.UpdateError, match="records neither an import of the whole galaxy"):
             tool.cmd_apply(chosen, mode, None)
     assert spansh.downloads() == [] and docker.calls("run") == []
+
+
+def test_before_the_first_update_the_file_is_chosen_from_the_import():
+    # The time the choice starts from is the last finished update's file, or
+    # the whole-galaxy file the galaxy was imported from (tested against the
+    # real schema in tests/test_catch_up.py).
+    assert "acquisition_kind IN ('DELTA', 'BULK_SNAPSHOT')" in tool.COVERED_SQL
+    assert "run_state = 'SUCCEEDED'" in tool.COVERED_SQL
+
+
+# A file given by hand must reach back to the last update: otherwise what
+# Spansh changed in between is left out for good. That is how 24 August to
+# 6 November 2026 went missing on the Pi.
+
+def by_hand(spansh: Spansh, directory: Path, name: str):
+    return settings(spansh, directory, EDFINDER_GALAXY_URL="%s/%s" % (spansh.origin, name))
+
+
+def test_a_file_given_by_hand_that_does_not_reach_back_far_enough_is_refused(spansh, docker, tmp_path):
+    spansh.publish(FILE, b"one day", TONIGHT)
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    database_says(docker, "2026-11-11 03:05:00")  # a day before tonight's files
+    for name in (FILE, WEEK):
+        chosen = by_hand(spansh, tmp_path / name, name)
+        if name == WEEK:
+            database_says(docker, "2026-11-05 03:04:59")  # more than 6 days before
+        with pytest.raises(tool.UpdateError) as refused:
+            tool.cmd_apply(chosen, "run", None)
+        message = str(refused.value)
+        assert "does not reach back that far" in message and "left out for good" in message
+        assert "python3 galaxy_update.py catch-up" in message and "Nothing was changed." in message
+    assert spansh.downloads() == [] and docker.calls("run") == []
+
+
+def test_a_file_given_by_hand_that_reaches_back_far_enough_is_applied(spansh, docker, tmp_path):
+    spansh.publish(WEEK, b"seven days", TONIGHT)
+    spansh.publish(tool.FULL_FILE, b"the whole galaxy", TONIGHT)
+    database_says(docker, "2026-11-06 03:05:00")  # exactly 6 days before
+    assert tool.cmd_apply(by_hand(spansh, tmp_path / "week", WEEK), "run", None) == 0
+    # The whole-galaxy file reaches back to the beginning.
+    database_says(docker, "2026-08-24 01:00:00")
+    assert tool.cmd_apply(by_hand(spansh, tmp_path / "whole", tool.FULL_FILE), "run", None) == 0
+    assert applied(docker) == ["/data/" + WEEK, "/data/" + tool.FULL_FILE]
+
+
+def test_checking_a_file_given_by_hand_is_never_refused(spansh, docker, tmp_path):
+    # check writes nothing, so it can leave nothing out.
+    spansh.publish(FILE, b"one day", TONIGHT)
+    database_says(docker, "2026-11-01 03:05:00")
+    assert tool.cmd_apply(by_hand(spansh, tmp_path / "galaxy", FILE), "check", None) == 0
+    assert applied(docker) == ["/data/" + FILE]
 
 
 def test_spansh_not_saying_when_the_file_was_made_stops_the_run(spansh, docker, tmp_path):

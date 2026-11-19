@@ -144,6 +144,7 @@ applies it:
 | `check-scores` | Works scores out again for the systems of the file on disk, from Spansh's records and from our own rows, and compares them with the stored ones. Read only. |
 | `score` | Gives new scores to the systems on the waiting list. Needs no file. |
 | `reach` | Works out afresh which systems are within 500 ly and 250 ly of an inhabited system. Needs migration `028` (the Pi). |
+| `catch-up` | For a galaxy that missed some of Spansh's changes. Reads Spansh's whole-galaxy file as it downloads, saves every system changed since the galaxy was imported (less two days, or `--since YYYY-MM-DD`), then applies them like `run`, scores included. Run again after a stop, it carries on from the saved file. `--limit N` only tries the first N systems. |
 
 Which file:
 
@@ -154,14 +155,18 @@ Which file:
   back over the last six nights too. What we already have is left alone, so
   only what really changed is written and scored.
 - The launcher chooses by how long ago the file of the last finished update
-  was made. The database records that (`v3_source.source_run.effective_at`),
+  was made, or before the first update, the whole-galaxy file the galaxy was
+  imported from. The database records both (`v3_source.source_run.effective_at`),
   so the choice still works after the database is copied to another machine.
   6 days or less: the 7-day file. 7 to 31 days: the 32-day file
   (`galaxy_1month.json.gz`, about 6 GB). More: it stops and says so, because
-  only the full galaxy file reaches back that far. A day is kept spare in both,
-  because when exactly a file's days begin is Spansh's to say.
+  only the full galaxy file reaches back that far: `catch-up` does that. A day
+  is kept spare in both, because when exactly a file's days begin is Spansh's
+  to say.
 - `EDFINDER_GALAXY_URL` gives one fixed file instead, for the full galaxy file
-  or for trying something out.
+  or for trying something out. `run` refuses one that does not reach back to
+  the last update (the one-day file, or a 7-day or 32-day file too far on),
+  because what Spansh changed in between would be left out for good.
 - After a successful run only the file just applied is kept on disk.
 
 How it works:

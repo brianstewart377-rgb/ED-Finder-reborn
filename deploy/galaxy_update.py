@@ -13,17 +13,23 @@ November), so two one-day files can leave a gap between them, and a night the
 update does not run would lose that day for good. Each 7-day file reaches back
 over the last six nights as well, so neither can happen.
 
-The file is chosen by how long ago the last update's file was made (the
-database records that, so the choice still works after a copy to another
+The file is chosen by how long ago the last update's file was made, or before
+the first update, the whole-galaxy file the database was imported from (the
+database records both, so the choice still works after a copy to another
 machine):
 
   * 6 days or less: the 7-day file.
   * 7 to 31 days: Spansh's 32-day file (galaxy_1month.json.gz, about 6 GB).
-  * More: the update stops and says so. Only the full galaxy file reaches back
-    that far; give it by hand with EDFINDER_GALAXY_URL.
+  * More: the update stops and says so. Only Spansh's whole-galaxy file
+    reaches back that far: run catch-up (below).
 
 A day is kept spare in both, because when exactly a file's days begin is
-Spansh's to say.
+Spansh's to say. For the same reason `run` refuses a file given by hand with
+EDFINDER_GALAXY_URL that does not reach back that far: the one-day file, a
+7-day file more than 6 days on, the 32-day file more than 31 days on. Applying
+it would leave out what Spansh changed in between, for good. (That is how
+24 August to 6 November 2026 went missing on the Pi: the first update was
+given the one-day file by hand. catch-up brings it back.)
 
     python3 galaxy_update.py check    fetch the file, then say what would change.
                                       Read only: the database is not touched.
@@ -50,14 +56,30 @@ Spansh's to say.
                                       fill them in (python -m
                                       spansh_delta.parents). Once, on a
                                       database imported before then.
+    python3 galaxy_update.py catch-up
+                                      bring the galaxy up to date with
+                                      Spansh's whole-galaxy file, when updates
+                                      have missed some of Spansh's changes.
+                                      First saves every system Spansh has
+                                      changed since the galaxy was imported
+                                      (less two days; --since YYYY-MM-DD gives
+                                      another day) to a file here (python -m
+                                      spansh_delta.recent), then applies that
+                                      file the way `run` applies the 7-day one,
+                                      scores included. Run again after a stop,
+                                      it carries on from the saved file. With
+                                      --limit N it only tries the first N
+                                      systems, and applies nothing.
 
-Both read Spansh's whole-galaxy file (galaxy.json.gz, about 120 GB) as it
-downloads, so nothing is kept on disk; EDFINDER_GALAXY_URL gives another file.
-They take many hours (with --limit 1000000, minutes). fill-parents changes
-only what each body orbits, where we hold that as unknown, and re-scores
-nothing. It never runs at the same time as the update: a nightly run that
-starts meanwhile stops and says so. So stop the timer first
-(sudo systemctl stop edfinder-galaxy-update.timer) and start it again after.
+These three read Spansh's whole-galaxy file (galaxy.json.gz, about 120 GB) as
+it downloads, so it is never kept on disk (catch-up keeps the systems it saves,
+about a tenth of it, until they are applied); EDFINDER_GALAXY_URL gives another
+file. They take many hours (with --limit 1000000, minutes). fill-parents
+changes only what each body orbits, where we hold that as unknown, and
+re-scores nothing. Neither it nor catch-up runs at the same time as the
+update: a nightly run that starts meanwhile stops and says so. So stop the
+timer first (sudo systemctl stop edfinder-galaxy-update.timer) and start it
+again after.
 
 Every system the update changes goes on a waiting list for new scores. When
 EDFINDER_GALAXY_SCORES is "on", `run` also works through that list each time,
@@ -65,6 +87,7 @@ whether or not Spansh had anything new. So a night when the scoring fails is
 made up by the next run.
 
     --limit N    stop after N systems (for timing a very big file)
+    --since D    catch-up: save the systems changed on or after this day
 
 What `run` does:
 
@@ -94,7 +117,7 @@ from __future__ import annotations
 
 import argparse
 import email.utils
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import fcntl
 import os
 import re
@@ -148,6 +171,14 @@ MONTH_FILE = "galaxy_1month.json.gz"
 FULL_FILE = "galaxy.json.gz"
 WEEK_REACH = timedelta(days=6)
 MONTH_REACH = timedelta(days=31)
+# How far back a file given by hand may be from the last update: a day less
+# than it spans. Other files (the whole galaxy, or another name) are not held
+# to it.
+REACH = {DAY_FILE: timedelta(0), WEEK_FILE: WEEK_REACH, MONTH_FILE: MONTH_REACH}
+# catch-up starts, unless told otherwise, two days before the file the galaxy
+# was imported from was made. Its saved file is named for that day.
+CATCH_UP_SPARE = timedelta(days=2)
+CATCH_UP_PREFIX = "galaxy_since_"
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 # The update's own exit code for "could not connect to the database".
@@ -161,11 +192,18 @@ LAST_RUN_SQL = (
     "FROM v3_source.source_run r WHERE r.acquisition_kind = 'DELTA' "
     "ORDER BY r.started_at DESC LIMIT 1"
 )
-# When the file of the last finished update was made: everything Spansh had
-# changed up to then is in the database.
+# When the file of the last finished update was made, or before the first
+# update, the file the galaxy was imported from: everything Spansh had changed
+# up to then is in the database.
 COVERED_SQL = (
     "SELECT coalesce(to_char(max(r.effective_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'), '') "
-    "FROM v3_source.source_run r WHERE r.acquisition_kind = 'DELTA' AND r.run_state = 'SUCCEEDED'"
+    "FROM v3_source.source_run r WHERE r.acquisition_kind IN ('DELTA', 'BULK_SNAPSHOT') "
+    "AND r.run_state = 'SUCCEEDED'"
+)
+# When the whole-galaxy file the galaxy was imported from was made.
+IMPORTED_SQL = (
+    "SELECT coalesce(to_char(max(r.effective_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD'), '') "
+    "FROM v3_source.source_run r WHERE r.acquisition_kind = 'BULK_SNAPSHOT' AND r.run_state = 'SUCCEEDED'"
 )
 WAITING_SQL = "SELECT count(*) FROM v3_state.rescore_queue"
 # When reach was last worked out afresh (migration 028; the Pi).
@@ -312,7 +350,7 @@ def describe(rows: List[List[str]]) -> str:
 
 
 def covered_until(settings: Settings) -> Optional[datetime]:
-    """When the file of the last finished update was made, or None if none has finished."""
+    """When the file of the last finished update (or the import) was made, or None."""
     rows = query(settings, COVERED_SQL)
     text = rows[0][0] if rows and rows[0] else ""
     if not text:
@@ -346,9 +384,10 @@ def choose(settings: Settings) -> Tuple[str, Dict[str, Any], bool]:
     last = covered_until(settings)
     if last is None:
         raise UpdateError(
-            "no galaxy update has finished in this database yet, so there is no telling how "
-            "far back the first one has to reach. Apply a first file by hand with "
-            "EDFINDER_GALAXY_URL (see the top of galaxy_update.py). Nothing was changed.")
+            "this database records neither an import of the whole galaxy nor a finished "
+            "galaxy update, so there is no telling how far back the first update has to reach. "
+            "Apply a first file by hand with EDFINDER_GALAXY_URL (see the top of "
+            "galaxy_update.py). Nothing was changed.")
     if made <= last:
         return week_url, week, True
     if made - last <= WEEK_REACH:
@@ -361,10 +400,31 @@ def choose(settings: Settings) -> Tuple[str, Dict[str, Any], bool]:
             "Taking the 32-day file instead of the 7-day one." % when_text(last))
         return month_url, month, False
     raise UpdateError(
-        "the last update applied Spansh's files of %s, more than 31 days ago. Spansh's "
-        "32-day file no longer reaches back that far; only the full galaxy file "
-        "(galaxy.json.gz, about 120 GB) does. Apply it by hand with EDFINDER_GALAXY_URL. "
-        "Nothing was changed." % when_text(last))
+        "the galaxy was last brought up to date with Spansh's files of %s, more than 31 days "
+        "ago. Spansh's 32-day file no longer reaches back that far; only its whole-galaxy file "
+        "does. Run: python3 galaxy_update.py catch-up. Nothing was changed." % when_text(last))
+
+
+def check_reach(settings: Settings, url: str, version: Dict[str, Any]) -> None:
+    """Refuse a file given by hand that does not reach back to the last update
+    (or the import): applying it would leave out, for good, what Spansh changed
+    in between."""
+    name = fetch.file_name(url)
+    if name not in REACH:
+        return
+    made, last = published(version), covered_until(settings)
+    if last is None:
+        return
+    if made is None:
+        raise UpdateError("Spansh did not say when %s was made, so there is no telling whether "
+                          "it reaches back far enough. Nothing was changed." % name)
+    if made - last > REACH[name]:
+        raise UpdateError(
+            "%s was made %s, but the galaxy was last brought up to date with Spansh's files of "
+            "%s: it does not reach back that far, so what Spansh changed in between would be "
+            "left out for good. Leave EDFINDER_GALAXY_URL empty to let the update choose, or "
+            "run: python3 galaxy_update.py catch-up. Nothing was changed."
+            % (name, when_text(made), when_text(last)))
 
 
 def file_on_disk(settings: Settings) -> Optional[str]:
@@ -414,11 +474,17 @@ JOBS = {
     # These read the file as it downloads: they are given its address.
     "check-parents": ("spansh_delta.parents", "check", True),
     "fill-parents": ("spansh_delta.parents", "apply", True),
+    # The first half of catch-up: saves the changed systems into this folder.
+    "catch-up-save": ("spansh_delta.recent", "save", True),
 }
+# Jobs that read the file as it downloads, and the one that writes here.
+FROM_ADDRESS = ("spansh_delta.parents", "spansh_delta.recent")
+WRITES_HERE = ("catch-up-save",)
 
 
 def job_command(settings: Settings, route: str, image: str, command_name: str,
-                version: Dict[str, Any], limit: Optional[int], name: Optional[str]) -> List[str]:
+                version: Dict[str, Any], limit: Optional[int], name: Optional[str],
+                extra: Tuple[str, ...] = ()) -> List[str]:
     module, mode, reads_file = JOBS[command_name]
     # --init: a small first process in the container passes signals on.
     # Python as the container's first process ignores the polite stop signal,
@@ -440,14 +506,15 @@ def job_command(settings: Settings, route: str, image: str, command_name: str,
         ]
     command += [
         "--env", "PYTHONDONTWRITEBYTECODE=1", "--env", "PYTHONUNBUFFERED=1",
-        "--volume", "%s:/data:ro" % settings.directory,
+        "--volume", "%s:/data%s" % (settings.directory, "" if command_name in WRITES_HERE else ":ro"),
         "--security-opt", "no-new-privileges:true", "--pids-limit", "256",
         image, "python", "-m", module, mode,
     ]
     if reads_file:
         if not name:
             raise UpdateError("no Spansh file was given for the %s" % command_name)
-        command.append(name if module == "spansh_delta.parents" else "/data/" + name)
+        command.append(name if module in FROM_ADDRESS else "/data/" + name)
+    command += list(extra)
     when = made_at(version) if module == "spansh_delta.apply" else None
     if when:
         command += ["--made-at", when]
@@ -457,7 +524,7 @@ def job_command(settings: Settings, route: str, image: str, command_name: str,
 
 
 def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
-            limit: Optional[int], name: Optional[str] = None) -> int:
+            limit: Optional[int], name: Optional[str] = None, extra: Tuple[str, ...] = ()) -> int:
     image = live_image(settings)
     routes = ["local", "app"] if settings.connect == "auto" else [settings.connect]
     code = 1
@@ -470,13 +537,14 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
         say("Running the %s from %s ..." % (
             {"run": "update", "score": "scoring", "reach": "work on reach",
-             "fill-parents": "fill-in of parents"}.get(command_name, "check"), image)
+             "fill-parents": "fill-in of parents",
+             "catch-up-save": "first half of the catch-up"}.get(command_name, "check"), image)
             if position == 0 else
             "The database did not accept a local client. Trying the app's own connection "
             "settings instead ...")
         try:
             code = subprocess.run(
-                job_command(settings, route, image, command_name, version, limit, name),
+                job_command(settings, route, image, command_name, version, limit, name, extra),
                 stdin=subprocess.DEVNULL).returncode
         except OSError as error:
             raise UpdateError("docker could not be run: %s" % error) from error
@@ -496,7 +564,104 @@ def make_readable(settings: Settings, name: str) -> None:
     os.chmod(settings.path(name), 0o644)
 
 
-def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
+def imported_on(settings: Settings) -> Optional[date]:
+    """The day the whole-galaxy file the galaxy was imported from was made."""
+    rows = query(settings, IMPORTED_SQL)
+    text = rows[0][0] if rows and rows[0] else ""
+    if not text:
+        return None
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").date()
+    except ValueError:
+        raise UpdateError("the database gave an unexpected day for the import: %r" % text) from None
+
+
+def tidy_catch_up(settings: Settings) -> None:
+    """Remove what an earlier catch-up saved here."""
+    for path in settings.directory.glob(CATCH_UP_PREFIX + "*"):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def catch_up(settings: Settings, since: Optional[date], limit: Optional[int]) -> int:
+    """Save every system Spansh has changed since a day, then apply them (see the
+    top of this file). Run again after a stop, it carries on from the saved file."""
+    url = settings.url or settings.source + FULL_FILE
+    if since is None:
+        imported = imported_on(settings)
+        if imported is None:
+            raise UpdateError("this database records no import of the whole galaxy, so there is "
+                              "no telling which day to start from. Give one with --since YYYY-MM-DD.")
+        since = imported - CATCH_UP_SPARE
+        say("The galaxy was imported from Spansh's file of %s. Taking every system Spansh has "
+            "changed since %s." % (imported.strftime("%d %b %Y"), since.strftime("%d %b %Y")))
+    if limit is not None:
+        # A trial: save from the first systems only, say what was found, keep nothing.
+        trial = "%s%s.trial.json.gz" % (CATCH_UP_PREFIX, since.isoformat())
+        say("Trying the first %s systems of %s. Nothing will be applied." % (format(limit, ","), url))
+        try:
+            return finished(run_job(settings, "catch-up-save", {}, limit, url,
+                                    ("/data/" + trial, "--since", since.isoformat())), "trial")
+        finally:
+            for path in (settings.path(trial), settings.path(trial + ".json")):
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+
+    name = "%s%s.json.gz" % (CATCH_UP_PREFIX, since.isoformat())
+    saved_path, about_path, from_path = (settings.path(name), settings.path(name + ".json"),
+                                         settings.path(name + ".from"))
+    saved = fetch.read_record(about_path) if saved_path.is_file() else {}
+    version = fetch.read_record(from_path)
+    made = published(version)
+    if saved.get("since") == since.isoformat() and not saved.get("stopped_early") and made:
+        say("Carrying on from the systems saved before: %s changed since %s, from Spansh's "
+            "file of %s." % (format(saved.get("systems_saved", 0), ","),
+                             since.strftime("%d %b %Y"), when_text(made)))
+    else:
+        tidy_catch_up(settings)
+        version = fetch.remote_version(url)
+        made = published(version)
+        if made is None:
+            raise UpdateError("Spansh did not say when %s was made, so the galaxy could not be said "
+                              "to be up to date as of then. Nothing was changed." % fetch.file_name(url))
+        needed = version["size"] // 4 + fetch.SPARE_BYTES
+        free = shutil.disk_usage(settings.directory).free
+        if free < needed:
+            raise UpdateError("not enough free disk space in %s: %.1f GB free, %.1f GB needed" % (
+                settings.directory, free / 1e9, needed / 1e9))
+        # Which file the saved systems come from, and so when the galaxy is up to date as of.
+        fetch.write_record(from_path, version)
+        say("Reading %s (%.1f GB, made %s) as it downloads, and saving every system changed since "
+            "%s. This takes a few hours." % (url, version["size"] / 1e9, when_text(made),
+                                             since.strftime("%d %b %Y")))
+        code = run_job(settings, "catch-up-save", {}, None, url,
+                       ("/data/" + name, "--since", since.isoformat()))
+        if code != 0:
+            return finished(code, "first half of the catch-up")
+        saved = fetch.read_record(about_path)
+        if not saved_path.is_file() or saved.get("since") != since.isoformat():
+            raise UpdateError("the first half of the catch-up ended without saving its file")
+    make_readable(settings, name)
+    say("Applying the %s systems saved. This takes hours." % format(saved.get("systems_saved", 0), ","))
+    code = run_job(settings, "run", version, None, name,
+                   ("--total", str(int(saved.get("systems_saved") or 0))))
+    if code != 0:
+        say("What was applied stays. Running catch-up again carries on from the saved file.")
+        return finished(code, "update")
+    tidy_catch_up(settings)
+    say("The galaxy is now up to date with Spansh's file of %s. The saved file is removed."
+        % when_text(made))
+    if settings.scores:
+        return finished(run_job(settings, "score", version, None), "scoring")
+    return 0
+
+
+def cmd_apply(settings: Settings, mode: str, limit: Optional[int],
+              since: Optional[date] = None) -> int:
     settings.directory.mkdir(parents=True, exist_ok=True)
     with open(settings.directory / "lock", "w") as lock:
         try:
@@ -511,6 +676,8 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         if mode == "reach":
             # Everything reach is worked out from is in the database too.
             return finished(run_job(settings, "reach", {}, None), "work on reach")
+        if mode == "catch-up":
+            return catch_up(settings, since, limit)
         if mode in ("check-parents", "fill-parents"):
             # Read as it downloads, inside the job: nothing is kept on disk.
             url = settings.url or settings.source + FULL_FILE
@@ -531,6 +698,8 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int]) -> int:
         else:
             say("Asking Spansh what is new ...")
             url, version, applied = choose(settings)
+            if mode == "run" and settings.url and not applied:
+                check_reach(settings, url, version)
             if mode == "run" and limit is None and applied:
                 if not settings.scores:
                     say("Spansh has published nothing new since the last update. Nothing to do.")
@@ -614,17 +783,27 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's file of recent changes to the galaxy and apply it.")
     parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score", "reach",
-                                            "check-parents", "fill-parents"))
+                                            "check-parents", "fill-parents", "catch-up"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")
+    parser.add_argument("--since", default=None,
+                        help="catch-up: save the systems changed on or after this day (YYYY-MM-DD)")
     args = parser.parse_args(argv)
     try:
         if args.limit is not None and args.limit < 1:
             raise UpdateError("--limit must be 1 or more")
+        since = None
+        if args.since is not None:
+            if args.command != "catch-up":
+                raise UpdateError("--since is for catch-up only")
+            try:
+                since = date.fromisoformat(args.since)
+            except ValueError:
+                raise UpdateError("--since: %r is not a day like 2026-08-22" % args.since) from None
         settings = Settings()
         if args.command == "status":
             return cmd_status(settings)
-        return cmd_apply(settings, args.command, args.limit)
+        return cmd_apply(settings, args.command, args.limit, since)
     except (UpdateError, fetch.RefreshError) as error:
         say("FAILED: %s" % error)
         return 1

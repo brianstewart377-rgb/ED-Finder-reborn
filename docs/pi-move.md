@@ -238,6 +238,14 @@ In order:
       yet, so the gap from 24 August (the date of the file the galaxy was
       built from) to 10 November (the first nightly update) harms no one, and
       doing it here first would hold up the copy by days.
+      (19 Nov) Built as `galaxy_update.py catch-up`, quicker than the same
+      code over the whole file: it saves only the systems Spansh changed since
+      22 August (about 1 in 22) as the file downloads
+      (`apps/importer/src/spansh_delta/recent.py`), then applies them with the
+      nightly update's own code. Tried on Spansh's first 300,000 systems:
+      12,998 saved, none missed. The first update applied the one-day file by
+      hand, which is how the gap began; `run` now refuses a file given by hand
+      that does not reach back to the last update. Not yet run on the Pi.
 - [ ] **Reach.** How far each system is from inhabited space, kept up to date
       as colonies appear. Gives Find its 250 ly default and 500 ly limit, and
       tells the copy which systems to take. When a colony brings systems into
