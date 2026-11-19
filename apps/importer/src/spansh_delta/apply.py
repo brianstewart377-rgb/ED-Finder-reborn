@@ -974,8 +974,11 @@ def _batches(path: Path, report: Report, limit: int | None) -> Iterator[list[Map
 
 def run_file(connection: psycopg.Connection[Any], path: Path, *, mode: str,
              made_at: datetime | None = None, limit: int | None = None,
-             progress: bool = True) -> Report:
-    """Check or apply one Spansh galaxy file. ``connection`` must be autocommit."""
+             progress: bool = True, total: int | None = None) -> Report:
+    """Check or apply one Spansh galaxy file. ``connection`` must be autocommit.
+
+    ``total``, when known, is how many systems the file holds: the progress
+    lines then say how long is left."""
     if mode not in ("check", "apply"):
         raise ValueError("mode must be 'check' or 'apply'")
     if not connection.autocommit:
@@ -988,13 +991,13 @@ def run_file(connection: psycopg.Connection[Any], path: Path, *, mode: str,
     if mode == "check":
         stamp = made_at or datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
         return _run_batches(connection, target, path, report, Run(0, UUID(int=0), stamp), None,
-                            limit=limit, progress=progress, started=started)
+                            limit=limit, progress=progress, started=started, total=total)
     if not connection.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_KEY,)).fetchone()[0]:
         raise UpdateError("another galaxy update is running; this one did not start")
     try:
         run = register_run(connection, file_facts(path, made_at))
         return _run_batches(connection, target, path, report, run, Writer(connection, target, run),
-                            limit=limit, progress=progress, started=started)
+                            limit=limit, progress=progress, started=started, total=total)
     finally:
         try:
             connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_KEY,))
@@ -1002,9 +1005,18 @@ def run_file(connection: psycopg.Connection[Any], path: Path, *, mode: str,
             pass
 
 
+def _progress(report: Report, total: int | None, seconds: float) -> str:
+    line = (f"  ... {report.systems_read:,}" + (f" of {total:,}" if total else "")
+            + f" systems read, {report.to_write:,} changed or new, {int(seconds) // 60} min")
+    if total and report.systems_read:
+        minutes = int(seconds * max(total - report.systems_read, 0) / report.systems_read) // 60
+        line += f", about {minutes // 60} h {minutes % 60} min to go"
+    return line
+
+
 def _run_batches(connection: psycopg.Connection[Any], target: Target, path: Path, report: Report,
                  run: Run, writer: Writer | None, *, limit: int | None, progress: bool,
-                 started: float) -> Report:
+                 started: float, total: int | None = None) -> Report:
     try:
         last = started
         for records in _batches(path, report, limit):
@@ -1016,8 +1028,7 @@ def _run_batches(connection: psycopg.Connection[Any], target: Target, path: Path
                     "What was applied so far is complete and stays.")
             if progress and time.monotonic() - last >= PROGRESS_SECONDS:
                 last = time.monotonic()
-                say(f"  ... {report.systems_read:,} systems read, "
-                    f"{report.to_write:,} changed or new, {int(last - started) // 60} min")
+                say(_progress(report, total, last - started))
         report.seconds = time.monotonic() - started
         if writer is not None:
             finish_run(connection, run, report)
@@ -1073,6 +1084,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="when Spansh made the file (default: the file's own time)")
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a big file)")
+    parser.add_argument("--total", type=int, default=None,
+                        help="how many systems the file holds, when known: progress then says "
+                             "how long is left")
     args = parser.parse_args(argv)
     if not args.file.is_file():
         say(f"FAILED: there is no file {args.file}")
@@ -1089,7 +1103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             + (f"{size / 1e9:.2f} GB" if size >= 1e9 else f"{size / 1e6:.1f} MB"))
         try:
             report = run_file(connection, args.file, mode=args.mode, made_at=args.made_at,
-                              limit=args.limit)
+                              limit=args.limit, total=args.total)
         except Refused as error:
             say(f"REFUSED: {error}")
             say("Nothing was changed.")
