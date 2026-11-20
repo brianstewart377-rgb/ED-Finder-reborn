@@ -180,11 +180,20 @@ nav a[aria-current='page'] {
   text-decoration-thickness: 2px;
   text-underline-offset: 0.45rem;
 }
-/* The header and the selected-system bar line up with the page under them.
-   Most pages keep them 92rem wide; a page that fills the window (Explore,
-   Plan, the Bodies tab of Inspect) takes them across it with it. */
+/* The header and the selected-system bar line up with the page under them:
+   each page's width is repeated here, so their edges meet. A page not
+   listed keeps them 92rem wide. */
 :root {
   --top-bars-width: min(92rem, calc(100% - 2rem));
+}
+:root:has(.home-page) {
+  --top-bars-width: min(80rem, calc(100% - 6rem));
+}
+:root:has(.product-page) {
+  --top-bars-width: min(100rem, calc(100% - 2rem));
+}
+:root:has(.inspect-page) {
+  --top-bars-width: min(74rem, calc(100% - 2rem));
 }
 :root:has(.explore-page) {
   --top-bars-width: calc(100% - 1rem);
@@ -196,8 +205,16 @@ nav a[aria-current='page'] {
   --top-bars-width: calc(100% - 2rem);
 }
 @media (max-width: 900px) {
+  :root:has(.home-page) {
+    --top-bars-width: calc(100% - 4rem);
+  }
   :root:has(.explore-page) {
     --top-bars-width: calc(100% - 0.5rem);
+  }
+}
+@media (max-width: 640px) {
+  :root:has(.home-page) {
+    --top-bars-width: calc(100% - 3rem);
   }
 }
 .workspace-header {
