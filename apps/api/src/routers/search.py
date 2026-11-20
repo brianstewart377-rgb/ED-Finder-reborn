@@ -61,7 +61,9 @@ AUTOCOMPLETE_CACHE_VERSION = 'v4'
 # before inhabited and being-claimed systems were left out.
 # Bumped v6 -> v7 with Find's reach rule: a v6 page holds systems out to any
 # distance from inhabited space.
-SEARCH_CACHE_VERSION = 'v7'
+# Bumped v7 -> v8 with Find's list of fake systems (fake_systems): a v7 page
+# can still show the made-up system "Test" next to Sol.
+SEARCH_CACHE_VERSION = 'v8'
 
 
 def _search_cache_key(body_dict: dict, generation_row) -> str:

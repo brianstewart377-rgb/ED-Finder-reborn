@@ -27,7 +27,7 @@ import pytest
 
 os.environ.setdefault("CORS_ORIGINS", "https://find-claim-rule-test.invalid")
 
-from edfinder_api import claim_rule  # noqa: E402
+from edfinder_api import claim_rule, fake_systems  # noqa: E402
 from edfinder_api.ranking.profile import (  # noqa: E402
     ARCHETYPE_KEYS,
     FIND_COUNT_LIMIT,
@@ -99,8 +99,17 @@ def count(shape: str, *, hide: bool):
 
 
 def _without_rule(sql: str, alias: str) -> tuple[str, int]:
+    """``sql`` without the claim rule, and how many times it was there.
+
+    Find's view (``hide_claimed``) also adds the list of fake systems
+    (``fake_systems``), once, after the claim rule; that is taken out too.
+    """
     clause = re.escape(claim_rule.not_claimed_sql(f"{alias}.system_id64"))
-    return re.subn(rf"(?:\n\s+AND {clause}|WHERE {clause}\n)", "", sql)
+    sql, removed = re.subn(rf"(?:\n\s+AND {clause}|WHERE {clause}\n)", "", sql)
+    fake = re.escape(fake_systems.not_fake_sql(f"{alias}.system_id64"))
+    sql, fakes = re.subn(rf"\n\s+AND {fake}", "", sql)
+    assert fakes == 1, sql
+    return sql, removed
 
 
 # ---------------------------------------------------------------------------
