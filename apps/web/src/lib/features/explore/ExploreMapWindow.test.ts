@@ -50,6 +50,35 @@ describe('Explore map window', () => {
     ).toBeInTheDocument();
   });
 
+  it('behind the results keeps the map but takes no focus, and offers Show results in front', async () => {
+    const onShowResults = vi.fn();
+    const { rerender, container } = frame({
+      finderPanelOpen: false,
+      inFront: false,
+      onShowResults,
+    });
+    const region = container.querySelector<HTMLElement>(
+      '[data-explore-map-window]',
+    )!;
+    const map = container.querySelector('[data-the-map]');
+    expect(region).toHaveAttribute('data-map-in-front', 'false');
+    expect(region.inert).toBe(true);
+    // Neither button is offered from behind the results.
+    expect(region.querySelectorAll('button')).toHaveLength(0);
+
+    await rerender({ inFront: true });
+    expect(region).toHaveAttribute('data-map-in-front', 'true');
+    expect(region.inert).toBe(false);
+    expect(container.querySelector('[data-the-map]')).toBe(map);
+    const show = screen.getByRole('button', { name: 'Show results' });
+    expect(show).toHaveAttribute('aria-controls', 'explore-results');
+    await fireEvent.click(show);
+    expect(onShowResults).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole('button', { name: 'Show Finder' }),
+    ).toBeInTheDocument();
+  });
+
   it('offers Show Finder only while the Finder panel is hidden, without rebuilding the map', async () => {
     const onShowFinder = vi.fn();
     const { rerender, container } = frame({ onShowFinder });

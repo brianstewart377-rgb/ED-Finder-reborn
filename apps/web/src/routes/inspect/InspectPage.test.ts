@@ -386,10 +386,9 @@ describe('Inspect Explore navigation', () => {
       mounted.unmount();
       renderExplore();
       expect(
-        await screen.findByRole('heading', { name: 'Systems' }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText('Search for a system above to see what is near it.'),
+        await screen.findByText(
+          'Search for a system above to see what is near it.',
+        ),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('list', { name: 'System results' }),

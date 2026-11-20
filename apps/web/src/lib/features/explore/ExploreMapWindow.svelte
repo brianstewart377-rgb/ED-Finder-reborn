@@ -1,12 +1,15 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  // The Explore map fills the window beside the Finder panel. It is part of
-  // the page, not a pop-out: there is nothing to open, close or expand. This
-  // is the frame only; the page puts the map itself inside it.
+  // The Explore map fills the window beside the Finder panel, taking turns
+  // there with Find's results. It is part of the page, not a pop-out: there
+  // is nothing to open, close or expand. This is the frame only; the page
+  // puts the map itself inside it.
   let {
     finderPanelOpen,
     onShowFinder,
+    inFront = true,
+    onShowResults,
     id = 'explore-map-window',
     element = $bindable(),
     beforeCanvas,
@@ -16,6 +19,11 @@
   }: {
     finderPanelOpen: boolean;
     onShowFinder: () => void;
+    /** Whether the map can be seen. Behind the results (or the Finder at
+     *  phone width) it keeps its size but takes no focus. */
+    inFront?: boolean;
+    /** Given when Find's results are behind the map. */
+    onShowResults?: () => void;
     id?: string;
     element?: HTMLElement;
     beforeCanvas?: Snippet;
@@ -33,6 +41,8 @@
   aria-labelledby={`${id}-title`}
   data-explore-map-window
   data-finder-panel-open={finderPanelOpen}
+  data-map-in-front={inFront}
+  inert={!inFront}
 >
   <header class="map-window-heading">
     <!-- The map draws its own title bar, so this heading is for screen
@@ -40,7 +50,7 @@
     <h2 id={`${id}-title`} class="map-window-title">
       {selectedSystemName ? `${selectedSystemName} · Galaxy map` : 'Galaxy map'}
     </h2>
-    {#if !finderPanelOpen}
+    {#if !finderPanelOpen && inFront}
       <!-- In the row above the map: the map's own panels fill its corners. -->
       <button
         type="button"
@@ -49,6 +59,15 @@
         aria-controls="finder-panel"
         aria-expanded="false"
         onclick={onShowFinder}>Show Finder</button
+      >
+    {/if}
+    {#if onShowResults && inFront}
+      <button
+        type="button"
+        class="quiet-button"
+        data-results-show
+        aria-controls="explore-results"
+        onclick={onShowResults}>Show results</button
       >
     {/if}
     {@render beforeCanvas?.()}

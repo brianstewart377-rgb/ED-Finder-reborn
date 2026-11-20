@@ -133,6 +133,7 @@
   // The system-name box, which lives in a file of its own.
   let searchBox = $state<ReturnType<typeof SystemSearchBox>>();
   let mapSection = $state<HTMLDivElement>();
+  let resultsSection = $state<HTMLElement>();
   // The control that hid the Finder panel gets focus back when it reopens.
   let panelToggleOrigin: HTMLElement | null = null;
   let stage = $state<HTMLDivElement>();
@@ -142,8 +143,9 @@
   let mapPhase = $state<'starting' | 'ready' | 'failed'>('starting');
   // Must match the phone breakpoint in this component's styles.
   const PHONE_STAGE_QUERY = '(max-width: 900px)';
-  // At phone width the Finder and the map take turns, so while the Finder is
-  // shown the map cannot be seen.
+  // At phone width the Finder (with its results) and the map take turns, so
+  // while the Finder is shown the map cannot be seen. On a wider screen the
+  // results and the map take turns beside the Finder panel.
   let phoneWidth = $state(false);
   $effect(() => {
     const query = window.matchMedia?.(PHONE_STAGE_QUERY);
@@ -153,7 +155,21 @@
     query.addEventListener?.('change', changed);
     return () => query.removeEventListener?.('change', changed);
   });
+  const resultsInFront = $derived(
+    viewState.hasResultsIntent &&
+      (phoneWidth ? viewState.finderPanelOpen : !viewState.mapInFront),
+  );
+  // Whether the map can be seen. On a wider screen the map behind the results
+  // still follows the selection, so it is ready when brought in front; at
+  // phone width it is given nothing to draw while the Finder covers it.
+  const mapInFront = $derived(
+    phoneWidth ? !viewState.finderPanelOpen : !resultsInFront,
+  );
   const mapOnScreen = $derived(!(phoneWidth && viewState.finderPanelOpen));
+  // On a wider screen the map can be brought in front of the results.
+  const resultsBehindMap = $derived(
+    !phoneWidth && viewState.hasResultsIntent && viewState.mapInFront,
+  );
   $effect(() => {
     const element = stage;
     if (!element) return;
@@ -359,6 +375,8 @@
     resetOffset = true,
   ): void {
     viewState.rankingNotice = '';
+    // A changed search or page is shown as a list.
+    viewState.mapInFront = false;
     // A later picker/page action supersedes an unfinished anchor autofocus.
     viewState.focusedAnchorRevision = viewState.anchorSelectionRevision;
     const state = normalizeRankingState({
@@ -446,6 +464,7 @@
     // starts the results again from the first page.
     resultsChange = true,
   ): Promise<void> {
+    if (resultsChange) viewState.mapInFront = false;
     viewState.focusedAnchorRevision = viewState.anchorSelectionRevision;
     const committed = normalizeBodyFilters(value);
     const params = serializeExploreSearchParams(
@@ -574,6 +593,7 @@
   // The box has already written the chosen name and closed its suggestions.
   function chooseSuggestion(hit: AutocompleteSystem): void {
     viewState.rankingNotice = '';
+    viewState.mapInFront = false;
     const committedAnchor = readExploreAnchor({ anchor: hit });
     const params = serializeExploreSearchParams(
       {
@@ -615,13 +635,41 @@
     // Presentation only: this never submits or changes a search.
     const alreadySelected = !system || system.id64 === selectedId;
     if (system && !alreadySelected) selectResult(system);
-    // On a wide screen the map is already beside the results, so this only
-    // centres it. At phone width the Finder covers the map: hide the panel,
-    // and centre the map once it can be seen.
+    // At phone width the Finder covers the map: hide the panel. On a wider
+    // screen the results are in front of the map: bring the map in front.
+    // Either way, centre the map once it can be seen.
     if (window.matchMedia(PHONE_STAGE_QUERY).matches) {
       hideFinderPanel(event);
-      if (alreadySelected) void tick().then(() => galaxyMap?.centre());
-    } else if (alreadySelected) galaxyMap?.centre();
+    } else if (!viewState.mapInFront) {
+      bringMapInFront(event);
+    } else if (alreadySelected) {
+      galaxyMap?.centre();
+      return;
+    }
+    if (alreadySelected) void tick().then(() => galaxyMap?.centre());
+  }
+
+  function bringMapInFront(event: MouseEvent): void {
+    panelToggleOrigin = event.currentTarget as HTMLElement;
+    if (resultList) viewState.captureResultScroll(resultList.scrollTop);
+    viewState.mapInFront = true;
+    void tick().then(() =>
+      mapSection
+        ?.querySelector<HTMLElement>('[data-results-show]')
+        ?.focus({ preventScroll: true }),
+    );
+  }
+
+  function showResults(): void {
+    viewState.mapInFront = false;
+    void tick().then(() => {
+      // The results keep their scroll position, and focus returns to the
+      // control that brought the map in front (or the list).
+      if (resultList) viewState.restoreResultScroll(resultList);
+      const target: { focus(options?: FocusOptions): void } | undefined =
+        panelToggleOrigin?.isConnected ? panelToggleOrigin : resultList;
+      target?.focus({ preventScroll: true });
+    });
   }
 
   function hideFinderPanel(event: MouseEvent): void {
@@ -633,7 +681,9 @@
       // header; on a wide screen it is already in view.
       if (window.matchMedia(PHONE_STAGE_QUERY).matches)
         mapSection?.scrollIntoView?.({ behavior: 'instant', block: 'start' });
-      mapSection
+      // "Show Finder" is above whichever of the results and the map is in
+      // front.
+      (resultsInFront ? resultsSection : mapSection)
         ?.querySelector<HTMLElement>('[data-finder-panel-show]')
         ?.focus({ preventScroll: true });
     });
@@ -654,7 +704,7 @@
   }
 
   function captureResultScroll(event: Event): void {
-    if (!viewState.finderPanelOpen) return;
+    if (!resultsInFront) return;
     viewState.captureResultScroll(
       (event.currentTarget as HTMLUListElement).scrollTop,
     );
@@ -824,353 +874,366 @@
         <p role="status" class="ranking-status">{viewState.rankingNotice}</p>
       {/if}
 
-      <section
-        class="results-panel"
-        aria-labelledby="results-title"
-        aria-busy={viewState.hasResultsIntent &&
-          (FINDER_F4_ENABLED ? updatingResults : results.isFetching)}
-      >
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Catalogue results</p>
-            <h2 id="results-title">
-              {typeNearAnchor && anchor
-                ? `${activeArchetypeLabel} near ${anchor.name}`
-                : FINDER_F4_ENABLED &&
-                    viewState.rankingState.archetype !== 'any'
-                  ? `Galaxy-wide ${activeArchetypeLabel} ranking`
-                  : anchor
-                    ? `Near ${anchor.name}`
-                    : viewState.hasResultsIntent
-                      ? 'Galaxy-wide opportunities'
-                      : 'Systems'}
-            </h2>
-          </div>
-          {#if FINDER_F4_ENABLED && displayedResults}
-            <FinderResultRanking
-              variant="summary"
-              page={shownPage ?? displayedResults.page}
-              archetype={displayedResults.finderState!.archetype}
-              counting={countingMatches}
-            />
-          {:else}<span>{systems.length} shown</span>{/if}
-        </div>
-
-        <div class="search-scope">
-          <p id="results-scope">{resultsScope}</p>
-          <button
-            type="button"
-            class="secondary-button pill-action"
-            data-explore-map-open
-            aria-controls="explore-map-window"
-            disabled={selectedMapSystem !== null && !chosenSystem}
-            onclick={(event) => showMap(event)}>Show on map</button
+      <div class="search-distance">
+        <label class="search-radius" for="search-radius">
+          Within
+          <select
+            id="search-radius"
+            value={effectiveRadius}
+            disabled={radiusDisabled}
+            aria-describedby={radiusDisabled
+              ? 'search-radius-disabled'
+              : radiusCapped
+                ? 'search-radius-capped'
+                : undefined}
+            onchange={(event) =>
+              commitRadius(Number(event.currentTarget.value))}
           >
-          {#if selectionCannotBeShown}
-            <span>Map coordinates unavailable for the selected system.</span>
-          {/if}
-          <label class="search-radius" for="search-radius">
-            Within
-            <select
-              id="search-radius"
-              value={effectiveRadius}
-              disabled={radiusDisabled}
-              aria-describedby={radiusDisabled
-                ? 'search-radius-disabled'
-                : radiusCapped
-                  ? 'search-radius-capped'
-                  : undefined}
-              onchange={(event) =>
-                commitRadius(Number(event.currentTarget.value))}
-            >
-              {#each SEARCH_RADIUS_OPTIONS as option (option)}
-                <option
-                  value={option}
-                  disabled={!radiusDisabled &&
-                    radiusCapped &&
-                    option > FILTERED_SEARCH_RADIUS_CAP_LY}
-                  >{option.toLocaleString('en-US')} LY</option
-                >
-              {/each}
-            </select>
-          </label>
-          {#if radiusDisabled}
-            <p id="search-radius-disabled" class="radius-hint">
-              Search radius works when you search near a system.
-            </p>
-          {:else if radiusCapped}
-            <p id="search-radius-capped" class="radius-hint">
-              {Object.keys(viewState.bodyFilters).length > 0
-                ? 'Body filters limit'
-                : typeNearAnchor
-                  ? 'A colony type limits'
-                  : '"Show only" limits'} the search to {FILTERED_SEARCH_RADIUS_CAP_LY}
-              LY{radiusCappedByFilters
-                ? `; your ${viewState.radius.toLocaleString('en-US')} LY radius resumes when ${Object.keys(viewState.bodyFilters).length > 0 ? 'the filters are cleared' : typeNearAnchor ? 'Any is chosen again' : 'you show all systems'}`
-                : ''}.
-            </p>
-          {/if}
-          <label class="search-radius" for="search-reach">
-            Up to
-            <select
-              id="search-reach"
-              data-search-reach
-              aria-label="Distance from inhabited space"
-              value={viewState.reach}
-              aria-describedby="search-reach-hint"
-              onchange={(event) =>
-                commitReach(Number(event.currentTarget.value))}
-            >
-              {#each REACH_OPTIONS as option (option)}
-                <option value={option}
-                  >{option.toLocaleString('en-US')} LY</option
-                >
-              {/each}
-            </select>
-            from inhabited space
-          </label>
-          <p id="search-reach-hint" class="radius-hint">
-            Every search keeps to systems this close to an inhabited system.
+            {#each SEARCH_RADIUS_OPTIONS as option (option)}
+              <option
+                value={option}
+                disabled={!radiusDisabled &&
+                  radiusCapped &&
+                  option > FILTERED_SEARCH_RADIUS_CAP_LY}
+                >{option.toLocaleString('en-US')} LY</option
+              >
+            {/each}
+          </select>
+        </label>
+        {#if radiusDisabled}
+          <p id="search-radius-disabled" class="radius-hint">
+            Search radius works when you search near a system.
           </p>
-        </div>
+        {:else if radiusCapped}
+          <p id="search-radius-capped" class="radius-hint">
+            {Object.keys(viewState.bodyFilters).length > 0
+              ? 'Body filters limit'
+              : typeNearAnchor
+                ? 'A colony type limits'
+                : '"Show only" limits'} the search to {FILTERED_SEARCH_RADIUS_CAP_LY}
+            LY{radiusCappedByFilters
+              ? `; your ${viewState.radius.toLocaleString('en-US')} LY radius resumes when ${Object.keys(viewState.bodyFilters).length > 0 ? 'the filters are cleared' : typeNearAnchor ? 'Any is chosen again' : 'you show all systems'}`
+              : ''}.
+          </p>
+        {/if}
+        <label class="search-radius" for="search-reach">
+          Up to
+          <select
+            id="search-reach"
+            data-search-reach
+            aria-label="Distance from inhabited space"
+            value={viewState.reach}
+            aria-describedby="search-reach-hint"
+            onchange={(event) => commitReach(Number(event.currentTarget.value))}
+          >
+            {#each REACH_OPTIONS as option (option)}
+              <option value={option}>{option.toLocaleString('en-US')} LY</option
+              >
+            {/each}
+          </select>
+          from inhabited space
+        </label>
+        <p id="search-reach-hint" class="radius-hint">
+          Every search keeps to systems this close to an inhabited system.
+        </p>
+      </div>
+      {#if !viewState.hasResultsIntent}
+        <p class="finder-prompt">
+          Search for a system above to see what is near it.
+        </p>
+      {/if}
+    </section>
 
-        {#if FINDER_F4_ENABLED && viewState.hasResultsIntent}
-          <div role="status" aria-live="polite" class="ranking-status">
-            {#if updatingResults}
-              <p>
-                {displayedResults ? 'Updating… ' : ''}{viewState.rankingState
-                  .archetype === 'any'
-                  ? 'Searching systems…'
-                  : `Ranking systems for ${activeArchetypeLabel}…`}
-              </p>
-            {:else if currentResponse && displayedResults && !results.isError}
-              <span
-                >{displayedResults.page.count}
-                {displayedResults.page.count === 1 ? 'result' : 'results'} on this
-                page.</span
+    <section
+      id="explore-results"
+      class="results-panel"
+      bind:this={resultsSection}
+      hidden={!resultsInFront}
+      aria-labelledby="results-title"
+      aria-busy={viewState.hasResultsIntent &&
+        (FINDER_F4_ENABLED ? updatingResults : results.isFetching)}
+    >
+      {#if !viewState.finderPanelOpen}
+        <button
+          type="button"
+          class="quiet-button finder-panel-toggle results-finder-show"
+          data-finder-panel-show
+          aria-controls="finder-panel"
+          aria-expanded="false"
+          onclick={showFinderPanel}>Show Finder</button
+        >
+      {/if}
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Catalogue results</p>
+          <h2 id="results-title">
+            {typeNearAnchor && anchor
+              ? `${activeArchetypeLabel} near ${anchor.name}`
+              : FINDER_F4_ENABLED && viewState.rankingState.archetype !== 'any'
+                ? `Galaxy-wide ${activeArchetypeLabel} ranking`
+                : anchor
+                  ? `Near ${anchor.name}`
+                  : viewState.hasResultsIntent
+                    ? 'Galaxy-wide opportunities'
+                    : 'Systems'}
+          </h2>
+        </div>
+        {#if FINDER_F4_ENABLED && displayedResults}
+          <FinderResultRanking
+            variant="summary"
+            page={shownPage ?? displayedResults.page}
+            archetype={displayedResults.finderState!.archetype}
+            counting={countingMatches}
+          />
+        {:else}<span>{systems.length} shown</span>{/if}
+      </div>
+
+      <div class="search-scope">
+        <p id="results-scope">{resultsScope}</p>
+        <button
+          type="button"
+          class="secondary-button pill-action"
+          data-explore-map-open
+          aria-controls="explore-map-window"
+          disabled={selectedMapSystem !== null && !chosenSystem}
+          onclick={(event) => showMap(event)}>Show on map</button
+        >
+        {#if selectionCannotBeShown}
+          <span>Map coordinates unavailable for the selected system.</span>
+        {/if}
+      </div>
+
+      {#if FINDER_F4_ENABLED && viewState.hasResultsIntent}
+        <div role="status" aria-live="polite" class="ranking-status">
+          {#if updatingResults}
+            <p>
+              {displayedResults ? 'Updating… ' : ''}{viewState.rankingState
+                .archetype === 'any'
+                ? 'Searching systems…'
+                : `Ranking systems for ${activeArchetypeLabel}…`}
+            </p>
+          {:else if currentResponse && displayedResults && !results.isError}
+            <span
+              >{displayedResults.page.count}
+              {displayedResults.page.count === 1 ? 'result' : 'results'} on this page.</span
+            >
+          {/if}
+        </div>
+        {#if results.isError}
+          <div class="state-card error" role="alert">
+            <h3>
+              {rankingDataNotReady
+                ? 'Ranking data not ready'
+                : 'Ranking temporarily unavailable'}
+            </h3>
+            <p>
+              {rankingDataNotReady
+                ? 'Archetype rankings are unavailable until Finder ranking data is published.'
+                : viewState.rankingState.archetype !== 'any'
+                  ? 'Archetype rankings are temporarily unavailable. Try again shortly.'
+                  : 'Discovery results could not be loaded. Try again shortly.'}
+            </p>
+            <button type="button" onclick={() => results.refetch()}
+              >Retry</button
+            >
+            {#if viewState.rankingState.archetype !== 'any'}
+              <button
+                type="button"
+                onclick={() => commitRanking({ archetype: 'any' })}
+                >Choose Any</button
               >
             {/if}
           </div>
-          {#if results.isError}
-            <div class="state-card error" role="alert">
-              <h3>
-                {rankingDataNotReady
-                  ? 'Ranking data not ready'
-                  : 'Ranking temporarily unavailable'}
-              </h3>
-              <p>
-                {rankingDataNotReady
-                  ? 'Archetype rankings are unavailable until Finder ranking data is published.'
-                  : viewState.rankingState.archetype !== 'any'
-                    ? 'Archetype rankings are temporarily unavailable. Try again shortly.'
-                    : 'Discovery results could not be loaded. Try again shortly.'}
-              </p>
-              <button type="button" onclick={() => results.refetch()}
-                >Retry</button
+        {:else if currentResponse && !results.isFetching && results.data?.page.total === 0}
+          <div class="state-card">
+            <p>
+              {viewState.rankingState.archetype !== 'any'
+                ? `No systems meet minimum tier ${viewState.rankingState.minimumTier} for ${activeArchetypeLabel}.`
+                : anyFloorNearAnchor
+                  ? `No systems of tier ${viewState.rankingState.minimumTier} or better are this close.`
+                  : 'No systems match this discovery area. Choose another anchor.'}
+            </p>
+            {#if anyFloorNearAnchor}
+              <button
+                type="button"
+                onclick={() => commitRanking({ minimumTier: 'all' })}
+                >Show all systems</button
               >
-              {#if viewState.rankingState.archetype !== 'any'}
+            {/if}
+            {#if viewState.rankingState.archetype !== 'any'}
+              {#if viewState.rankingState.minimumTier !== 'B'}
                 <button
                   type="button"
-                  onclick={() => commitRanking({ archetype: 'any' })}
-                  >Choose Any</button
+                  onclick={() => commitRanking({ minimumTier: 'B' })}
+                  >Reset to tier B</button
                 >
               {/if}
-            </div>
-          {:else if currentResponse && !results.isFetching && results.data?.page.total === 0}
-            <div class="state-card">
-              <p>
-                {viewState.rankingState.archetype !== 'any'
-                  ? `No systems meet minimum tier ${viewState.rankingState.minimumTier} for ${activeArchetypeLabel}.`
-                  : anyFloorNearAnchor
-                    ? `No systems of tier ${viewState.rankingState.minimumTier} or better are this close.`
-                    : 'No systems match this discovery area. Choose another anchor.'}
-              </p>
-              {#if anyFloorNearAnchor}
-                <button
-                  type="button"
-                  onclick={() => commitRanking({ minimumTier: 'all' })}
-                  >Show all systems</button
-                >
-              {/if}
-              {#if viewState.rankingState.archetype !== 'any'}
-                {#if viewState.rankingState.minimumTier !== 'B'}
-                  <button
-                    type="button"
-                    onclick={() => commitRanking({ minimumTier: 'B' })}
-                    >Reset to tier B</button
-                  >
-                {/if}
-                <button
-                  type="button"
-                  onclick={() => commitRanking({ archetype: 'any' })}
-                  >Choose Any</button
-                >
-              {/if}
-            </div>
-          {/if}
+              <button
+                type="button"
+                onclick={() => commitRanking({ archetype: 'any' })}
+                >Choose Any</button
+              >
+            {/if}
+          </div>
         {/if}
+      {/if}
 
-        {#if !viewState.hasResultsIntent}
-          <div class="state-card">
-            <p>Search for a system above to see what is near it.</p>
-          </div>
-        {:else if !FINDER_F4_ENABLED && results.isPending}
-          <div class="state-card" role="status">
-            <Sparkles aria-hidden="true" />
-            <p>Building a real-system shortlist…</p>
-          </div>
-        {:else if !FINDER_F4_ENABLED && results.isError && (reviewLabRun || systems.length === 0)}
-          <div class="state-card error" role="alert">
-            <p>Discovery results could not be loaded.</p>
-            <button
-              class="secondary-button"
-              type="button"
-              onclick={() => results.refetch()}>Retry search</button
-            >
-          </div>
-        {:else if !FINDER_F4_ENABLED && reviewLabRun && results.data?.results.length === 0}
-          <div class="state-card" role="status">
-            <p>No systems match this discovery area.</p>
-          </div>
-        {:else if !FINDER_F4_ENABLED && systems.length === 0}
-          <div class="state-card">
-            <p>No systems match this discovery area. Choose another anchor.</p>
-          </div>
-        {:else}
-          <ul
-            class="result-list"
-            bind:this={resultList}
-            onscroll={captureResultScroll}
-            aria-label="System results"
-            aria-describedby="results-scope"
+      {#if !viewState.hasResultsIntent}
+        <!-- Hidden: before a search the map is in front. -->
+      {:else if !FINDER_F4_ENABLED && results.isPending}
+        <div class="state-card" role="status">
+          <Sparkles aria-hidden="true" />
+          <p>Building a real-system shortlist…</p>
+        </div>
+      {:else if !FINDER_F4_ENABLED && results.isError && (reviewLabRun || systems.length === 0)}
+        <div class="state-card error" role="alert">
+          <p>Discovery results could not be loaded.</p>
+          <button
+            class="secondary-button"
+            type="button"
+            onclick={() => results.refetch()}>Retry search</button
           >
-            {#each systems as system (system.id64)}
-              <li
-                class:selected={$selectedSystem.value === system.id64}
-                data-system-result={system.id64}
+        </div>
+      {:else if !FINDER_F4_ENABLED && reviewLabRun && results.data?.results.length === 0}
+        <div class="state-card" role="status">
+          <p>No systems match this discovery area.</p>
+        </div>
+      {:else if !FINDER_F4_ENABLED && systems.length === 0}
+        <div class="state-card">
+          <p>No systems match this discovery area. Choose another anchor.</p>
+        </div>
+      {:else}
+        <ul
+          class="result-list"
+          bind:this={resultList}
+          onscroll={captureResultScroll}
+          aria-label="System results"
+          aria-describedby="results-scope"
+        >
+          {#each systems as system (system.id64)}
+            <li
+              class:selected={$selectedSystem.value === system.id64}
+              data-system-result={system.id64}
+            >
+              <button
+                class="result-select"
+                type="button"
+                data-result-select
+                aria-pressed={$selectedSystem.value === system.id64}
+                onclick={() => selectResult(system)}
+                onkeydown={(event) => handleResultKeydown(event, system)}
               >
-                <button
-                  class="result-select"
-                  type="button"
-                  data-result-select
-                  aria-pressed={$selectedSystem.value === system.id64}
-                  onclick={() => selectResult(system)}
-                  onkeydown={(event) => handleResultKeydown(event, system)}
+                <span class="result-title"
+                  ><strong
+                    id={FINDER_F4_ENABLED
+                      ? `finder-result-heading-${system.id64}`
+                      : undefined}
+                    >{system.name ?? `System ${system.id64}`}</strong
+                  ><code>{system.id64}</code></span
                 >
-                  <span class="result-title"
-                    ><strong
-                      id={FINDER_F4_ENABLED
-                        ? `finder-result-heading-${system.id64}`
-                        : undefined}
-                      >{system.name ?? `System ${system.id64}`}</strong
-                    ><code>{system.id64}</code></span
-                  >
-                  {#if FINDER_F4_ENABLED && displayedResults && !(viewState.rankingState.archetype === 'any' && displayedResults.finderState!.archetype !== 'any')}
-                    <FinderResultRanking
-                      variant="row"
-                      {system}
-                      archetype={displayedResults.finderState!.archetype}
-                    />
-                  {/if}
-                  <span class="result-facts">
-                    {#if system.distance != null}<span
-                        >{FINDER_F4_ENABLED
-                          ? `${system.distance.toFixed(2)} LY`
-                          : `${system.distance.toFixed(1)} ly`}{displayedSearchRadius !=
-                        null
-                          ? ` · within ${displayedSearchRadius.toLocaleString('en-US')} LY`
-                          : ''}</span
-                      >{/if}
-                    {#if system.primaryEconomy}<span
-                        >{system.primaryEconomy}</span
-                      >{/if}
-                    {#if population(system.population)}<span
-                        >{population(system.population)} population</span
-                      >{/if}
-                    {#if system.main_star_type}<span
-                        >{starClassLabel(system.main_star_type)}</span
-                      >{/if}
-                  </span>
-                </button>
-                {#if selectedId === system.id64}
-                  <button
-                    type="button"
-                    class="result-map-action secondary-button pill-action"
-                    data-result-map-open
-                    aria-controls="explore-map-window"
-                    disabled={!chosenSystem}
-                    onclick={(event) => showMap(event, system)}
-                    >Show on map</button
-                  >
-                {/if}
-                <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
-                <a
-                  class="inspect-link secondary-button"
-                  href={FINDER_F4_ENABLED
-                    ? inspectHref(system.id64, page.url)
-                    : resolve(`/inspect?system=${system.id64}`)}
-                  onclick={FINDER_F4_ENABLED
-                    ? (event) => followInspect(event, system.id64)
-                    : undefined}
-                  aria-label={`Inspect ${system.name ?? system.id64}`}
-                >
-                  Inspect <ArrowRight aria-hidden="true" size={16} />
-                </a>
-                <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 {#if FINDER_F4_ENABLED && displayedResults && !(viewState.rankingState.archetype === 'any' && displayedResults.finderState!.archetype !== 'any')}
-                  <ArchetypeExplanation
+                  <FinderResultRanking
+                    variant="row"
                     {system}
-                    expected={system.ranking_provenance ?? null}
                     archetype={displayedResults.finderState!.archetype}
-                    headingId={`finder-result-heading-${system.id64}`}
                   />
                 {/if}
-                <div class="finder-actions"><SystemActions {system} /></div>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-        {#if FINDER_F4_ENABLED && displayedResults}
-          <nav class="result-paging" aria-label="Result pages">
-            <button
-              type="button"
-              class="quiet-button"
-              disabled={!currentResponse ||
-                updatingResults ||
-                displayedResults.page.offset === 0}
-              onclick={() =>
-                commitRanking(
-                  {
-                    offset: Math.max(
-                      0,
-                      displayedResults!.page.offset -
-                        displayedResults!.page.page_size,
-                    ),
-                  },
-                  false,
-                )}>Previous</button
-            >
-            <button
-              type="button"
-              class="quiet-button"
-              disabled={!currentResponse ||
-                updatingResults ||
-                displayedResults.page.offset +
-                  displayedResults.page.page_size >=
-                  (shownPage ?? displayedResults.page).navigable_total}
-              onclick={() =>
-                commitRanking(
-                  {
-                    offset:
-                      displayedResults!.page.offset +
+                <span class="result-facts">
+                  {#if system.distance != null}<span
+                      >{FINDER_F4_ENABLED
+                        ? `${system.distance.toFixed(2)} LY`
+                        : `${system.distance.toFixed(1)} ly`}{displayedSearchRadius !=
+                      null
+                        ? ` · within ${displayedSearchRadius.toLocaleString('en-US')} LY`
+                        : ''}</span
+                    >{/if}
+                  {#if system.primaryEconomy}<span>{system.primaryEconomy}</span
+                    >{/if}
+                  {#if population(system.population)}<span
+                      >{population(system.population)} population</span
+                    >{/if}
+                  {#if system.main_star_type}<span
+                      >{starClassLabel(system.main_star_type)}</span
+                    >{/if}
+                </span>
+              </button>
+              {#if selectedId === system.id64}
+                <button
+                  type="button"
+                  class="result-map-action secondary-button pill-action"
+                  data-result-map-open
+                  aria-controls="explore-map-window"
+                  disabled={!chosenSystem}
+                  onclick={(event) => showMap(event, system)}
+                  >Show on map</button
+                >
+              {/if}
+              <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
+              <a
+                class="inspect-link secondary-button"
+                href={FINDER_F4_ENABLED
+                  ? inspectHref(system.id64, page.url)
+                  : resolve(`/inspect?system=${system.id64}`)}
+                onclick={FINDER_F4_ENABLED
+                  ? (event) => followInspect(event, system.id64)
+                  : undefined}
+                aria-label={`Inspect ${system.name ?? system.id64}`}
+              >
+                Inspect <ArrowRight aria-hidden="true" size={16} />
+              </a>
+              <!-- eslint-enable svelte/no-navigation-without-resolve -->
+              {#if FINDER_F4_ENABLED && displayedResults && !(viewState.rankingState.archetype === 'any' && displayedResults.finderState!.archetype !== 'any')}
+                <ArchetypeExplanation
+                  {system}
+                  expected={system.ranking_provenance ?? null}
+                  archetype={displayedResults.finderState!.archetype}
+                  headingId={`finder-result-heading-${system.id64}`}
+                />
+              {/if}
+              <div class="finder-actions"><SystemActions {system} /></div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+      {#if FINDER_F4_ENABLED && displayedResults}
+        <nav class="result-paging" aria-label="Result pages">
+          <button
+            type="button"
+            class="quiet-button"
+            disabled={!currentResponse ||
+              updatingResults ||
+              displayedResults.page.offset === 0}
+            onclick={() =>
+              commitRanking(
+                {
+                  offset: Math.max(
+                    0,
+                    displayedResults!.page.offset -
                       displayedResults!.page.page_size,
-                  },
-                  false,
-                )}>Next</button
-            >
-          </nav>
-        {/if}
-      </section>
+                  ),
+                },
+                false,
+              )}>Previous</button
+          >
+          <button
+            type="button"
+            class="quiet-button"
+            disabled={!currentResponse ||
+              updatingResults ||
+              displayedResults.page.offset + displayedResults.page.page_size >=
+                (shownPage ?? displayedResults.page).navigable_total}
+            onclick={() =>
+              commitRanking(
+                {
+                  offset:
+                    displayedResults!.page.offset +
+                    displayedResults!.page.page_size,
+                },
+                false,
+              )}>Next</button
+          >
+        </nav>
+      {/if}
     </section>
 
     <ExploreMapWindow
@@ -1178,6 +1241,8 @@
       selectedSystemName={selectedMapName}
       finderPanelOpen={viewState.finderPanelOpen}
       onShowFinder={showFinderPanel}
+      inFront={mapInFront}
+      onShowResults={resultsBehindMap ? showResults : undefined}
     >
       {#snippet beforeCanvas()}
         <div class="map-layer-toolbar">
@@ -1626,25 +1691,59 @@
     min-height: 0;
     padding: 0.6rem 0.75rem;
   }
-  .finder-panel .search-scope {
-    padding: 0.5rem 0.75rem;
+  /* How far to search, under the other search controls. */
+  .search-distance {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+    color: var(--text-muted);
     font-size: 0.8rem;
+    line-height: 1.5;
   }
-  /* The results take the rest of the panel and scroll on their own, so the
-     search and archetype controls above them stay in view. */
-  .finder-panel .results-panel {
+  .search-distance .radius-hint {
+    margin: 0;
+  }
+  .finder-prompt {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  /* Find's results and the map take turns beside the Finder panel. Both sit
+     in the same place, so behind the results the map keeps its size and does
+     not resize or fetch again when it comes back in front. */
+  .explore-stage > .results-panel,
+  .explore-stage > :global(.explore-map-window) {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+  }
+  .explore-stage.is-finder-hidden > .results-panel,
+  .explore-stage.is-finder-hidden > :global(.explore-map-window) {
+    grid-column: 1;
+  }
+  .explore-stage > :global(.explore-map-window[data-map-in-front='false']) {
+    visibility: hidden;
+  }
+  /* The results fill their place and scroll on their own, so their heading
+     and the page buttons stay in view. */
+  .explore-stage > .results-panel {
+    z-index: 1;
     display: flex;
     flex-direction: column;
-    flex: 1 0 auto;
-    min-height: min(26rem, 70%);
+    overflow: hidden;
   }
-  .finder-panel .result-list {
+  .explore-stage > .results-panel[hidden] {
+    display: none;
+  }
+  .results-panel .result-list {
     flex: 1 1 0;
-    min-height: 12rem;
+    min-height: 0;
     max-height: none;
   }
-  .explore-stage > :global(.explore-map-window) {
-    min-height: 0;
+  .results-finder-show {
+    align-self: flex-start;
+    margin: 0.6rem 0.75rem 0;
   }
   .result-map-action {
     justify-self: start;
@@ -1673,10 +1772,12 @@
     .finder-panel {
       overflow: visible;
     }
-    .finder-panel .results-panel {
-      min-height: 0;
+    /* The results follow the Finder's controls down the page. */
+    .explore-stage > .results-panel {
+      margin-top: 0.5rem;
+      overflow: visible;
     }
-    .finder-panel .result-list {
+    .results-panel .result-list {
       flex: none;
       max-height: 70dvh;
     }
@@ -1720,9 +1821,9 @@
     padding: 0.4rem 0.6rem;
   }
   .results-panel .panel-heading {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.65rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1.5rem;
   }
   /* The results column is narrow even on desktop. Give the identity and
      facts the full row, with actions following in their existing focus order. */
