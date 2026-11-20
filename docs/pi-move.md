@@ -231,7 +231,7 @@ In order:
       needed. Chosen from the database's record of the last update, so it
       also works on the Pi after the copy. Not yet installed on the current
       server.
-- [ ] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
+- [x] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
       same code, because no smaller file reaches back to 27 August. Timed on
       the first million systems before the full run. (12 Nov) Moved to the Pi,
       after the switch and before the group is invited: nobody uses the site
@@ -245,7 +245,15 @@ In order:
       nightly update's own code. Tried on Spansh's first 300,000 systems:
       12,998 saved, none missed. The first update applied the one-day file by
       hand, which is how the gap began; `run` now refuses a file given by hand
-      that does not reach back to the last update. Not yet run on the Pi.
+      that does not reach back to the last update.
+      (19 Nov) Run on the Pi, from Spansh's file of 19 November 02:32 UTC, in
+      14 hours: 7,474,171 systems saved; 5,099,375 new to us and 875,091
+      changed were applied (54 million rows); 1,541,265 systems within 500 ly
+      scored, 1,043,078 of them for the first time. Seven words were not in
+      the vocabulary, none in more than 3 systems (the commonest: the ring
+      signals LiquidOxygen, Bauxite and Cobalt). They were left out and
+      recorded in `v3_source.unmapped_vocabulary`: too rare for a migration.
+      Add them if the nightly report starts showing them widely.
 - [ ] **Reach.** How far each system is from inhabited space, kept up to date
       as colonies appear. Gives Find its 250 ly default and 500 ly limit, and
       tells the copy which systems to take. When a colony brings systems into
