@@ -2715,6 +2715,28 @@ describe.each([false, true])(
       );
     });
 
+    it('shows the column headings only once there are results to head', async () => {
+      let finish!: (answer: ReturnType<typeof finderPage>) => void;
+      vi.mocked(api.searchExploreSystems).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      renderEnabled(`near=${anchorA.id64}`, { anchor: anchorA });
+      await waitFor(() =>
+        expect(api.searchExploreSystems).toHaveBeenCalledTimes(1),
+      );
+      // While the first page loads: no headings (they used to read
+      // "Economy and population") and no "0 shown".
+      expect(document.querySelector('.result-columns')).toBeNull();
+      if (enabled) expect(screen.queryByText('0 shown')).toBeNull();
+
+      finish(finderPage(0, enabled ? 50 : 24));
+      await screen.findByText('Ranked 1');
+      expect(document.querySelector('.result-columns')).not.toBeNull();
+    });
+
     it('keeps the lines of the shown answer while the next radius is loading', async () => {
       const response = {
         ...finderPage(0, enabled ? 50 : 24),
@@ -4170,6 +4192,34 @@ describe.each([false, true])(
         pitch: 35,
       });
     });
+
+    // With the Finder on, as the site runs: the selection is in the address.
+    // (Off, it is kept in a store shared with the tests before this one.)
+    it.runIf(enabled)(
+      'Show on map with nothing selected shows the system searched near',
+      async () => {
+        const viewState = new ExploreViewState(
+          () => mockedPage,
+          enabled,
+          applicationStores,
+        );
+        // Arriving from the home page, a link or a reload: near, nothing selected.
+        renderEnabled(
+          `${enabled ? 'page_size=3&' : ''}near=${anchorA.id64}`,
+          { anchor: anchorA },
+          viewState,
+        );
+        await screen.findByRole('list', { name: 'System results' });
+        await fireEvent.click(
+          document.querySelector<HTMLButtonElement>('[data-explore-map-open]')!,
+        );
+        expect(viewState.mapInFront).toBe(true);
+        const map = await theMap();
+        await waitFor(() =>
+          expect(map.getSelection()?.id64).toBe(anchorA.id64),
+        );
+      },
+    );
 
     it('on a wide screen the results and the map take turns beside the Finder', async () => {
       const viewState = new ExploreViewState(

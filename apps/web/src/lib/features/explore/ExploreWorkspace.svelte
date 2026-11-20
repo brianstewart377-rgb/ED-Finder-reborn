@@ -235,6 +235,16 @@
   const updatingResults = $derived(finder.updatingResults);
   const shownPage = $derived(finder.shownPage);
   const countingMatches = $derived(finder.countingMatches);
+  // With nothing selected, Show on map shows the system searched near.
+  const anchorAsSystem = $derived<ExploreSystem | null>(
+    anchor
+      ? {
+          id64: anchor.id64,
+          name: anchor.name,
+          coords: { x: anchor.x, y: anchor.y, z: anchor.z },
+        }
+      : null,
+  );
   // The rows carry the Finder's scores (and the header names them) once the
   // shown page is the one the picker asked for.
   const rankedList = $derived(
@@ -996,7 +1006,7 @@
             archetype={displayedResults.finderState!.archetype}
             counting={countingMatches}
           />
-        {:else}<span>{systems.length} shown</span>{/if}
+        {:else if !FINDER_F4_ENABLED}<span>{systems.length} shown</span>{/if}
       </div>
 
       <div class="search-scope">
@@ -1007,7 +1017,9 @@
           data-explore-map-open
           aria-controls="explore-map-window"
           disabled={selectedMapSystem !== null && !chosenSystem}
-          onclick={(event) => showMap(event)}>Show on map</button
+          onclick={(event) =>
+            showMap(event, selectedMapSystem ?? anchorAsSystem)}
+          >Show on map</button
         >
         {#if selectionCannotBeShown}
           <span>Map coordinates unavailable for the selected system.</span>
@@ -1114,24 +1126,26 @@
           <p>No systems match this discovery area. Choose another anchor.</p>
         </div>
       {:else}
-        <div class="result-columns" aria-hidden="true">
-          <span>
-            <span>System</span>
-            <span>Distance</span>
-            {#if rankedList}
-              <span
-                >{displayedResults!.finderState!.archetype === 'any'
-                  ? 'Colony potential'
-                  : `${archetypeLabel(displayedResults!.finderState!.archetype)} fit`}</span
-              >
-              <span>Suits</span>
-              <span>Bodies and signals</span>
-            {:else}
-              <span class="result-facts">Economy and population</span>
-            {/if}
-          </span>
-          <span></span>
-        </div>
+        {#if systems.length > 0}
+          <div class="result-columns" aria-hidden="true">
+            <span>
+              <span>System</span>
+              <span>Distance</span>
+              {#if rankedList}
+                <span
+                  >{displayedResults!.finderState!.archetype === 'any'
+                    ? 'Colony potential'
+                    : `${archetypeLabel(displayedResults!.finderState!.archetype)} fit`}</span
+                >
+                <span>Suits</span>
+                <span>Bodies and signals</span>
+              {:else}
+                <span class="result-facts">Economy and population</span>
+              {/if}
+            </span>
+            <span></span>
+          </div>
+        {/if}
         <ul
           class="result-list"
           bind:this={resultList}

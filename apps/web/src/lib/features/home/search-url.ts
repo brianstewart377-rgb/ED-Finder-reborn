@@ -29,6 +29,9 @@ export function buildHomeSearchUrl(
     return null;
   }
   const search = serializeExploreSearchParams({ near });
+  // As choosing a system in Explore does: the system searched near is
+  // selected too, so the map shows it.
+  if (finderEnabled) search.set('selected', near);
   const params = serializeRankingSearchParams(
     {
       archetype:
