@@ -261,7 +261,7 @@ describe('Explore load and interaction work budget', () => {
       // Opening Explore: the map starts with nothing on it and nothing is
       // asked of Find or of the galaxy data.
       expect(
-        screen.getByRole('heading', { name: 'Systems' }),
+        screen.getByText('Search for a system above to see what is near it.'),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('list', { name: 'System results' }),

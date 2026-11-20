@@ -242,8 +242,9 @@ describe('ExploreWorkspace Finder F4 gate (default off)', () => {
       document.querySelector('[data-archetype-explanation-toggle]'),
     ).not.toBeInTheDocument();
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
+    // Before a search the map is in front, with a prompt in the Finder.
     expect(
-      screen.getByRole('heading', { name: 'Systems' }),
+      screen.getByText('Search for a system above to see what is near it.'),
     ).toBeInTheDocument();
 
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
@@ -449,8 +450,11 @@ async function expectPage(index: number): Promise<void> {
 const emptyResultsPrompt = 'Search for a system above to see what is near it.';
 
 function expectEmptyResults(): void {
-  expect(screen.getByRole('heading', { name: 'Systems' })).toBeInTheDocument();
+  // Before a search the map is in front, with a prompt in the Finder.
   expect(screen.getByText(emptyResultsPrompt)).toBeInTheDocument();
+  expect(
+    screen.queryByRole('region', { name: /^(Near|Systems|Galaxy-wide)/ }),
+  ).not.toBeInTheDocument();
   expect(
     screen.queryByRole('list', { name: 'System results' }),
   ).not.toBeInTheDocument();
@@ -3988,13 +3992,18 @@ describe.each([false, true])(
       await fireEvent.click(hide);
       expect(viewState.finderPanelOpen).toBe(false);
       expect(finderPanel()).toHaveAttribute('hidden');
+      // The results stay in front of the map, now across the whole width,
+      // and "Show Finder" is above them.
+      const results = screen.getByRole('region', { name: 'Near Anchor A' });
       const map = screen.getByRole('region', { name: /Galaxy map$/ });
-      const show = within(map).getByRole('button', { name: 'Show Finder' });
+      expect(
+        within(map).queryByRole('button', { name: 'Show Finder' }),
+      ).toBeNull();
+      const show = within(results).getByRole('button', {
+        name: 'Show Finder',
+      });
       await waitFor(() => expect(show).toHaveFocus());
-      // A scroll event while hidden must not overwrite the retained position.
-      list.scrollTop = 0;
-      await fireEvent.scroll(list);
-      expect(viewState.resultScrollTop).toBe(256);
+      expect(list.scrollTop).toBe(256);
 
       await fireEvent.click(show);
       expect(viewState.finderPanelOpen).toBe(true);
@@ -4006,7 +4015,7 @@ describe.each([false, true])(
       );
       expect(list.scrollTop).toBe(256);
       expect(
-        within(map).queryByRole('button', { name: 'Show Finder' }),
+        within(results).queryByRole('button', { name: 'Show Finder' }),
       ).toBeNull();
       expect(document.querySelector('canvas')).toBe(canvas);
       expect(fakeMaps).toHaveLength(1);
@@ -4157,6 +4166,88 @@ describe.each([false, true])(
         distance: 70,
         pitch: 35,
       });
+    });
+
+    it('on a wide screen the results and the map take turns beside the Finder', async () => {
+      const viewState = new ExploreViewState(
+        () => mockedPage,
+        enabled,
+        applicationStores,
+      );
+      renderEnabled(
+        `${enabled ? 'page_size=3&' : ''}near=${anchorA.id64}`,
+        { anchor: anchorA },
+        viewState,
+      );
+      const list = await screen.findByRole('list', { name: 'System results' });
+      const results = screen.getByRole('region', { name: 'Near Anchor A' });
+      const mapWindow = document.querySelector<HTMLElement>(
+        '[data-explore-map-window]',
+      )!;
+      // After a search the results are in front; the map behind them keeps
+      // following the selection but cannot be reached.
+      expect(results).not.toHaveAttribute('hidden');
+      expect(mapWindow).toHaveAttribute('data-map-in-front', 'false');
+      expect(mapWindow.inert).toBe(true);
+      await fireEvent.click(
+        await within(list).findByRole('button', {
+          name: /Ranked 2.*9007199254741002/,
+        }),
+      );
+      const map = await theMap();
+      await waitFor(() =>
+        expect(map.getSelection()?.id64).toBe(rankedRows[1].id64),
+      );
+      list.scrollTop = 128;
+      await fireEvent.scroll(list);
+
+      const opener = within(list).getByRole('button', { name: 'Show on map' });
+      await fireEvent.click(opener);
+      expect(viewState.mapInFront).toBe(true);
+      expect(results).toHaveAttribute('hidden');
+      expect(mapWindow).toHaveAttribute('data-map-in-front', 'true');
+      expect(mapWindow.inert).toBe(false);
+      const back = screen.getByRole('button', { name: 'Show results' });
+      expect(back).toHaveAttribute('aria-controls', 'explore-results');
+      await waitFor(() => expect(back).toHaveFocus());
+      expect(viewState.finderPanelOpen).toBe(true);
+
+      await fireEvent.click(back);
+      expect(viewState.mapInFront).toBe(false);
+      expect(results).not.toHaveAttribute('hidden');
+      expect(mapWindow).toHaveAttribute('data-map-in-front', 'false');
+      await waitFor(() => expect(opener).toHaveFocus());
+      expect(list.scrollTop).toBe(128);
+      expect(
+        screen.queryByRole('button', { name: 'Show results' }),
+      ).not.toBeInTheDocument();
+
+      // A changed search shows its results, even with the map in front.
+      await fireEvent.click(opener);
+      expect(viewState.mapInFront).toBe(true);
+      await fireEvent.change(screen.getByRole('combobox', { name: 'Within' }), {
+        target: { value: '250' },
+      });
+      expect(viewState.mapInFront).toBe(false);
+      expect(results).not.toHaveAttribute('hidden');
+    });
+
+    it('before a search the map is in front and the results are not shown', async () => {
+      renderEnabled('');
+      const mapWindow = document.querySelector<HTMLElement>(
+        '[data-explore-map-window]',
+      )!;
+      expect(mapWindow).toHaveAttribute('data-map-in-front', 'true');
+      expect(mapWindow.inert).toBe(false);
+      expect(document.getElementById('explore-results')).toHaveAttribute(
+        'hidden',
+      );
+      expect(
+        screen.getByText('Search for a system above to see what is near it.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Show results' }),
+      ).not.toBeInTheDocument();
     });
   },
 );

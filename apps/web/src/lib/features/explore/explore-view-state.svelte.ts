@@ -60,6 +60,10 @@ export class ExploreViewState {
   // The map is always on screen. Whether the Finder panel beside it is shown
   // is route-local presentation, never URL or storage state.
   finderPanelOpen = $state(true);
+  // Once there are results, they and the map take turns in the space beside
+  // the Finder panel: the results are in front unless the map was asked for.
+  // Route-local presentation, like the panel.
+  mapInFront = $state(false);
   // Where the galaxy map's camera was when the page last left it. Not page
   // state: nothing is drawn from it.
   mapResume: MapResume | null = null;
