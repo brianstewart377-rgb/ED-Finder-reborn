@@ -66,6 +66,11 @@ function aSignedOutVisitor(): void {
 
 /** Suggestions are asked for from the second letter typed: "So", then "Sol". */
 function suggestionsForSol(): void {
+  // Sol is selected when it is searched near; the bar above the page asks
+  // for its name (recorded from the live site on 20 November 2026).
+  cy.intercept('GET', `/api/v1/systems/${SOL}`, {
+    fixture: 'journeys/sol-system.json',
+  });
   cy.intercept('GET', '/api/local/autocomplete?q=So&limit=10', {
     fixture: 'journeys/autocomplete-so.json',
   });
@@ -179,6 +184,11 @@ describe('What a visitor does', () => {
       '1,000+ matches; navigation is limited to the first 1,000 results.',
     );
     cy.contains('Within 500 LY of Sol · tier C or better · sorted by distance');
+    // The bar above the page names the system, not its id64.
+    cy.get('[data-testid="selected-system-context"]').should(
+      'contain.text',
+      'Selected system Sol',
+    );
     cy.get('li[data-system-result]').should('have.length', 50);
 
     // Nearest first, with what the catalogue knows about each.
