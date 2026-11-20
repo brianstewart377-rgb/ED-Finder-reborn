@@ -29,6 +29,10 @@ whole radius is never sorted by score.
 only systems within 250 ly (or 500 ly) of inhabited space. It is placed exactly
 where the claim rule is, right after it, for the same reasons: one primary-key
 probe per row a window reads. ``None`` leaves it out.
+
+``hide_claimed`` also leaves out the systems in ``edfinder_api.fake_systems``,
+which are not in the game. It is placed last, after the reach rule: a plain
+comparison of each row's id64 against a short server-owned list.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from __future__ import annotations
 from typing import Any, Final
 
 from edfinder_api.claim_rule import not_claimed_sql
+from edfinder_api.fake_systems import not_fake_sql
 from edfinder_api.reach_rule import checked_reach, in_reach_sql
 
 from .profile import (
@@ -242,12 +247,15 @@ def _no_pick_filters(
 
 
 def _rules(system_id_sql: str, hide_claimed: bool, reach_ly: int | None) -> list[str]:
-    """The claim rule, then the reach rule, as asked for."""
+    """The claim rule, then the reach rule, as asked for. Find's view
+    (``hide_claimed``) also leaves out the known fake systems, last."""
     clauses: list[str] = []
     if hide_claimed:
         clauses.append(not_claimed_sql(system_id_sql))
     if reach_ly is not None:
         clauses.append(in_reach_sql(system_id_sql, reach_ly))
+    if hide_claimed:
+        clauses.append(not_fake_sql(system_id_sql))
     return clauses
 
 
