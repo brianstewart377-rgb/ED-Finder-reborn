@@ -13,9 +13,16 @@
   import { navigateWithAnchor } from '$lib/features/explore/navigation';
 
   const rawSystem = $derived(page.url.searchParams.get('system'));
-  const tab = $derived(parseInspectTab(page.url.searchParams.get('tab')));
+  const urlTab = $derived(parseInspectTab(page.url.searchParams.get('tab')));
+  // A tab is chosen with SvelteKit's shallow replaceState, which changes the
+  // address bar and page.state but not page.url. So the choice is kept here,
+  // for the address it was made on; a real navigation (Back, a link) gives a
+  // new page.url, and the tab comes from that again.
+  let chosen = $state<{ href: string; tab: InspectTab } | null>(null);
+  const tab = $derived(chosen?.href === page.url.href ? chosen.tab : urlTab);
 
   function changeTab(next: InspectTab): void {
+    chosen = { href: page.url.href, tab: next };
     const url = new URL(page.url);
     url.searchParams.set('tab', next);
     // Shallow URL state: retain mounted queries, focus, scroll and Finder context.

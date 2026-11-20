@@ -34,6 +34,8 @@ const { mockedPage, mockedGoto, mockedReplaceState, featureGate } = vi.hoisted(
 );
 
 vi.mock('$app/state', () => ({ page: mockedPage }));
+/** What the browser's address bar shows after the page's last replaceState. */
+let addressBar: URL | null = null;
 vi.mock('$app/navigation', () => ({
   goto: mockedGoto,
   replaceState: mockedReplaceState,
@@ -145,8 +147,11 @@ beforeEach(() => {
     mockedPage.url = new URL(destination, mockedPage.url);
     mockedPage.state = options.state;
   });
+  addressBar = null;
   mockedReplaceState.mockImplementation((destination, state) => {
-    mockedPage.url = new URL(destination, mockedPage.url);
+    // As SvelteKit's shallow routing does: the address bar and page.state
+    // change, page.url does not.
+    addressBar = new URL(destination, mockedPage.url);
     mockedPage.state = state;
   });
   // Keep detail mounted under its real QueryClientProvider without starting a map.
@@ -220,6 +225,19 @@ describe('Inspect tab URL state', () => {
     },
   );
 
+  it('widens the page as soon as Bodies is chosen, and narrows it again for Overview', async () => {
+    const { container } = renderInspect();
+    const main = () => container.querySelector('main.inspect-page')!;
+    await fireEvent.click(await screen.findByRole('tab', { name: 'Bodies' }));
+    // page.url is unchanged by the shallow replaceState; the page widens all
+    // the same (live, it stayed narrow until a reload).
+    expect(mockedPage.url.searchParams.get('tab')).toBeNull();
+    expect(addressBar!.searchParams.get('tab')).toBe('bodies');
+    await waitFor(() => expect(main()).toHaveClass('inspect-wide'));
+    await fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    await waitFor(() => expect(main()).not.toHaveClass('inspect-wide'));
+  });
+
   it.each([null, '', 'unknown', 'BODIES', 'bodies/stations', 'x'.repeat(1024)])(
     'uses Overview for an absent or invalid tab %s',
     async (value) => {
@@ -245,28 +263,28 @@ describe('Inspect tab URL state', () => {
     const mounted = renderInspect();
     const originalState = mockedPage.state;
     await fireEvent.click(await screen.findByRole('tab', { name: 'Bodies' }));
-    expect(mockedPage.url.searchParams.get('tab')).toBe('bodies');
+    expect(addressBar!.searchParams.get('tab')).toBe('bodies');
     await fireEvent.click(screen.getByRole('tab', { name: 'Stations' }));
-    expect(mockedPage.url.searchParams.getAll('tab')).toEqual(['stations']);
-    expect(mockedPage.url.searchParams.get('system')).toBe(inspectedId);
-    expect(mockedPage.url.searchParams.get('from')).toBe(originalFrom);
-    expect(mockedPage.url.searchParams.get('campaign')).toBe('inspect');
-    expect(mockedPage.url.hash).toBe('#details');
+    expect(addressBar!.searchParams.getAll('tab')).toEqual(['stations']);
+    expect(addressBar!.searchParams.get('system')).toBe(inspectedId);
+    expect(addressBar!.searchParams.get('from')).toBe(originalFrom);
+    expect(addressBar!.searchParams.get('campaign')).toBe('inspect');
+    expect(addressBar!.hash).toBe('#details');
     expect(mockedPage.state).toBe(originalState);
     expect(mockedReplaceState).toHaveBeenCalledTimes(2);
     expect(mockedGoto).not.toHaveBeenCalled();
     expect(api.getSystem).toHaveBeenCalledTimes(1);
     expect(api.getSystemRatings).toHaveBeenCalledTimes(1);
 
+    // A reload reads the address bar.
     mounted.unmount();
+    mockedPage.url = addressBar!;
     renderInspect();
     expect(
       await screen.findByRole('tab', { name: 'Stations' }),
     ).toHaveAttribute('aria-selected', 'true');
     await fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    expect(mockedPage.url.searchParams.get('tab') ?? 'overview').toBe(
-      'overview',
-    );
+    expect(addressBar!.searchParams.get('tab') ?? 'overview').toBe('overview');
     expect(screen.getByRole('tabpanel', { name: 'Overview' })).toBeVisible();
     expect(api.getSystem).toHaveBeenCalledTimes(1);
     expect(api.getSystemRatings).toHaveBeenCalledTimes(1);
