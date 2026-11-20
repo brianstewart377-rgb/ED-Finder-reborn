@@ -439,7 +439,7 @@ describe('Inspect Explore navigation', () => {
     expect(
       screen.getByRole('radio', { name: 'Flexible Multi-Role Colony' }),
     ).toBeChecked();
-    expect(screen.getByRole('combobox', { name: 'Minimum tier' })).toHaveValue(
+    expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
       'A',
     );
     expect(screen.getByRole('combobox', { name: 'System name' })).toHaveValue(
@@ -455,6 +455,8 @@ describe('Inspect Explore navigation', () => {
           size: 1,
           from: 0,
           reach_ly: 250,
+          // Any near a system shows tier C or better unless told otherwise.
+          min_development_score: 45,
         },
         expect.any(AbortSignal),
         { id64: anchor.id64, name: anchor.name },

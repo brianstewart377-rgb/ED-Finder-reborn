@@ -347,6 +347,10 @@ function anchorDetail(anchor: ExploreAnchor): api.SystemDetail {
   };
 }
 
+/** The Finder shows tier C or better near a system unless told otherwise. */
+const floorC = (enabled: boolean) =>
+  enabled ? { min_development_score: 45 } : {};
+
 function renderEnabled(
   query = 'page_size=1',
   state: App.PageState = {},
@@ -538,6 +542,7 @@ describe.each([false, true])(
         size: enabled ? 50 : 24,
         from: 0,
         reach_ly: 250,
+        ...floorC(enabled),
       });
       const calls = vi.mocked(api.searchExploreSystems).mock.calls.length;
       await fireEvent.input(input, { target: { value: '' } });
@@ -1093,7 +1098,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     );
     await screen.findByText('Ranked 2');
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Minimum tier' }),
+      screen.getByRole('combobox', { name: 'Show only' }),
       { target: { value: 'S' } },
     );
     await waitFor(() =>
@@ -1352,7 +1357,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         expect.anything(),
       ),
     );
-    expect(screen.getByRole('combobox', { name: 'Minimum tier' })).toHaveValue(
+    expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
       'A',
     );
   });
@@ -2424,7 +2429,10 @@ describe.each([false, true])(
       renderEnabled(`near=${anchor.id64}`, { anchor });
       await screen.findByText('Ranked 1');
 
-      const scope = 'Within 500 LY of Achenar · sorted by distance';
+      // The Finder shows tier C or better by default near a system.
+      const scope = enabled
+        ? 'Within 500 LY of Achenar · tier C or better · sorted by distance'
+        : 'Within 500 LY of Achenar · sorted by distance';
       expect(document.getElementById('results-scope')).toHaveTextContent(scope);
       const list = screen.getByRole('list', { name: 'System results' });
       expect(list).toHaveAttribute('aria-describedby', 'results-scope');
@@ -2449,6 +2457,20 @@ describe.each([false, true])(
         { value: '1000', label: '1,000 LY' },
         { value: '2000', label: '2,000 LY' },
       ]);
+      // A "Show only" tier is a filter, so it takes the filtered cap too.
+      expect(
+        within(radius)
+          .getAllByRole('option')
+          .map((option) => (option as HTMLOptionElement).disabled),
+      ).toEqual(
+        enabled
+          ? [false, false, false, true, true]
+          : [false, false, false, false, false],
+      );
+      if (enabled)
+        expect(radius).toHaveAccessibleDescription(
+          '"Show only" limits the search to 500 LY.',
+        );
     });
 
     it('describes galaxy-wide Any scope and disables radius without an anchor', async () => {
@@ -2468,9 +2490,72 @@ describe.each([false, true])(
       );
     });
 
+    it.runIf(enabled)(
+      'offers "Show only" near a system from tier C, and every system on request',
+      async () => {
+        renderEnabled(`near=${anchorA.id64}&radius=1000`, { anchor: anchorA });
+        await screen.findByText('Ranked 1');
+        const showOnly = screen.getByRole('combobox', { name: 'Show only' });
+        expect(showOnly).toHaveValue('C');
+        expect(
+          vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
+        ).toMatchObject({
+          filters: { distance: { min: 0, max: 500 } },
+          min_development_score: 45,
+        });
+        expect(screen.getByRole('combobox', { name: 'Within' })).toHaveValue(
+          '500',
+        );
+
+        await fireEvent.change(showOnly, { target: { value: 'all' } });
+        await waitFor(() =>
+          expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
+        );
+        const request = vi.mocked(api.searchExploreSystems).mock.lastCall?.[0];
+        expect(request).not.toHaveProperty('min_development_score');
+        // The chosen 1,000 LY resumes once nothing is filtered.
+        expect(request?.filters?.distance).toEqual({ min: 0, max: 1000 });
+        expect(mockedPage.url.searchParams.get('min-tier')).toBe('all');
+        expect(document.getElementById('results-scope')).toHaveTextContent(
+          'Within 1,000 LY of Anchor A · sorted by distance',
+        );
+      },
+    );
+
+    it.runIf(enabled)(
+      'has no "Show only" for Any galaxy-wide, which is best first already',
+      async () => {
+        renderEnabled('page_size=1');
+        await screen.findByText('Ranked 1');
+        expect(
+          screen.queryByRole('combobox', { name: 'Show only' }),
+        ).not.toBeInTheDocument();
+        expect(
+          vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
+        ).not.toHaveProperty('min_development_score');
+      },
+    );
+
+    it.runIf(enabled)(
+      'offers every system when no system of the tier is that close',
+      async () => {
+        mockRankedPages(0);
+        renderEnabled(`min-tier=A&near=${anchorA.id64}`, { anchor: anchorA });
+        await screen.findByText(
+          'No systems of tier A or better are this close.',
+        );
+        await fireEvent.click(
+          screen.getByRole('button', { name: 'Show all systems' }),
+        );
+        await waitFor(() =>
+          expect(mockedPage.url.searchParams.get('min-tier')).toBe('all'),
+        );
+      },
+    );
+
     it('commits one radius search, resets pagination and restores its URL on reload', async () => {
       renderEnabled(
-        `${enabled ? 'page_size=1&offset=1&' : ''}selected=${anchorA.id64}&view=cards&near=${anchorA.id64}`,
+        `${enabled ? 'min-tier=all&page_size=1&offset=1&' : ''}selected=${anchorA.id64}&view=cards&near=${anchorA.id64}`,
         { anchor: anchorA },
       );
       await screen.findByText(enabled ? 'Ranked 2' : 'Ranked 1');
@@ -2558,6 +2643,7 @@ describe.each([false, true])(
         sort_by: 'distance',
         size: enabled ? 1 : 24,
         from: 0,
+        ...floorC(enabled),
         reach_ly: 500,
       });
 
@@ -2581,7 +2667,7 @@ describe.each([false, true])(
       // The API rejects anchored searches with body filters beyond 500 LY, so
       // the wider options are disabled and a wider URL radius is applied as 500.
       renderEnabled(
-        `${enabled ? 'page_size=1&' : ''}near=${anchorA.id64}&bodies=elw_count%3A1-&radius=1000`,
+        `${enabled ? 'min-tier=all&page_size=1&' : ''}near=${anchorA.id64}&bodies=elw_count%3A1-&radius=1000`,
         { anchor: anchorA },
       );
       await screen.findByText('Ranked 1');
@@ -2639,7 +2725,9 @@ describe.each([false, true])(
               finish = resolve;
             }),
         );
-      renderEnabled(`near=${anchorA.id64}`, { anchor: anchorA });
+      renderEnabled(`${enabled ? 'min-tier=all&' : ''}near=${anchorA.id64}`, {
+        anchor: anchorA,
+      });
       await screen.findByText('Ranked 1');
       const list = screen.getByRole('list', { name: 'System results' });
       expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent(
@@ -2687,7 +2775,9 @@ describe.each([false, true])(
         '500',
       );
       expect(document.getElementById('results-scope')).toHaveTextContent(
-        'Within 500 LY of Anchor A · sorted by distance',
+        enabled
+          ? 'Within 500 LY of Anchor A · tier C or better · sorted by distance'
+          : 'Within 500 LY of Anchor A · sorted by distance',
       );
       expect(mockedGoto).toHaveBeenCalledTimes(1);
       expect(mockedGoto.mock.calls[0][1].replaceState).toBe(true);
@@ -2729,6 +2819,7 @@ describe.each([false, true])(
         size: enabled ? 50 : 24,
         from: 0,
         reach_ly: 250,
+        ...floorC(enabled),
       });
       expect(mockedPage.url.searchParams.get('near')).toBe(anchorA.id64);
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
@@ -3365,6 +3456,7 @@ describe.each([false, true])(
         size: enabled ? 3 : 24,
         from: 0,
         reach_ly: 250,
+        ...floorC(enabled),
       });
       const list = screen.getByRole('list', { name: 'System results' });
       await fireEvent.click(
@@ -3460,6 +3552,7 @@ describe.each([false, true])(
         size: enabled ? 3 : 24,
         from: 0,
         reach_ly: 250,
+        ...floorC(enabled),
       });
       // The star now searched near is selected, so the map flies to it.
       await waitFor(() =>
@@ -3600,9 +3693,9 @@ describe.each([false, true])(
         expect(
           screen.getByRole('radio', { name: 'Manufacturing Hub' }),
         ).toBeChecked();
-        expect(
-          screen.getByRole('combobox', { name: 'Minimum tier' }),
-        ).toHaveValue('A');
+        expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
+          'A',
+        );
         expect(
           screen.getByRole('combobox', { name: 'System name' }),
         ).toHaveValue('Another unsubmitted destination');

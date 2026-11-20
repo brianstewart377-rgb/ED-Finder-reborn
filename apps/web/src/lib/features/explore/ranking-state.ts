@@ -17,12 +17,16 @@ import type {
 } from '$lib/api/client';
 import {
   ANY_ARCHETYPE,
+  ANY_MINIMUM_TIER_SCORES,
+  DEFAULT_ANY_MINIMUM_TIER,
   DEFAULT_MINIMUM_TIER,
   isArchetypeKey,
+  isSelectedMinimumTier,
   minimumScoreForTier,
+  parseAnyMinimumTier,
   parseMinimumTier,
   type ArchetypeKey,
-  type SelectedMinimumTier,
+  type FinderMinimumTier,
 } from './archetypes';
 import {
   DEFAULT_REACH,
@@ -36,8 +40,12 @@ import {
 
 export type FinderRankingState = Readonly<{
   archetype: typeof ANY_ARCHETYPE | ArchetypeKey;
-  /** Selected-archetype-only; `null` is mandatory in Any until slice 1d. */
-  minimumTier: SelectedMinimumTier | null;
+  /**
+   * "Show only": a picked colony type's floor (S, A or B; default B), or the
+   * Any search's (all, C, B, A or S; default C). Normalized state always has
+   * one; `null` in an input asks for the mode's default.
+   */
+  minimumTier: FinderMinimumTier | null;
   /** Facade `page_size`, integer 1..50; default 50. */
   pageSize: number;
   /** Non-negative integer below `NAVIGATION_LIMIT`. */
@@ -80,7 +88,7 @@ export const WEIGHT_BASIS_POINTS_MAX = 10_000;
 
 export const DEFAULT_RANKING_STATE: FinderRankingState = Object.freeze({
   archetype: ANY_ARCHETYPE,
-  minimumTier: null,
+  minimumTier: DEFAULT_ANY_MINIMUM_TIER,
   pageSize: DEFAULT_PAGE_SIZE,
   offset: 0,
   weights: Object.freeze({}),
@@ -132,8 +140,8 @@ export function lastPageCorrection(
 }
 
 /**
- * Enforce the cross-field invariants: Any never retains a tier floor, a
- * selected archetype defaults to B, page size is 1..50 (default 50), offset is
+ * Enforce the cross-field invariants: Any's floor is all, C, B, A or S
+ * (default C), a selected archetype's is S, A or B (default B), page size is 1..50 (default 50), offset is
  * a non-negative integer below the ceiling (a URL at or beyond it canonicalizes
  * to the last valid page of the 1,000-row window before any request), and
  * weights are empty until slice 2.
@@ -146,7 +154,7 @@ export function normalizeRankingState(
     : ANY_ARCHETYPE;
   const minimumTier =
     archetype === ANY_ARCHETYPE
-      ? null
+      ? (parseAnyMinimumTier(input?.minimumTier) ?? DEFAULT_ANY_MINIMUM_TIER)
       : (parseMinimumTier(input?.minimumTier) ?? DEFAULT_MINIMUM_TIER);
   const pageSize = isValidPageSize(input?.pageSize)
     ? input.pageSize
@@ -282,19 +290,18 @@ export function parseRankingSearchParams(
   }
 
   const tierRaw = single(params, 'min-tier', issues);
-  let minimumTier: SelectedMinimumTier | null = null;
+  let minimumTier: FinderMinimumTier | null = null;
   if (tierRaw !== null) {
-    if (archetype === ANY_ARCHETYPE) {
-      issues.push({ parameter: 'min-tier', reason: 'ignored', value: tierRaw });
-    } else {
-      minimumTier = parseMinimumTier(tierRaw);
-      if (minimumTier === null)
-        issues.push({
-          parameter: 'min-tier',
-          reason: 'unsupported',
-          value: tierRaw,
-        });
-    }
+    minimumTier =
+      archetype === ANY_ARCHETYPE
+        ? parseAnyMinimumTier(tierRaw)
+        : parseMinimumTier(tierRaw);
+    if (minimumTier === null)
+      issues.push({
+        parameter: 'min-tier',
+        reason: 'unsupported',
+        value: tierRaw,
+      });
   }
 
   const pageSizeRaw = parseIntegerParameter(params, 'page_size', issues);
@@ -364,6 +371,11 @@ export function serializeRankingSearchParams(
     output.set('archetype', state.archetype);
     if (state.minimumTier && state.minimumTier !== DEFAULT_MINIMUM_TIER)
       output.set('min-tier', state.minimumTier);
+  } else if (
+    state.minimumTier &&
+    state.minimumTier !== DEFAULT_ANY_MINIMUM_TIER
+  ) {
+    output.set('min-tier', state.minimumTier);
   }
   if (state.pageSize !== DEFAULT_PAGE_SIZE)
     output.set('page_size', String(state.pageSize));
@@ -489,6 +501,20 @@ export function legacyExploreRequest(
 }
 
 /**
+ * The Any search's "Show only" floor as a Best Colony Potential score, or
+ * `null` when it shows all systems (or a colony type is picked).
+ */
+export function anyMinimumScore(
+  input: Partial<FinderRankingState> | null | undefined,
+): number | null {
+  const state = normalizeRankingState(input);
+  if (state.archetype !== ANY_ARCHETYPE) return null;
+  return ANY_MINIMUM_TIER_SCORES[
+    parseAnyMinimumTier(state.minimumTier) ?? DEFAULT_ANY_MINIMUM_TIER
+  ];
+}
+
+/**
  * Choose the request for a ranking state. With the gate disabled the rankings
  * branch is unreachable: every state, including one hydrated from a
  * hand-authored archetype URL, yields today's local-search request.
@@ -516,17 +542,32 @@ export function selectFinderRequest(
   const window = rankingWireWindow(state);
   if (state.archetype === ANY_ARCHETYPE) {
     const coords = anchoredCoordinates(anchor);
+    // Near a system the list is nearest first, so "Show only" is what keeps
+    // weak systems from leading it. It is a filter, so the radius takes the
+    // filtered cap. Galaxy-wide the list is best first already and the floor
+    // is not sent: the request stays the one the nightly warm-up asks
+    // (deploy/edfinder_deploy.py, warm_searches).
+    const floor = anyMinimumScore(state);
+    const shown = floor === null ? {} : { min_development_score: floor };
     const request: ExploreSearchRequest = coords
       ? {
           reference_coords: coords,
           filters: {
-            distance: { min: 0, max: normalizeSearchRadius(options.radius) },
+            distance: {
+              min: 0,
+              max: effectiveSearchRadius(
+                normalizeSearchRadius(options.radius),
+                {},
+                floor !== null,
+              ),
+            },
             economy: 'any',
           },
           sort_by: 'distance',
           size: window.limit,
           from: window.offset,
           reach_ly: reach,
+          ...shown,
         }
       : {
           galaxy_wide: true,
@@ -538,7 +579,9 @@ export function selectFinderRequest(
     return { kind: 'any', request, pageSize: state.pageSize };
   }
   const minScore = minimumScoreForTier(
-    state.minimumTier ?? DEFAULT_MINIMUM_TIER,
+    isSelectedMinimumTier(state.minimumTier)
+      ? state.minimumTier
+      : DEFAULT_MINIMUM_TIER,
   );
   const coords = anchoredCoordinates(anchor);
   if (coords) {

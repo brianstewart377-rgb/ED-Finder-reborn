@@ -10,12 +10,13 @@ import {
 
 afterEach(cleanup);
 
-function picker(archetype: 'any' | ArchetypeKey = 'any') {
+function picker(archetype: 'any' | ArchetypeKey = 'any', anyFloor = false) {
   const onArchetypeChange = vi.fn();
   const onMinimumTierChange = vi.fn();
   const result = render(ArchetypePicker, {
     archetype,
-    minimumTier: archetype === 'any' ? null : 'B',
+    minimumTier: archetype === 'any' ? 'C' : 'B',
+    anyFloor,
     onArchetypeChange,
     onMinimumTierChange,
   });
@@ -46,7 +47,8 @@ describe('native archetype picker', () => {
       expect(screen.getAllByText(choice.description)).toHaveLength(1);
     }
     expect(screen.getByRole('radio', { name: 'Any' })).toBeChecked();
-    expect(screen.queryByLabelText('Minimum tier')).not.toBeInTheDocument();
+    // Galaxy-wide the list is best first already: no "Show only" for Any.
+    expect(screen.queryByLabelText('Show only')).not.toBeInTheDocument();
   });
 
   it('uses one native radio group and leaves its keyboard progression to the platform', async () => {
@@ -69,13 +71,30 @@ describe('native archetype picker', () => {
 
   it('shows only B, A and S minimum tiers for a selected archetype', async () => {
     const { onMinimumTierChange } = picker('manufacturing_hub');
-    const select = screen.getByRole('combobox', { name: 'Minimum tier' });
+    const select = screen.getByRole('combobox', { name: 'Show only' });
     expect(select).toHaveValue('B');
     expect(
       screen.getAllByRole('option').map((option) => option.textContent),
-    ).toEqual(['Tier B', 'Tier A', 'Tier S']);
+    ).toEqual(['Tier B or better', 'Tier A or better', 'Tier S']);
     await fireEvent.change(select, { target: { value: 'A' } });
     expect(onMinimumTierChange).toHaveBeenCalledExactlyOnceWith('A');
+  });
+
+  it('offers Any all systems or C, B, A and S near a system, starting at C', async () => {
+    const { onMinimumTierChange } = picker('any', true);
+    const select = screen.getByRole('combobox', { name: 'Show only' });
+    expect(select).toHaveValue('C');
+    expect(
+      screen.getAllByRole('option').map((option) => option.textContent),
+    ).toEqual([
+      'All systems',
+      'Tier C or better',
+      'Tier B or better',
+      'Tier A or better',
+      'Tier S',
+    ]);
+    await fireEvent.change(select, { target: { value: 'all' } });
+    expect(onMinimumTierChange).toHaveBeenCalledExactlyOnceWith('all');
   });
 
   it('keeps native controls and descriptions accessible', async () => {
@@ -91,7 +110,7 @@ describe('native archetype picker', () => {
 
   it('keeps tier keyboard input native and commits only its change event', async () => {
     const { onMinimumTierChange, onArchetypeChange } = picker('paradise');
-    const select = screen.getByRole('combobox', { name: 'Minimum tier' });
+    const select = screen.getByRole('combobox', { name: 'Show only' });
     select.focus();
     expect(select).toHaveFocus();
     expect(await fireEvent.keyDown(select, { key: 'ArrowDown' })).toBe(true);
@@ -109,9 +128,7 @@ describe('native archetype picker', () => {
     await rerender({ disabled: true });
     for (const radio of screen.getAllByRole('radio'))
       expect(radio).toBeDisabled();
-    expect(
-      screen.getByRole('combobox', { name: 'Minimum tier' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Show only' })).toBeDisabled();
     expect(onArchetypeChange).not.toHaveBeenCalled();
     expect(onMinimumTierChange).not.toHaveBeenCalled();
   });

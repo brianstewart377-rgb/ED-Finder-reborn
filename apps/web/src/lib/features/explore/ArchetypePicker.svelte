@@ -5,15 +5,17 @@
     ANY_ARCHETYPE_DESCRIPTION,
     ANY_ARCHETYPE_LABEL,
     ARCHETYPES,
+    DEFAULT_ANY_MINIMUM_TIER,
     DEFAULT_MINIMUM_TIER,
-    isSelectedMinimumTier,
+    parseAnyMinimumTier,
     type ArchetypeKey,
-    type SelectedMinimumTier,
+    type FinderMinimumTier,
   } from './archetypes';
 
   let {
     archetype,
     minimumTier,
+    anyFloor = false,
     onArchetypeChange,
     onMinimumTierChange,
     disabled = false,
@@ -21,9 +23,12 @@
     rankingTools,
   }: {
     archetype: typeof ANY_ARCHETYPE | ArchetypeKey;
-    minimumTier: SelectedMinimumTier | null;
+    minimumTier: FinderMinimumTier | null;
+    /** Offer "Show only" for Any too: only near a system, where Find lists
+     *  nearest first. Galaxy-wide the list is best first already. */
+    anyFloor?: boolean;
     onArchetypeChange: (archetype: typeof ANY_ARCHETYPE | ArchetypeKey) => void;
-    onMinimumTierChange: (tier: SelectedMinimumTier) => void;
+    onMinimumTierChange: (tier: FinderMinimumTier) => void;
     disabled?: boolean;
     /** Narrow panel: names only on screen; descriptions stay for assistive tech. */
     compact?: boolean;
@@ -62,20 +67,27 @@
       {/each}
     </div>
   </fieldset>
-  {#if archetype !== ANY_ARCHETYPE}
+  {#if archetype !== ANY_ARCHETYPE || anyFloor}
     <label class="minimum-tier" for={`${id}-minimum-tier`}>
-      Minimum tier
+      Show only
       <select
         id={`${id}-minimum-tier`}
         {disabled}
-        value={minimumTier ?? DEFAULT_MINIMUM_TIER}
+        value={minimumTier ??
+          (archetype === ANY_ARCHETYPE
+            ? DEFAULT_ANY_MINIMUM_TIER
+            : DEFAULT_MINIMUM_TIER)}
         onchange={(event) => {
-          const value = event.currentTarget.value;
-          if (isSelectedMinimumTier(value)) onMinimumTierChange(value);
+          const value = parseAnyMinimumTier(event.currentTarget.value);
+          if (value) onMinimumTierChange(value);
         }}
       >
-        <option value="B">Tier B</option>
-        <option value="A">Tier A</option>
+        {#if archetype === ANY_ARCHETYPE}
+          <option value="all">All systems</option>
+          <option value="C">Tier C or better</option>
+        {/if}
+        <option value="B">Tier B or better</option>
+        <option value="A">Tier A or better</option>
         <option value="S">Tier S</option>
       </select>
     </label>

@@ -31,10 +31,10 @@ const serialize = (
 ) => serializeRankingSearchParams(state, params(base)).toString();
 
 describe('FinderRankingState normalization', () => {
-  it('defaults to Any, no floor, page size 50, offset 0 and no weights', () => {
+  it('defaults to Any, tier C or better, page size 50, offset 0 and no weights', () => {
     expect(DEFAULT_RANKING_STATE).toEqual({
       archetype: 'any',
-      minimumTier: null,
+      minimumTier: 'C',
       pageSize: 50,
       offset: 0,
       weights: {},
@@ -46,10 +46,17 @@ describe('FinderRankingState normalization', () => {
     expect(NAVIGATION_LIMIT).toBe(1_000);
   });
 
-  it('never lets Any retain a hidden tier floor', () => {
-    expect(
-      normalizeRankingState({ archetype: 'any', minimumTier: 'A' }).minimumTier,
-    ).toBeNull();
+  it('gives Any a "Show only" floor of all, C, B, A or S, defaulting to C', () => {
+    for (const tier of ['all', 'C', 'B', 'A', 'S'] as const)
+      expect(
+        normalizeRankingState({ archetype: 'any', minimumTier: tier })
+          .minimumTier,
+      ).toBe(tier);
+    for (const bad of [null, 'D', 'c', '', 'any'])
+      expect(
+        normalizeRankingState({ archetype: 'any', minimumTier: bad as never })
+          .minimumTier,
+      ).toBe('C');
   });
 
   it('defaults a selected archetype to B and fails closed on C/D', () => {
@@ -68,8 +75,14 @@ describe('FinderRankingState normalization', () => {
       }).minimumTier,
     ).toBe('B');
     expect(
+      normalizeRankingState({
+        archetype: 'flexible',
+        minimumTier: 'all',
+      }).minimumTier,
+    ).toBe('B');
+    expect(
       normalizeRankingState({ archetype: 'bogus' as never }),
-    ).toMatchObject({ archetype: 'any', minimumTier: null });
+    ).toMatchObject({ archetype: 'any', minimumTier: 'C' });
   });
 
   it('accepts page sizes 1..50 inclusive and otherwise uses 50', () => {
@@ -240,18 +253,30 @@ describe('ranking URL parsing', () => {
   });
 
   it('fails an unknown archetype closed to Any with a non-blocking notice', () => {
-    const parsed = parse('archetype=agri_hub&min-tier=A');
+    const parsed = parse('archetype=agri_hub&min-tier=D');
     expect(parsed.state).toEqual(DEFAULT_RANKING_STATE);
     expect(parsed.issues).toEqual([
       { parameter: 'archetype', reason: 'unsupported', value: 'agri_hub' },
-      { parameter: 'min-tier', reason: 'ignored', value: 'A' },
+      { parameter: 'min-tier', reason: 'unsupported', value: 'D' },
     ]);
     expect(parsed.canonical).toBe(false);
   });
 
-  it('ignores and removes min-tier in Any mode and omits the B default', () => {
-    expect(parse('min-tier=S').state.minimumTier).toBeNull();
-    expect(serialize(parse('min-tier=S').state)).toBe('');
+  it('keeps min-tier in Any mode and omits the C and B defaults', () => {
+    for (const tier of ['all', 'B', 'A', 'S']) {
+      const parsed = parse(`min-tier=${tier}`);
+      expect(parsed.state.minimumTier).toBe(tier);
+      expect(parsed.issues).toEqual([]);
+      expect(parsed.canonical).toBe(true);
+      expect(serialize(parsed.state)).toBe(`min-tier=${tier}`);
+    }
+    const anyC = parse('min-tier=C');
+    expect(anyC.state.minimumTier).toBe('C');
+    expect(anyC.canonical).toBe(false);
+    expect(serialize(anyC.state)).toBe('');
+    expect(parse('min-tier=D').issues).toEqual([
+      { parameter: 'min-tier', reason: 'unsupported', value: 'D' },
+    ]);
     const selectedB = parse('archetype=flexible&min-tier=B');
     expect(selectedB.state.minimumTier).toBe('B');
     expect(selectedB.canonical).toBe(false);
@@ -441,7 +466,7 @@ describe('request selection', () => {
     });
   });
 
-  it('sends Any to local search with no tier field and codec-driven size/from', () => {
+  it('sends Any galaxy-wide with no floor, and near a system with the C floor', () => {
     expect(
       selectFinderRequest(parse('').state, null, { enabled: true }),
     ).toEqual({
@@ -469,10 +494,37 @@ describe('request selection', () => {
         size: 1,
         from: 2,
         reach_ly: 250,
+        min_development_score: 45,
       },
       pageSize: 1,
     });
-    expect(page.request).not.toHaveProperty('min_development_score');
+    // Galaxy-wide stays exactly the request the nightly warm-up asks.
+    for (const tier of ['all', 'C', 'B', 'A', 'S'])
+      expect(
+        selectFinderRequest(parse(`min-tier=${tier}`).state, null, {
+          enabled: true,
+        }).request,
+      ).not.toHaveProperty('min_development_score');
+  });
+
+  it('sends each "Show only" tier near a system as its score, and none for all', () => {
+    const scores = { all: undefined, C: 45, B: 60, A: 76, S: 88 } as const;
+    for (const [tier, score] of Object.entries(scores)) {
+      const { request } = selectFinderRequest(
+        parse(`min-tier=${tier}`).state,
+        anchor,
+        { enabled: true, radius: 2000 },
+      );
+      if (score === undefined) {
+        expect(request).not.toHaveProperty('min_development_score');
+        // With no floor the search is not filtered and keeps its radius.
+        expect(request).toMatchObject({ filters: { distance: { max: 2000 } } });
+      } else {
+        expect(request).toMatchObject({ min_development_score: score });
+        // A floor is a filter: the radius takes the API's filtered cap.
+        expect(request).toMatchObject({ filters: { distance: { max: 500 } } });
+      }
+    }
   });
 
   it.each(SEARCH_RADIUS_OPTIONS)(
@@ -480,7 +532,7 @@ describe('request selection', () => {
     (radius) => {
       for (const enabled of [false, true]) {
         const page = selectFinderRequest(
-          parse('page_size=1&offset=2').state,
+          parse('min-tier=all&page_size=1&offset=2').state,
           anchor,
           {
             enabled,
