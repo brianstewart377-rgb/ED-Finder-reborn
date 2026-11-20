@@ -31,6 +31,7 @@
   } from './navigation';
   import ArchetypePicker from './ArchetypePicker.svelte';
   import ArchetypeExplanation from './ArchetypeExplanation.svelte';
+  import FinderResultLine from './FinderResultLine.svelte';
   import FinderResultRanking from './FinderResultRanking.svelte';
   import BodyFilters from './BodyFilters.svelte';
   import { starClassLabel } from './star-label';
@@ -229,12 +230,22 @@
   const resultsEnabled = $derived(finder.resultsEnabled);
   const anchorReference = $derived(finder.anchorReference);
   const displayedResults = $derived(finder.displayedResults);
-  const displayedSearchRadius = $derived(finder.displayedSearchRadius);
   const currentResponse = $derived(finder.currentResponse);
   const pageCorrection = $derived(finder.pageCorrection);
   const updatingResults = $derived(finder.updatingResults);
   const shownPage = $derived(finder.shownPage);
   const countingMatches = $derived(finder.countingMatches);
+  // The rows carry the Finder's scores (and the header names them) once the
+  // shown page is the one the picker asked for.
+  const rankedList = $derived(
+    FINDER_F4_ENABLED &&
+      displayedResults !== undefined &&
+      displayedResults !== null &&
+      !(
+        viewState.rankingState.archetype === 'any' &&
+        displayedResults.finderState!.archetype !== 'any'
+      ),
+  );
   const activeArchetypeLabel = $derived(
     archetypeLabel(viewState.rankingState.archetype),
   );
@@ -1103,6 +1114,24 @@
           <p>No systems match this discovery area. Choose another anchor.</p>
         </div>
       {:else}
+        <div class="result-columns" aria-hidden="true">
+          <span>
+            <span>System</span>
+            <span>Distance</span>
+            {#if rankedList}
+              <span
+                >{displayedResults!.finderState!.archetype === 'any'
+                  ? 'Colony potential'
+                  : `${archetypeLabel(displayedResults!.finderState!.archetype)} fit`}</span
+              >
+              <span>Suits</span>
+              <span>Bodies and signals</span>
+            {:else}
+              <span class="result-facts">Economy and population</span>
+            {/if}
+          </span>
+          <span></span>
+        </div>
         <ul
           class="result-list"
           bind:this={resultList}
@@ -1129,68 +1158,84 @@
                       ? `finder-result-heading-${system.id64}`
                       : undefined}
                     >{system.name ?? `System ${system.id64}`}</strong
-                  ><code>{system.id64}</code></span
+                  >
+                  <span class="result-subline"
+                    >{#if system.main_star_type}<span
+                        >{starClassLabel(system.main_star_type)}</span
+                      >{/if}{#if FINDER_F4_ENABLED && system.claim_status === 'claim_ended_unknown'}<span
+                        class="claim-chip">Claim ended?</span
+                      >{/if}</span
+                  ></span
                 >
-                {#if FINDER_F4_ENABLED && displayedResults && !(viewState.rankingState.archetype === 'any' && displayedResults.finderState!.archetype !== 'any')}
-                  <FinderResultRanking
-                    variant="row"
+                <span class="result-distance"
+                  >{#if system.distance != null}{FINDER_F4_ENABLED
+                      ? `${system.distance.toFixed(2)} LY`
+                      : `${system.distance.toFixed(1)} ly`}{/if}</span
+                >
+                {#if rankedList}
+                  <FinderResultLine
                     {system}
-                    archetype={displayedResults.finderState!.archetype}
+                    archetype={displayedResults!.finderState!.archetype}
                   />
+                {:else}
+                  <span class="result-facts">
+                    {#if system.primaryEconomy}<span
+                        >{system.primaryEconomy}</span
+                      >{/if}
+                    {#if population(system.population)}<span
+                        >{population(system.population)} population</span
+                      >{/if}
+                  </span>
                 {/if}
-                <span class="result-facts">
-                  {#if system.distance != null}<span
-                      >{FINDER_F4_ENABLED
-                        ? `${system.distance.toFixed(2)} LY`
-                        : `${system.distance.toFixed(1)} ly`}{displayedSearchRadius !=
-                      null
-                        ? ` · within ${displayedSearchRadius.toLocaleString('en-US')} LY`
-                        : ''}</span
-                    >{/if}
-                  {#if system.primaryEconomy}<span>{system.primaryEconomy}</span
-                    >{/if}
-                  {#if population(system.population)}<span
-                      >{population(system.population)} population</span
-                    >{/if}
-                  {#if system.main_star_type}<span
-                      >{starClassLabel(system.main_star_type)}</span
-                    >{/if}
-                </span>
               </button>
-              {#if selectedId === system.id64}
-                <button
-                  type="button"
-                  class="result-map-action secondary-button pill-action"
-                  data-result-map-open
-                  aria-controls="explore-map-window"
-                  disabled={!chosenSystem}
-                  onclick={(event) => showMap(event, system)}
-                  >Show on map</button
+              <div class="result-actions">
+                <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
+                <a
+                  class="inspect-link secondary-button"
+                  href={FINDER_F4_ENABLED
+                    ? inspectHref(system.id64, page.url)
+                    : resolve(`/inspect?system=${system.id64}`)}
+                  onclick={FINDER_F4_ENABLED
+                    ? (event) => followInspect(event, system.id64)
+                    : undefined}
+                  aria-label={`Inspect ${system.name ?? system.id64}`}
                 >
+                  Inspect <ArrowRight aria-hidden="true" size={16} />
+                </a>
+                <!-- eslint-enable svelte/no-navigation-without-resolve -->
+                <SystemActions {system} />
+              </div>
+              {#if selectedId === system.id64}
+                <!-- The selected result's details, under its line. -->
+                <div class="result-details">
+                  {#if rankedList}
+                    <FinderResultRanking
+                      variant="row"
+                      {system}
+                      archetype={displayedResults!.finderState!.archetype}
+                    />
+                  {/if}
+                  <div class="result-detail-actions">
+                    <button
+                      type="button"
+                      class="result-map-action secondary-button pill-action"
+                      data-result-map-open
+                      aria-controls="explore-map-window"
+                      disabled={!chosenSystem}
+                      onclick={(event) => showMap(event, system)}
+                      >Show on map</button
+                    >
+                    {#if rankedList}
+                      <ArchetypeExplanation
+                        {system}
+                        expected={system.ranking_provenance ?? null}
+                        archetype={displayedResults!.finderState!.archetype}
+                        headingId={`finder-result-heading-${system.id64}`}
+                      />
+                    {/if}
+                  </div>
+                </div>
               {/if}
-              <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
-              <a
-                class="inspect-link secondary-button"
-                href={FINDER_F4_ENABLED
-                  ? inspectHref(system.id64, page.url)
-                  : resolve(`/inspect?system=${system.id64}`)}
-                onclick={FINDER_F4_ENABLED
-                  ? (event) => followInspect(event, system.id64)
-                  : undefined}
-                aria-label={`Inspect ${system.name ?? system.id64}`}
-              >
-                Inspect <ArrowRight aria-hidden="true" size={16} />
-              </a>
-              <!-- eslint-enable svelte/no-navigation-without-resolve -->
-              {#if FINDER_F4_ENABLED && displayedResults && !(viewState.rankingState.archetype === 'any' && displayedResults.finderState!.archetype !== 'any')}
-                <ArchetypeExplanation
-                  {system}
-                  expected={system.ranking_provenance ?? null}
-                  archetype={displayedResults.finderState!.archetype}
-                  headingId={`finder-result-heading-${system.id64}`}
-                />
-              {/if}
-              <div class="finder-actions"><SystemActions {system} /></div>
             </li>
           {/each}
         </ul>
@@ -1746,8 +1791,7 @@
     margin: 0.6rem 0.75rem 0;
   }
   .result-map-action {
-    justify-self: start;
-    margin: 0.25rem 1.15rem;
+    margin: 0;
   }
   @media (max-width: 700px) {
     .map-system-card__actions .inspect-map-action {
@@ -1825,38 +1869,167 @@
     align-items: center;
     gap: 0.65rem 1.5rem;
   }
-  /* The results column is narrow even on desktop. Give the identity and
-     facts the full row, with actions following in their existing focus order. */
-  .result-list li {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.25rem;
-    padding-block: 0.25rem 0.75rem;
+  /* One result per line. The line is the result's select button, laid out
+     in the same columns as the headings above the list; its actions follow
+     at the end of the line, and the selected result's details span the
+     whole width under it. Narrow, the line stacks. */
+  .results-panel {
+    container-type: inline-size;
+  }
+  .result-list li,
+  .result-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--result-actions-width);
+    align-items: center;
+    gap: 0 0.5rem;
+  }
+  .result-select,
+  .result-columns > :first-child {
+    display: grid;
+    grid-template-columns:
+      minmax(9rem, 2.2fr) 5.5rem 8.5rem minmax(8rem, 2fr)
+      minmax(8rem, 2fr);
+    align-items: center;
+    gap: 0.25rem 1rem;
+    min-width: 0;
+    padding: 0.55rem 0.25rem 0.55rem 1rem;
   }
   .result-select {
     width: 100%;
-    padding: 0.9rem 1.15rem 0.65rem;
+  }
+  .results-panel {
+    --result-actions-width: 21rem;
+  }
+  .result-columns {
+    flex-shrink: 0;
+    overflow: hidden;
+    scrollbar-gutter: stable;
+    border-bottom: 1px solid var(--line);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .result-columns > :first-child {
+    padding-block: 0.4rem;
+  }
+  /* Room for the list: a compact heading and scope line above it. */
+  .results-panel .panel-heading {
+    min-height: 0;
+    padding: 0.6rem 1rem;
+  }
+  .results-panel .search-scope {
+    padding: 0.4rem 1rem;
+  }
+  .results-panel .ranking-status {
+    margin: 0;
+    padding-block: 0.3rem;
+    font-size: 0.8rem;
+  }
+  .results-panel .ranking-status :global(p) {
+    margin: 0;
+  }
+  .results-panel .result-list {
+    scrollbar-gutter: stable;
+  }
+  .result-title {
+    gap: 0.1rem;
+    min-width: 0;
   }
   .result-title strong {
-    overflow: visible;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    font-size: 1rem;
-    line-height: 1.45;
+    font-size: 0.95rem;
   }
-  .result-title code {
-    overflow-wrap: anywhere;
+  .result-subline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.5rem;
     color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+  .claim-chip {
+    padding: 0 0.4rem;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-pill);
+    color: var(--warn);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .result-distance {
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .result-facts {
-    display: grid;
-    gap: 0.4rem;
+    grid-column: 3 / -1;
+    margin: 0;
     font-size: 0.85rem;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
+  }
+  .result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem 0.35rem 0;
   }
   .result-list .inspect-link {
-    justify-self: start;
-    margin: 0.25rem 1.15rem 0.5rem;
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+  }
+  .result-details {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0.5rem;
+    padding: 0 1rem 0.85rem;
+  }
+  .result-details :global(.ranking-facts) {
+    margin: 0;
+  }
+  .result-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  /* Not wide enough for the buttons at the end of the line: they go under
+     it, on the right, and the columns keep their line. */
+  @container (max-width: 66rem) {
+    .result-list li,
+    .result-columns {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .result-columns > :last-child {
+      display: none;
+    }
+    .result-select {
+      padding-bottom: 0.15rem;
+    }
+    .result-actions {
+      padding: 0 0.75rem 0.45rem 1rem;
+    }
+  }
+  /* Narrow: the line stacks. */
+  @container (max-width: 44rem) {
+    .result-columns {
+      display: none;
+    }
+    .result-select {
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding-right: 1rem;
+    }
+    .result-select > :global(.line-types),
+    .result-select > :global(.line-bodies),
+    .result-facts {
+      grid-column: 1 / -1;
+    }
+    .result-actions {
+      justify-content: flex-start;
+      padding: 0 1rem 0.6rem;
+    }
   }
   .search-scope {
     display: flex;
@@ -1913,10 +2086,6 @@
     flex-wrap: wrap;
     gap: 0.75rem 1.5rem;
     margin-block: 1rem;
-  }
-  .finder-actions {
-    grid-column: 1 / -1;
-    padding: 0 1.15rem;
   }
   #saved-systems,
   #compare-systems {

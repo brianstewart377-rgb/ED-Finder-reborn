@@ -800,7 +800,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
   });
 
   it.each(['click', 'Enter', ' '])(
-    'keeps explanation disclosure and result selection independent with %s activation',
+    "opens a result's details with %s, where its explanation opens apart from selection",
     async (activation) => {
       vi.mocked(api.getArchetypeExplanation).mockResolvedValue({
         kind: 'explanation_unavailable',
@@ -812,18 +812,34 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       const selection = rows.map((row) =>
         row.querySelector<HTMLButtonElement>('[data-result-select]')!,
       );
-      const disclosure = rows[0].querySelector<HTMLButtonElement>(
-        '[data-archetype-explanation-toggle]',
-      )!;
+      const disclosureOf = (row: HTMLElement) =>
+        row.querySelector<HTMLButtonElement>(
+          '[data-archetype-explanation-toggle]',
+        );
 
+      // Each line gives the fit it is ranked by, with its tier; the details
+      // wait for the result to be selected.
+      expect(within(selection[0]).getByText('79')).toBeVisible();
+      expect(within(selection[0]).getByText('Tier A')).toBeVisible();
+      expect(disclosureOf(rows[0])).toBeNull();
+
+      selection[0].focus();
+      if (activation === 'click') await fireEvent.click(selection[0]);
+      else await fireEvent.keyDown(selection[0], { key: activation });
+      await waitFor(() =>
+        expect(selection[0]).toHaveAttribute('aria-pressed', 'true'),
+      );
+      const disclosure = disclosureOf(rows[0])!;
       expect(disclosure).toBeInstanceOf(HTMLButtonElement);
       expect(disclosure.closest('[data-result-select]')).toBeNull();
       expect(disclosure.closest('[data-system-result]')).toBe(rows[0]);
+      expect(
+        within(rows[0]).getByText(/Best Colony Potential: 89/),
+      ).toBeVisible();
+      expect(
+        within(rows[0]).getByText(/Manufacturing Hub fit: 79/),
+      ).toBeVisible();
       expect(api.getArchetypeExplanation).not.toHaveBeenCalled();
-      await fireEvent.click(selection[2]);
-      await waitFor(() =>
-        expect(selection[2]).toHaveAttribute('aria-pressed', 'true'),
-      );
 
       disclosure.focus();
       expect(disclosure).toHaveFocus();
@@ -839,8 +855,8 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         'Explanation unavailable for this ranking version',
       );
       expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-      expect(selection[0]).toHaveAttribute('aria-pressed', 'false');
-      expect(selection[2]).toHaveAttribute('aria-pressed', 'true');
+      // Opening the explanation leaves the selection alone.
+      expect(selection[0]).toHaveAttribute('aria-pressed', 'true');
       expect(api.getArchetypeExplanation).toHaveBeenCalledTimes(1);
       expect(api.getArchetypeExplanation).toHaveBeenCalledWith(
         rankedRows[0].id64,
@@ -856,29 +872,15 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         'aria-labelledby',
         `finder-result-heading-${rankedRows[0].id64}`,
       );
-      expect(
-        within(selection[0]).getByText(/Best Colony Potential: 89/),
-      ).toBeVisible();
-      expect(
-        within(selection[0]).getByText(/Manufacturing Hub fit: 79/),
-      ).toBeVisible();
-      expect(within(selection[0]).getByText('Tier A')).toBeVisible();
 
-      // Selection has its own keyboard handler and must leave the open
-      // disclosure alone, even when the selected row changes.
-      selection[1].focus();
-      if (activation === 'click') await fireEvent.click(selection[1]);
-      else await fireEvent.keyDown(selection[1], { key: activation });
+      // Selecting another result moves the details to it, explanation shut.
+      await fireEvent.click(selection[2]);
       await waitFor(() =>
-        expect(selection[1]).toHaveAttribute('aria-pressed', 'true'),
+        expect(selection[2]).toHaveAttribute('aria-pressed', 'true'),
       );
-      expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-      expect(region).toBeVisible();
+      expect(disclosureOf(rows[0])).toBeNull();
+      expect(disclosureOf(rows[2])).toHaveAttribute('aria-expanded', 'false');
       expect(api.getArchetypeExplanation).toHaveBeenCalledTimes(1);
-
-      await fireEvent.click(disclosure);
-      expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-      expect(selection[1]).toHaveAttribute('aria-pressed', 'true');
     },
   );
 
@@ -1438,9 +1440,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     });
     renderEnabled('page_size=1&view=cards', { anchor: anchorA });
     await screen.findByText('Ranked 1');
-    await fireEvent.click(
-      screen.getByRole('button', { name: /Ranked 1.*9007199254741001/ }),
-    );
+    await fireEvent.click(screen.getByRole('button', { name: /^Ranked 1\b/ }));
     await waitFor(() =>
       expect(mockedPage.url.searchParams.get('selected')).toBe(
         rankedRows[0].id64,
@@ -1512,9 +1512,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
   it('keeps the selected system on the map across pages without asking for its position again', async () => {
     renderEnabled('page_size=1');
     await expectPage(0);
-    await fireEvent.click(
-      screen.getByRole('button', { name: /Ranked 1.*9007199254741001/ }),
-    );
+    await fireEvent.click(screen.getByRole('button', { name: /^Ranked 1\b/ }));
     const map = await theMap();
     await waitFor(() =>
       expect(map.getSelection()?.id64).toBe(rankedRows[0].id64),
@@ -1843,7 +1841,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       expect(
         within(screen.getByRole('list', { name: 'System results' })).getByRole(
           'button',
-          { name: /Ranked 1.*9007199254741001/ },
+          { name: /^Ranked 1\b/ },
         ),
       ).toHaveFocus(),
     );
@@ -1856,7 +1854,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     await fireEvent.click(
       within(screen.getByRole('list', { name: 'System results' })).getByRole(
         'button',
-        { name: /Ranked 1.*9007199254741001/ },
+        { name: /^Ranked 1\b/ },
       ),
     );
     const map = await theMap();
@@ -2441,9 +2439,11 @@ describe.each([false, true])(
       const list = screen.getByRole('list', { name: 'System results' });
       expect(list).toHaveAttribute('aria-describedby', 'results-scope');
       expect(list).toHaveAccessibleDescription(scope);
+      // Each line gives its distance; the scope above says how far was searched.
       expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent(
-        enabled ? '12.50 LY · within 500 LY' : '12.5 ly · within 500 LY',
+        enabled ? '12.50 LY' : '12.5 ly',
       );
+      expect(list).not.toHaveTextContent('within');
       const radius = screen.getByRole('combobox', { name: 'Within' });
       expect(radius).toBeEnabled();
       expect(radius).toHaveValue('500');
@@ -2715,7 +2715,7 @@ describe.each([false, true])(
       );
     });
 
-    it('keeps each card distance tied to its response radius while the next radius is loading', async () => {
+    it('keeps the lines of the shown answer while the next radius is loading', async () => {
       const response = {
         ...finderPage(0, enabled ? 50 : 24),
         results: rankedRows.map((system) => ({ ...system, distance: 12.5 })),
@@ -2734,9 +2734,12 @@ describe.each([false, true])(
       });
       await screen.findByText('Ranked 1');
       const list = screen.getByRole('list', { name: 'System results' });
+      // A line gives the system's distance only: no line claims a radius,
+      // so none can claim the next one before its answer arrives.
       expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent(
-        'within 500 LY',
+        enabled ? '12.50 LY' : '12.5 ly',
       );
+      expect(list).not.toHaveTextContent('within');
 
       await fireEvent.change(screen.getByRole('combobox', { name: 'Within' }), {
         target: { value: '1000' },
@@ -2750,20 +2753,20 @@ describe.each([false, true])(
       if (enabled) {
         const retained = screen.getByRole('list', { name: 'System results' });
         expect(within(retained).getAllByRole('listitem')[0]).toHaveTextContent(
-          'within 500 LY',
+          '12.50 LY',
         );
-        expect(retained).not.toHaveTextContent('within 1,000 LY');
+        expect(retained).not.toHaveTextContent('within');
       }
 
       finish(response);
       await waitFor(() =>
-        expect(
-          within(
-            screen.getByRole('list', { name: 'System results' }),
-          ).getAllByRole('listitem')[0],
-        ).toHaveTextContent('within 1,000 LY'),
+        expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
       );
-      expect(api.searchExploreSystems).toHaveBeenCalledTimes(2);
+      expect(
+        within(
+          await screen.findByRole('list', { name: 'System results' }),
+        ).getAllByRole('listitem')[0],
+      ).toHaveTextContent(enabled ? '12.50 LY' : '12.5 ly');
     });
 
     it('clears an invalid radius with the existing notice and searches at the default radius once', async () => {
@@ -3404,7 +3407,7 @@ describe.each([false, true])(
       const list = screen.getByRole('list', { name: 'System results' });
       await fireEvent.click(
         within(list).getByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       const first = await theMap();
@@ -3465,7 +3468,7 @@ describe.each([false, true])(
       const list = screen.getByRole('list', { name: 'System results' });
       await fireEvent.click(
         within(list).getByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       const firstMap = await theMap();
@@ -3522,7 +3525,7 @@ describe.each([false, true])(
       ).toBeInTheDocument();
       expect(
         within(restoredList).getByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       ).toHaveAttribute('aria-pressed', 'true');
       expect(mockedPage.url.href).toBe(committedUrl);
@@ -3665,7 +3668,7 @@ describe.each([false, true])(
         const list = screen.getByRole('list', { name: 'System results' });
         await fireEvent.click(
           within(list).getByRole('button', {
-            name: /Ranked 2.*9007199254741002/,
+            name: /^Ranked 2\b/,
           }),
         );
         await fireEvent.input(
@@ -3713,7 +3716,7 @@ describe.each([false, true])(
         expect(restoredList.scrollTop).toBe(128);
         expect(
           within(restoredList).getByRole('button', {
-            name: /Ranked 2.*9007199254741002/,
+            name: /^Ranked 2\b/,
           }),
         ).toHaveAttribute('aria-pressed', 'true');
         expect(viewState.rankingState).toEqual(ranking);
@@ -3771,7 +3774,7 @@ describe.each([false, true])(
         anchor: anchorA,
       });
       const selection = await screen.findByRole('button', {
-        name: /Ranked 1.*9007199254741001/,
+        name: /^Ranked 1\b/,
       });
       await fireEvent.click(selection);
       for (const opener of screen.getAllByRole('button', {
@@ -3835,7 +3838,7 @@ describe.each([false, true])(
       });
       await fireEvent.click(
         await within(results).findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       const map = await screen.findByRole('region', {
@@ -3880,7 +3883,7 @@ describe.each([false, true])(
       });
       await fireEvent.click(
         await within(results).findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       const map = await screen.findByRole('region', {
@@ -3970,7 +3973,7 @@ describe.each([false, true])(
       const list = await screen.findByRole('list', { name: 'System results' });
       await fireEvent.click(
         await within(list).findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       await fireEvent.input(
@@ -4029,7 +4032,7 @@ describe.each([false, true])(
       expect(screen.getByText('Earth-like ≥ 1')).toBeInTheDocument();
       expect(
         within(list).getByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       ).toHaveAttribute('aria-pressed', 'true');
       expect(mockedPage.url.href).toBe(committedUrl);
@@ -4056,7 +4059,7 @@ describe.each([false, true])(
       const list = await screen.findByRole('list', { name: 'System results' });
       await fireEvent.click(
         await within(list).findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       list.scrollTop = 96;
@@ -4137,7 +4140,7 @@ describe.each([false, true])(
       const list = await screen.findByRole('list', { name: 'System results' });
       await fireEvent.click(
         await within(list).findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       const mapSection = document.querySelector<HTMLElement>(
@@ -4191,7 +4194,7 @@ describe.each([false, true])(
       expect(mapWindow.inert).toBe(true);
       await fireEvent.click(
         await within(list).findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       const map = await theMap();
@@ -4565,7 +4568,7 @@ describe.each([false, true])(
       });
       await fireEvent.click(
         await screen.findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       await waitFor(() =>
@@ -4583,7 +4586,7 @@ describe.each([false, true])(
       });
       await fireEvent.click(
         await screen.findByRole('button', {
-          name: /Ranked 2.*9007199254741002/,
+          name: /^Ranked 2\b/,
         }),
       );
       await waitFor(() =>

@@ -289,7 +289,7 @@ describe('Explore load and interaction work budget', () => {
       await fireEvent.click(
         within(screen.getByRole('list', { name: 'System results' })).getByRole(
           'button',
-          { name: /Workload 1.*9007199254741001/ },
+          { name: /^Workload 1\b/ },
         ),
       );
       await settle();

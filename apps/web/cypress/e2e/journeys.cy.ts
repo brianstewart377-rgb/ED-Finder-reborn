@@ -191,9 +191,7 @@ describe('What a visitor does', () => {
     cy.get('li[data-system-result]').then(($rows) => {
       const lightYears = $rows
         .toArray()
-        .map((row) =>
-          Number(/([\d.]+) LY · within/u.exec(row.textContent ?? '')?.[1]),
-        );
+        .map((row) => Number(/([\d.]+) LY/u.exec(row.textContent ?? '')?.[1]));
       expect(lightYears.every((value) => Number.isFinite(value))).to.equal(
         true,
       );
