@@ -15,6 +15,7 @@
   import { FINDER_F4_ENABLED } from '$lib/config';
   import { parseId64, type Id64 } from '$lib/domain/id64';
   import {
+    anyMinimumScore,
     hasRankingSearchParams,
     normalizeRankingState,
     selectFinderRequest,
@@ -108,18 +109,26 @@
       anchor !== null &&
       viewState.rankingState.archetype !== 'any',
   );
-  // Body filters and a picked type cap the anchored search at the API's
-  // filtered radius; the URL keeps the chosen radius so it resumes when the
-  // filters are cleared or Any is chosen again.
+  // Any near a system, showing only systems of a tier or better.
+  const anyFloorNearAnchor = $derived(
+    FINDER_F4_ENABLED &&
+      anchor !== null &&
+      anyMinimumScore(viewState.rankingState) !== null,
+  );
+  // Body filters, a picked type and a "Show only" tier cap the anchored
+  // search at the API's filtered radius; the URL keeps the chosen radius so
+  // it resumes when they are taken off.
   const effectiveRadius = $derived(
     effectiveSearchRadius(
       viewState.radius,
       viewState.bodyFilters,
-      typeNearAnchor,
+      typeNearAnchor || anyFloorNearAnchor,
     ),
   );
   const radiusCapped = $derived(
-    typeNearAnchor || Object.keys(viewState.bodyFilters).length > 0,
+    typeNearAnchor ||
+      anyFloorNearAnchor ||
+      Object.keys(viewState.bodyFilters).length > 0,
   );
   // The system-name box, which lives in a file of its own.
   let searchBox = $state<ReturnType<typeof SystemSearchBox>>();
@@ -222,7 +231,7 @@
       : viewState.rankingState.archetype !== 'any'
         ? `Galaxy-wide · ranked by ${activeArchetypeLabel} fit · minimum tier ${viewState.rankingState.minimumTier}${galaxyFilteredNote}`
         : anchor
-          ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} · sorted by distance`
+          ? `Within ${effectiveRadius.toLocaleString('en-US')} LY of ${anchor.name} ${anyFloorNearAnchor ? ` · tier ${viewState.rankingState.minimumTier} or better` : ''} · sorted by distance`
           : `Galaxy-wide · best colony potential${galaxyFilteredNote}`,
   );
   const rankingDataNotReady = $derived.by(() => {
@@ -473,7 +482,11 @@
         anchor,
         {
           enabled: FINDER_F4_ENABLED,
-          radius: effectiveSearchRadius(nextRadius, committed, typeNearAnchor),
+          radius: effectiveSearchRadius(
+            nextRadius,
+            committed,
+            typeNearAnchor || anyFloorNearAnchor,
+          ),
           reach: nextReach,
           filtered: Object.keys(committed).length > 0,
         },
@@ -797,6 +810,7 @@
           compact
           archetype={viewState.rankingState.archetype}
           minimumTier={viewState.rankingState.minimumTier}
+          anyFloor={anchor !== null}
           onArchetypeChange={(archetype) =>
             commitRanking({ archetype, minimumTier: null })}
           onMinimumTierChange={(minimumTier) => commitRanking({ minimumTier })}
@@ -888,9 +902,11 @@
             <p id="search-radius-capped" class="radius-hint">
               {Object.keys(viewState.bodyFilters).length > 0
                 ? 'Body filters limit'
-                : 'A colony type limits'} the search to {FILTERED_SEARCH_RADIUS_CAP_LY}
+                : typeNearAnchor
+                  ? 'A colony type limits'
+                  : '"Show only" limits'} the search to {FILTERED_SEARCH_RADIUS_CAP_LY}
               LY{radiusCappedByFilters
-                ? `; your ${viewState.radius.toLocaleString('en-US')} LY radius resumes when ${Object.keys(viewState.bodyFilters).length > 0 ? 'the filters are cleared' : 'Any is chosen again'}`
+                ? `; your ${viewState.radius.toLocaleString('en-US')} LY radius resumes when ${Object.keys(viewState.bodyFilters).length > 0 ? 'the filters are cleared' : typeNearAnchor ? 'Any is chosen again' : 'you show all systems'}`
                 : ''}.
             </p>
           {/if}
@@ -963,10 +979,19 @@
           {:else if currentResponse && !results.isFetching && results.data?.page.total === 0}
             <div class="state-card">
               <p>
-                {viewState.rankingState.archetype === 'any'
-                  ? 'No systems match this discovery area. Choose another anchor.'
-                  : `No systems meet minimum tier ${viewState.rankingState.minimumTier} for ${activeArchetypeLabel}.`}
+                {viewState.rankingState.archetype !== 'any'
+                  ? `No systems meet minimum tier ${viewState.rankingState.minimumTier} for ${activeArchetypeLabel}.`
+                  : anyFloorNearAnchor
+                    ? `No systems of tier ${viewState.rankingState.minimumTier} or better are this close.`
+                    : 'No systems match this discovery area. Choose another anchor.'}
               </p>
+              {#if anyFloorNearAnchor}
+                <button
+                  type="button"
+                  onclick={() => commitRanking({ minimumTier: 'all' })}
+                  >Show all systems</button
+                >
+              {/if}
               {#if viewState.rankingState.archetype !== 'any'}
                 {#if viewState.rankingState.minimumTier !== 'B'}
                   <button

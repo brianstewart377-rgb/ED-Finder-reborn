@@ -168,6 +168,34 @@ export function minimumScoreForTier(tier: SelectedMinimumTier): MinimumScore {
   return MINIMUM_TIER_SCORES[tier];
 }
 
+/**
+ * "Show only" for the Any search: systems whose Best Colony Potential reaches
+ * a tier, or all of them. The floors are the API's tier thresholds, sent as
+ * the search's `min_development_score`. Find lists nearest first, so a floor
+ * is what keeps weak systems from leading the list; it starts at C (the
+ * owner, 20 November 2026). A floor is a filter, so the search takes the
+ * filtered radius cap, 500 LY.
+ */
+export const ANY_MINIMUM_TIERS = ['all', 'C', 'B', 'A', 'S'] as const;
+export type AnyMinimumTier = (typeof ANY_MINIMUM_TIERS)[number];
+
+export const ANY_MINIMUM_TIER_SCORES: Readonly<
+  Record<AnyMinimumTier, 45 | 60 | 76 | 88 | null>
+> = { all: null, C: 45, B: 60, A: 76, S: 88 };
+
+export const DEFAULT_ANY_MINIMUM_TIER: AnyMinimumTier = 'C';
+
+/** Fail-closed: lower-case tiers, `D`, blanks and unknown values are `null`. */
+export function parseAnyMinimumTier(value: unknown): AnyMinimumTier | null {
+  return typeof value === 'string' &&
+    (ANY_MINIMUM_TIERS as readonly string[]).includes(value)
+    ? (value as AnyMinimumTier)
+    : null;
+}
+
+/** A minimum tier in either mode: Any's choices include the selected ones. */
+export type FinderMinimumTier = AnyMinimumTier;
+
 // ---------------------------------------------------------------------------
 // Honest uncertainty wording (presentation decision; unit tested; never alters
 // ranking). The word "fit" is forbidden in Any mode because no archetype was

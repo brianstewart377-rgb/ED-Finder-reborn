@@ -155,7 +155,8 @@ describe('What a visitor does', () => {
     visit('/explore');
     searchNearSol();
 
-    // What was asked: outwards from Sol, any colony type, the first 50.
+    // What was asked: outwards from Sol, any colony type, tier C or better
+    // (a Best Colony Potential of 45 or more), the first 50.
     cy.wait('@search')
       .its('request.body')
       .should((asked) => {
@@ -169,6 +170,7 @@ describe('What a visitor does', () => {
           size: 50,
           from: 0,
           reach_ly: 250,
+          min_development_score: 45,
         });
       });
 
@@ -176,7 +178,7 @@ describe('What a visitor does', () => {
     cy.contains(
       '1,000+ matches; navigation is limited to the first 1,000 results.',
     );
-    cy.contains('Within 500 LY of Sol · sorted by distance');
+    cy.contains('Within 500 LY of Sol · tier C or better · sorted by distance');
     cy.get('li[data-system-result]').should('have.length', 50);
 
     // Nearest first, with what the catalogue knows about each.
@@ -198,10 +200,13 @@ describe('What a visitor does', () => {
       expect([...lightYears].sort((a, b) => a - b)).to.deep.equal(lightYears);
     });
 
-    // A system somebody claimed says so, in words, and is still listed.
-    cy.get(`li[data-system-result="7780433924818"]`).contains(
-      'Claim ended, outcome unknown',
-    );
+    // Weak systems are left out: every one shown is tier C or better.
+    cy.get('li[data-system-result]').each(($row) => {
+      const score = Number(
+        /Best Colony Potential: (\d+)/u.exec($row.text())?.[1],
+      );
+      expect(score).to.be.at.least(45);
+    });
 
     // The map cannot start here; the page says so and Find carries on.
     cy.contains(
