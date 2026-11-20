@@ -164,8 +164,11 @@ describe('ED-Finder V3 home and shell', () => {
       renderPage();
       await chooseReferenceSystem();
       await fireEvent.submit(findForm());
+      // With the Finder the system is selected too, so the map shows it.
       expect(mockedGoto).toHaveBeenCalledExactlyOnceWith(
-        '/explore?near=9007199254740993',
+        enabled
+          ? '/explore?selected=9007199254740993&near=9007199254740993'
+          : '/explore?near=9007199254740993',
       );
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     },
@@ -181,7 +184,7 @@ describe('ED-Finder V3 home and shell', () => {
     );
     await fireEvent.submit(findForm());
     expect(mockedGoto).toHaveBeenCalledExactlyOnceWith(
-      '/explore?archetype=mining_hub&near=9007199254740993',
+      '/explore?archetype=mining_hub&selected=9007199254740993&near=9007199254740993',
     );
   });
 

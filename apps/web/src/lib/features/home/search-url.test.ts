@@ -17,11 +17,12 @@ describe('home search URL', () => {
   });
 
   it.each(ARCHETYPES)(
-    'serializes enabled $label in canonical order',
+    'serializes enabled $label in canonical order, with the system selected',
     ({ key }) => {
       const destination = buildHomeSearchUrl(selected, key, true);
+      // Selected as well, as choosing it in Explore does, so the map shows it.
       expect(destination).toBe(
-        `/explore?archetype=${key}&near=${selected.id64}`,
+        `/explore?archetype=${key}&selected=${selected.id64}&near=${selected.id64}`,
       );
       const params = new URL(destination!, 'http://localhost').searchParams;
       expect(parseExploreSearchParams(params)).toMatchObject({
@@ -37,11 +38,12 @@ describe('home search URL', () => {
   );
 
   it('omits Any and every archetype when the feature flag is off', () => {
-    for (const enabled of [false, true]) {
-      expect(buildHomeSearchUrl(selected, ANY_ARCHETYPE, enabled)).toBe(
-        '/explore?near=9007199254740993',
-      );
-    }
+    expect(buildHomeSearchUrl(selected, ANY_ARCHETYPE, false)).toBe(
+      '/explore?near=9007199254740993',
+    );
+    expect(buildHomeSearchUrl(selected, ANY_ARCHETYPE, true)).toBe(
+      '/explore?selected=9007199254740993&near=9007199254740993',
+    );
     for (const archetype of ['mining_hub', 'unknown', '']) {
       expect(buildHomeSearchUrl(selected, archetype, false)).toBe(
         '/explore?near=9007199254740993',
