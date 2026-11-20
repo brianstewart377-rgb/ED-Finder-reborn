@@ -180,8 +180,45 @@ nav a[aria-current='page'] {
   text-decoration-thickness: 2px;
   text-underline-offset: 0.45rem;
 }
+/* The header and the selected-system bar line up with the page under them:
+   each page's width is repeated here, so their edges meet. A page not
+   listed keeps them 92rem wide. */
+:root {
+  --top-bars-width: min(92rem, calc(100% - 2rem));
+}
+:root:has(.home-page) {
+  --top-bars-width: min(80rem, calc(100% - 6rem));
+}
+:root:has(.product-page) {
+  --top-bars-width: min(100rem, calc(100% - 2rem));
+}
+:root:has(.inspect-page) {
+  --top-bars-width: min(74rem, calc(100% - 2rem));
+}
+:root:has(.explore-page) {
+  --top-bars-width: calc(100% - 1rem);
+}
+:root:has(.plan-workspace) {
+  --top-bars-width: min(1800px, calc(100% - 1.5rem));
+}
+:root:has(.inspect-page.inspect-wide) {
+  --top-bars-width: calc(100% - 2rem);
+}
+@media (max-width: 900px) {
+  :root:has(.home-page) {
+    --top-bars-width: calc(100% - 4rem);
+  }
+  :root:has(.explore-page) {
+    --top-bars-width: calc(100% - 0.5rem);
+  }
+}
+@media (max-width: 640px) {
+  :root:has(.home-page) {
+    --top-bars-width: calc(100% - 3rem);
+  }
+}
 .workspace-header {
-  width: min(92rem, calc(100% - 2rem));
+  width: var(--top-bars-width);
   min-height: 6rem;
   margin-inline: auto;
   display: flex;
@@ -394,7 +431,7 @@ footer {
 .context-chip {
   position: relative;
   z-index: 4;
-  width: min(92rem, calc(100% - 2rem));
+  width: var(--top-bars-width);
   margin: 0.75rem auto 0;
   display: flex;
   flex-wrap: wrap;
