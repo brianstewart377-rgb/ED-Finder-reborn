@@ -440,7 +440,9 @@ describe('comparison panel', () => {
       /B.*88|88.*B/,
     );
     expect(within(fitRow).getAllByRole('cell')[1]).toHaveTextContent(/^76$/);
-    expect(metricRow(/Primary archetype/)).toHaveTextContent('old custom key');
+    expect(metricRow(/Primary colony type/)).toHaveTextContent(
+      'old custom key',
+    );
     const overall = metricRow(/Best Colony Potential/);
     expect(within(overall).getAllByRole('cell')[0]).toHaveTextContent(/^91$/);
     expect(

@@ -1073,9 +1073,9 @@
             </h3>
             <p>
               {rankingDataNotReady
-                ? 'Archetype rankings are unavailable until Finder ranking data is published.'
+                ? "Colony type rankings are unavailable until Find's ranking data is published."
                 : viewState.rankingState.archetype !== 'any'
-                  ? 'Archetype rankings are temporarily unavailable. Try again shortly.'
+                  ? 'Colony type rankings are temporarily unavailable. Try again shortly.'
                   : 'Discovery results could not be loaded. Try again shortly.'}
             </p>
             <button type="button" onclick={() => results.refetch()}

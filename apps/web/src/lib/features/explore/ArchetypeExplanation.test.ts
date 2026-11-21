@@ -210,7 +210,7 @@ describe('archetype explanation disclosure', () => {
     render(ArchetypeExplanation, { ...props, archetype: 'any' });
     const region = await expand();
     expect(within(region).getByRole('status')).toHaveTextContent(
-      'Loading archetype explanations…',
+      'Loading colony type explanations…',
     );
     resolve(explained());
     await waitFor(() =>
@@ -239,8 +239,8 @@ describe('archetype explanation disclosure', () => {
   });
 
   it.each([
-    [404, 'This system has no published archetype explanation.'],
-    [503, 'Archetype explanations are temporarily unavailable.'],
+    [404, 'This system has no colony type explanation yet.'],
+    [503, 'Colony type explanations are temporarily unavailable.'],
   ])('bounds the %s state and can retry on demand', async (status, message) => {
     mockedExplanation.mockResolvedValueOnce({ kind: 'error', status });
     render(ArchetypeExplanation, props);

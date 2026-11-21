@@ -174,12 +174,12 @@
         {#if !expected || explanation?.kind === 'explanation_unavailable'}
           <p role="status">Explanation unavailable for this ranking version</p>
         {:else if explanation === null}
-          <p role="status">Loading archetype explanations…</p>
+          <p role="status">Loading colony type explanations…</p>
         {:else if explanation.kind === 'error'}
           <p role="alert">
             {explanation.status === 404
-              ? 'This system has no published archetype explanation.'
-              : 'Archetype explanations are temporarily unavailable.'}
+              ? 'This system has no colony type explanation yet.'
+              : 'Colony type explanations are temporarily unavailable.'}
           </p>
           <button
             type="button"

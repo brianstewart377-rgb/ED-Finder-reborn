@@ -174,7 +174,7 @@ export function snapshotScoreSummary(entry: CompareEntry): string {
   if (identity.score_kind === 'selected_fit') {
     const label = archetypeLabel(text(entry.selected_archetype));
     parts.push(
-      `${label ? `${label}${isArchetypeKey(entry.selected_archetype) ? '' : ' (historical archetype)'} fit` : 'Stored selected fit'} ${apiScore(identity.ranking_score, identity.ranking_tier)}`,
+      `${label ? `${label}${isArchetypeKey(entry.selected_archetype) ? '' : ' (an old colony type)'} fit` : 'Stored selected fit'} ${apiScore(identity.ranking_score, identity.ranking_tier)}`,
     );
   } else if (overall === null && identity.ranking_score !== null) {
     parts.push(`Stored ranking score ${identity.ranking_score}`);
@@ -357,13 +357,13 @@ export function buildCompareRows(
             legacyDevelopment,
           ),
         ]),
-    plain('Primary archetype', (entry) =>
+    plain('Primary colony type', (entry) =>
       labelArchetype(entry.primary_archetype),
     ),
-    plain('Secondary archetype', (entry) =>
+    plain('Secondary colony type', (entry) =>
       labelArchetype(entry.secondary_archetype),
     ),
-    plain('Archetype confidence', (entry) => {
+    plain('Colony type confidence', (entry) => {
       const confidence = finite(entry.archetype_confidence);
       return confidence !== null && confidence >= 0 && confidence <= 1
         ? `${Math.round(confidence * 100)}%`

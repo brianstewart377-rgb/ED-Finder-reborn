@@ -52,7 +52,7 @@
 <div class="archetype-controls">
   <div class="archetype-row">
     <label class="archetype-field" for={`${id}-archetype`}>
-      Colony archetype
+      Colony type
       <select
         id={`${id}-archetype`}
         {disabled}
