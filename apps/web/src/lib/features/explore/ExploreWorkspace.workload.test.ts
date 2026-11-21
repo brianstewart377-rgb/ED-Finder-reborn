@@ -50,6 +50,7 @@ vi.mock('$lib/api/client', async (loadOriginal) => ({
   searchExploreSystems: vi.fn(),
   getArchetypeRankings: vi.fn(),
   getSystem: vi.fn(),
+  getSystemSummary: vi.fn(),
   getCatalogueViewportSystems: vi.fn(),
   getCommanderTravelHeatmap: vi.fn(),
   getCommanderJournalSummary: vi.fn(),
@@ -162,6 +163,11 @@ describe('Explore load and interaction work budget', () => {
     // built page: wide enough for the map's own panel to open beside it.
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1446);
     vi.mocked(api.autocompleteSystems).mockResolvedValue({ results: [] });
+    vi.mocked(api.getSystemSummary).mockResolvedValue({
+      name: 'Workload 1',
+      loadedBodyCount: 3,
+      sourceBodyCount: 3,
+    });
     vi.mocked(api.searchExploreSystems).mockImplementation(async (request) =>
       finderResponse(request.size ?? 24, request.from ?? 0),
     );
@@ -221,6 +227,7 @@ describe('Explore load and interaction work budget', () => {
           rankings: vi.mocked(api.getArchetypeRankings).mock.calls.length,
           stars: vi.mocked(api.getCatalogueViewportSystems).mock.calls.length,
           selected: vi.mocked(api.getSystem).mock.calls.length,
+          summary: vi.mocked(api.getSystemSummary).mock.calls.length,
           autocomplete: vi.mocked(api.autocompleteSystems).mock.calls.length,
           travel: vi.mocked(api.getCommanderTravelHeatmap).mock.calls.length,
           journalSummary: vi.mocked(api.getCommanderJournalSummary).mock.calls
@@ -317,6 +324,7 @@ describe('Explore load and interaction work budget', () => {
       const quiet = {
         rankings: 0,
         selected: 0,
+        summary: 0,
         travel: 0,
         journalSummary: 0,
         auth: 0,
@@ -334,8 +342,9 @@ describe('Explore load and interaction work budget', () => {
         // count of a page that the API answered before counting its
         // matches, which no page here is. The watchlist is not among them
         // until a result's Watch button, or the Saved systems pop-out,
-        // needs it.
-        activeQueries: enabled ? 7 : 6,
+        // needs it. With the type picker on, the selected result's body
+        // counts are watched too, and asked for once a result is chosen.
+        activeQueries: enabled ? 8 : 6,
         api: { ...quiet, finder: 0, stars: 0, autocomplete: 0 },
       });
       // Choosing a star to search near: one search and one request for its
@@ -353,7 +362,7 @@ describe('Explore load and interaction work budget', () => {
         flights: 2,
         panelOpenings: 2,
         onTheMap: 1,
-        activeQueries: enabled ? 8 : 7,
+        activeQueries: enabled ? 9 : 7,
         api: { ...quiet, finder: 1, stars: 1, autocomplete: 1 },
       });
       // Selecting a result: no new search. The map is emptied once, to take
@@ -367,14 +376,27 @@ describe('Explore load and interaction work budget', () => {
         panelOpenings: anchored.panelOpenings + 1,
         onTheMap: 2,
         // With the type picker on, the selected result is watched by id,
-        // and so is the count that may be asked for later.
-        activeQueries: enabled ? 9 : 7,
-        api: { ...quiet, finder: 1, stars: 2, autocomplete: 1 },
+        // and so is the count that may be asked for later; its details open
+        // in a pop-out, which asks once for how many of its bodies are known.
+        activeQueries: enabled ? 10 : 7,
+        api: {
+          ...quiet,
+          finder: 1,
+          stars: 2,
+          autocomplete: 1,
+          summary: enabled ? 1 : 0,
+        },
       });
       // Everything on screen asked for once more, and the map untouched.
       expect(refreshed).toEqual({
         ...selected,
-        api: { ...quiet, finder: 2, stars: 3, autocomplete: 2 },
+        api: {
+          ...quiet,
+          finder: 2,
+          stars: 3,
+          autocomplete: 2,
+          summary: enabled ? 2 : 0,
+        },
       });
 
       const assertCleanup = async () => {

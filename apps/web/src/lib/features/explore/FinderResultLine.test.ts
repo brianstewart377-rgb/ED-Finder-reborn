@@ -99,6 +99,58 @@ describe('one result on one line', () => {
     );
   });
 
+  // Two systems as Find answered for them near Sol on 21 November 2026: for
+  // both the API gives 0, Tier D and its first colony type, Paradise World.
+  const zero = {
+    overall_development_potential: 0,
+    ranking_score: 0,
+    ranking_tier: 'D',
+    score_kind: 'overall_potential',
+    selected_archetype: null,
+    primary_archetype: 'paradise',
+    secondary_archetype: null,
+    landable_count: 0,
+    elw_count: 0,
+    ww_count: 0,
+    ammonia_count: 0,
+    terraformable_count: 0,
+    bio_signal_total: 0,
+    geo_signal_total: 0,
+  } as const;
+
+  it('says a system with no bodies on record is not scored, never 0 and a colony type', () => {
+    const container = line({
+      ...zero,
+      id64: parseId64('1659761592683'),
+      name: "Witch's Reach",
+      body_count: 0,
+    });
+    expect(spoken(container.querySelector('.line-score')!)).toBe(
+      'Best Colony Potential: Not scored',
+    );
+    expect(container.querySelector('.tier-badge')).toBeNull();
+    expect(container).not.toHaveTextContent(/Paradise World|Tier D/u);
+    expect(container.querySelector('.line-bodies')).toHaveTextContent(
+      'No bodies known',
+    );
+  });
+
+  it('says no colony type fits a system that scores 0 with bodies on record', () => {
+    const container = line({
+      ...zero,
+      id64: parseId64('22953915730728'),
+      name: 'Piscium Sector FM-U a3-1',
+      body_count: 2,
+    });
+    expect(container.querySelector('.line-score')).toHaveTextContent(
+      'Best Colony Potential: 0 Tier D',
+    );
+    expect(container.querySelector('.line-types')).toHaveTextContent(
+      'No colony type fits',
+    );
+    expect(container).not.toHaveTextContent('Paradise World');
+  });
+
   it('gives a colony type its fit and the fit tier, not the overall score', () => {
     const container = line(
       {

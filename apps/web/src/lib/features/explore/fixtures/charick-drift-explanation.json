@@ -1,0 +1,171 @@
+{
+  "id64": 2999774611819,
+  "archetypes": [
+    {
+      "key": "paradise",
+      "score": 8,
+      "tier": "D",
+      "confidence": 0.439425,
+      "weighted_e4": 17577,
+      "explanation": {
+        "anchors": [1, 6],
+        "supporting": [],
+        "core": 14.0,
+        "spec": 0.9227,
+        "cap": 0.6106,
+        "synergy": 0,
+        "components": {
+          "pot": { "1": 0, "6": 70 },
+          "qual": { "1": 0, "6": 97 },
+          "opp_count": { "1": 0, "6": 1 }
+        }
+      }
+    },
+    {
+      "key": "mining_hub",
+      "score": 0,
+      "tier": "D",
+      "confidence": 0.375,
+      "weighted_e4": 0,
+      "explanation": {
+        "anchors": [7, 2],
+        "supporting": [],
+        "core": 0.0,
+        "spec": 0.85,
+        "cap": 0.6,
+        "synergy": 0,
+        "components": {
+          "pot": { "7": 0, "2": 0 },
+          "qual": { "7": 0, "2": 0 },
+          "opp_count": { "7": 0, "2": 0 }
+        }
+      }
+    },
+    {
+      "key": "manufacturing_hub",
+      "score": 0,
+      "tier": "D",
+      "confidence": 0.375,
+      "weighted_e4": 0,
+      "explanation": {
+        "anchors": [2, 3],
+        "supporting": [],
+        "core": 0.0,
+        "spec": 0.85,
+        "cap": 0.6,
+        "synergy": 0,
+        "components": {
+          "pot": { "2": 0, "3": 0 },
+          "qual": { "2": 0, "3": 0 },
+          "opp_count": { "2": 0, "3": 0 }
+        }
+      }
+    },
+    {
+      "key": "megacomplex",
+      "score": 0,
+      "tier": "D",
+      "confidence": 0.375,
+      "weighted_e4": 0,
+      "explanation": {
+        "anchors": [7, 2, 3],
+        "supporting": [],
+        "core": 0.0,
+        "spec": 0.85,
+        "cap": 0.6,
+        "synergy": 0,
+        "components": {
+          "pot": { "7": 0, "2": 0, "3": 0 },
+          "qual": { "7": 0, "2": 0, "3": 0 },
+          "opp_count": { "7": 0, "2": 0, "3": 0 }
+        }
+      }
+    },
+    {
+      "key": "research_hub",
+      "score": 39,
+      "tier": "D",
+      "confidence": 0.748049,
+      "weighted_e4": 145870,
+      "explanation": {
+        "anchors": [4],
+        "supporting": [3],
+        "core": 62.0,
+        "spec": 0.9955,
+        "cap": 0.6375,
+        "synergy": 0,
+        "components": {
+          "pot": { "4": 62, "3": 0 },
+          "qual": { "4": 97 },
+          "opp_count": { "4": 1 }
+        }
+      }
+    },
+    {
+      "key": "stronghold",
+      "score": 7,
+      "tier": "D",
+      "confidence": 0.375,
+      "weighted_e4": 13125,
+      "explanation": {
+        "anchors": [5, 3],
+        "supporting": [],
+        "core": 12.4,
+        "spec": 0.925,
+        "cap": 0.6094,
+        "synergy": 0,
+        "components": {
+          "pot": { "5": 62, "3": 0 },
+          "qual": { "5": 100, "3": 0 },
+          "opp_count": { "5": 1, "3": 0 }
+        }
+      }
+    },
+    {
+      "key": "population_capital",
+      "score": 7,
+      "tier": "D",
+      "confidence": 0.439425,
+      "weighted_e4": 15380,
+      "explanation": {
+        "anchors": [1, 4],
+        "supporting": [],
+        "core": 12.4,
+        "spec": 0.9227,
+        "cap": 0.6094,
+        "synergy": 0,
+        "components": {
+          "pot": { "1": 0, "4": 62 },
+          "qual": { "1": 0, "4": 97 },
+          "opp_count": { "1": 0, "4": 1 }
+        }
+      }
+    },
+    {
+      "key": "flexible",
+      "score": 75,
+      "tier": "B",
+      "confidence": 0.655357,
+      "weighted_e4": 245759,
+      "explanation": { "anchors": [], "breadth": 3, "breadth_target": 4 }
+    }
+  ],
+  "summary": {
+    "primary_archetype": "flexible",
+    "secondary_archetype": "research_hub",
+    "best_colony_potential": 75,
+    "best_tier": "B",
+    "archetype_confidence": 0.96,
+    "weighted_potential": 28.125
+  },
+  "completeness": 0.5,
+  "ranking": {
+    "ranking_version": "v3-colony-potential-2",
+    "ranking_sha256": "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56",
+    "derived_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
+    "publication_sequence": 1,
+    "archetype_version": "v3-archetype-4",
+    "archetype_manifest_sha256": "438e909a1d645c0d8ff212fb98c8b23a3eafe32147a764e5cd7dbbefb8f0be22",
+    "archetype_model_sha256": "dbf62b783fb2220d92202ab84c7f9adf556ed8be43218716c5a69e052c552533"
+  }
+}

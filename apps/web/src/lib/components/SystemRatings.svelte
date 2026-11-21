@@ -15,11 +15,7 @@
     AVAILABILITY_LABELS,
     type RatingsSourceState,
   } from './source-freshness';
-  import {
-    byPotential,
-    percent,
-    ratingEconomyLabel,
-  } from './system-detail-format';
+  import { byPotential, ratingEconomyLabel } from './system-detail-format';
 
   type Props = {
     id64: Id64;
@@ -175,8 +171,8 @@
     {/if}
   {:else if ratings.data}
     <p class="system-ratings-note">
-      Seven independent potentials, each 0–100. Confidence shows how much of a
-      rating's evidence the catalogue knows; it is not a measured probability.
+      Seven independent potentials, each 0–100. "Why?" shows the bodies that
+      make each one, and how much of what it needs is known.
     </p>
     <div class="rating-table-scroll">
       <table class="rating-table" aria-labelledby={`${headingId}-ratings`}>
@@ -184,7 +180,6 @@
           <tr>
             <th scope="col">Economy</th>
             <th scope="col">Potential</th>
-            <th scope="col">Confidence</th>
             <th scope="col">
               <span class="rating-column-label">Explanation</span>
             </th>
@@ -206,7 +201,6 @@
                   <div>{rating.potential}</div>
                 </div>
               </td>
-              <td>{percent(rating.confidence)}</td>
               <td>
                 <button
                   type="button"

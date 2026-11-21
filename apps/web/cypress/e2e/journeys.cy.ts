@@ -222,6 +222,48 @@ describe('What a visitor does', () => {
     );
   });
 
+  it('chooses a result, and is told in a pop-out why it scored what it did', () => {
+    findAnswersNearSol();
+    // Conn as the live site answered on 21 November 2026: how many of its
+    // bodies are known, and why each colony type scores what it does.
+    const CONN = '9466510583201';
+    cy.intercept('GET', `/api/v1/systems/${CONN}`, {
+      fixture: 'journeys/conn/system.json',
+    }).as('conn');
+    cy.intercept('GET', `/api/archetypes/system/${CONN}/explanation*`, {
+      fixture: 'journeys/conn/explanation.json',
+    }).as('why');
+    visit('/explore');
+    searchNearSol();
+    cy.wait('@search');
+
+    cy.get(`li[data-system-result="${CONN}"] [data-result-select]`).click();
+    cy.wait(['@conn', '@why']);
+    cy.get('[role=dialog]')
+      .should('have.length', 1)
+      .and('have.attr', 'aria-labelledby')
+      .then((id) => cy.get(`#${id}`).should('have.text', 'Conn'));
+    cy.get('[role=dialog]').within(() => {
+      cy.contains('Best Colony Potential: 69');
+      // How much is known, as a plain fact: the game counts 16, we hold 18.
+      cy.contains('All 18 bodies known');
+      cy.contains('h3', 'Why Stronghold scores 69');
+      cy.contains('Stronghold needs Military and Industrial.');
+      cy.contains('Military: 70 out of 100, from 2 bodies that suit it.');
+      cy.contains('Industrial: 75 out of 100, from 14 bodies that suit it.');
+      cy.contains('+ 5 because Military and Industrial are both 60 or more.');
+      cy.contains('confidence').should('not.exist');
+      cy.contains('button', 'Show on map');
+      cy.contains('a', 'Inspect');
+    });
+    // Escape closes it and leaves Conn chosen.
+    cy.get('body').type('{esc}');
+    cy.get('[role=dialog]').should('not.exist');
+    cy.get(`li[data-system-result="${CONN}"] [data-result-select]`)
+      .should('have.attr', 'aria-pressed', 'true')
+      .and('have.focus');
+  });
+
   it('opens one of the systems found, and reads its bodies and stations', () => {
     findAnswersNearSol();
     theSystemsPageAnswers();
