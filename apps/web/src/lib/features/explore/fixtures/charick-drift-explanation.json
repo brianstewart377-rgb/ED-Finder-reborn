@@ -143,20 +143,32 @@
     },
     {
       "key": "flexible",
-      "score": 75,
-      "tier": "B",
-      "confidence": 0.655357,
-      "weighted_e4": 245759,
-      "explanation": { "anchors": [], "breadth": 3, "breadth_target": 4 }
+      "score": 40,
+      "tier": "D",
+      "confidence": 0.748049,
+      "weighted_e4": 149610,
+      "explanation": {
+        "anchors": [],
+        "economies": [6, 5, 4],
+        "core": 40.094,
+        "components": {
+          "pot": { "6": 70, "5": 62, "4": 62 },
+          "qual": { "6": 97, "5": 100, "4": 97 },
+          "opp_count": { "6": 1, "5": 1, "4": 1 },
+          "spec": { "6": 0.9955, "5": 1.0, "4": 0.9955 },
+          "cap": { "6": 0.6425, "5": 0.6375, "4": 0.6375 },
+          "strength": { "6": 44.773, "5": 39.525, "4": 39.347 }
+        }
+      }
     }
   ],
   "summary": {
     "primary_archetype": "flexible",
     "secondary_archetype": "research_hub",
-    "best_colony_potential": 75,
-    "best_tier": "B",
-    "archetype_confidence": 0.96,
-    "weighted_potential": 28.125
+    "best_colony_potential": 40,
+    "best_tier": "D",
+    "archetype_confidence": 0.05,
+    "weighted_potential": 15.0
   },
   "completeness": 0.5,
   "ranking": {
@@ -164,8 +176,8 @@
     "ranking_sha256": "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56",
     "derived_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
     "publication_sequence": 1,
-    "archetype_version": "v3-archetype-4",
+    "archetype_version": "v3-archetype-5",
     "archetype_manifest_sha256": "438e909a1d645c0d8ff212fb98c8b23a3eafe32147a764e5cd7dbbefb8f0be22",
-    "archetype_model_sha256": "dbf62b783fb2220d92202ab84c7f9adf556ed8be43218716c5a69e052c552533"
+    "archetype_model_sha256": "c86a589f492e429acf883e09053c8a97b67b4cb08c85b6cfeaaa44451c909823"
   }
 }

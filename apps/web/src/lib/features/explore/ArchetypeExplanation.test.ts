@@ -20,9 +20,8 @@ import { queryClient, queryKeys } from '$lib/api/query';
 import { parseId64 } from '$lib/domain/id64';
 import { ARCHETYPE_KEYS, archetypeLabel } from './archetypes';
 import ArchetypeExplanation from './ArchetypeExplanation.svelte';
-// Conn's explanation as the live site answered it on 21 November 2026,
-// before Flexible was scored on its three strongest economies: only Conn's
-// other colony types are looked at here.
+// Conn's explanation as the live site answered it on 21 November 2026, after
+// the colony type re-score with the rule of v3-archetype-5.
 import conn from './fixtures/conn-explanation.json';
 // Sol from the frozen fixture set, through the real pipeline and the API's
 // own route, with the rule of v3-archetype-5 (colony-type-reasons.test.ts).
