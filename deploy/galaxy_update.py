@@ -42,6 +42,13 @@ given the one-day file by hand. catch-up brings it back.)
     python3 galaxy_update.py score    give new scores to the systems on the
                                       waiting list. Needs no file: everything
                                       the scores use is in the database.
+    python3 galaxy_update.py colony-types
+                                      score every system's colony types again
+                                      with the rule the app now runs, from the
+                                      score inputs already stored. Once, after
+                                      a deploy that changes that rule (the
+                                      release notes say so). Can be stopped
+                                      and run again; it carries on.
     python3 galaxy_update.py reach    work out afresh which systems are within
                                       500 ly and 250 ly of an inhabited system
                                       (the Pi; migration 028). Needed once
@@ -471,6 +478,7 @@ JOBS = {
     "check-scores": ("spansh_delta.scores", "check", True),
     "score": ("spansh_delta.scores", "apply", False),
     "reach": ("spansh_delta.reach", "rebuild", False),
+    "colony-types": ("spansh_delta.colony_types", "apply", False),
     # These read the file as it downloads: they are given its address.
     "check-parents": ("spansh_delta.parents", "check", True),
     "fill-parents": ("spansh_delta.parents", "apply", True),
@@ -537,6 +545,7 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
         say("Running the %s from %s ..." % (
             {"run": "update", "score": "scoring", "reach": "work on reach",
+             "colony-types": "colony type scoring",
              "fill-parents": "fill-in of parents",
              "catch-up-save": "first half of the catch-up"}.get(command_name, "check"), image)
             if position == 0 else
@@ -676,6 +685,9 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int],
         if mode == "reach":
             # Everything reach is worked out from is in the database too.
             return finished(run_job(settings, "reach", {}, None), "work on reach")
+        if mode == "colony-types":
+            # So is everything colony types are worked out from.
+            return finished(run_job(settings, "colony-types", {}, limit), "colony type scoring")
         if mode == "catch-up":
             return catch_up(settings, since, limit)
         if mode in ("check-parents", "fill-parents"):
@@ -783,7 +795,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's file of recent changes to the galaxy and apply it.")
     parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score", "reach",
-                                            "check-parents", "fill-parents", "catch-up"))
+                                            "colony-types", "check-parents", "fill-parents",
+                                            "catch-up"))
     parser.add_argument("--limit", type=int, default=None,
                         help="stop after this many systems (for timing a very big file)")
     parser.add_argument("--since", default=None,

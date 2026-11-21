@@ -194,7 +194,8 @@ def test_a_page_that_shows_its_own_count_or_has_one_kept_never_waits(reach_datab
     generation = short["ranking"]
     kept = {"qualifying": len(expected),
             "derived_generation_id": generation["derived_generation_id"],
-            "publication_sequence": generation["publication_sequence"]}
+            "publication_sequence": generation["publication_sequence"],
+            "archetype_version": generation["archetype_version"]}
     full, took = _search(connection, _request(), known_count=kept, count_budget_ms=BUDGET_MS)
     assert full["total"] == len(expected) and full["total_is_counted"] is True
     assert took < 3

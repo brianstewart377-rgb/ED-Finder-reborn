@@ -20,8 +20,13 @@ import { queryClient, queryKeys } from '$lib/api/query';
 import { parseId64 } from '$lib/domain/id64';
 import { ARCHETYPE_KEYS, archetypeLabel } from './archetypes';
 import ArchetypeExplanation from './ArchetypeExplanation.svelte';
-// Conn's explanation as the live site answered it on 21 November 2026.
+// Conn's explanation as the live site answered it on 21 November 2026,
+// before Flexible was scored on its three strongest economies: only Conn's
+// other colony types are looked at here.
 import conn from './fixtures/conn-explanation.json';
+// Sol from the frozen fixture set, through the real pipeline and the API's
+// own route, with the rule of v3-archetype-5 (colony-type-reasons.test.ts).
+import sol from './fixtures/sol-explanation.json';
 
 const featureGate = vi.hoisted(() => ({ enabled: true }));
 vi.mock('$lib/config', () => ({
@@ -146,19 +151,21 @@ describe('why the selected result scored what it did', () => {
     );
     expect([...scores].sort((a, b) => b - a)).toEqual(scores);
     // Each has its own score, the API's tier and its reasons.
-    const flexible = within(others).getByRole('region', {
-      name: /^Flexible Multi-Role Colony/u,
+    const manufacturing = within(others).getByRole('region', {
+      name: /^Manufacturing Hub/u,
     });
     expect(
-      within(flexible).getByText('50', { selector: '.explanation-score' }),
+      within(manufacturing).getByText('10', {
+        selector: '.explanation-score',
+      }),
     ).toBeVisible();
-    expect(within(flexible).getByText('Tier C')).toHaveAttribute(
+    expect(within(manufacturing).getByText('Tier D')).toHaveAttribute(
       'data-tier',
-      'C',
+      'D',
     );
     expect(
-      within(flexible).getByText(
-        '2 of the 7 economies are strong enough here.',
+      within(manufacturing).getByText(
+        'Refinery: 0 out of 100. No body here suits it.',
       ),
     ).toBeVisible();
     // Opening and closing asks nothing more.
@@ -187,6 +194,58 @@ describe('why the selected result scored what it did', () => {
       screen.getByRole('region', { name: /^Stronghold/u }),
     ).toHaveAttribute('data-explanation-archetype', 'stronghold');
     expect(archetypeLabel('research_hub')).toBe('Research Hub');
+  });
+
+  it('names the three economies Flexible was scored on, when ranked by it', async () => {
+    const solSystem: ExploreSystem = {
+      ...system,
+      id64: parseId64(String(sol.id64)),
+      name: 'Sol',
+      ranking_provenance: sol.ranking as RankingProvenance,
+    };
+    const solRanking = sol.ranking as RankingProvenance;
+    mockedExplanation.mockResolvedValue({
+      kind: 'explained',
+      id64: solSystem.id64,
+      ranking: solRanking,
+      completeness: sol.completeness,
+      summary: sol.summary as Extract<
+        ArchetypeExplanationResult,
+        { kind: 'explained' }
+      >['summary'],
+      archetypes: sol.archetypes as unknown as ArchetypeExplanationEntry[],
+    });
+    render(ArchetypeExplanation, {
+      system: solSystem,
+      expected: {
+        derived_generation_id: solRanking.derived_generation_id,
+        archetype_version: solRanking.archetype_version,
+        archetype_manifest_sha256: solRanking.archetype_manifest_sha256,
+      },
+      archetype: 'flexible',
+    });
+    await screen.findByRole('heading', {
+      name: 'Why Flexible Multi-Role Colony scores 70',
+    });
+    const flexible = screen
+      .getByRole('region', { name: 'Why Sol got its score' })
+      .querySelector<HTMLElement>('[data-explanation-lead]')!;
+    expect(
+      within(flexible).getByText(
+        'Flexible Multi-Role Colony needs three strong economies, of any kind. Its three strongest here:',
+      ),
+    ).toBeVisible();
+    expect(
+      within(flexible)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      'Industrial: 85 out of 100, from 26 bodies that suit it. With quality and bodies: 77.3.',
+      'Extraction: 82 out of 100, from 13 bodies that suit it. With quality and bodies: 70.',
+      'High Tech: 84 out of 100, from 6 bodies that suit it. With quality and bodies: 68.',
+      '69.5 for the three together. The weakest counts most.',
+    ]);
+    expect(within(flexible).getByText('How that makes 70:')).toBeVisible();
   });
 
   it('says it is loading until the answer arrives', async () => {

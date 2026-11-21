@@ -117,9 +117,7 @@ def _coefficients() -> dict:
         'synergy_bonus': model.SYNERGY_BONUS,
         'synergy_threshold': model.SYNERGY_THRESHOLD,
         'spec_unknown_conf': model.SPEC_UNKNOWN_CONF,
-        'breadth_pot': model.BREADTH_POT,
-        'breadth_qual': model.BREADTH_QUAL,
-        'breadth_target': model.BREADTH_TARGET,
+        'flexible_economies': model.FLEXIBLE_ECONOMIES,
     }
 
 
@@ -198,7 +196,9 @@ def product_manifest(generation: Generation) -> dict:
         'field_policy': {
             'archetype_score': (
                 'round(clamp(core*spec*cap + synergy_bonus, 0, 100)); '
-                'flexible uses breadth instead of core/spec/cap'
+                'flexible scores each economy as pot*spec*cap on its own, '
+                'takes the flexible_economies strongest and combines them as '
+                'alpha*min + (1-alpha)*mean, with no synergy bonus'
             ),
             'tier': 'S>=88, A>=76, B>=60, C>=45, else D',
             'confidence': (
@@ -206,8 +206,8 @@ def product_manifest(generation: Generation) -> dict:
                 'min(evidence_completeness[a] for a in required anchors), '
                 'multiplied by spec_unknown_conf when any anchor quality was '
                 'bounded-null; each factor is within [0, 1] so the product is '
-                'bounded [0, 1]. flexible uses mean(confidence) * '
-                'mean(evidence_completeness) over all anchors instead of min.'
+                'bounded [0, 1]. flexible uses the same rule over its '
+                'flexible_economies strongest economies.'
             ),
             'confidence_storage': (
                 'integer parts per million from the already-six-decimal model '

@@ -13,7 +13,7 @@ import math
 from pathlib import Path
 
 
-ARCHETYPE_VERSION = 'v3-archetype-4'
+ARCHETYPE_VERSION = 'v3-archetype-5'
 
 _ANCHORS: dict[str, tuple[tuple[int, ...], tuple[int, ...]]] = {
     'paradise': ((1, 6), ()),
@@ -32,7 +32,8 @@ SPEC_FLOOR, SPEC_SPAN = 0.85, 0.15
 CAP_FLOOR, CAP_SPAN, CAPACITY_TARGET = 0.6, 0.4, 8
 SYNERGY_BONUS, SYNERGY_THRESHOLD = 5, 60
 SPEC_UNKNOWN_CONF = 0.85
-BREADTH_POT, BREADTH_QUAL, BREADTH_TARGET = 55, 40, 4
+# Flexible Multi-Role Colony is scored on its three strongest economies.
+FLEXIBLE_ECONOMIES = 3
 
 _TIERS = ((88, 'S'), (76, 'A'), (60, 'B'), (45, 'C'))
 
@@ -171,11 +172,32 @@ def _explain_anchored(
     }
 
 
-def _explain_flexible(breadth: int) -> dict:
+def _explain_flexible(
+    v: SystemVectors,
+    chosen: list[int],
+    strengths: dict[int, tuple[float, float, float, bool]],
+    core: float,
+) -> dict:
     return {
         'anchors': [],
-        'breadth': breadth,
-        'breadth_target': BREADTH_TARGET,
+        'economies': list(chosen),
+        'core': round(core, 3),
+        'components': {
+            'pot': {ordinal: v.pot[ordinal - 1] for ordinal in chosen},
+            'qual': {ordinal: v.qual[ordinal - 1] for ordinal in chosen},
+            'opp_count': {
+                ordinal: v.opp.get(ordinal, (0, 0.0))[0] for ordinal in chosen
+            },
+            'spec': {
+                ordinal: round(strengths[ordinal][1], 4) for ordinal in chosen
+            },
+            'cap': {
+                ordinal: round(strengths[ordinal][2], 4) for ordinal in chosen
+            },
+            'strength': {
+                ordinal: round(strengths[ordinal][0], 3) for ordinal in chosen
+            },
+        },
     }
 
 
@@ -229,24 +251,48 @@ def _fit_anchored(v: SystemVectors, key: str) -> ArchetypeFit:
     )
 
 
+def _economy_strength(
+    v: SystemVectors, ordinal: int
+) -> tuple[float, float, float, bool]:
+    '''One economy on its own: its potential, times the same quality and
+    bodies factors an anchored type uses. Returns the strength, both
+    factors, and whether the quality was unknown.'''
+    quality, unknown = _quality(v, ordinal)
+    spec = SPEC_FLOOR + SPEC_SPAN * (quality / 100.0)
+    count, local_mean = v.opp.get(ordinal, (0, 0.0))
+    cap = CAP_FLOOR + CAP_SPAN * min(
+        1.0, count / CAPACITY_TARGET
+    ) * (local_mean / 100.0)
+    return v.pot[ordinal - 1] * spec * cap, spec, cap, unknown
+
+
 def _fit_flexible(v: SystemVectors) -> ArchetypeFit:
-    breadth = 0
-    for ordinal in range(1, 8):
-        quality, _ = _quality(v, ordinal)
-        if v.pot[ordinal - 1] >= BREADTH_POT and quality >= BREADTH_QUAL:
-            breadth += 1
-    score = round(
-        _clamp(100.0 * min(1.0, breadth / BREADTH_TARGET), 0, 100)
+    '''A colony with several strong economies of any kind: the three
+    strongest, combined the way an anchored type combines its economies
+    (the weakest counts most). A system with only one or two strong
+    economies scores low.'''
+    strengths = {
+        ordinal: _economy_strength(v, ordinal) for ordinal in range(1, 8)
+    }
+    ranked = sorted(
+        (-strengths[ordinal][0], ordinal) for ordinal in range(1, 8)
     )
-    confidence = (sum(v.confidence) / len(v.confidence)) * (
-        sum(v.completeness) / len(v.completeness)
+    chosen = [ordinal for _, ordinal in ranked[:FLEXIBLE_ECONOMIES]]
+    values = [strengths[ordinal][0] for ordinal in chosen]
+    core = ALPHA * min(values) + (1 - ALPHA) * (sum(values) / len(values))
+    score = round(_clamp(core, 0, 100))
+    unknown = any(strengths[ordinal][3] for ordinal in chosen)
+    confidence = (
+        min(v.confidence[ordinal - 1] for ordinal in chosen)
+        * min(v.completeness[ordinal - 1] for ordinal in chosen)
+        * (SPEC_UNKNOWN_CONF if unknown else 1.0)
     )
     return ArchetypeFit(
         'flexible',
         score,
         tier_of(score),
         round(confidence, 6),
-        _explain_flexible(breadth),
+        _explain_flexible(v, chosen, strengths, core),
     )
 
 
@@ -623,12 +669,10 @@ __all__ = (
     'ARCHETYPE_KEYS',
     'ARCHETYPE_VERSION',
     'ArchetypeFit',
-    'BREADTH_POT',
-    'BREADTH_QUAL',
-    'BREADTH_TARGET',
     'CAPACITY_TARGET',
     'CAP_FLOOR',
     'CAP_SPAN',
+    'FLEXIBLE_ECONOMIES',
     'OPPORTUNITY_READ_SQL',
     'SPEC_FLOOR',
     'SPEC_SPAN',

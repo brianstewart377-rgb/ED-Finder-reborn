@@ -72,7 +72,8 @@ export const ARCHETYPES: readonly ArchetypeMetadata[] = [
   {
     key: 'flexible',
     label: 'Flexible Multi-Role Colony',
-    description: 'Several viable economies rather than one narrow specialism.',
+    description:
+      'Three or more strong economies rather than one narrow specialism.',
   },
 ];
 

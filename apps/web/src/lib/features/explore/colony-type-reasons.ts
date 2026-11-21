@@ -50,23 +50,57 @@ const points = (value: number): string =>
   value.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const times = (value: number): string => value.toFixed(2);
 
+const COUNT_WORDS: Readonly<Record<number, string>> = {
+  1: 'one',
+  2: 'two',
+  3: 'three',
+  4: 'four',
+};
+
+/** "Industrial: 85 out of 100, from 26 bodies that suit it." */
+function economyLine(
+  ordinal: number,
+  strength: unknown,
+  count: unknown,
+): string {
+  if (!numeric(strength)) return `${ECONOMIES[ordinal]}: not known.`;
+  if (strength === 0 || count === 0)
+    return `${ECONOMIES[ordinal]}: ${strength} out of 100. No body here suits it.`;
+  return numeric(count)
+    ? `${ECONOMIES[ordinal]}: ${strength} out of 100, from ${count} ${count === 1 ? 'body that suits' : 'bodies that suit'} it.`
+    : `${ECONOMIES[ordinal]}: ${strength} out of 100.`;
+}
+
+/**
+ * Flexible scores a system's strongest economies, whichever they are: each
+ * one's score times the same quality and bodies factors the other colony
+ * types use, then the three together, the weakest counting most.
+ */
 function flexibleReason(
   label: string,
   details: Record<string, unknown>,
 ): ColonyTypeReason {
-  const breadth = details.breadth;
-  const target = details.breadth_target;
+  const chosen = ordinals(details.economies);
+  const components = record(details.components);
+  const potential = record(components.pot);
+  const sites = record(components.opp_count);
+  const strength = record(components.strength);
+  const howMany = COUNT_WORDS[chosen.length];
   return {
-    needs: `${label} needs several strong economies, of any kind.`,
-    economies: numeric(breadth)
-      ? [
-          `${breadth} of the 7 economies ${breadth === 1 ? 'is' : 'are'} strong enough here.`,
-        ]
-      : [],
+    needs: howMany
+      ? `${label} needs ${howMany} strong economies, of any kind. Its ${howMany} strongest here:`
+      : `${label}: what it needs is not known.`,
+    economies: chosen.map((ordinal) => {
+      const line = economyLine(ordinal, potential[ordinal], sites[ordinal]);
+      const counts = strength[ordinal];
+      return numeric(counts) && counts > 0
+        ? `${line} With quality and bodies: ${points(counts)}.`
+        : line;
+    }),
     steps:
-      numeric(target) && target > 0
+      howMany && numeric(details.core)
         ? [
-            `Each one is worth ${points(100 / target)}, up to ${target} of them.`,
+            `${points(details.core)} for the ${howMany} together. The weakest counts most.`,
           ]
         : [],
   };
@@ -87,16 +121,9 @@ export function colonyTypeReason(
   const them = anchors.length === 1 ? 'it' : 'them';
 
   const economies = [
-    ...anchors.map((ordinal) => {
-      const strength = potential[ordinal];
-      const count = sites[ordinal];
-      if (!numeric(strength)) return `${ECONOMIES[ordinal]}: not known.`;
-      if (strength === 0 || count === 0)
-        return `${ECONOMIES[ordinal]}: ${strength} out of 100. No body here suits it.`;
-      return numeric(count)
-        ? `${ECONOMIES[ordinal]}: ${strength} out of 100, from ${count} ${count === 1 ? 'body that suits' : 'bodies that suit'} it.`
-        : `${ECONOMIES[ordinal]}: ${strength} out of 100.`;
-    }),
+    ...anchors.map((ordinal) =>
+      economyLine(ordinal, potential[ordinal], sites[ordinal]),
+    ),
     ...supporting.map((ordinal) =>
       numeric(potential[ordinal])
         ? `${ECONOMIES[ordinal]}: ${potential[ordinal]} out of 100.`

@@ -71,14 +71,16 @@ def _search_cache_key(body_dict: dict, generation_row) -> str:
 
     Scoped to (a) the cutover namespace version, (b) the ranking identity
     (`RANKING_VERSION` + `ranking_sha256()`), (c) the resolved PUBLISHED
-    generation (id + sequence), and (d) the full request body. So a warm
-    entry can never be served across a cutover, a ranking-formula change, or
-    a governed publish — each shifts the namespace and misses the old key.
+    generation (id + sequence), (d) the deployed colony type model's version,
+    and (e) the full request body. So a warm entry can never be served across
+    a cutover, a ranking-formula change, a governed publish or a change to how
+    colony types are scored — each shifts the namespace and misses the old key.
     """
     return (
         f"search:{SEARCH_CACHE_VERSION}:{RANKING_VERSION}:{ranking_sha256()}:"
         f"g{generation_row['derived_generation_id']}:"
         f"s{generation_row['publication_sequence']}:"
+        f"a{generation_row['archetype_version']}:"
         f"{json.dumps(body_dict, sort_keys=True, default=str)}"
     )
 
@@ -98,6 +100,7 @@ def _search_count_cache_key(body_dict: dict, generation_row) -> str:
         f"search-count:{SEARCH_CACHE_VERSION}:{RANKING_VERSION}:{ranking_sha256()}:"
         f"g{generation_row['derived_generation_id']}:"
         f"s{generation_row['publication_sequence']}:"
+        f"a{generation_row['archetype_version']}:"
         f"{json.dumps(unpaged, sort_keys=True, default=str)}"
     )
 

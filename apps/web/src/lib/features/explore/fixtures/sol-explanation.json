@@ -1,0 +1,271 @@
+{
+  "id64": 10477373803,
+  "archetypes": [
+    {
+      "key": "paradise",
+      "score": 58,
+      "tier": "C",
+      "confidence": 0.91497,
+      "weighted_e4": 337302,
+      "explanation": {
+        "anchors": [1, 6],
+        "supporting": [],
+        "core": 80.6,
+        "spec": 0.9475,
+        "cap": 0.6875,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "1": 87,
+            "6": 79
+          },
+          "qual": {
+            "1": 65,
+            "6": 65
+          },
+          "opp_count": {
+            "1": 2,
+            "6": 2
+          }
+        }
+      }
+    },
+    {
+      "key": "mining_hub",
+      "score": 69,
+      "tier": "B",
+      "confidence": 0.441825,
+      "weighted_e4": 193769,
+      "explanation": {
+        "anchors": [7, 2],
+        "supporting": [],
+        "core": 76.4,
+        "spec": 0.9625,
+        "cap": 0.8769,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "7": 82,
+            "2": 75
+          },
+          "qual": {
+            "7": 100,
+            "2": null
+          },
+          "opp_count": {
+            "7": 13,
+            "2": 15
+          }
+        }
+      }
+    },
+    {
+      "key": "manufacturing_hub",
+      "score": 72,
+      "tier": "B",
+      "confidence": 0.638315,
+      "weighted_e4": 292113,
+      "explanation": {
+        "anchors": [2, 3],
+        "supporting": [],
+        "core": 77.0,
+        "spec": 0.9625,
+        "cap": 0.9046,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "2": 75,
+            "3": 85
+          },
+          "qual": {
+            "2": null,
+            "3": 100
+          },
+          "opp_count": {
+            "2": 15,
+            "3": 26
+          }
+        }
+      }
+    },
+    {
+      "key": "megacomplex",
+      "score": 72,
+      "tier": "B",
+      "confidence": 0.441825,
+      "weighted_e4": 202193,
+      "explanation": {
+        "anchors": [7, 2, 3],
+        "supporting": [],
+        "core": 77.267,
+        "spec": 0.975,
+        "cap": 0.8877,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "7": 82,
+            "2": 75,
+            "3": 85
+          },
+          "qual": {
+            "7": 100,
+            "2": null,
+            "3": 100
+          },
+          "opp_count": {
+            "7": 13,
+            "2": 15,
+            "3": 26
+          }
+        }
+      }
+    },
+    {
+      "key": "research_hub",
+      "score": 73,
+      "tier": "B",
+      "confidence": 0.973359,
+      "weighted_e4": 451627,
+      "explanation": {
+        "anchors": [4],
+        "supporting": [3],
+        "core": 84.0,
+        "spec": 0.97,
+        "cap": 0.835,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "4": 84,
+            "3": 85
+          },
+          "qual": {
+            "4": 80
+          },
+          "opp_count": {
+            "4": 6
+          }
+        }
+      }
+    },
+    {
+      "key": "stronghold",
+      "score": 74,
+      "tier": "B",
+      "confidence": 0.750958,
+      "weighted_e4": 353209,
+      "explanation": {
+        "anchors": [5, 3],
+        "supporting": [],
+        "core": 76.2,
+        "spec": 0.994,
+        "cap": 0.9046,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "5": 74,
+            "3": 85
+          },
+          "qual": {
+            "5": 92,
+            "3": 100
+          },
+          "opp_count": {
+            "5": 3,
+            "3": 26
+          }
+        }
+      }
+    },
+    {
+      "key": "population_capital",
+      "score": 67,
+      "tier": "B",
+      "confidence": 0.91497,
+      "weighted_e4": 389642,
+      "explanation": {
+        "anchors": [1, 4],
+        "supporting": [],
+        "core": 84.6,
+        "spec": 0.9587,
+        "cap": 0.7683,
+        "synergy": 5,
+        "components": {
+          "pot": {
+            "1": 87,
+            "4": 84
+          },
+          "qual": {
+            "1": 65,
+            "4": 80
+          },
+          "opp_count": {
+            "1": 2,
+            "4": 6
+          }
+        }
+      }
+    },
+    {
+      "key": "flexible",
+      "score": 70,
+      "tier": "B",
+      "confidence": 0.519794,
+      "weighted_e4": 231267,
+      "explanation": {
+        "anchors": [],
+        "economies": [3, 7, 4],
+        "core": 69.533,
+        "components": {
+          "pot": {
+            "3": 85,
+            "7": 82,
+            "4": 84
+          },
+          "qual": {
+            "3": 100,
+            "7": 100,
+            "4": 80
+          },
+          "opp_count": {
+            "3": 26,
+            "7": 13,
+            "4": 6
+          },
+          "spec": {
+            "3": 1.0,
+            "7": 1.0,
+            "4": 0.97
+          },
+          "cap": {
+            "3": 0.9092,
+            "7": 0.8538,
+            "4": 0.835
+          },
+          "strength": {
+            "3": 77.285,
+            "7": 70.015,
+            "4": 68.036
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "primary_archetype": "stronghold",
+    "secondary_archetype": "research_hub",
+    "best_colony_potential": 74,
+    "best_tier": "B",
+    "archetype_confidence": 0.027027,
+    "weighted_potential": 38.46473232
+  },
+  "completeness": 0.6356,
+  "ranking": {
+    "ranking_version": "v3-colony-potential-2",
+    "ranking_sha256": "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56",
+    "derived_generation_id": "c630d1f1-d322-4984-966b-24202d5736be",
+    "publication_sequence": 1,
+    "archetype_version": "v3-archetype-5",
+    "archetype_manifest_sha256": "7070707070707070707070707070707070707070707070707070707070707070",
+    "archetype_model_sha256": "c86a589f492e429acf883e09053c8a97b67b4cb08c85b6cfeaaa44451c909823"
+  }
+}

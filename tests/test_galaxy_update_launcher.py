@@ -315,6 +315,25 @@ def test_reach_by_hand_needs_no_file_and_works_it_out_in_the_container(spansh, d
     assert "FAILED: the work on reach ended with code 2" in capsys.readouterr().out
 
 
+def test_colony_types_by_hand_need_no_file_and_are_scored_in_the_container(
+        spansh, docker, tmp_path, capsys):
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "colony-types", None) == 0
+    worked = docker.calls("run")[-1]
+    assert worked[worked.index("-m"):] == ["-m", "spansh_delta.colony_types", "apply"]
+    assert spansh.downloads() == [] and not chosen.record.exists()
+    assert "Running the colony type scoring from " + IMAGE in capsys.readouterr().out
+    # A limit, for timing it on the first systems.
+    assert tool.cmd_apply(chosen, "colony-types", 100000) == 0
+    worked = docker.calls("run")[-1]
+    assert worked[worked.index("-m"):] == [
+        "-m", "spansh_delta.colony_types", "apply", "--limit", "100000"]
+    docker.state["run_exit"]["local"] = 2
+    docker.save()
+    assert tool.cmd_apply(chosen, "colony-types", None) == 2
+    assert "FAILED: the colony type scoring ended with code 2" in capsys.readouterr().out
+
+
 # Filling in what bodies orbit, once (spansh_delta.parents): read from Spansh's
 # whole-galaxy file as it downloads, inside the job, so nothing is kept here.
 WHOLE_GALAXY = "galaxy.json.gz"
