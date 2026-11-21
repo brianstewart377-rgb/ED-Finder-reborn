@@ -66,6 +66,7 @@
   import SystemActions from './SystemActions.svelte';
   import WatchlistPanel from './WatchlistPanel.svelte';
   import ComparePanel from './ComparePanel.svelte';
+  import InspectPopout from '$lib/components/InspectPopout.svelte';
   import SystemSearchBox from './SystemSearchBox.svelte';
   import { createFinderResults } from './finder-results.svelte';
   import { createMyJourneys } from './my-journeys.svelte';
@@ -133,6 +134,13 @@
   );
   // The system-name box, which lives in a file of its own.
   let searchBox = $state<ReturnType<typeof SystemSearchBox>>();
+  // Saved systems and Compare open as pop-outs from the Finder panel, so
+  // they are in reach without leaving the map and the results.
+  let savedOpen = $state(false);
+  let compareOpen = $state(false);
+  let savedTrigger = $state<HTMLButtonElement>();
+  let finderPanel = $state<HTMLElement>();
+  let compareTrigger = $state<HTMLButtonElement>();
   let mapSection = $state<HTMLDivElement>();
   let resultsSection = $state<HTMLElement>();
   // The control that hid the Finder panel gets focus back when it reopens.
@@ -797,6 +805,7 @@
     style:--explore-stage-top={`${stageTop}px`}
   >
     <section
+      bind:this={finderPanel}
       id="finder-panel"
       class="finder-panel"
       aria-labelledby="explore-title"
@@ -818,11 +827,51 @@
       </header>
 
       <nav class="shortlist-nav" aria-label="Your saved systems">
-        <a href="#saved-systems"
-          >Pinned and watched systems ({$pins.value.length} pinned)</a
+        <button
+          bind:this={savedTrigger}
+          type="button"
+          class="quiet-button"
+          data-inspect-popout-trigger
+          aria-haspopup="dialog"
+          aria-expanded={savedOpen}
+          aria-controls={savedOpen ? 'explore-saved-systems' : undefined}
+          onclick={() => (savedOpen = !savedOpen)}
+          >Saved systems ({$pins.value.length} pinned)</button
         >
-        <a href="#compare-systems">Compare ({$compare.value.length})</a>
+        <button
+          bind:this={compareTrigger}
+          type="button"
+          class="quiet-button"
+          data-inspect-popout-trigger
+          aria-haspopup="dialog"
+          aria-expanded={compareOpen}
+          aria-controls={compareOpen ? 'explore-compare-systems' : undefined}
+          onclick={() => (compareOpen = !compareOpen)}
+          >Compare ({$compare.value.length})</button
+        >
       </nav>
+      <InspectPopout
+        id="explore-saved-systems"
+        title="Saved systems"
+        kind="saved"
+        open={savedOpen}
+        trigger={savedTrigger}
+        beside={finderPanel}
+        onclose={() => (savedOpen = false)}
+      >
+        <WatchlistPanel inPopout />
+      </InspectPopout>
+      <InspectPopout
+        id="explore-compare-systems"
+        title="Compare systems"
+        kind="compare"
+        open={compareOpen}
+        trigger={compareTrigger}
+        beside={finderPanel}
+        onclose={() => (compareOpen = false)}
+      >
+        <ComparePanel inPopout />
+      </InspectPopout>
 
       <section class="finder-bar" aria-labelledby="finder-title">
         <div>
@@ -1492,8 +1541,6 @@
       {/snippet}
     </ExploreMapWindow>
   </div>
-  <div id="saved-systems"><WatchlistPanel /></div>
-  <div id="compare-systems"><ComparePanel /></div>
 </main>
 
 <style>
@@ -1695,9 +1742,13 @@
     outline-offset: 2px;
   }
   .finder-panel .shortlist-nav {
-    gap: 0.25rem 1rem;
+    gap: 0.4rem 0.6rem;
     margin: 0;
     font-size: 0.78rem;
+  }
+  .finder-panel .shortlist-nav button {
+    padding: 0.25rem 0.7rem;
+    font: inherit;
   }
   .finder-panel .finder-bar {
     grid-template-columns: minmax(0, 1fr);
@@ -2065,10 +2116,5 @@
     flex-wrap: wrap;
     gap: 0.75rem 1.5rem;
     margin-block: 1rem;
-  }
-  #saved-systems,
-  #compare-systems {
-    margin-top: 1.5rem;
-    scroll-margin-top: 5rem;
   }
 </style>
