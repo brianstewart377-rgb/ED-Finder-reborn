@@ -26,6 +26,7 @@
     stationInWords,
   } from '$lib/system-map/words';
   import { INSPECT_TABS, type InspectTab } from './inspect-tabs';
+  import ColonyPotential from './ColonyPotential.svelte';
   import SystemRatings from './SystemRatings.svelte';
   import SourcesFreshness from './SourcesFreshness.svelte';
   import {
@@ -408,6 +409,7 @@
       hidden={tab !== 'overview'}
       inert={tab !== 'overview'}
     >
+      <ColonyPotential active={tab === 'overview'} {id64} {headingId} />
       <dl class="detail-grid">
         <div
           data-unavailable-fields={coordinates === AVAILABILITY_LABELS.unknown
@@ -471,22 +473,6 @@
               stations={ports}
             />
           </dd>
-        </div>
-        <div
-          class="detail-unavailable"
-          data-unavailable-fields
-          data-availability="not-integrated"
-        >
-          <dt>Population, economy, security, allegiance, government</dt>
-          <dd>{AVAILABILITY_LABELS['not-integrated']}</dd>
-        </div>
-        <div
-          class="detail-unavailable"
-          data-unavailable-fields
-          data-availability="not-integrated"
-        >
-          <dt>Development fit</dt>
-          <dd>{AVAILABILITY_LABELS['not-integrated']}</dd>
         </div>
       </dl>
 

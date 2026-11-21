@@ -31,6 +31,9 @@ export const queryKeys = {
    */
   planBodies: (systemId: string) =>
     [...queryKeys.all, 'plan-bodies', systemId] as const,
+  /** One system's colony potential and colony-type scores (Find's). */
+  systemArchetypes: (id64: Id64) =>
+    [...queryKeys.all, 'system', id64, 'archetypes'] as const,
   /** Ratings V4 economy potentials for one system. */
   systemRatings: (id64: Id64) =>
     [...queryKeys.all, 'system', id64, 'ratings'] as const,
