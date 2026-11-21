@@ -376,11 +376,12 @@
       onclick={() => detail.refetch()}>Retry</button
     >
   {:else if detail.data}
-    <p class="eyebrow">System detail</p>
-    <h1 id={headingId} tabindex="-1" bind:this={heading}>
-      {detail.data.name}
-    </h1>
-    <p class="system-identity">ID64 <code>{detail.data.id64}</code></p>
+    <div class="system-title">
+      <h1 id={headingId} tabindex="-1" bind:this={heading}>
+        {detail.data.name}
+      </h1>
+      <p class="system-identity">ID64 <code>{detail.data.id64}</code></p>
+    </div>
 
     <div bind:this={tablist} role="tablist" aria-label="Inspect sections">
       {#each INSPECT_TABS as item (item.value)}
@@ -496,17 +497,9 @@
       {#if detail.data.bodies.length > 0}
         <section class="system-map-panel" aria-labelledby={`${headingId}-map`}>
           <div class="system-map-heading">
-            <div>
-              <p class="eyebrow">System map</p>
-              <h2 id={`${headingId}-map`}>Explore {detail.data.name}</h2>
-            </div>
+            <h2 id={`${headingId}-map`}>System map</h2>
             <span>{integer(detail.data.bodies.length)} catalogue bodies</span>
           </div>
-          <p class="system-map-truth-note">
-            Laid out like the game's own map; sizes are for reading, not to
-            scale. A body whose parent our data does not give is placed by its
-            name or its distance, and marked so.
-          </p>
           <div class="system-map-layout">
             <div class="system-map-main">
               {#if mapTree}
@@ -662,6 +655,11 @@
               >What the marks mean, and where the layout comes from</summary
             >
             <aside class="system-map-legend" aria-label="System map legend">
+              <p class="system-map-truth-note">
+                Laid out like the game's own map; sizes are for reading, not to
+                scale. A body whose parent our data does not give is placed by
+                its name or its distance, and marked so.
+              </p>
               <SystemMapLegend />
               <p>
                 Planet classes come from the catalogue, or from the published
@@ -835,6 +833,10 @@
 
   .system-map-legend p {
     margin: 0;
+  }
+
+  .system-map-legend .system-map-truth-note {
+    margin-bottom: 0.6rem;
   }
 
   .system-map-legend h3 {

@@ -818,10 +818,21 @@ footer {
   max-width: none;
 }
 .system-detail {
-  padding: clamp(1.4rem, 4vw, 3rem);
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+/* The name, and its ID64 beside it, in one line above the tabs. */
+.system-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.system-title h1 {
+  margin: 0;
 }
 .system-identity {
-  margin: 1rem 0 2rem;
+  margin: 0;
 }
 .detail-grid {
   display: grid;
@@ -854,23 +865,23 @@ footer {
   margin-top: 2rem;
 }
 /* In Inspect's Bodies tab the map is the first thing, and its height is what
-   is left of the tab's own height after the heading, the note and the
-   toolbar, so the whole map, and the column beside it, show without
-   scrolling. */
+   is left of the tab's own height after the one-line heading, the toolbar
+   and the closed map key, so the whole map, and the column beside it, show
+   without scrolling. */
 [role='tabpanel'] > .system-map-panel {
-  --system-map-height: clamp(18rem, calc(min(70dvh, 54rem) - 16.5rem), 44rem);
+  --system-map-height: clamp(18rem, calc(min(70dvh, 54rem) - 12rem), 44rem);
   margin-top: 0;
 }
 .system-map-heading {
   display: flex;
-  align-items: end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1rem 0;
+  padding: 0.7rem 1rem;
 }
 .system-map-heading h2 {
-  margin: 0.2rem 0 0;
-  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  margin: 0;
+  font-size: 1.1rem;
 }
 .system-map-heading > span {
   color: var(--neon);
@@ -879,11 +890,6 @@ footer {
 }
 .system-map-truth-note {
   max-width: 72rem;
-  margin: 0;
-  padding: 0.7rem 1rem 1rem;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  line-height: 1.55;
 }
 /* The map, with the chosen body's details and the list of bodies in a column
    beside it, the same height as the map, so neither is missed below it. */
@@ -1205,6 +1211,10 @@ footer {
 }
 .dialog .system-detail {
   border: 0;
+}
+/* Room for the close button, top right, beside a long name and its ID64. */
+.dialog .system-title {
+  padding-right: 3rem;
 }
 .dialog-close {
   position: absolute;
