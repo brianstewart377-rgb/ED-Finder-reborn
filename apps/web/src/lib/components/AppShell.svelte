@@ -2,8 +2,11 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { createQuery } from '@tanstack/svelte-query';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
+  import { getSystemName, type SystemDetail } from '$lib/api/client';
+  import { queryClient, queryKeys } from '$lib/api/query';
   import { auth } from '$lib/auth/auth';
   import { FINDER_F4_ENABLED } from '$lib/config';
   import { parseId64, type Id64 } from '$lib/domain/id64';
@@ -21,6 +24,25 @@
   const { selectedSystem } = persistence;
   let persistenceReady = $state(false);
   let lastUrlSelection: Id64 | null = null;
+
+  // The bar above every page names the selected system, with one small
+  // request (or from Inspect's look-up, if it already has the system); until
+  // the name arrives, or if it cannot be had, the bar shows the id64.
+  const selectedName = createQuery(() => {
+    const id64 = $selectedSystem.value;
+    const known = id64
+      ? queryClient.getQueryData<SystemDetail>(queryKeys.system(id64))?.name
+      : undefined;
+    return {
+      queryKey: [...queryKeys.all, 'system-name', id64] as const,
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        getSystemName(id64!, signal),
+      enabled: persistenceReady && $selectedSystem.hydrated && id64 !== null,
+      initialData: known ?? undefined,
+      staleTime: Infinity,
+      retry: 0,
+    };
+  });
 
   const detailId = $derived.by((): Id64 | null => {
     const raw = page.url.searchParams.get('system');
@@ -109,7 +131,8 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 {#if persistenceReady && $selectedSystem.hydrated && $selectedSystem.value}
   <aside class="context-chip" data-testid="selected-system-context">
-    Selected system <strong>{$selectedSystem.value}</strong>
+    Selected system <strong>{selectedName.data ?? $selectedSystem.value}</strong
+    >
     <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
     <a
       href={exploreSelection

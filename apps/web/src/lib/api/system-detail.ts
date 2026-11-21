@@ -302,6 +302,25 @@ const INSPECT_GENERATION_ATTEMPTS = 2;
  * retryable 503. An unknown system rejects with the system route's 404
  * ApiError; no published generation rejects with 503.
  */
+/**
+ * A system's name, with one small request: the system route alone, without
+ * its bodies, rings, stations or the generation fence getSystem keeps. For a
+ * label (the selected-system bar), never for anything read with the bodies.
+ * `null` when the catalogue has no name for it.
+ */
+export async function getSystemName(
+  id64: Id64,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const { data } = await getV3System({
+    path: { system_id: parseId64(id64) },
+    throwOnError: true,
+    signal,
+  });
+  const name = (data as { name?: unknown }).name;
+  return typeof name === 'string' && name.trim() ? name : null;
+}
+
 export async function getSystem(
   id64: Id64,
   signal?: AbortSignal,

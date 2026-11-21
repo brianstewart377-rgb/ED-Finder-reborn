@@ -8,7 +8,7 @@ import {
 } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getSystem, getSystemRatings } from '$lib/api/client';
+import { getSystem, getSystemName, getSystemRatings } from '$lib/api/client';
 import { queryClient } from '$lib/api/query';
 import {
   referenceSystemDetail,
@@ -45,6 +45,7 @@ vi.mock('$lib/config', () => ({
 vi.mock('$lib/api/client', async (loadOriginal) => ({
   ...(await loadOriginal<typeof import('$lib/api/client')>()),
   getSystem: vi.fn(),
+  getSystemName: vi.fn(),
   getSystemRatings: vi.fn(),
   getSystemRatingExplanation: vi.fn(),
 }));
@@ -87,6 +88,8 @@ beforeEach(() => {
     referenceSystemDetail({ id64, name: `System ${id64}` }),
   );
   vi.mocked(getSystemRatings).mockResolvedValue(referenceSystemRatings());
+  // The bar's name look-up answers nothing until a test says otherwise.
+  vi.mocked(getSystemName).mockImplementation(() => new Promise(() => {}));
   mockedGoto.mockImplementation(
     async (destination: string | URL, options?: { state?: App.PageState }) => {
       restore(String(destination), options?.state ?? {});
@@ -162,6 +165,31 @@ describe('AppShell selection hydration', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(getSystem).not.toHaveBeenCalled();
     expect(mockedGoto).not.toHaveBeenCalled();
+  });
+
+  it('names the selected system in the bar with one small look-up, not the whole detail', async () => {
+    featureGate.enabled = true;
+    vi.mocked(getSystemName).mockResolvedValue('LP 634-1');
+    mount(`/explore?selected=${selectedId}`);
+    const chip = await screen.findByTestId('selected-system-context');
+    await waitFor(() =>
+      expect(chip).toHaveTextContent('Selected system LP 634-1'),
+    );
+    expect(chip).not.toHaveTextContent(selectedId);
+    expect(getSystemName).toHaveBeenCalledExactlyOnceWith(
+      selectedId,
+      expect.any(AbortSignal),
+    );
+    expect(getSystem).not.toHaveBeenCalled();
+  });
+
+  it('keeps the id64 in the bar when the name cannot be had', async () => {
+    featureGate.enabled = true;
+    vi.mocked(getSystemName).mockRejectedValue(new Error('offline'));
+    mount(`/explore?selected=${selectedId}`);
+    const chip = await screen.findByTestId('selected-system-context');
+    await waitFor(() => expect(getSystemName).toHaveBeenCalled());
+    expect(chip).toHaveTextContent(`Selected system ${selectedId}`);
   });
 
   it('opens explicit detail without creating a passive selection', async () => {
