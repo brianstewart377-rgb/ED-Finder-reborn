@@ -432,11 +432,17 @@
     if (FINDER_F4_ENABLED) {
       const params = new URLSearchParams(page.url.searchParams);
       params.set('selected', id64);
+      // Until the new address arrives, the old one still names the system
+      // selected before: nothing is looked up for it meanwhile.
+      viewState.pendingSelection = id64;
       void navigateWithAnchor(
         exploreDestination(
           serializeRankingSearchParams(viewState.rankingState, params),
         ),
-      );
+      ).finally(() => {
+        if (viewState.pendingSelection === id64)
+          viewState.pendingSelection = null;
+      });
     } else selectedSystem.set(id64);
   }
 

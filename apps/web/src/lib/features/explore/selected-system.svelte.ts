@@ -48,6 +48,13 @@ export function createSelectedSystem(source: {
   const selectedId = $derived(
     FINDER_F4_ENABLED ? viewState.urlSelection : selectedValue(),
   );
+  // A system was just chosen and the address naming it is on its way: what
+  // the address says now is the old selection, so nothing is looked up or
+  // kept for it meanwhile.
+  const settling = $derived(
+    viewState.pendingSelection !== null &&
+      viewState.pendingSelection !== viewState.urlSelection,
+  );
   const selectedOnPage = $derived(
     systems.find((system) => system.id64 === selectedId),
   );
@@ -61,6 +68,7 @@ export function createSelectedSystem(source: {
   );
   const needsSelectionResolution = $derived(
     FINDER_F4_ENABLED &&
+      !settling &&
       viewState.rankingUrlReady &&
       viewState.urlSelection !== null &&
       !selectedOnPage &&
@@ -215,7 +223,7 @@ export function createSelectedSystem(source: {
       viewState.retainedSelectedSystem = selectedMapSystem;
   });
   $effect(() => {
-    if (!FINDER_F4_ENABLED) return;
+    if (!FINDER_F4_ENABLED || settling) return;
     // Retain a selected result or exact-system resolution across page changes.
     // Resolution is keyed by id, so late responses cannot move the selection.
     const selected = selectedOnPage ?? reconstructedSelection;

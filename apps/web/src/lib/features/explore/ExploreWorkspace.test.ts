@@ -2035,6 +2035,60 @@ describe('Explore saved systems and Compare pop-outs', () => {
   });
 });
 
+describe('Choosing a result', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryClient.clear();
+    localStorage.clear();
+    stubRuntime();
+    mockFacadeDefaults();
+    featureGate.enabled = true;
+    mockRankedPages();
+  });
+
+  afterEach(() => {
+    cleanup();
+    featureGate.enabled = false;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('looks nothing up while its new address is on its way', async () => {
+    // Near Anchor A, with Anchor A selected, as after choosing it in the
+    // search box: its position came with its suggestion.
+    renderEnabled(`near=${anchorA.id64}&selected=${anchorA.id64}&page_size=3`, {
+      anchor: anchorA,
+    });
+    const list = await screen.findByRole('list', { name: 'System results' });
+    await within(list).findByRole('button', { name: /^Ranked 2\b/ });
+    // In the browser the address changes a moment after the click.
+    const arrive = mockedGoto.getMockImplementation()!;
+    let landed = 0;
+    mockedGoto.mockImplementation(async (...args) => {
+      await new Promise((done) => setTimeout(done, 20));
+      await arrive(...args);
+      landed += 1;
+    });
+    vi.mocked(api.getSystem).mockClear();
+    await fireEvent.click(
+      within(list).getByRole('button', { name: /^Ranked 2\b/ }),
+    );
+    await waitFor(() => expect(landed).toBe(1));
+    await waitFor(() =>
+      expect(
+        within(list).getByRole('button', { name: /^Ranked 2\b/ }),
+      ).toHaveAttribute('aria-pressed', 'true'),
+    );
+    // Neither the system searched near nor the chosen one is looked up:
+    // both are already known.
+    expect(api.getSystem).not.toHaveBeenCalled();
+    expect(mockedPage.url.searchParams.get('selected')).toBe(
+      rankedRows[1].id64,
+    );
+  });
+});
+
 describe('ExploreWorkspace My journeys (V3 journal store)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
