@@ -40,6 +40,8 @@ vi.mock('$lib/api/client', async (loadOriginal) => {
     getSystemRatings: vi.fn(),
     getSystemRatingExplanation: vi.fn(),
     listV3PlanBodies: vi.fn(),
+    // Colony potential (its own tests: ColonyPotential.test.ts) waits here.
+    getSystemArchetypes: vi.fn(() => new Promise(() => {})),
   };
 });
 
@@ -324,17 +326,13 @@ describe('shared system detail', () => {
     expect(detailValue('Bodies returned')).toBe('3');
     expect(detailValue('Stations returned')).toBe('1');
     expect(detailValue('Catalogue updated')).not.toBeNull();
-    // Product gaps are explicit and distinct from unknown source values.
-    const unavailable = container.querySelectorAll(
-      '[data-unavailable-fields][data-availability="not-integrated"]',
-    );
-    expect(unavailable).toHaveLength(2);
-    for (const row of unavailable)
-      expect(within(row as HTMLElement).getByText('Not integrated yet'));
+    // Colony potential leads the Overview; no placeholder rows remain.
+    const overview = screen.getByRole('tabpanel', { name: 'Overview' });
+    expect(overview.firstElementChild).toHaveClass('colony-potential');
+    expect(overview).not.toHaveTextContent('Not integrated yet');
     expect(
-      detailValue('Population, economy, security, allegiance, government'),
-    ).toBe('Not integrated yet');
-    expect(detailValue('Development fit')).toBe('Not integrated yet');
+      screen.queryByText('Development fit', { selector: 'dt' }),
+    ).toBeNull();
     expect(container.textContent).not.toMatch(/undefined|null|NaN/u);
   });
 

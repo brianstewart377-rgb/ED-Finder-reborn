@@ -144,7 +144,6 @@
   aria-labelledby={`${headingId}-ratings`}
   aria-busy={ratings.isPending}
 >
-  <p class="eyebrow">Ratings V4</p>
   <h2 id={`${headingId}-ratings`}>Economy potential</h2>
   {#if ratings.isPending}
     <p class="state-copy" role="status">Loading economy ratings…</p>

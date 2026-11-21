@@ -94,6 +94,7 @@ function theSystemsPageAnswers(): void {
     [`/api/v1/systems/${LP_634_1}/bodies`, 'bodies'],
     [`/api/v1/systems/${LP_634_1}/stations`, 'stations'],
     [`/api/ratings/v4/systems/${LP_634_1}`, 'ratings'],
+    [`/api/archetypes/system/${LP_634_1}`, 'archetypes'],
     [`/api/v1/plan/systems/${LP_634_1}/bodies`, 'plan-bodies'],
   ];
   for (const [path, file] of answers) {
@@ -248,6 +249,13 @@ describe('What a visitor does', () => {
     );
     cy.contains('tr', 'Industrial').should('contain.text', '75');
     cy.contains('tr', 'Tourism').should('contain.text', '70');
+    // Above them, what Find showed for it: 75, Tier B, and what it suits.
+    cy.get('section.colony-potential').within(() => {
+      cy.contains('.score', '75');
+      cy.contains('Tier B');
+      cy.contains('Suits Flexible Multi-Role Colony, then Research Hub.');
+    });
+    cy.contains('Not integrated yet').should('not.exist');
 
     // Bodies: the star and its four icy bodies, by their real names.
     cy.contains('[role=tab]', 'Bodies').click();
