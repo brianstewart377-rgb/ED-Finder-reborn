@@ -372,7 +372,7 @@ describe('SystemOverlay', () => {
       'Anchor A',
     );
     expect(
-      screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
+      screen.getByRole('button', { name: 'Stop searching near Anchor A' }),
     ).toBeInTheDocument();
 
     // Re-fetch after close so history hydration must reconstruct the same query.

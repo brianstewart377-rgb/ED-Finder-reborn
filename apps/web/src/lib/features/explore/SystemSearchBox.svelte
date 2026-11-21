@@ -4,7 +4,7 @@
   // Moved here from ExploreWorkspace.svelte on 15 November 2026; its looks
   // come from app.css (.combobox-wrap, .search-control, .suggestions).
   import { createQuery } from '@tanstack/svelte-query';
-  import { Search } from '@lucide/svelte';
+  import { Search, X } from '@lucide/svelte';
   import {
     autocompleteSystems,
     type AutocompleteSystem,
@@ -15,6 +15,8 @@
     query = $bindable(''),
     onchoose,
     onemptied,
+    clearLabel = null,
+    onclear,
   }: {
     /** What is typed in the box. */
     query?: string;
@@ -22,6 +24,9 @@
     onchoose: (hit: AutocompleteSystem) => void;
     /** The box was emptied by typing. */
     onemptied: () => void;
+    /** When set, an × in the box, named this, calls `onclear`. */
+    clearLabel?: string | null;
+    onclear?: () => void;
   } = $props();
 
   let activeSuggestion = $state(-1);
@@ -118,6 +123,15 @@
       onfocus={() => (autocompleteOpen = normalizedQuery.length >= 2)}
       onkeydown={handleQueryKeydown}
     />
+    {#if clearLabel && onclear}
+      <button
+        type="button"
+        class="search-clear"
+        aria-label={clearLabel}
+        title={clearLabel}
+        onclick={onclear}><X aria-hidden="true" size={18} /></button
+      >
+    {/if}
   </div>
   {#if autocompleteOpen && normalizedQuery.length >= 2}
     <div

@@ -531,6 +531,32 @@ footer {
 .search-control input::placeholder {
   color: var(--text-dim);
 }
+/* The Finder box's own × (Chrome's built-in one would make two). */
+.search-control:has(.search-clear) input::-webkit-search-cancel-button {
+  display: none;
+}
+.search-control .search-clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: pointer;
+}
+.search-control .search-clear:is(:hover, :focus-visible) {
+  background: var(--panel-raised);
+  color: var(--text);
+}
+.search-control .search-clear:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
 .suggestions {
   position: absolute;
   z-index: 10;
