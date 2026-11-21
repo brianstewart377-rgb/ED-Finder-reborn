@@ -3,7 +3,6 @@
   import {
     ANY_ARCHETYPE,
     archetypeLabel,
-    evidenceBadge,
     isTier,
     selectedFitLabel,
     tierLabel,
@@ -17,6 +16,8 @@
         variant: 'row';
         system: ExploreSystem & { best_tier?: Tier | null };
         archetype: Archetype;
+        /** How much of the system is known, as a plain fact. */
+        bodiesKnown?: string | null;
         page?: never;
         counting?: never;
       }
@@ -25,6 +26,7 @@
         page: FinderPageEnvelope;
         archetype: Archetype;
         system?: never;
+        bodiesKnown?: never;
         /** The page's matches were not counted, and the count is on its way. */
         counting?: boolean;
       };
@@ -34,10 +36,9 @@
     system,
     page: incomingPage,
     archetype,
+    bodiesKnown = null,
     counting = false,
   }: Props = $props();
-  const id = $props.id();
-  const descriptionId = `${id}-evidence`;
   const page = $derived.by(() => {
     if (
       incomingPage?.total === 0 &&
@@ -54,9 +55,10 @@
       page.truncation.total_is_counted === false,
   );
   const mode = $derived(archetype === ANY_ARCHETYPE ? 'any' : 'selected');
-  const badge = $derived(
-    evidenceBadge(mode, system?.confidence, system?.completeness),
-  );
+  // With no bodies on record there was nothing to score: its 0 is no score.
+  const notScored = $derived(system?.body_count === 0);
+  // A best score of 0 means no colony type fits; the API still names one.
+  const noFit = $derived(system?.overall_development_potential === 0);
   const fitLabel = $derived(
     mode === 'selected' && system?.score_kind === 'selected_fit'
       ? selectedFitLabel(
@@ -135,17 +137,23 @@
   </span>
 {:else if variant === 'row' && system}
   <span class="ranking-facts">
-    <span class="overall-potential">
-      Best Colony Potential: {known(system.overall_development_potential)
-        ? system.overall_development_potential
-        : 'Unknown'}
-      {#if isTier(system.best_tier)}
-        · <span class="tier-badge kit-chip" data-tier={system.best_tier}
-          >{tierLabel(system.best_tier)}</span
-        >
-      {/if}
-    </span>
-    {#if mode === 'selected'}
+    {#if notScored}
+      <span class="overall-potential" data-not-scored
+        >Not scored: no bodies known</span
+      >
+    {:else}
+      <span class="overall-potential">
+        Best Colony Potential: {known(system.overall_development_potential)
+          ? system.overall_development_potential
+          : 'Unknown'}
+        {#if isTier(system.best_tier)}
+          · <span class="tier-badge kit-chip" data-tier={system.best_tier}
+            >{tierLabel(system.best_tier)}</span
+          >
+        {/if}
+      </span>
+    {/if}
+    {#if mode === 'selected' && !notScored}
       <span class="selected-fit">
         {archetypeLabel(archetype)} fit: {system.score_kind ===
           'selected_fit' && known(system.ranking_score)
@@ -158,20 +166,23 @@
         {/if}
       </span>
     {/if}
-    <span class="classification">
-      <span class="classification-types">
-        Primary: {archetypeLabel(system.primary_archetype) ?? 'Unknown'};
-        Secondary: {archetypeLabel(system.secondary_archetype) ??
-          'No clear secondary'}
+    {#if !notScored}
+      <span class="classification">
+        <span class="classification-types">
+          {#if noFit}
+            No colony type fits what is known here.
+          {:else}
+            Primary: {archetypeLabel(system.primary_archetype) ?? 'Unknown'};
+            Secondary: {archetypeLabel(system.secondary_archetype) ??
+              'No clear secondary'}
+          {/if}
+        </span>
+        {#if fitLabel}<span class="fit-label kit-chip">{fitLabel}</span>{/if}
       </span>
-      {#if fitLabel}<span class="fit-label kit-chip">{fitLabel}</span>{/if}
-    </span>
-    <span class="evidence-badge kit-chip" aria-describedby={descriptionId}
-      >{badge.label}</span
-    >
-    <span id={descriptionId} class="evidence-description"
-      >{badge.description}</span
-    >
+    {/if}
+    {#if bodiesKnown && !notScored}
+      <span class="bodies-known">{bodiesKnown}</span>
+    {/if}
     {#if claimNote}
       <span class="claim-note">
         <span class="claim-badge kit-chip">Claim ended, outcome unknown</span>
@@ -224,8 +235,7 @@
   }
   .tier-badge,
   .fit-label,
-  .claim-badge,
-  .evidence-badge {
+  .claim-badge {
     width: fit-content;
     max-width: 100%;
     padding: 0.15rem 0.4rem;
@@ -256,17 +266,9 @@
   [data-tier='D'] {
     color: var(--color-tier-d);
   }
-  .evidence-badge,
+  .bodies-known,
   .ranking-summary {
     color: var(--text-muted);
     font-size: 0.8rem;
-  }
-  .evidence-description {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 </style>

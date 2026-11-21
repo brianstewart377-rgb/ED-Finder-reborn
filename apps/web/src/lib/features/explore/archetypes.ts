@@ -196,14 +196,6 @@ export function parseAnyMinimumTier(value: unknown): AnyMinimumTier | null {
 /** A minimum tier in either mode: Any's choices include the selected ones. */
 export type FinderMinimumTier = AnyMinimumTier;
 
-// ---------------------------------------------------------------------------
-// Honest uncertainty wording (presentation decision; unit tested; never alters
-// ranking). The word "fit" is forbidden in Any mode because no archetype was
-// picked.
-// ---------------------------------------------------------------------------
-
-export type RankingMode = 'any' | 'selected';
-
 /** Owner decision 2026-10-31: selected score versus the API's best rival. */
 export const CLEAR_FIT_MINIMUM_GAP = 3;
 
@@ -228,60 +220,4 @@ export function selectedFitLabel(
   return score - rivalScore >= CLEAR_FIT_MINIMUM_GAP
     ? 'Clear fit'
     : `Close fit · ${archetypeMetadata(rivalArchetype).label} ${rivalScore}`;
-}
-
-export type EvidenceLevel = 'unknown' | 'limited' | 'moderate' | 'strong';
-
-export type EvidenceBadge = Readonly<{
-  level: EvidenceLevel;
-  /** Visible badge text, e.g. "Evidence confidence: strong". */
-  label: string;
-  /** Accessible description with both raw percentages. */
-  description: string;
-}>;
-
-export const EVIDENCE_LIMITED_BELOW = 0.5;
-export const EVIDENCE_STRONG_AT_LEAST = 0.8;
-
-const finiteRatio = (value: number | null | undefined): value is number =>
-  typeof value === 'number' && Number.isFinite(value);
-
-export function evidenceLevel(
-  confidence: number | null | undefined,
-  completeness: number | null | undefined,
-): EvidenceLevel {
-  if (!finiteRatio(confidence) || !finiteRatio(completeness)) return 'unknown';
-  if (
-    confidence < EVIDENCE_LIMITED_BELOW ||
-    completeness < EVIDENCE_LIMITED_BELOW
-  )
-    return 'limited';
-  if (
-    confidence >= EVIDENCE_STRONG_AT_LEAST &&
-    completeness >= EVIDENCE_STRONG_AT_LEAST
-  )
-    return 'strong';
-  return 'moderate';
-}
-
-const percent = (value: number | null | undefined): string =>
-  finiteRatio(value) ? `${Math.round(value * 100)}%` : 'unknown';
-
-export function evidenceBadge(
-  mode: RankingMode,
-  confidence: number | null | undefined,
-  completeness: number | null | undefined,
-): EvidenceBadge {
-  const noun = mode === 'selected' ? 'Fit confidence' : 'Evidence confidence';
-  const level = evidenceLevel(confidence, completeness);
-  const label = level === 'unknown' ? `${noun} unknown` : `${noun}: ${level}`;
-  const confidencePart = `${noun} ${percent(confidence)}`;
-  const completenessPart = finiteRatio(completeness)
-    ? `evidence ${percent(completeness)} complete`
-    : 'evidence completeness unknown';
-  return {
-    level,
-    label,
-    description: `${confidencePart}; ${completenessPart}`,
-  };
 }

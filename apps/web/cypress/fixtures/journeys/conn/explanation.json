@@ -1,0 +1,171 @@
+{
+  "id64": 9466510583201,
+  "archetypes": [
+    {
+      "key": "paradise",
+      "score": 5,
+      "tier": "D",
+      "confidence": 0.783105,
+      "weighted_e4": 22522,
+      "explanation": {
+        "anchors": [1, 6],
+        "supporting": [],
+        "core": 9.0,
+        "spec": 0.919,
+        "cap": 0.6069,
+        "synergy": 0,
+        "components": {
+          "pot": { "1": 45, "6": 0 },
+          "qual": { "1": 92, "6": 0 },
+          "opp_count": { "1": 1, "6": 0 }
+        }
+      }
+    },
+    {
+      "key": "mining_hub",
+      "score": 0,
+      "tier": "D",
+      "confidence": 0.453028,
+      "weighted_e4": 0,
+      "explanation": {
+        "anchors": [7, 2],
+        "supporting": [],
+        "core": 0.0,
+        "spec": 0.85,
+        "cap": 0.6,
+        "synergy": 0,
+        "components": {
+          "pot": { "7": 0, "2": 0 },
+          "qual": { "7": 0, "2": 0 },
+          "opp_count": { "7": 0, "2": 0 }
+        }
+      }
+    },
+    {
+      "key": "manufacturing_hub",
+      "score": 10,
+      "tier": "D",
+      "confidence": 0.543399,
+      "weighted_e4": 31256,
+      "explanation": {
+        "anchors": [2, 3],
+        "supporting": [],
+        "core": 15.0,
+        "spec": 0.925,
+        "cap": 0.7312,
+        "synergy": 0,
+        "components": {
+          "pot": { "2": 0, "3": 75 },
+          "qual": { "2": 0, "3": 100 },
+          "opp_count": { "2": 0, "3": 14 }
+        }
+      }
+    },
+    {
+      "key": "megacomplex",
+      "score": 6,
+      "tier": "D",
+      "confidence": 0.453028,
+      "weighted_e4": 15635,
+      "explanation": {
+        "anchors": [7, 2, 3],
+        "supporting": [],
+        "core": 10.0,
+        "spec": 0.9,
+        "cap": 0.6583,
+        "synergy": 0,
+        "components": {
+          "pot": { "7": 0, "2": 0, "3": 75 },
+          "qual": { "7": 0, "2": 0, "3": 100 },
+          "opp_count": { "7": 0, "2": 0, "3": 14 }
+        }
+      }
+    },
+    {
+      "key": "research_hub",
+      "score": 0,
+      "tier": "D",
+      "confidence": 1.0,
+      "weighted_e4": 0,
+      "explanation": {
+        "anchors": [4],
+        "supporting": [3],
+        "core": 0.0,
+        "spec": 0.85,
+        "cap": 0.6,
+        "synergy": 0,
+        "components": {
+          "pot": { "4": 0, "3": 75 },
+          "qual": { "4": 0 },
+          "opp_count": { "4": 0 }
+        }
+      }
+    },
+    {
+      "key": "stronghold",
+      "score": 69,
+      "tier": "B",
+      "confidence": 0.543399,
+      "weighted_e4": 215669,
+      "explanation": {
+        "anchors": [5, 3],
+        "supporting": [],
+        "core": 71.0,
+        "spec": 1.0,
+        "cap": 0.9,
+        "synergy": 5,
+        "components": {
+          "pot": { "5": 70, "3": 75 },
+          "qual": { "5": 100, "3": 100 },
+          "opp_count": { "5": 2, "3": 14 }
+        }
+      }
+    },
+    {
+      "key": "population_capital",
+      "score": 5,
+      "tier": "D",
+      "confidence": 0.783105,
+      "weighted_e4": 22522,
+      "explanation": {
+        "anchors": [1, 4],
+        "supporting": [],
+        "core": 9.0,
+        "spec": 0.919,
+        "cap": 0.6069,
+        "synergy": 0,
+        "components": {
+          "pot": { "1": 45, "4": 0 },
+          "qual": { "1": 92, "4": 0 },
+          "opp_count": { "1": 1, "4": 0 }
+        }
+      }
+    },
+    {
+      "key": "flexible",
+      "score": 50,
+      "tier": "C",
+      "confidence": 0.811312,
+      "weighted_e4": 233333,
+      "explanation": { "anchors": [], "breadth": 2, "breadth_target": 4 }
+    }
+  ],
+  "summary": {
+    "primary_archetype": "stronghold",
+    "secondary_archetype": "flexible",
+    "best_colony_potential": 69,
+    "best_tier": "B",
+    "archetype_confidence": 0.550725,
+    "weighted_potential": 31.25889888
+  },
+  "completeness": 0.5752,
+  "ranking": {
+    "ranking_version": "v3-colony-potential-2",
+    "ranking_sha256": "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56",
+    "derived_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
+    "publication_sequence": 1,
+    "archetype_version": "v3-archetype-4",
+    "archetype_manifest_sha256": "438e909a1d645c0d8ff212fb98c8b23a3eafe32147a764e5cd7dbbefb8f0be22",
+    "archetype_model_sha256": "dbf62b783fb2220d92202ab84c7f9adf556ed8be43218716c5a69e052c552533"
+  }
+}

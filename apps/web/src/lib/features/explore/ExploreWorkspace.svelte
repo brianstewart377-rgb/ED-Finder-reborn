@@ -7,6 +7,7 @@
   import {
     ApiError,
     getSystem,
+    getSystemSummary,
     type AutocompleteSystem,
     type ExploreSystem,
   } from '$lib/api/client';
@@ -31,6 +32,7 @@
   } from './navigation';
   import ArchetypePicker from './ArchetypePicker.svelte';
   import ArchetypeExplanation from './ArchetypeExplanation.svelte';
+  import { bodiesKnownText } from './bodies-known';
   import FinderResultLine from './FinderResultLine.svelte';
   import FinderResultRanking from './FinderResultRanking.svelte';
   import BodyFilters from './BodyFilters.svelte';
@@ -139,6 +141,10 @@
   let savedOpen = $state(false);
   let compareOpen = $state(false);
   let savedTrigger = $state<HTMLButtonElement>();
+  // A result's details open as a pop-out when its line is chosen, over the
+  // end of the results' lines, so the list stays where it is.
+  let detailsFor = $state<Id64 | null>(null);
+  let detailsTrigger = $state<HTMLButtonElement>();
   let finderPanel = $state<HTMLElement>();
   let compareTrigger = $state<HTMLButtonElement>();
   let mapSection = $state<HTMLDivElement>();
@@ -599,6 +605,46 @@
     selectedValue: () => $selectedSystem.value,
   });
   const selectedId = $derived(selection.selectedId);
+  // The result whose details are shown, while its line is on the page.
+  const detailsSystem = $derived(
+    detailsFor === null
+      ? undefined
+      : systems.find((system) => system.id64 === detailsFor),
+  );
+  $effect(() => {
+    // Its line has gone (another page, another search): the details go too,
+    // and do not come back by themselves when the line does.
+    if (detailsFor !== null && !systems.some((s) => s.id64 === detailsFor))
+      detailsFor = null;
+  });
+  let lastSelected: Id64 | null = null;
+  $effect(() => {
+    // Another system was selected (a star picked on the map, say): these
+    // details are no longer the selected system's.
+    const selected = selectedId;
+    if (
+      selected !== lastSelected &&
+      selected !== null &&
+      selected !== untrack(() => detailsFor)
+    )
+      detailsFor = null;
+    lastSelected = selected;
+  });
+  // The body counts of the result whose details are open: the same small
+  // request, and the same cached answer, as the selected-system bar's name.
+  const selectedSummary = FINDER_F4_ENABLED
+    ? createQuery(() => {
+        const id64 = detailsFor;
+        return {
+          queryKey: queryKeys.systemSummary(id64),
+          queryFn: ({ signal }: { signal: AbortSignal }) =>
+            getSystemSummary(id64!, signal),
+          enabled: id64 !== null,
+          staleTime: Infinity,
+          retry: 0,
+        };
+      })
+    : undefined;
   const selectedMapSystem = $derived(selection.selectedMapSystem);
   const selectedMapName = $derived(selection.selectedMapName);
   const chosenSystem = $derived(selection.chosenSystem);
@@ -661,6 +707,38 @@
     viewState.retainedSelectedSystem = system;
     // The map shows the selected system, so selecting one flies it there.
     commitSelection(system.id64);
+  }
+
+  /** "M (Red dwarf) Star · 42.94 LY from Sol": what a result is and where. */
+  function resultWhere(system: ExploreSystem): string {
+    const reference = system.distance_reference;
+    const from = reference?.kind === 'sol' ? 'Sol' : (reference?.name ?? null);
+    return [
+      system.main_star_type ? starClassLabel(system.main_star_type) : null,
+      system.distance != null
+        ? `${system.distance.toFixed(2)} LY${from ? ` from ${from}` : ''}`
+        : null,
+    ]
+      .filter((part) => part !== null)
+      .join(' · ');
+  }
+
+  /** A result's line was chosen: select it and show its details. */
+  function openResult(event: Event, system: ExploreSystem): void {
+    selectResult(system);
+    if (!FINDER_F4_ENABLED) return;
+    detailsTrigger = event.currentTarget as HTMLButtonElement;
+    detailsFor = system.id64;
+  }
+
+  /** "Show on map" in a result's details: the details give way to the map. */
+  function showMapFromDetails(event: MouseEvent, system: ExploreSystem): void {
+    const line = detailsTrigger;
+    detailsFor = null;
+    showMap(event, system);
+    // Back from the map, focus returns to the result's own line: the
+    // pop-out's button is gone by then.
+    if (line) panelToggleOrigin = line;
   }
 
   function showMap(
@@ -778,7 +856,7 @@
   ): void {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
-    selectResult(system);
+    openResult(event, system);
   }
 
   function toggleTravelHeatmap(): void {
@@ -1190,8 +1268,10 @@
                 class="result-select"
                 type="button"
                 data-result-select
+                data-inspect-popout-trigger={FINDER_F4_ENABLED ? '' : undefined}
+                aria-haspopup={FINDER_F4_ENABLED ? 'dialog' : undefined}
                 aria-pressed={$selectedSystem.value === system.id64}
-                onclick={() => selectResult(system)}
+                onclick={(event) => openResult(event, system)}
                 onkeydown={(event) => handleResultKeydown(event, system)}
               >
                 <span class="result-title"
@@ -1247,16 +1327,9 @@
                 <!-- eslint-enable svelte/no-navigation-without-resolve -->
                 <SystemActions {system} />
               </div>
-              {#if selectedId === system.id64}
-                <!-- The selected result's details, under its line. -->
+              {#if !FINDER_F4_ENABLED && selectedId === system.id64}
+                <!-- The selected result's actions, under its line. -->
                 <div class="result-details">
-                  {#if rankedList}
-                    <FinderResultRanking
-                      variant="row"
-                      {system}
-                      archetype={displayedResults!.finderState!.archetype}
-                    />
-                  {/if}
                   <div class="result-detail-actions">
                     <button
                       type="button"
@@ -1267,20 +1340,72 @@
                       onclick={(event) => showMap(event, system)}
                       >Show on map</button
                     >
-                    {#if rankedList}
-                      <ArchetypeExplanation
-                        {system}
-                        expected={system.ranking_provenance ?? null}
-                        archetype={displayedResults!.finderState!.archetype}
-                        headingId={`finder-result-heading-${system.id64}`}
-                      />
-                    {/if}
                   </div>
                 </div>
               {/if}
             </li>
           {/each}
         </ul>
+      {/if}
+      {#if FINDER_F4_ENABLED}
+        <!-- The chosen result's details: a pop-out over the end of the
+             results' lines. Choosing another line shows that one instead. -->
+        <InspectPopout
+          id="explore-result-details"
+          title={detailsSystem?.name ?? `System ${detailsSystem?.id64 ?? ''}`}
+          kind="result"
+          open={detailsSystem !== undefined}
+          trigger={detailsTrigger}
+          inside={resultsSection}
+          onclose={() => (detailsFor = null)}
+        >
+          {#if detailsSystem}
+            {@const system = detailsSystem}
+            <div class="result-popout" data-result-details={system.id64}>
+              <p class="result-popout-where">{resultWhere(system)}</p>
+              {#if rankedList}
+                <FinderResultRanking
+                  variant="row"
+                  {system}
+                  archetype={displayedResults!.finderState!.archetype}
+                  bodiesKnown={bodiesKnownText(
+                    selectedSummary?.data?.loadedBodyCount ?? system.body_count,
+                    selectedSummary?.data?.sourceBodyCount,
+                  )}
+                />
+                {#if system.body_count !== 0}
+                  <ArchetypeExplanation
+                    {system}
+                    expected={system.ranking_provenance ?? null}
+                    archetype={displayedResults!.finderState!.archetype}
+                  />
+                {/if}
+              {/if}
+              <div class="result-detail-actions">
+                <button
+                  type="button"
+                  class="result-map-action secondary-button pill-action"
+                  data-result-map-open
+                  aria-controls="explore-map-window"
+                  disabled={!chosenSystem}
+                  onclick={(event) => showMapFromDetails(event, system)}
+                  >Show on map</button
+                >
+                <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
+                <a
+                  class="inspect-link secondary-button"
+                  href={inspectHref(system.id64, page.url)}
+                  onclick={(event) => followInspect(event, system.id64)}
+                >
+                  Inspect <ArrowRight aria-hidden="true" size={16} />
+                </a>
+                <!-- eslint-enable svelte/no-navigation-without-resolve -->
+              </div>
+              <!-- The line's own Pin, Compare and Watch are under the pop-out. -->
+              <SystemActions {system} />
+            </div>
+          {/if}
+        </InspectPopout>
       {/if}
       {#if FINDER_F4_ENABLED && displayedResults}
         <nav class="result-paging" aria-label="Result pages">
@@ -2030,6 +2155,24 @@
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+  /* A result's details, in their pop-out. */
+  .result-popout {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .result-popout :global(.ranking-facts) {
+    margin: 0;
+  }
+  .result-popout .inspect-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .result-popout-where {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
   }
   /* Not wide enough for the buttons at the end of the line: they go under
      it, on the right, and the columns keep their line. */

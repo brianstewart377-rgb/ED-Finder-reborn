@@ -410,7 +410,13 @@
       hidden={tab !== 'overview'}
       inert={tab !== 'overview'}
     >
-      <ColonyPotential active={tab === 'overview'} {id64} {headingId} />
+      <ColonyPotential
+        active={tab === 'overview'}
+        {id64}
+        {headingId}
+        loadedBodyCount={detail.data.loadedBodyCount}
+        sourceBodyCount={detail.data.sourceBodyCount}
+      />
       <dl class="detail-grid">
         <div
           data-unavailable-fields={coordinates === AVAILABILITY_LABELS.unknown

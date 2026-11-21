@@ -2648,6 +2648,10 @@ export type SystemRow = {
      */
     selected_archetype_tier?: 'S' | 'A' | 'B' | 'C' | 'D' | null;
     /**
+     * Body Count
+     */
+    body_count?: number | null;
+    /**
      * Elw Count
      */
     elw_count?: number | null;

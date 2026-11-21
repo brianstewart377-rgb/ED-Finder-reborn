@@ -174,7 +174,9 @@ class SystemRow(BaseModel):
     selected_archetype_score: Optional[int] = None
     selected_archetype_tier: Optional[TierValue] = None
     # Body counts surfaced flat for filter pills (the search SQL
-    # projects these from the ratings row).
+    # projects these from the ratings row). `body_count` is every body we
+    # hold for the system, stars included: 0 means it could not be scored.
+    body_count:           Optional[int] = None
     elw_count:            Optional[int] = None
     ww_count:             Optional[int] = None
     ammonia_count:        Optional[int] = None

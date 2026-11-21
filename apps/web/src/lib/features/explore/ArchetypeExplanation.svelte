@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import {
     getArchetypeExplanation,
     type ArchetypeExplanationEntry,
@@ -11,31 +12,27 @@
   import {
     ANY_ARCHETYPE,
     archetypeLabel,
-    evidenceBadge,
+    isArchetypeKey,
     tierLabel,
     type ArchetypeKey,
   } from './archetypes';
+  import { colonyTypeReason } from './colony-type-reasons';
 
-  let { system, expected, archetype, headingId } = $props<{
+  // Why the selected result scored what it did, in plain words: the colony
+  // type the list is ranked by (or, for Any, the one the system suits best)
+  // straight away, and every other colony type on request. One small request,
+  // made when the result is selected; only the selected result has this.
+  let { system, expected, archetype } = $props<{
     system: ExploreSystem;
     expected: ArchetypeExplanationIdentity | null;
     archetype: typeof ANY_ARCHETYPE | ArchetypeKey;
-    headingId: string;
   }>();
 
   const id = $props.id();
-  const regionId = `${id}-explanation`;
+  const othersId = `${id}-others`;
   const identityKey = $derived(
     JSON.stringify(queryKeys.archetypeExplanation(system.id64, expected)),
   );
-  let openedFor = $state<string | null>(null);
-  const expanded = $derived(openedFor === identityKey);
-  const mode = $derived(archetype === ANY_ARCHETYPE ? 'any' : 'selected');
-
-  // Reused cards must be expanded again after their system or product changes.
-  $effect(() => {
-    if (openedFor !== identityKey) openedFor = null;
-  });
 
   let requested = $state<{
     key: string;
@@ -46,8 +43,6 @@
   );
   let requestSequence = 0;
 
-  // Even query-cache entries are lazy: collapsed result cards add no queries
-  // to the Finder's bounded workload. Every actual request uses the shared key.
   async function loadExplanation(retry = false): Promise<void> {
     if (!FINDER_F4_ENABLED || !expected) return;
     const key = identityKey;
@@ -67,212 +62,220 @@
     } catch {
       data = { kind: 'error', status: 0 };
     }
-    // A late response for a previous card must never replace its successor.
+    // A late answer for a previous result must never replace its successor.
     if (identityKey === key && requestSequence === sequence) {
       requested = { key, data };
     }
   }
 
-  function toggle(): void {
-    if (expanded) openedFor = null;
-    else {
-      openedFor = identityKey;
-      void loadExplanation();
-    }
-  }
+  // Asked for again whenever the result, or the scores behind it, change.
+  $effect(() => {
+    void identityKey;
+    untrack(() => void loadExplanation());
+  });
 
-  const economies: Readonly<Record<number, string>> = {
-    1: 'Agriculture',
-    2: 'Refinery',
-    3: 'Industrial',
-    4: 'High Tech',
-    5: 'Military',
-    6: 'Tourism',
-    7: 'Extraction',
-  };
-  const record = (value: unknown): Record<string, unknown> =>
-    value !== null && typeof value === 'object' && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : {};
-  const numeric = (value: unknown): value is number =>
-    typeof value === 'number' && Number.isFinite(value);
-  const number = (value: unknown): string =>
-    numeric(value)
-      ? value.toLocaleString('en-US', { maximumFractionDigits: 4 })
-      : 'unknown';
-  const economyOrdinals = (value: unknown): number[] =>
-    Array.isArray(value)
-      ? value.filter(
-          (ordinal): ordinal is number =>
-            numeric(ordinal) && Object.hasOwn(economies, ordinal),
-        )
-      : [];
+  // The other colony types stay folded until asked for, for each result.
+  let othersOpenFor = $state<string | null>(null);
+  const othersOpen = $derived(othersOpenFor === identityKey);
 
-  /** Translate the endpoint's open explanation object; never recompute scores. */
-  function contributions(entry: ArchetypeExplanationEntry): string[] {
-    const details = entry.explanation;
-    if (entry.key === 'flexible') {
-      return [
-        `${number(details.breadth)} qualifying economies toward the target of ${number(details.breadth_target)}.`,
-      ];
-    }
-    const anchors = economyOrdinals(details.anchors);
-    const supporting = economyOrdinals(details.supporting);
-    const components = record(details.components);
-    const potential = record(components.pot);
-    const quality = record(components.qual);
-    const opportunities = record(components.opp_count);
-    return [
-      `Required economies: ${anchors.map((ordinal) => economies[ordinal]).join(', ') || 'unknown'}.`,
-      ...(supporting.length
-        ? [
-            `Supporting economies: ${supporting.map((ordinal) => economies[ordinal]).join(', ')}.`,
-          ]
-        : []),
-      ...anchors.map(
-        (ordinal) =>
-          `${economies[ordinal]}: potential ${number(potential[ordinal])} out of 100; quality ${
-            quality[ordinal] === null
-              ? 'unknown (bounded estimate used)'
-              : numeric(quality[ordinal])
-                ? `${number(quality[ordinal])} out of 100`
-                : 'unknown'
-          }; ${number(opportunities[ordinal])} opportunities.`,
-      ),
-      ...supporting.map(
-        (ordinal) =>
-          `${economies[ordinal]}: potential ${number(potential[ordinal])} out of 100.`,
-      ),
-      `Economy strength: ${number(details.core)} points before adjustments.`,
-      `Specialisation adjustment: ×${number(details.spec)}.`,
-      `Opportunity capacity adjustment: ×${number(details.cap)}.`,
-      `Economy synergy: ${number(details.synergy)} additional points.`,
-    ];
-  }
+  const entries = $derived(
+    explanation?.kind === 'explained' ? explanation.archetypes : [],
+  );
+  // The colony type the list is ranked by; for Any, the one the system suits
+  // best, whose score is its Best Colony Potential.
+  const lead = $derived.by((): ArchetypeExplanationEntry | null => {
+    if (explanation?.kind !== 'explained') return null;
+    const wanted =
+      archetype !== ANY_ARCHETYPE
+        ? archetype
+        : explanation.summary.primary_archetype;
+    return (
+      (isArchetypeKey(wanted)
+        ? entries.find((entry) => entry.key === wanted)
+        : undefined) ??
+      [...entries].sort((a, b) => b.score - a.score)[0] ??
+      null
+    );
+  });
+  const others = $derived(
+    entries
+      .filter((entry) => entry.key !== lead?.key)
+      .sort((a, b) => b.score - a.score),
+  );
 </script>
 
+{#snippet reasons(entry: ArchetypeExplanationEntry)}
+  {@const reason = colonyTypeReason(entry)}
+  <p class="reason-needs">{reason.needs}</p>
+  {#if reason.economies.length}
+    <ul class="reason-economies">
+      {#each reason.economies as line, index (index)}
+        <li>{line}</li>
+      {/each}
+    </ul>
+  {/if}
+  {#if reason.steps.length}
+    <p class="reason-sum">How that makes {entry.score}:</p>
+    <ul class="reason-steps">
+      {#each reason.steps as step, index (index)}
+        <li>{step}</li>
+      {/each}
+    </ul>
+  {/if}
+{/snippet}
+
 {#if FINDER_F4_ENABLED}
-  <div class="archetype-explanation">
-    <button
-      type="button"
-      class="quiet-button explanation-toggle"
-      data-archetype-explanation-toggle
-      aria-expanded={expanded}
-      aria-controls={regionId}
-      onclick={toggle}
-    >
-      Explain archetypes
-    </button>
-    <div
-      id={regionId}
-      role="region"
-      aria-labelledby={headingId}
-      data-archetype-explanation
-      hidden={!expanded}
-    >
-      {#if expanded}
-        {#if !expected || explanation?.kind === 'explanation_unavailable'}
-          <p role="status">Explanation unavailable for this ranking version</p>
-        {:else if explanation === null}
-          <p role="status">Loading colony type explanations…</p>
-        {:else if explanation.kind === 'error'}
-          <p role="alert">
-            {explanation.status === 404
-              ? 'This system has no colony type explanation yet.'
-              : 'Colony type explanations are temporarily unavailable.'}
-          </p>
-          <button
-            type="button"
-            class="quiet-button"
-            onclick={() => loadExplanation(true)}>Try again</button
-          >
-        {:else if explanation.kind === 'explained'}
-          {#each explanation.archetypes as entry (entry.key)}
-            {@const badge = evidenceBadge(
-              mode,
-              entry.confidence,
-              explanation.completeness,
-            )}
+  <section
+    class="archetype-explanation"
+    data-archetype-explanation
+    aria-label={`Why ${system.name ?? 'this system'} got its score`}
+  >
+    {#if !expected || explanation?.kind === 'explanation_unavailable'}
+      <p role="status">
+        The reasons for this score can't be shown: the scores have been updated
+        since this list was made. Search again to see them.
+      </p>
+    {:else if explanation === null}
+      <p role="status">Loading why it scored this…</p>
+    {:else if explanation.kind === 'error'}
+      <p role="alert">
+        {explanation.status === 404
+          ? 'This system has no colony type explanation yet.'
+          : 'Colony type explanations are temporarily unavailable.'}
+      </p>
+      <button
+        type="button"
+        class="quiet-button"
+        onclick={() => loadExplanation(true)}>Try again</button
+      >
+    {:else if lead}
+      <div data-explanation-archetype={lead.key} data-explanation-lead>
+        <h3 id={`${id}-lead`}>
+          Why {archetypeLabel(lead.key)} scores {lead.score}
+        </h3>
+        {@render reasons(lead)}
+      </div>
+      <button
+        type="button"
+        class="quiet-button explanation-toggle"
+        data-archetype-explanation-toggle
+        aria-expanded={othersOpen}
+        aria-controls={othersId}
+        onclick={() => (othersOpenFor = othersOpen ? null : identityKey)}
+      >
+        Every other colony type
+      </button>
+      <div id={othersId} hidden={!othersOpen}>
+        {#if othersOpen}
+          {#each others as entry (entry.key)}
             <section
-              class="archetype-contributions"
+              class="other-type"
               data-explanation-archetype={entry.key}
-              aria-labelledby={`${id}-${entry.key}-heading`}
+              aria-labelledby={`${id}-${entry.key}`}
             >
-              <h3 id={`${id}-${entry.key}-heading`}>
+              <h3 id={`${id}-${entry.key}`}>
                 {archetypeLabel(entry.key)}
-              </h3>
-              <p>
-                Score: <span class="explanation-score">{entry.score}</span> ·
-                <span class="tier-badge" data-tier={entry.tier}
+                <span class="explanation-score">{entry.score}</span>
+                <span class="tier-badge kit-chip" data-tier={entry.tier}
                   >{tierLabel(entry.tier)}</span
                 >
-              </p>
-              <p
-                class="evidence-badge"
-                aria-describedby={`${id}-${entry.key}-evidence`}
-              >
-                {badge.label}
-              </p>
-              <p
-                id={`${id}-${entry.key}-evidence`}
-                class="evidence-description"
-              >
-                {badge.description}
-              </p>
-              <ul class="contribution-list">
-                {#each contributions(entry) as contribution, index (index)}
-                  <li class="contribution">{contribution}</li>
-                {/each}
-              </ul>
+              </h3>
+              {@render reasons(entry)}
             </section>
           {/each}
         {/if}
-      {/if}
-    </div>
-  </div>
+      </div>
+    {/if}
+  </section>
 {/if}
 
 <style>
   .archetype-explanation {
-    grid-column: 1 / -1;
     min-width: 0;
-    padding: 0 0.8rem 0.8rem 1.15rem;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-sunken);
     font-size: 0.85rem;
-  }
-  .explanation-toggle {
-    margin-bottom: 0.5rem;
-  }
-  .archetype-contributions {
-    padding-block: 0.75rem;
-    border-top: 1px solid var(--muted);
+    line-height: 1.5;
   }
   h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
   }
   p {
-    margin-block: 0.5rem;
+    margin: 0.35rem 0;
   }
-  .tier-badge {
-    white-space: nowrap;
-    border: 1px solid currentColor;
-    border-radius: 0.3rem;
-    padding: 0.15rem 0.4rem;
-    font-size: 0.8rem;
+  .reason-sum {
+    margin-top: 0.6rem;
+    color: var(--text-muted);
   }
-  .evidence-badge,
-  .evidence-description {
-    color: var(--muted);
+  ul {
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
   }
-  .contribution-list {
-    margin: 0.5rem 0 0;
-    padding-left: 1.25rem;
-    list-style: disc;
-  }
-  .contribution {
-    display: list-item;
-    margin-block: 0.35rem;
+  /* Result rows style every `li` in the list: these are plain lines. */
+  li {
+    display: block;
+    margin: 0.15rem 0;
     padding: 0;
     border: 0;
+    background: none;
+  }
+  .reason-economies li {
+    padding-left: 0.9rem;
+    text-indent: -0.9rem;
+  }
+  .reason-economies li::before {
+    content: '•';
+    display: inline-block;
+    width: 0.9rem;
+    text-indent: 0;
+    color: var(--text-muted);
+  }
+  .reason-steps {
+    font-variant-numeric: tabular-nums;
+  }
+  .explanation-toggle {
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.7rem;
+    font: inherit;
+  }
+  .other-type {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--line);
+  }
+  .explanation-score {
+    font-variant-numeric: tabular-nums;
+  }
+  .tier-badge {
+    padding: 0.05rem 0.4rem;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-pill);
+    background: var(--panel-raised);
+    font-size: 0.75rem;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  [data-tier='S'] {
+    color: var(--color-tier-s);
+  }
+  [data-tier='A'] {
+    color: var(--color-tier-a);
+  }
+  [data-tier='B'] {
+    color: var(--color-tier-b);
+  }
+  [data-tier='C'] {
+    color: var(--color-tier-c);
+  }
+  [data-tier='D'] {
+    color: var(--color-tier-d);
   }
 </style>

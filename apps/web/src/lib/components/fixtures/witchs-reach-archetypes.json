@@ -1,0 +1,101 @@
+{
+  "id64": 1659761592683,
+  "name": "Witch's Reach",
+  "coords": { "x": 28.0, "y": -16.09375, "z": 7.90625 },
+  "distance_to_sol": 33.25,
+  "main_star_class": null,
+  "galaxy_region_id": null,
+  "galaxy_region": null,
+  "archetypes": {
+    "paradise": {
+      "score": 0,
+      "tier": "D",
+      "label": "Paradise World",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "mining_hub": {
+      "score": 0,
+      "tier": "D",
+      "label": "Mining Hub",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "manufacturing_hub": {
+      "score": 0,
+      "tier": "D",
+      "label": "Manufacturing Hub",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "megacomplex": {
+      "score": 0,
+      "tier": "D",
+      "label": "Megacomplex",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "research_hub": {
+      "score": 0,
+      "tier": "D",
+      "label": "Research Hub",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "stronghold": {
+      "score": 0,
+      "tier": "D",
+      "label": "Stronghold",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "population_capital": {
+      "score": 0,
+      "tier": "D",
+      "label": "Population Capital",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    },
+    "flexible": {
+      "score": 0,
+      "tier": "D",
+      "label": "Flexible Multi-Role Colony",
+      "confidence": 0.0,
+      "weighted_e4": 0
+    }
+  },
+  "primary_archetype": "paradise",
+  "secondary_archetype": null,
+  "archetype_confidence": 0.0,
+  "overall_development_potential": 0,
+  "best_tier": "D",
+  "weighted_potential": 0.0,
+  "confidence": 0.0,
+  "completeness": 0.0,
+  "facts": {
+    "body_count": 0,
+    "landable_count": 0,
+    "station_count": 0,
+    "has_rings": false,
+    "has_biologicals": false,
+    "has_geologicals": false,
+    "has_terraformable": false,
+    "elw_count": 0,
+    "ww_count": 0,
+    "terraformable_count": 0,
+    "gas_giant_count": 0,
+    "ring_count": 0,
+    "bio_signal_total": 0,
+    "geo_signal_total": 0
+  },
+  "query_ms": 15,
+  "ranking": {
+    "ranking_version": "v3-colony-potential-2",
+    "ranking_sha256": "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56",
+    "derived_generation_id": "cfc25d36-3bc7-4011-a465-d6460eaaf826",
+    "publication_sequence": 1,
+    "archetype_version": "v3-archetype-4",
+    "archetype_manifest_sha256": "438e909a1d645c0d8ff212fb98c8b23a3eafe32147a764e5cd7dbbefb8f0be22",
+    "archetype_model_sha256": "dbf62b783fb2220d92202ab84c7f9adf556ed8be43218716c5a69e052c552533"
+  }
+}

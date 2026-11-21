@@ -1420,11 +1420,11 @@ describe('shared system detail', () => {
       'Military',
     ]);
     const first = section.querySelector('[data-rating-economy="Agriculture"]');
-    // Economy, potential, confidence, explanation control.
+    // Economy, potential, explanation control. No confidence column: a
+    // percentage of certainty read as "we don't really know".
     expect(partsOf(first as HTMLElement)).toEqual([
       'Agriculture',
       '84',
-      '72%',
       'Why?',
     ]);
     expect(

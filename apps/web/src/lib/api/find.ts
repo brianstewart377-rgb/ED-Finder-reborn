@@ -137,6 +137,7 @@ export type ExploreSystem = Readonly<
     | 'build_complexity'
     | 'est_total_slots'
     | 'tags'
+    | 'body_count'
     | 'elw_count'
     | 'ww_count'
     | 'ammonia_count'
