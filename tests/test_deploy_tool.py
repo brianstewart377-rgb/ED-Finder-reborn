@@ -146,7 +146,11 @@ class FakeSite:
 
         class Handler(BaseHTTPRequestHandler):
             def answer(self):
-                status, body = answers.get(self.path, (404, "missing"))
+                answer = answers.get(self.path, (404, "missing"))
+                # A list is answered in turn, its last answer from then on.
+                if isinstance(answer, list):
+                    answer = answer.pop(0) if len(answer) > 1 else answer[0]
+                status, body = answer
                 data = body.encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Length", str(len(data)))
@@ -260,20 +264,28 @@ def test_warm_runs_the_searches_visitors_start_with_on_the_live_address(fake_sit
     site = warm_site(fake_site)
     tool.command_warm(warm_settings(site))
     printed = capsys.readouterr().out.splitlines()
-    # Galaxy-wide, Any and each colony type, at both reaches: 18 searches.
-    assert len(printed) == 19 and printed[-1] == "OK: Find is warmed up. Nothing was changed."
+    # Galaxy-wide, Any and each colony type, at both reaches (18 searches),
+    # then Any near Sol.
+    assert len(printed) == 20 and printed[-1] == "OK: Find is warmed up. Nothing was changed."
     assert printed[0].startswith("Any, galaxy-wide, 250 ly") and printed[0].endswith("412 found")
     assert printed[1].startswith("paradise, galaxy-wide, 250 ly")
     assert printed[1].endswith("1,000+ found")
     assert printed[9].startswith("Any, galaxy-wide, 500 ly")
+    assert printed[18].startswith("Any near Sol, tier C, 250 ly")
     assert all(re.search(r" \d+ ms  ", line) for line in printed[:-1])
-    # Any as the web app asks for it, at each reach, and waiting for its
-    # count: Find otherwise answers the page without a slow count, and what
-    # the count reads would stay cold.
+    # Any as the web app asks for it, galaxy-wide at each reach and near
+    # Sol, and waiting for its count: Find otherwise answers the page
+    # without a slow count, and what the count reads would stay cold.
     assert [body for _, _, body in site.posted] == [
         {"galaxy_wide": True, "sort_by": "development", "size": 50, "from": 0, "reach_ly": reach,
          "wait_for_count": True}
-        for reach in (250, 500)]
+        for reach in (250, 500)] + [
+        # As tests in apps/web check the web app asks it: its journey
+        # "searches near Sol" and ranking-state's request for Any.
+        {"reference_coords": {"x": 0, "y": 0, "z": 0},
+         "filters": {"distance": {"min": 0, "max": 500}, "economy": "any"},
+         "sort_by": "distance", "size": 50, "from": 0, "reach_ly": 250,
+         "min_development_score": 45, "wait_for_count": True}]
 
 
 def test_warm_says_so_when_a_search_answered_without_its_count(fake_site, capsys):
@@ -288,34 +300,64 @@ def test_warm_says_so_when_a_search_answered_without_its_count(fake_site, capsys
 
 
 def test_warm_asks_for_the_apis_own_colony_types_tier_and_reaches():
-    from edfinder_api.ranking.profile import ARCHETYPE_KEYS, ARCHETYPE_SCORE_FLOOR_DEFAULT
-    from edfinder_api.reach_rule import REACH_CHOICES
+    from edfinder_api.ranking.profile import (
+        ARCHETYPE_KEYS,
+        ARCHETYPE_SCORE_FLOOR_DEFAULT,
+        LOCAL_SEARCH_FILTERED_ANCHORED_RADIUS_CAP_LY,
+        TIER_THRESHOLDS,
+    )
+    from edfinder_api.reach_rule import DEFAULT_REACH_LY, REACH_CHOICES
 
     assert tool.COLONY_TYPES == ARCHETYPE_KEYS
     # The web app's default minimum tier, B, is a fit of 60 or more.
     assert tool.WARM_MIN_SCORE == ARCHETYPE_SCORE_FLOOR_DEFAULT == 60
     assert tool.WARM_REACHES == REACH_CHOICES
+    # Near a system: tier C or better, as far as a filtered search goes, at
+    # the default reach.
+    assert tool.WARM_NEAR_SOL_MIN_SCORE == TIER_THRESHOLDS["C"] == 45
+    assert tool.WARM_NEAR_SOL_RADIUS_LY == LOCAL_SEARCH_FILTERED_ANCHORED_RADIUS_CAP_LY
+    assert tool.WARM_NEAR_SOL_REACH_LY == DEFAULT_REACH_LY
 
 
 def test_warm_runs_every_search_and_then_fails_if_any_did(fake_site, capsys):
     site = warm_site(fake_site, **{
         ranking("stronghold", 500): (503, "{}"),
         ranking("flexible", 250): (200, "not json")})
-    with pytest.raises(tool.DeployError, match="2 of 18 searches failed"):
+    with pytest.raises(tool.DeployError, match="2 of 19 searches failed"):
         tool.command_warm(warm_settings(site))
     printed = capsys.readouterr().out.splitlines()
-    assert len(printed) == 18
-    assert [line.split("  ")[0] for line in printed if "FAILED" in line] == [
-        "flexible, galaxy-wide, 250 ly", "stronghold, galaxy-wide, 500 ly"]
-    assert "FAILED: did not answer with JSON" in printed[8]
-    assert "FAILED: answered 503" in printed[15]
+    # 17 searches answered; the two that did not were each asked twice.
+    assert len(printed) == 21
+    failures = [line for line in printed if "FAILED" in line]
+    assert [line.split("  ")[0] for line in failures] == [
+        "flexible, galaxy-wide, 250 ly"] * 2 + ["stronghold, galaxy-wide, 500 ly"] * 2
+    assert failures[0].endswith("FAILED: did not answer with JSON; asking once more")
+    assert failures[1].endswith("FAILED again: did not answer with JSON")
+    assert failures[2].endswith("FAILED: answered 503; asking once more")
+    assert failures[3].endswith("FAILED again: answered 503")
+
+
+def test_warm_asks_a_search_once_more_when_it_fails_the_first_time(fake_site, capsys):
+    """Cold, a search can run out of time; the first try still reads some of
+    what it needs, and the second is quicker."""
+    near_sol = [(503, "{}"), (200, json.dumps(
+        {"results": [], "total": 1000, "total_is_capped": True}))]
+    site = warm_site(fake_site, **{"/api/local/search": near_sol})
+    tool.command_warm(warm_settings(site))
+    printed = capsys.readouterr().out.splitlines()
+    assert printed[0].startswith("Any, galaxy-wide, 250 ly")
+    assert printed[0].endswith("FAILED: answered 503; asking once more")
+    assert printed[1].startswith("Any, galaxy-wide, 250 ly")
+    assert printed[1].endswith("1,000+ found")
+    assert printed[-1] == "OK: Find is warmed up. Nothing was changed."
+    assert len(site.posted) == 4
 
 
 def test_warm_says_so_when_the_site_does_not_answer(capsys):
     with socket.socket() as spare:
         spare.bind(("127.0.0.1", 0))
         port = spare.getsockname()[1]
-    with pytest.raises(tool.DeployError, match="18 of 18 searches failed"):
+    with pytest.raises(tool.DeployError, match="19 of 19 searches failed"):
         tool.command_warm(settings(EDFINDER_LIVE_BIND="127.0.0.1:%d" % port))
     assert "FAILED: no answer from http://127.0.0.1:%d" % port in capsys.readouterr().out
 

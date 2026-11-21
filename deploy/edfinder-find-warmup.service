@@ -1,5 +1,6 @@
 # Run the searches visitors start with once (edfinder_deploy.py warm): Find,
-# galaxy-wide, for Any and for each colony type, at 250 and 500 ly. A nightly
+# galaxy-wide, for Any and for each colony type, at 250 and 500 ly, and Any
+# near Sol, the search Home's example starts. A nightly
 # job that reads a lot of the database pushes what those searches read out of
 # memory, and the first visitor afterwards would wait while it is read from
 # the drive again. Reads only; changes nothing. A minute or two.

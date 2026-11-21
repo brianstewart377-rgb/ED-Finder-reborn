@@ -608,7 +608,8 @@ def find_check(origin: str) -> None:
 
 # The searches visitors start with: galaxy-wide, for Any and for each colony
 # type at the web app's default minimum tier (B, a fit of 60 or more), at both
-# reaches, first page, as the web app asks for them. A nightly job that reads
+# reaches, and Any near Sol; first page, as the web app asks for them. A
+# search that fails is asked once more. A nightly job that reads
 # a lot of the database pushes what they read out of memory; run once after
 # it (edfinder-find-warmup.service), they put it back, so the day's first
 # visitor does not wait for the drive. The colony types are the API's own
@@ -619,6 +620,15 @@ WARM_REACHES = (250, 500)
 WARM_MIN_SCORE = 60
 WARM_PAGE = 50
 WARM_TIMEOUT_SECONDS = 120
+# And the search Home's example starts: Any near Sol, nearest first, tier C
+# or better (a Best Colony Potential of 45 or more, the web app's default
+# "Show only" near a system), within 500 ly of Sol (the most a filtered
+# search goes), at the default reach. It reads another part of the database
+# than the galaxy-wide lists: cold it took 9 s, warm 0.4 s (the live site,
+# 21 November 2026).
+WARM_NEAR_SOL_MIN_SCORE = 45
+WARM_NEAR_SOL_RADIUS_LY = 500
+WARM_NEAR_SOL_REACH_LY = 250
 
 
 def warm_searches() -> List[Tuple[str, str, Optional[Dict[str, Any]]]]:
@@ -637,7 +647,35 @@ def warm_searches() -> List[Tuple[str, str, Optional[Dict[str, Any]]]]:
                 "/api/archetypes/rankings?archetype=%s&min_score=%d&limit=%d"
                 "&offset=0&reach_ly=%d" % (colony_type, WARM_MIN_SCORE, WARM_PAGE, reach),
                 None))
+    searches.append((
+        "Any near Sol, tier C, %d ly" % WARM_NEAR_SOL_REACH_LY, "/api/local/search",
+        {"reference_coords": {"x": 0, "y": 0, "z": 0},
+         "filters": {"distance": {"min": 0, "max": WARM_NEAR_SOL_RADIUS_LY},
+                     "economy": "any"},
+         "sort_by": "distance", "size": WARM_PAGE, "from": 0,
+         "reach_ly": WARM_NEAR_SOL_REACH_LY,
+         "min_development_score": WARM_NEAR_SOL_MIN_SCORE, "wait_for_count": True}))
     return searches
+
+
+def warm_one(origin: str, path: str, payload: Optional[Dict[str, Any]]) -> str:
+    """Ask one warm-up search; what it found, in words. DeployError if it
+    did not answer, or did not answer with JSON."""
+    status, body = http_get(origin, path, timeout=WARM_TIMEOUT_SECONDS, payload=payload)
+    if status != 200:
+        raise DeployError("answered %d" % status)
+    try:
+        answer = json.loads(body)
+    except ValueError:
+        answer = None
+    if not isinstance(answer, dict):
+        raise DeployError("did not answer with JSON")
+    total = answer.get("total")
+    more = answer.get("total_is_capped") or answer.get("is_truncated")
+    if answer.get("total_is_counted") is False:
+        return "answered, but its matches were not counted in time"
+    return ("%s%s found" % (format(total, ","), "+" if more else "")
+            if isinstance(total, int) else "answered")
 
 
 def command_warm(settings: Settings) -> None:
@@ -649,35 +687,23 @@ def command_warm(settings: Settings) -> None:
     searches = warm_searches()
     failed = 0
     for name, path, payload in searches:
-        started = time.monotonic()
-        try:
-            status, body = http_get(origin, path, timeout=WARM_TIMEOUT_SECONDS,
-                                    payload=payload)
-        except DeployError as error:
-            failed += 1
-            say("%-40s FAILED: %s" % (name, error))
-            continue
-        took = (time.monotonic() - started) * 1000
-        if status != 200:
-            failed += 1
-            say("%-40s FAILED: answered %d" % (name, status))
-            continue
-        try:
-            answer = json.loads(body)
-        except ValueError:
-            answer = None
-        if not isinstance(answer, dict):
-            failed += 1
-            say("%-40s FAILED: did not answer with JSON" % name)
-            continue
-        total = answer.get("total")
-        more = answer.get("total_is_capped") or answer.get("is_truncated")
-        if answer.get("total_is_counted") is False:
-            found = "answered, but its matches were not counted in time"
-        else:
-            found = ("%s%s found" % (format(total, ","), "+" if more else "")
-                     if isinstance(total, int) else "answered")
-        say("%-40s %7.0f ms  %s" % (name, took, found))
+        # A search can run out of time the first time, when what it reads is
+        # coldest; that first try has still read some of it into memory, so
+        # it is asked once more before it counts as failed.
+        for last_try in (False, True):
+            started = time.monotonic()
+            try:
+                found = warm_one(origin, path, payload)
+            except DeployError as error:
+                if last_try:
+                    failed += 1
+                    say("%-40s FAILED again: %s" % (name, error))
+                else:
+                    say("%-40s FAILED: %s; asking once more" % (name, error))
+                continue
+            took = (time.monotonic() - started) * 1000
+            say("%-40s %7.0f ms  %s" % (name, took, found))
+            break
     if failed:
         raise DeployError("%d of %d searches failed" % (failed, len(searches)))
     say("OK: Find is warmed up. Nothing was changed.")
