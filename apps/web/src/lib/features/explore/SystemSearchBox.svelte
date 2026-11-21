@@ -148,7 +148,7 @@
             onmousedown={(event) => event.preventDefault()}
             onclick={() => chooseSuggestion(hit)}
           >
-            <span>{hit.name}</span><code>{hit.id64}</code>
+            <span>{hit.name}</span>
           </button>
         {/each}
       {/if}

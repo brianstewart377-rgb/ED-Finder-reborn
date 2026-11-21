@@ -3,7 +3,6 @@
   import { asset, resolve } from '$app/paths';
   import { ArrowUpRight } from '@lucide/svelte';
   import type { AutocompleteSystem } from '$lib/api/client';
-  import BootstrapStatus from '$lib/components/BootstrapStatus.svelte';
   import WorkspaceHeader from '$lib/components/WorkspaceHeader.svelte';
   import { FINDER_F4_ENABLED } from '$lib/config';
   import { ANY_ARCHETYPE, ARCHETYPES } from '$lib/features/explore/archetypes';
@@ -137,7 +136,6 @@
       </a>
     {/each}
   </section>
-  <div class="home-status"><BootstrapStatus /></div>
 </main>
 <footer class="site-footer">
   <div class="footer-line">
@@ -326,7 +324,6 @@
   }
 
   .home-steps,
-  .home-status,
   .site-footer {
     width: min(80rem, calc(100% - 6rem));
     margin-inline: auto;
@@ -377,33 +374,6 @@
   .journey-step:hover h2 {
     text-decoration: underline;
     text-underline-offset: 0.2em;
-  }
-
-  .home-status :global(.status-panel) {
-    margin: 0 0 2rem;
-    padding: 1rem 1.5rem;
-    gap: 1rem;
-  }
-
-  .home-status :global(.connection-label) {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 0.875rem;
-  }
-
-  .home-status :global(.status-panel dl) {
-    margin: 0;
-    gap: 2rem;
-  }
-
-  .home-status :global(.status-panel dt) {
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
-  }
-
-  .home-status :global(.status-panel dd) {
-    font-size: 0.875rem;
   }
 
   .site-footer {
@@ -461,7 +431,6 @@
     }
 
     .home-steps,
-    .home-status,
     .site-footer {
       width: calc(100% - 4rem);
     }
@@ -508,7 +477,6 @@
     }
 
     .home-steps,
-    .home-status,
     .site-footer {
       width: calc(100% - 3rem);
     }
@@ -516,17 +484,6 @@
     .home-steps {
       gap: 2rem;
       padding-block: 2.5rem;
-    }
-
-    .home-status :global(.status-panel) {
-      align-items: flex-start;
-      flex-direction: column;
-      padding: 1rem;
-    }
-
-    .home-status :global(.status-panel dl) {
-      flex-wrap: wrap;
-      gap: 1rem 2rem;
     }
   }
 </style>

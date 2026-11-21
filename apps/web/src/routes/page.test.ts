@@ -3,7 +3,6 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor,
   within,
 } from '@testing-library/svelte';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -82,7 +81,7 @@ describe('ED-Finder V3 home and shell', () => {
   });
   afterEach(cleanup);
 
-  it('renders the new single headline, ordered landmarks and guest status', async () => {
+  it('renders the new single headline, ordered landmarks and the guest sign-in', async () => {
     renderPage();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(
@@ -103,19 +102,15 @@ describe('ED-Finder V3 home and shell', () => {
     expect(
       within(header).getByRole('link', { name: 'Explore' }),
     ).toHaveAttribute('href', '/explore');
-    await waitFor(() =>
-      expect(screen.getByText('Connected')).toBeInTheDocument(),
-    );
-    expect(screen.getByText('Guest')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Sign in with Frontier' }),
+      await screen.findByRole('button', { name: 'Sign in with Frontier' }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
         'Explore freely. Sign in with Frontier when you need your commander account.',
       ),
     ).toBeInTheDocument();
-    expect(mockedGetHealth).toHaveBeenCalledTimes(1);
+    expect(mockedGetHealth).not.toHaveBeenCalled();
     expect(mockedAutocomplete).not.toHaveBeenCalled();
   });
 
@@ -266,9 +261,11 @@ describe('ED-Finder V3 home and shell', () => {
       expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
       expect(link.querySelectorAll('a, button, input, select')).toHaveLength(0);
     });
+    // No developer panel: the site's connection and the commander's
+    // sign-in are not the visitor's business here.
     expect(
-      screen.getByRole('region', { name: 'Connection status' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('region', { name: 'Connection status' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Review & export')).not.toBeInTheDocument();
   });
 
@@ -302,14 +299,14 @@ describe('ED-Finder V3 home and shell', () => {
     expect(within(footer).getByText(frontierCredit)).toBeVisible();
   });
 
-  it('reports failed bootstrap requests without hiding the shell', async () => {
-    mockedGetHealth.mockRejectedValue(new Error('Request failed (503)'));
+  it('reports a failed sign-in check without hiding the shell, and asks nothing of the site health', async () => {
     mockedGetAuthSession.mockRejectedValue(new Error('Request failed (503)'));
     renderPage();
-    await waitFor(() =>
-      expect(screen.getAllByText('Unavailable')).toHaveLength(2),
-    );
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Retry' }),
+    ).toBeInTheDocument();
+    // The developer panel that showed the catalogue connection is gone.
+    expect(mockedGetHealth).not.toHaveBeenCalled();
     expect(
       screen.getByRole('navigation', { name: 'Product journey' }),
     ).toBeInTheDocument();
