@@ -116,24 +116,28 @@ def test_picked_page_adds_rival_scores_only_to_the_unchanged_final_fetch(key, fl
     assert f"WHERE s.derived_generation_id = {PIN}" in details
     assert window == (
         "WITH archetype_window AS (\n"
-        f"    SELECT ar.system_id64, ar.{key}_weighted_e4 "
-        "AS selected_archetype_weighted_e4\n"
+        f"    SELECT ar.system_id64, ar.{key}_score AS selected_archetype_score, "
+        f"ar.{key}_weighted_e4 AS selected_archetype_weighted_e4\n"
         "    FROM v3_app.system_archetype ar\n"
         f"    WHERE ar.derived_generation_id = {PIN}\n"
         f"      AND ar.{key}_score >= {floor}\n"
-        f"    ORDER BY ar.{key}_weighted_e4 DESC, ar.system_id64 ASC\n"
+        f"    ORDER BY ar.{key}_score DESC, ar.{key}_weighted_e4 DESC, "
+        "ar.system_id64 ASC\n"
         "    LIMIT 10000\n"
     )
     assert "LIMIT 10000" in window
     assert sql.count("ORDER BY") == 3
-    assert f"ORDER BY ar.{key}_weighted_e4 DESC" in window
+    # Find's score order (ORDER_RULE): the score shown, then the stored
+    # weighted key only to break ties. Migration 031's indexes walk it.
+    assert f"ORDER BY ar.{key}_score DESC, ar.{key}_weighted_e4 DESC" in window
     assert sql.count("selected_archetype_weighted_e4 DESC") == 1
     assert sql.count("JOIN v3_app.system_search") == 2
     # Search membership is checked before paging, but only window keys are
     # selected, allowing the same index-only search join as the count.
     selected_keys, key_from = keys.split("    FROM ", 1)
     assert selected_keys == (
-        "    SELECT aw.system_id64, aw.selected_archetype_weighted_e4\n"
+        "    SELECT aw.system_id64, aw.selected_archetype_score, "
+        "aw.selected_archetype_weighted_e4\n"
     )
     assert key_from.startswith("archetype_window aw\n")
     assert (
@@ -141,11 +145,13 @@ def test_picked_page_adds_rival_scores_only_to_the_unchanged_final_fetch(key, fl
         "ON member.system_id64 = aw.system_id64" in keys
     )
     assert keys == (
-        "    SELECT aw.system_id64, aw.selected_archetype_weighted_e4\n"
+        "    SELECT aw.system_id64, aw.selected_archetype_score, "
+        "aw.selected_archetype_weighted_e4\n"
         "    FROM archetype_window aw\n"
         "    JOIN v3_app.system_search member ON member.system_id64 = aw.system_id64\n"
         f"    WHERE member.derived_generation_id = {PIN}\n"
-        "    ORDER BY selected_archetype_weighted_e4 DESC, system_id64 ASC\n"
+        "    ORDER BY selected_archetype_score DESC, "
+        "selected_archetype_weighted_e4 DESC, system_id64 ASC\n"
         "    LIMIT $1 OFFSET $2\n"
     )
     # Only the admitted page keys join to search details. In particular,
@@ -188,9 +194,13 @@ def test_picked_page_adds_rival_scores_only_to_the_unchanged_final_fetch(key, fl
         "JOIN v3_derived.system_archetype picked\n"
         "  ON picked.derived_generation_id = page.derived_generation_id\n"
         " AND picked.system_id64 = page.system_id64\n"
-        f"ORDER BY picked.{key}_weighted_e4 DESC, page.system_id64 ASC"
+        f"ORDER BY picked.{key}_score DESC, picked.{key}_weighted_e4 DESC, "
+        "page.system_id64 ASC"
     )
-    assert sql.endswith(f"ORDER BY picked.{key}_weighted_e4 DESC, page.system_id64 ASC")
+    assert sql.endswith(
+        f"ORDER BY picked.{key}_score DESC, picked.{key}_weighted_e4 DESC, "
+        "page.system_id64 ASC"
+    )
     assert params == [50, 75]
     _assert_no_legacy(sql)
 
@@ -202,12 +212,14 @@ def test_picked_page_rival_display_fields_preserve_the_pinned_ranking_identity()
         for floor in (60, 76, 88):
             sql, _ = _picked_page(key=key, floor=floor, limit=50, offset=950)
             assert f"picked.{key}_score AS picked_{key}_score" in sql
-    assert RANKING_VERSION == "v3-colony-potential-2"
+    # -3 on 21 November 2026: lists sort by the score Find shows, and the
+    # uncertainty factor only breaks ties (ORDER_RULE). What ranks first
+    # changed, so the version did too.
+    assert RANKING_VERSION == "v3-colony-potential-3"
     # The fingerprint covers the paging contract too: it changed on 14
     # November 2026 when Find began to count and page to 1,000, not 10,000.
-    # What ranks first did not change, so the version did not.
     assert ranking_sha256() == (
-        "0bd9d72f3fc74d2d39b52e4561ea325fe75b76f662a9dece57efc67a34ef4d56"
+        "45c14e9357b7786ed25bff3083024118cffbcb89a668f627b4cf18ce2a21d935"
     )
 
 
@@ -219,7 +231,10 @@ def test_picked_count_has_fixed_sentinel_over_the_ordered_window():
     window, join = sql.split(") aw", 1)
     # The sentinel bounds the archetype window in the partial index's own
     # order before the page's search join, exactly like the page window.
-    assert "ORDER BY ar.paradise_weighted_e4 DESC, ar.system_id64 ASC" in window
+    assert (
+        "ORDER BY ar.paradise_score DESC, ar.paradise_weighted_e4 DESC, "
+        "ar.system_id64 ASC" in window
+    )
     # Find counts to 1,000: the sentinel is 1,001 (FIND_COUNT_LIMIT + 1).
     assert "LIMIT 1001" in window
     assert "JOIN v3_app.system_search s ON s.system_id64 = aw.system_id64" in join
@@ -304,12 +319,20 @@ def test_no_pick_keeps_summary_join_and_canonical_order():
         offset=0,
     )
     assert "v3_app.system_archetype_summary" in sql
-    assert "sum.weighted_potential DESC NULLS LAST" in sql
-    assert "s.system_id64 ASC" in sql
     assert "LIMIT 10000" in sql
     window, outer = sql.split(")\nSELECT", 1)
     assert f"WHERE sum.derived_generation_id = {PIN}" in window
     assert f"WHERE s.derived_generation_id = {PIN}" in outer
+    # Find's score order (ORDER_RULE): the score shown first, the stored
+    # weighted key only to break ties, in the window and on the page.
+    assert (
+        "ORDER BY sum.best_colony_potential DESC, "
+        "sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC" in window
+    )
+    assert (
+        "ORDER BY sum.best_colony_potential DESC, "
+        "sum.weighted_potential DESC NULLS LAST, s.system_id64 ASC" in outer
+    )
     assert params == [50, 0]
     _assert_no_legacy(sql)
 
@@ -327,7 +350,10 @@ def test_count_cap_means_cap_plus_one_sentinel():
     # The galaxy count is taken over the galaxy page's ordered window; the
     # literal bound equals the largest sentinel so the parameter decides.
     assert f"WHERE sum.derived_generation_id = {PIN}" in window
-    assert "ORDER BY sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC" in window
+    assert (
+        "ORDER BY sum.best_colony_potential DESC, "
+        "sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC" in window
+    )
     assert "LIMIT 1001" in window
     assert f"WHERE s.derived_generation_id = {PIN}" in outer
     assert "LIMIT $1" in outer
@@ -460,7 +486,11 @@ def test_anchored_score_page_walks_candidates_in_distance_order_without_truncati
     assert "ORDER BY s.position_ly <-> cube(" in inner
     # NULLIF(x, x) is always NULL (LIMIT ALL): no candidate is dropped.
     assert "LIMIT NULLIF($5::bigint, $5::bigint)" in inner
-    assert "ORDER BY candidates.weighted_potential DESC NULLS LAST, candidates.system_id64 ASC" in outer
+    assert (
+        "ORDER BY candidates.primary_score DESC, "
+        "candidates.weighted_potential DESC NULLS LAST, "
+        "candidates.system_id64 ASC" in outer
+    )
     assert "LIMIT $5 OFFSET $6" in outer
     assert params == [1.0, 2.0, 3.0, 500.0, 24, 48]
 
@@ -506,6 +536,7 @@ def test_page_window_bound_fails_closed_in_builder():
         "picked_archetype_rejected_filters",
         "picked_archetype_filter_rejection_reason",
         "local_search_contract",
+        "order_rule",
         "tie_break",
     ],
 )
