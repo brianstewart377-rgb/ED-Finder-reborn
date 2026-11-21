@@ -4,6 +4,11 @@ The picked-archetype path reads migration 011's wide row. Identifiers come
 only from ``PROFILE_SPEC``; values remain asyncpg parameters, except for the
 three server-owned score-floor literals required for partial-index planning.
 
+Every score-ordered list is in Find's score order (the profile's
+``order_rule``): the score Find shows, then the stored weighted key, which only
+breaks ties, then id64. Migration 031's indexes walk that order, so each
+galaxy-wide window is still read straight from an index.
+
 Every statement shape here is also proven against the frozen F2d plan probe
 (``scripts/v3_archetype_plan_probe.py``) as generic plans at production scale:
 see ``tests/test_v3_finder_galaxy_window_plan_pg18.py``.
@@ -78,6 +83,28 @@ SORT_SCORE: Final[str] = "score"
 SORT_DISTANCE: Final[str] = "distance"
 SUPPORTED_SORTS: Final[frozenset[str]] = frozenset({SORT_SCORE, SORT_DISTANCE})
 
+
+# Find's score order (the profile's ``order_rule``): the score Find shows,
+# then the stored weighted key (score x confidence x completeness), which only
+# breaks ties, then id64. Migration 031's indexes walk exactly this order, so a
+# galaxy-wide window still reads its 10,000 rows straight from an index.
+def _summary_order(alias: str, id_alias: str | None = None) -> str:
+    return (
+        f"{alias}.best_colony_potential DESC, "
+        f"{alias}.weighted_potential DESC NULLS LAST, "
+        f"{id_alias or alias}.system_id64 ASC"
+    )
+
+
+def _picked_order(
+    alias: str, columns: dict[str, str], id_alias: str | None = None
+) -> str:
+    return (
+        f"{alias}.{columns['score']} DESC, "
+        f"{alias}.{columns['weighted_key']} DESC, "
+        f"{id_alias or alias}.system_id64 ASC"
+    )
+
 # The current derived generation as an uncorrelated scalar subquery: PostgreSQL
 # runs it once as an InitPlan, so even a generic plan sees the generation as a
 # pseudo-constant. A ranked window over a whole generation needs this: the
@@ -121,6 +148,7 @@ def _require_spec(spec: dict[str, Any]) -> None:
     checked = (
         "primary_score_rule",
         "uncertainty",
+        "order_rule",
         "tie_break",
         "archetype_keys",
         "archetype_columns",
@@ -301,7 +329,10 @@ def _picked_page_query(
     weighted = columns["weighted_key"]
     limit_param = builder.add(int(limit))
     offset_param = builder.add(int(offset))
-    order = "selected_archetype_weighted_e4 DESC, system_id64 ASC"
+    order = (
+        "selected_archetype_score DESC, selected_archetype_weighted_e4 DESC, "
+        "system_id64 ASC"
+    )
     confidence_expr = confidence.replace(
         f"{picked_archetype}_confidence_ppm",
         f"picked.{picked_archetype}_confidence_ppm",
@@ -315,21 +346,24 @@ def _picked_page_query(
     # The final fetch reads the physical row of the generation the fenced
     # page already came from: every page row was admitted by both v3_app
     # views, so the fetch adds no visibility, and keyed by (generation,
-    # system) it is one primary-key probe per page row. The fetched weighted
-    # key is the window's own value for that row, so ordering by it returns
-    # the window order; it makes the final sort run over the page rows only.
+    # system) it is one primary-key probe per page row. The fetched score and
+    # weighted key are the window's own values for that row, so ordering by
+    # them returns the window order; the final sort runs over the page rows
+    # only.
     return (
         "WITH archetype_window AS (\n"
         "    SELECT ar.system_id64, "
+        f"ar.{score} AS selected_archetype_score, "
         f"ar.{weighted} AS selected_archetype_weighted_e4\n"
         "    FROM v3_app.system_archetype ar\n"
         f"    WHERE {_pinned('ar')}\n"
         f"      AND ar.{score} >= {floor}\n"
         f"{claim_filter}"
-        f"    ORDER BY ar.{weighted} DESC, ar.system_id64 ASC\n"
+        f"    ORDER BY {_picked_order('ar', columns)}\n"
         f"    LIMIT {RANKING_WINDOW_LIMIT}\n"
         "), ranked_page_keys AS (\n"
-        "    SELECT aw.system_id64, aw.selected_archetype_weighted_e4\n"
+        "    SELECT aw.system_id64, aw.selected_archetype_score, "
+        "aw.selected_archetype_weighted_e4\n"
         "    FROM archetype_window aw\n"
         "    JOIN v3_app.system_search member ON member.system_id64 = aw.system_id64\n"
         f"    WHERE {_pinned('member')}\n"
@@ -358,7 +392,7 @@ def _picked_page_query(
         "JOIN v3_derived.system_archetype picked\n"
         "  ON picked.derived_generation_id = page.derived_generation_id\n"
         " AND picked.system_id64 = page.system_id64\n"
-        f"ORDER BY picked.{weighted} DESC, page.system_id64 ASC"
+        f"ORDER BY {_picked_order('picked', columns, 'page')}"
     )
 
 
@@ -374,7 +408,6 @@ def _picked_count_query(
     columns = _picked_columns(picked_archetype)
     floor = _floor_literal(min_score)
     score = columns["score"]
-    weighted = columns["weighted_key"]
     claim_filter = _and_lines(
         _rules("ar.system_id64", hide_claimed, reach_ly), "          "
     )
@@ -402,7 +435,7 @@ def _picked_count_query(
         f"        WHERE {_pinned('ar')}\n"
         f"          AND ar.{score} >= {floor}\n"
         f"{claim_filter}"
-        f"        ORDER BY ar.{weighted} DESC, ar.system_id64 ASC\n"
+        f"        ORDER BY {_picked_order('ar', columns)}\n"
         f"        LIMIT {window}\n"
         "    ) aw\n"
         "    JOIN v3_app.system_search s ON s.system_id64 = aw.system_id64\n"
@@ -735,15 +768,14 @@ def _no_pick_page(
             "    SELECT sum.*\n"
             "    FROM v3_app.system_archetype_summary sum\n"
             f"    WHERE {_pinned('sum')}{window_claim_filter}\n"
-            "    ORDER BY sum.weighted_potential DESC NULLS LAST, "
-            "sum.system_id64 ASC\n"
+            f"    ORDER BY {_summary_order('sum')}\n"
             f"    LIMIT {RANKING_WINDOW_LIMIT}\n"
             ")\n"
             f"{_NO_PICK_COLUMNS}"
             "FROM summary_window sum\n"
             "JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64\n"
             f"WHERE {_pinned('s')}{window_filters}\n"
-            "ORDER BY sum.weighted_potential DESC NULLS LAST, s.system_id64 ASC\n"
+            f"ORDER BY {_summary_order('sum', 's')}\n"
             f"LIMIT {limit_param} OFFSET {offset_param}"
         )
     where_sql = "\n  AND ".join([_pinned("s"), _pinned("sum"), *filters])
@@ -751,7 +783,7 @@ def _no_pick_page(
         f"{_NO_PICK_COLUMNS}"
         f"{_NO_PICK_FROM}"
         f"WHERE {where_sql}{claim_filter}\n"
-        "ORDER BY sum.weighted_potential DESC NULLS LAST, s.system_id64 ASC\n"
+        f"ORDER BY {_summary_order('sum', 's')}\n"
         f"LIMIT {limit_param} OFFSET {offset_param}"
     )
 
@@ -816,7 +848,8 @@ def _no_pick_radius_score_page(
         f"    LIMIT NULLIF({limit_param}::bigint, {limit_param}::bigint)\n"
         ") candidates\n"
         f"{claim_where}"
-        "ORDER BY candidates.weighted_potential DESC NULLS LAST, "
+        "ORDER BY candidates.primary_score DESC, "
+        "candidates.weighted_potential DESC NULLS LAST, "
         "candidates.system_id64 ASC\n"
         f"LIMIT {limit_param} OFFSET {offset_param}"
     )
@@ -1038,8 +1071,7 @@ def build_count_query(
             "        SELECT sum.system_id64, sum.best_colony_potential\n"
             "        FROM v3_app.system_archetype_summary sum\n"
             f"        WHERE {_pinned('sum')}{window_claim_filter}\n"
-            "        ORDER BY sum.weighted_potential DESC NULLS LAST, "
-            "sum.system_id64 ASC\n"
+            f"        ORDER BY {_summary_order('sum')}\n"
             f"        LIMIT {RANKING_WINDOW_LIMIT}\n"
             "    ) sum\n"
             "    JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64\n"
@@ -1063,8 +1095,7 @@ def build_count_query(
             "        SELECT sum.system_id64\n"
             "        FROM v3_app.system_archetype_summary sum\n"
             f"        WHERE {_pinned('sum')}{window_claim_filter}\n"
-            "        ORDER BY sum.weighted_potential DESC NULLS LAST, "
-            "sum.system_id64 ASC\n"
+            f"        ORDER BY {_summary_order('sum')}\n"
             f"        LIMIT {RANKING_COUNT_SENTINEL}\n"
             "    ) sum\n"
             "    JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64\n"

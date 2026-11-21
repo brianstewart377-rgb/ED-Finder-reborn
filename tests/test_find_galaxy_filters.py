@@ -68,11 +68,13 @@ def _window(connection, picked: str | None, limit: int | None = RANKING_WINDOW_L
         statement = (
             "SELECT a.system_id64 FROM v3_app.system_archetype a "
             f"WHERE a.{columns['score']} >= 60 "
-            f"ORDER BY a.{columns['weighted_key']} DESC, a.system_id64 ASC")
+            f"ORDER BY a.{columns['score']} DESC, a.{columns['weighted_key']} DESC, "
+            "a.system_id64 ASC")
     else:
         statement = (
             "SELECT sum.system_id64 FROM v3_app.system_archetype_summary sum "
-            "ORDER BY sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC")
+            "ORDER BY sum.best_colony_potential DESC, "
+            "sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC")
     ordered = [int(r[0]) for r in connection.execute(statement).fetchall()]
     return [i for i in ordered if shown(i, 250)][:limit]
 

@@ -292,7 +292,8 @@ def _full_order(connection, shape: str) -> list[int]:
         statement = (
             "SELECT a.system_id64 FROM v3_app.system_archetype a "
             f"WHERE a.{columns['score']} >= 60 "
-            f"ORDER BY a.{columns['weighted_key']} DESC, a.system_id64 ASC"
+            f"ORDER BY a.{columns['score']} DESC, a.{columns['weighted_key']} DESC, "
+            "a.system_id64 ASC"
         )
     else:
         only_k = "WHERE s.main_star_class = 'K' " if shape == "galaxy_wide_filtered" else ""
@@ -300,7 +301,8 @@ def _full_order(connection, shape: str) -> list[int]:
             "SELECT sum.system_id64 FROM v3_app.system_archetype_summary sum "
             "JOIN v3_app.system_search s ON s.system_id64 = sum.system_id64 "
             f"{only_k}"
-            "ORDER BY sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC"
+            "ORDER BY sum.best_colony_potential DESC, "
+            "sum.weighted_potential DESC NULLS LAST, sum.system_id64 ASC"
         )
     return [int(row[0]) for row in connection.execute(statement).fetchall()]
 
