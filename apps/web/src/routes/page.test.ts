@@ -130,7 +130,7 @@ describe('ED-Finder V3 home and shell', () => {
       }),
     ).toHaveAttribute('href', '/explore');
     expect(
-      screen.queryByRole('combobox', { name: 'Colony archetype' }),
+      screen.queryByRole('combobox', { name: 'Colony type' }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -138,12 +138,12 @@ describe('ED-Finder V3 home and shell', () => {
   it('shows Any followed by the eight canonical archetypes only when enabled', () => {
     featureGate.enabled = true;
     renderPage();
-    const select = screen.getByRole('combobox', { name: 'Colony archetype' });
+    const select = screen.getByRole('combobox', { name: 'Colony type' });
     expect(select.tagName).toBe('SELECT');
     expect(select).toHaveValue('any');
     const options = within(select).getAllByRole('option');
     expect(options.map((option) => option.textContent?.trim())).toEqual([
-      'Any archetype',
+      'Any colony type',
       ...ARCHETYPES.map(({ label }) => label),
     ]);
     expect(options.map((option) => option.getAttribute('value'))).toEqual([
@@ -174,7 +174,7 @@ describe('ED-Finder V3 home and shell', () => {
     renderPage();
     await chooseReferenceSystem();
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      screen.getByRole('combobox', { name: 'Colony type' }),
       { target: { value: 'mining_hub' } },
     );
     await fireEvent.submit(findForm());
@@ -233,7 +233,7 @@ describe('ED-Finder V3 home and shell', () => {
       {
         number: '01',
         label: 'Find your system',
-        detail: 'Choose an archetype and refine your search.',
+        detail: 'Choose a colony type and refine your search.',
         href: '/explore',
       },
       {

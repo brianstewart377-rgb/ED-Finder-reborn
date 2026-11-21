@@ -483,9 +483,9 @@ describe('Inspect Explore navigation', () => {
       ),
     );
     expect(api.getArchetypeRankings).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
-    ).toHaveValue('flexible');
+    expect(screen.getByRole('combobox', { name: 'Colony type' })).toHaveValue(
+      'flexible',
+    );
     expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
       'A',
     );
@@ -493,7 +493,7 @@ describe('Inspect Explore navigation', () => {
       'Achenar',
     );
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      screen.getByRole('combobox', { name: 'Colony type' }),
       { target: { value: 'any' } },
     );
     await waitFor(() =>

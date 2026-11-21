@@ -296,7 +296,7 @@
               ><th scope="col">System</th><th scope="col">Coords (LY)</th><th
                 scope="col"
                 >{FINDER_F4_ENABLED ? 'Saved scores' : 'Development'}</th
-              ><th scope="col">Archetype</th><th scope="col"
+              ><th scope="col">Colony type</th><th scope="col"
                 >{FINDER_F4_ENABLED ? 'Saved distance' : 'Dist. from ref.'}</th
               ><th scope="col">Captured at</th><th scope="col">Links</th><th
                 scope="col">Actions</th
@@ -498,7 +498,7 @@
                 scope="col">Population</th
               ><th scope="col"
                 >{FINDER_F4_ENABLED ? 'Saved scores' : 'Development'}</th
-              ><th scope="col">Archetype</th><th scope="col">Added</th><th
+              ><th scope="col">Colony type</th><th scope="col">Added</th><th
                 scope="col">Actions</th
               ></tr
             ></thead

@@ -419,7 +419,7 @@ describe('saved systems panel', () => {
       'Coords (LY)',
       'Population',
       'Development',
-      'Archetype',
+      'Colony type',
       'Added',
     ]) {
       expect(

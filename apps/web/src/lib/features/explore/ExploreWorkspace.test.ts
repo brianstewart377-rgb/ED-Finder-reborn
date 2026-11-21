@@ -718,7 +718,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
     expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      screen.getByRole('combobox', { name: 'Colony type' }),
       { target: { value: 'manufacturing_hub' } },
     );
     await screen.findByText('Ranked 1');
@@ -728,7 +728,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       }),
     ).toBeInTheDocument();
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      screen.getByRole('combobox', { name: 'Colony type' }),
       { target: { value: 'any' } },
     );
     await waitFor(expectEmptyResults);
@@ -1271,7 +1271,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedPage.url.searchParams.get('offset')).toBe('1');
     expect(mockedGoto).not.toHaveBeenCalled();
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      screen.getByRole('combobox', { name: 'Colony type' }),
       { target: { value: 'any' } },
     );
     await waitFor(() =>
@@ -1829,7 +1829,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     await fireEvent.click(next);
     await screen.findByText('Ranked 2');
     await waitFor(() => expect(next).toHaveFocus());
-    const picker = screen.getByRole('combobox', { name: 'Colony archetype' });
+    const picker = screen.getByRole('combobox', { name: 'Colony type' });
     picker.focus();
     await fireEvent.change(picker, { target: { value: 'manufacturing_hub' } });
     await waitFor(() =>
@@ -1939,7 +1939,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     await waitFor(() =>
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
     );
-    const picker = screen.getByRole('combobox', { name: 'Colony archetype' });
+    const picker = screen.getByRole('combobox', { name: 'Colony type' });
     picker.focus();
     await fireEvent.change(picker, { target: { value: 'manufacturing_hub' } });
     // The type is searched near the same anchor, which supersedes the Any one.
@@ -1951,7 +1951,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     finishAnchor(finderPage(0));
     await waitFor(() => expect(picker).toHaveFocus());
     mockRankedPages();
-    const any = screen.getByRole('combobox', { name: 'Colony archetype' });
+    const any = screen.getByRole('combobox', { name: 'Colony type' });
     any.focus();
     await fireEvent.change(any, { target: { value: 'any' } });
     await waitFor(() =>
@@ -3411,7 +3411,7 @@ describe('Explore body filters in archetype mode', () => {
       body_filters: { elw_count: { min: 1 } },
     });
     await fireEvent.change(
-      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      screen.getByRole('combobox', { name: 'Colony type' }),
       { target: { value: 'any' } },
     );
     await waitFor(() =>
@@ -3706,7 +3706,7 @@ describe.each([false, true])(
         const resultText = list.textContent;
         expect(within(list).getAllByRole('listitem')).toHaveLength(3);
         await fireEvent.change(
-          screen.getByRole('combobox', { name: 'Colony archetype' }),
+          screen.getByRole('combobox', { name: 'Colony type' }),
           { target: { value: 'manufacturing_hub' } },
         );
         await screen.findByRole('heading', {
@@ -3730,7 +3730,7 @@ describe.each([false, true])(
         expect(restoredList.textContent).toBe(resultText);
         expect(within(restoredList).getAllByRole('listitem')).toHaveLength(3);
         expect(
-          screen.getByRole('combobox', { name: 'Colony archetype' }),
+          screen.getByRole('combobox', { name: 'Colony type' }),
         ).toHaveValue('manufacturing_hub');
         expect(document.querySelectorAll('canvas')).toHaveLength(1);
         expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
@@ -3811,7 +3811,7 @@ describe.each([false, true])(
         });
         expect(within(restoredList).getByText('Ranked 2')).toBeInTheDocument();
         expect(
-          screen.getByRole('combobox', { name: 'Colony archetype' }),
+          screen.getByRole('combobox', { name: 'Colony type' }),
         ).toHaveValue('manufacturing_hub');
         expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
           'A',
@@ -3839,7 +3839,7 @@ describe.each([false, true])(
         expect(api.getArchetypeRankings).not.toHaveBeenCalled();
 
         await fireEvent.change(
-          screen.getByRole('combobox', { name: 'Colony archetype' }),
+          screen.getByRole('combobox', { name: 'Colony type' }),
           { target: { value: 'any' } },
         );
         await waitFor(() =>

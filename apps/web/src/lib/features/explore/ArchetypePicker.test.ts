@@ -31,7 +31,7 @@ function picker(archetype: 'any' | ArchetypeKey = 'any', anyFloor = false) {
 
 describe('native archetype picker', () => {
   const typeSelect = () =>
-    screen.getByRole('combobox', { name: 'Colony archetype' });
+    screen.getByRole('combobox', { name: 'Colony type' });
 
   it('offers Any and the eight colony types in one dropdown, by their short labels', () => {
     picker();

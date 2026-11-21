@@ -443,7 +443,7 @@ describe('Explore load and interaction work budget', () => {
         }),
       );
       await fireEvent.change(
-        screen.getByRole('combobox', { name: 'Colony archetype' }),
+        screen.getByRole('combobox', { name: 'Colony type' }),
         { target: { value: 'manufacturing_hub' } },
       );
       await settle();
@@ -453,7 +453,7 @@ describe('Explore load and interaction work budget', () => {
         }),
       ).toBeInTheDocument();
       await fireEvent.change(
-        screen.getByRole('combobox', { name: 'Colony archetype' }),
+        screen.getByRole('combobox', { name: 'Colony type' }),
         { target: { value: 'any' } },
       );
       await settle();

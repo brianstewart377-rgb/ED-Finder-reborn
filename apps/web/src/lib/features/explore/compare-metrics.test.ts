@@ -41,9 +41,9 @@ describe('comparison snapshots', () => {
     expect(buildCompareRows([]).map((row) => row.label)).toEqual([
       'Captured at',
       'Development score',
-      'Primary archetype',
-      'Secondary archetype',
-      'Archetype confidence',
+      'Primary colony type',
+      'Secondary colony type',
+      'Colony type confidence',
       'Buildability',
       'Purity',
       'Estimated slots',
@@ -136,7 +136,7 @@ describe('comparison snapshots', () => {
     expect(csv).toContain('"Metric","\'=HYPERLINK(""bad"")"');
     expect(csv).toContain('"Development score","91"');
     expect(csv).toContain(
-      '"Primary archetype","Refinery / Industrial Megacomplex"',
+      '"Primary colony type","Refinery / Industrial Megacomplex"',
     );
     expect(csv).toContain('"Landable","Unknown"');
   });
@@ -201,11 +201,11 @@ describe('F4 mode- and reference-safe comparison', () => {
     );
     expect(
       rows
-        .find((row) => row.label === 'Primary archetype')
+        .find((row) => row.label === 'Primary colony type')
         ?.cells.map((cell) => cell.display),
     ).toEqual([...ARCHETYPES.map(({ label }) => label), 'refinery industrial']);
     expect(
-      rows.find((row) => row.label === 'Secondary archetype')?.cells.at(-1)
+      rows.find((row) => row.label === 'Secondary colony type')?.cells.at(-1)
         ?.display,
     ).toBe('unknown historical key');
   });

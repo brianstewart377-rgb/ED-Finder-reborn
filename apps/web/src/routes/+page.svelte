@@ -35,7 +35,7 @@
       number: '01',
       href: '/explore',
       label: 'Find your system',
-      detail: 'Choose an archetype and refine your search.',
+      detail: 'Choose a colony type and refine your search.',
     },
     {
       number: '02',
@@ -100,9 +100,9 @@
         />
         {#if FINDER_F4_ENABLED}
           <div class="archetype-field">
-            <label for="home-archetype">Colony archetype</label>
+            <label for="home-archetype">Colony type</label>
             <select id="home-archetype" bind:value={archetype}>
-              <option value={ANY_ARCHETYPE}>Any archetype</option>
+              <option value={ANY_ARCHETYPE}>Any colony type</option>
               {#each ARCHETYPES as entry (entry.key)}
                 <option value={entry.key}>{entry.label}</option>
               {/each}
