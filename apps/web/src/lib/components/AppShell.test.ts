@@ -320,17 +320,13 @@ describe('AppShell selection hydration', () => {
       },
     });
     await fireEvent.click(
-      screen.getByRole('link', { name: 'Open in Explore' }),
+      screen.getByRole('link', { name: 'Back to results' }),
     );
-    const expected = new URLSearchParams(origin);
-    expected.set('system', selectedId);
-    expect(navigation.page.url.searchParams.toString()).toBe(
-      expected.toString(),
-    );
+    expect(navigation.page.url.searchParams.toString()).toBe(origin);
     expect(navigation.page.state.anchor).toEqual(currentAnchor);
     inspect.unmount();
     mount(navigation.page.url.href, navigation.page.state);
-    await screen.findByRole('dialog', { name: 'System Detail' });
-    expect(get(selectedSystem).value).toBe(selectedId);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(get(selectedSystem).value).toBe(selectedId));
   });
 });

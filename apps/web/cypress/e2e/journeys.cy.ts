@@ -270,11 +270,16 @@ describe('What a visitor does', () => {
       'be.visible',
     );
 
-    // And the way back leads to the same search, not to an empty Explore.
-    cy.contains('a', 'Back to Explore')
+    // And the way back leads to the same search, not to an empty Explore;
+    // the other way searches near LP 634-1 instead.
+    cy.contains('a', 'Back to results')
       .should('have.attr', 'href')
       .and('match', /^\/explore\?/u)
       .and('contain', `near=${SOL}`);
+    cy.contains('a', 'Search near this system')
+      .should('have.attr', 'href')
+      .and('contain', `near=${LP_634_1}`)
+      .and('contain', `selected=${LP_634_1}`);
   });
 
   it('is told when Find cannot answer, and is not shown an empty list as if it were the answer', () => {

@@ -356,7 +356,7 @@ describe('saved systems panel', () => {
       mounted.unmount();
       render(InspectPageTestHost);
       await fireEvent.click(
-        screen.getByRole('link', { name: 'Open in Explore' }),
+        screen.getByRole('link', { name: 'Back to results' }),
       );
       expect(mockedPage.url.pathname).toBe('/explore');
       expect(Object.fromEntries(mockedPage.url.searchParams)).toEqual({
@@ -364,12 +364,9 @@ describe('saved systems panel', () => {
         'min-tier': 'A',
         page_size: '1',
         offset: '2',
+        selected: '42',
         survey: 'outer',
-        selected: id64,
-        system: id64,
       });
-      expect(mockedPage.url.searchParams.getAll('selected')).toEqual([id64]);
-      expect(mockedPage.url.searchParams.getAll('system')).toEqual([id64]);
       expect(mockedPage.state).toBe(outboundState);
       expect(mockedPage.state.anchor).toEqual(anchor);
     },

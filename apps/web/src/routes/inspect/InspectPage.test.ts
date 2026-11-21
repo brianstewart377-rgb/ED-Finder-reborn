@@ -353,47 +353,77 @@ describe('Inspect Explore navigation', () => {
     expect(mockedGoto).not.toHaveBeenCalled();
   });
 
-  it('replays ranking and unrelated parameters with one inspected selection and overlay id', async () => {
+  it('Search near this system keeps the search, centred on and selecting this system', async () => {
     featureGate.enabled = true;
     arriveFrom(
-      `archetype=flexible&min-tier=A&page_size=1&offset=2&selected=${originalId}&selected=42&system=43&system=44&campaign=survey`,
+      `archetype=flexible&min-tier=A&page_size=1&offset=2&near=${originalId}&selected=${originalId}&selected=42&system=43&system=44&campaign=survey`,
       { anchor },
     );
-    const outboundState = mockedPage.state;
     render(InspectPageTestHost);
     await fireEvent.click(
-      screen.getByRole('link', { name: 'Open in Explore' }),
+      screen.getByRole('link', { name: 'Search near this system' }),
     );
     expect(mockedPage.url.pathname).toBe('/explore');
+    expect(mockedPage.url.searchParams.getAll('near')).toEqual([inspectedId]);
     expect(mockedPage.url.searchParams.getAll('selected')).toEqual([
       inspectedId,
     ]);
-    expect(mockedPage.url.searchParams.getAll('system')).toEqual([inspectedId]);
+    // A new search: from its first page, with no detail overlay open.
+    expect(mockedPage.url.searchParams.has('offset')).toBe(false);
+    expect(mockedPage.url.searchParams.has('system')).toBe(false);
     expect(Object.fromEntries(mockedPage.url.searchParams)).toMatchObject({
       archetype: 'flexible',
       'min-tier': 'A',
       page_size: '1',
-      offset: '2',
       campaign: 'survey',
     });
     expect(mockedGoto).toHaveBeenCalledWith(expect.any(String), {
-      state: outboundState,
+      state: expect.anything(),
       replaceState: false,
       keepFocus: true,
       noScroll: true,
     });
-    expect(mockedPage.state).toBe(outboundState);
   });
 
-  it.each(['Back to Explore', 'Open in Explore'])(
+  it('hands Explore the position Inspect already has, so the system is not looked up again', async () => {
+    featureGate.enabled = true;
+    const detail = referenceSystemDetail({ id64: inspectedId });
+    vi.mocked(api.getSystem).mockResolvedValue(detail);
+    arriveFrom('archetype=flexible', { anchor });
+    render(InspectPageTestHost);
+    await screen.findByRole('heading', { name: detail.name, level: 1 });
+    await fireEvent.click(
+      screen.getByRole('link', { name: 'Search near this system' }),
+    );
+    expect(mockedPage.state.anchor).toEqual({
+      id64: inspectedId,
+      name: detail.name,
+      x: detail.x,
+      y: detail.y,
+      z: detail.z,
+    });
+  });
+
+  it('opened with no search to go back to, offers Explore and a search near the system', () => {
+    featureGate.enabled = true;
+    render(InspectPageTestHost);
+    expect(
+      screen.getByRole('link', { name: 'Back to Explore' }),
+    ).toHaveAttribute('href', '/explore');
+    expect(
+      screen.getByRole('link', { name: 'Search near this system' }),
+    ).toHaveAttribute(
+      'href',
+      `/explore?near=${inspectedId}&selected=${inspectedId}`,
+    );
+  });
+
+  it.each(['Back to Explore'])(
     'uses the enabled bare-link fallback for %s',
     async (action) => {
       featureGate.enabled = true;
       const mounted = render(InspectPageTestHost);
-      const href =
-        action === 'Back to Explore'
-          ? '/explore'
-          : `/explore?selected=${inspectedId}&system=${inspectedId}`;
+      const href = '/explore';
       expect(screen.getByRole('link', { name: action })).toHaveAttribute(
         'href',
         href,
@@ -416,7 +446,7 @@ describe('Inspect Explore navigation', () => {
     },
   );
 
-  it('Back to Explore restores the floor, page and anchor without selecting the inspected system', async () => {
+  it('Back to results restores the floor, page and anchor without selecting the inspected system', async () => {
     featureGate.enabled = true;
     const source = 'archetype=flexible&min-tier=A&page_size=1&offset=2';
     mockedPage.url = new URL(`http://localhost/explore?${source}`);
@@ -426,7 +456,7 @@ describe('Inspect Explore navigation', () => {
     expect(mockedPage.state).toBe(originalState);
     const mounted = render(InspectPageTestHost);
     await fireEvent.click(
-      screen.getByRole('link', { name: 'Back to Explore' }),
+      screen.getByRole('link', { name: 'Back to results' }),
     );
     expect(mockedPage.url.searchParams.toString()).toBe(source);
     expect(mockedPage.url.searchParams.has('selected')).toBe(false);
@@ -489,7 +519,7 @@ describe('Inspect Explore navigation', () => {
     arriveFrom(source, { anchor });
     render(InspectPageTestHost);
     await fireEvent.click(
-      screen.getByRole('link', { name: 'Back to Explore' }),
+      screen.getByRole('link', { name: 'Back to results' }),
     );
     expect(mockedPage.url.searchParams.toString()).toBe(source);
     expect(mockedPage.url.searchParams.getAll('selected')).toEqual([
