@@ -440,8 +440,9 @@ describe('Explore load and interaction work budget', () => {
           detail: 'Fixture temporarily unavailable',
         }),
       );
-      await fireEvent.click(
-        screen.getByRole('radio', { name: 'Manufacturing Hub' }),
+      await fireEvent.change(
+        screen.getByRole('combobox', { name: 'Colony archetype' }),
+        { target: { value: 'manufacturing_hub' } },
       );
       await settle();
       expect(
@@ -449,7 +450,10 @@ describe('Explore load and interaction work budget', () => {
           name: 'Ranking temporarily unavailable',
         }),
       ).toBeInTheDocument();
-      await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
+      await fireEvent.change(
+        screen.getByRole('combobox', { name: 'Colony archetype' }),
+        { target: { value: 'any' } },
+      );
       await settle();
       expect(mapWork()).toEqual(beforePaging);
       expect(theMap().getSelection()?.name).toBe('Workload 1');

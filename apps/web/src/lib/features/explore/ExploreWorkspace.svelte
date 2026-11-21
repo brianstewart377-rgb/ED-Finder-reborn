@@ -451,7 +451,7 @@
       state: { anchor: null, finderRequested: false },
     });
     viewState.rankingNotice = viewState.hasResultsIntent
-      ? 'Anchor cleared; searching galaxy-wide.'
+      ? 'Showing the whole galaxy, best first.'
       : '';
     searchBox?.focus();
   }
@@ -836,6 +836,8 @@
           onemptied={() => {
             if (anchor) void clearAnchor();
           }}
+          clearLabel={anchor ? `Stop searching near ${anchor.name}` : null}
+          onclear={clearAnchor}
         />
       </section>
 
@@ -848,44 +850,15 @@
         />
       {/snippet}
 
-      {#if anchor}
-        <p class="committed-anchor">
-          Search anchor: {anchor.name}
-          <button
-            type="button"
-            class="quiet-button"
-            aria-label={`Clear anchor ${anchor.name}`}
-            onclick={clearAnchor}>Clear</button
-          >
-        </p>
-      {/if}
-      {#snippet finderTools()}
-        <div class="finder-tools">
-          {@render bodyFilterTools()}
-          <label class="page-size"
-            >Results per page
-            <input
-              type="number"
-              min="1"
-              max="50"
-              step="1"
-              value={viewState.rankingState.pageSize}
-              onchange={(event) =>
-                commitRanking({ pageSize: event.currentTarget.valueAsNumber })}
-            />
-          </label>
-        </div>
-      {/snippet}
       {#if FINDER_F4_ENABLED}
         <ArchetypePicker
-          compact
           archetype={viewState.rankingState.archetype}
           minimumTier={viewState.rankingState.minimumTier}
           anyFloor={anchor !== null}
           onArchetypeChange={(archetype) =>
             commitRanking({ archetype, minimumTier: null })}
           onMinimumTierChange={(minimumTier) => commitRanking({ minimumTier })}
-          rankingTools={finderTools}
+          rankingTools={bodyFilterTools}
         />
       {:else}
         {@render bodyFilterTools()}
@@ -1291,6 +1264,18 @@
                 false,
               )}>Next</button
           >
+          <label class="page-size"
+            >Results per page
+            <input
+              type="number"
+              min="1"
+              max="50"
+              step="1"
+              value={viewState.rankingState.pageSize}
+              onchange={(event) =>
+                commitRanking({ pageSize: event.currentTarget.valueAsNumber })}
+            />
+          </label>
         </nav>
       {/if}
     </section>
@@ -1731,21 +1716,6 @@
     margin-bottom: 0.25rem;
     font-size: 0.78rem;
   }
-  .finder-tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.4rem 0.75rem;
-  }
-  .finder-panel .page-size {
-    margin: 0;
-    font-size: 0.85rem;
-  }
-  .finder-panel .page-size input {
-    width: 4rem;
-    padding: 0.25rem 0.5rem;
-  }
   .finder-panel :global(.panel-heading) {
     min-height: 0;
     padding: 0.6rem 0.75rem;
@@ -1854,29 +1824,24 @@
       visibility: hidden;
     }
   }
-  .committed-anchor,
   .result-paging {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
   }
-  .committed-anchor {
-    color: var(--text-muted);
-  }
-  .committed-anchor button {
-    padding: 0.35rem 0.75rem;
-    font: inherit;
-  }
+  /* Results per page, at the end of the Previous / Next line. */
   .page-size {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-block: 1rem;
+    gap: 0.6rem;
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 0.85rem;
   }
   .page-size input {
-    width: 5rem;
-    padding: 0.4rem 0.6rem;
+    width: 4.5rem;
+    padding: 0.35rem 0.5rem;
   }
   .results-panel .panel-heading {
     flex-wrap: wrap;

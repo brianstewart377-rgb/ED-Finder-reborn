@@ -484,15 +484,18 @@ describe('Inspect Explore navigation', () => {
     );
     expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     expect(
-      screen.getByRole('radio', { name: 'Flexible Multi-Role Colony' }),
-    ).toBeChecked();
+      screen.getByRole('combobox', { name: 'Colony archetype' }),
+    ).toHaveValue('flexible');
     expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
       'A',
     );
     expect(screen.getByRole('combobox', { name: 'System name' })).toHaveValue(
       'Achenar',
     );
-    await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
+    await fireEvent.change(
+      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      { target: { value: 'any' } },
+    );
     await waitFor(() =>
       expect(api.searchExploreSystems).toHaveBeenCalledWith(
         {

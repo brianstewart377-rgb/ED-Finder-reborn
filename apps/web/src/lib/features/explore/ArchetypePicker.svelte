@@ -8,10 +8,13 @@
     DEFAULT_ANY_MINIMUM_TIER,
     DEFAULT_MINIMUM_TIER,
     parseAnyMinimumTier,
+    parseArchetypeKey,
     type ArchetypeKey,
     type FinderMinimumTier,
   } from './archetypes';
 
+  // The Finder's colony type and "Show only" choices: two native dropdowns
+  // side by side, as on Home, with the chosen type's description under them.
   let {
     archetype,
     minimumTier,
@@ -19,7 +22,6 @@
     onArchetypeChange,
     onMinimumTierChange,
     disabled = false,
-    compact = false,
     rankingTools,
   }: {
     archetype: typeof ANY_ARCHETYPE | ArchetypeKey;
@@ -30,8 +32,6 @@
     onArchetypeChange: (archetype: typeof ANY_ARCHETYPE | ArchetypeKey) => void;
     onMinimumTierChange: (tier: FinderMinimumTier) => void;
     disabled?: boolean;
-    /** Narrow panel: names only on screen; descriptions stay for assistive tech. */
-    compact?: boolean;
     rankingTools?: Snippet;
   } = $props();
 
@@ -44,136 +44,88 @@
     },
     ...ARCHETYPES,
   ];
+  const chosen = $derived(
+    choices.find((choice) => choice.key === archetype) ?? choices[0],
+  );
 </script>
 
-<div class="archetype-controls" class:is-compact={compact}>
-  <fieldset {disabled}>
-    <legend>Colony archetype</legend>
-    <div class="archetype-choices">
-      {#each choices as choice (choice.key)}
-        <div class="archetype-choice">
-          <input
-            id={`${id}-${choice.key}`}
-            name={`${id}-archetype`}
-            type="radio"
-            value={choice.key}
-            checked={archetype === choice.key}
-            aria-describedby={`${id}-${choice.key}-description`}
-            onchange={() => onArchetypeChange(choice.key)}
-          />
-          <label for={`${id}-${choice.key}`}>{choice.label}</label>
-          <p id={`${id}-${choice.key}-description`}>{choice.description}</p>
-        </div>
-      {/each}
-    </div>
-  </fieldset>
-  {#if archetype !== ANY_ARCHETYPE || anyFloor}
-    <label class="minimum-tier" for={`${id}-minimum-tier`}>
-      Show only
+<div class="archetype-controls">
+  <div class="archetype-row">
+    <label class="archetype-field" for={`${id}-archetype`}>
+      Colony archetype
       <select
-        id={`${id}-minimum-tier`}
+        id={`${id}-archetype`}
         {disabled}
-        value={minimumTier ??
-          (archetype === ANY_ARCHETYPE
-            ? DEFAULT_ANY_MINIMUM_TIER
-            : DEFAULT_MINIMUM_TIER)}
+        value={archetype}
+        aria-describedby={`${id}-archetype-description`}
         onchange={(event) => {
-          const value = parseAnyMinimumTier(event.currentTarget.value);
-          if (value) onMinimumTierChange(value);
+          const value = event.currentTarget.value;
+          const key =
+            value === ANY_ARCHETYPE ? ANY_ARCHETYPE : parseArchetypeKey(value);
+          if (key) onArchetypeChange(key);
         }}
       >
-        {#if archetype === ANY_ARCHETYPE}
-          <option value="all">All systems</option>
-          <option value="C">Tier C or better</option>
-        {/if}
-        <option value="B">Tier B or better</option>
-        <option value="A">Tier A or better</option>
-        <option value="S">Tier S</option>
+        {#each choices as choice (choice.key)}
+          <option value={choice.key}>{choice.label}</option>
+        {/each}
       </select>
     </label>
-  {/if}
+    {#if archetype !== ANY_ARCHETYPE || anyFloor}
+      <label class="minimum-tier" for={`${id}-minimum-tier`}>
+        Show only
+        <select
+          id={`${id}-minimum-tier`}
+          {disabled}
+          value={minimumTier ??
+            (archetype === ANY_ARCHETYPE
+              ? DEFAULT_ANY_MINIMUM_TIER
+              : DEFAULT_MINIMUM_TIER)}
+          onchange={(event) => {
+            const value = parseAnyMinimumTier(event.currentTarget.value);
+            if (value) onMinimumTierChange(value);
+          }}
+        >
+          {#if archetype === ANY_ARCHETYPE}
+            <option value="all">All systems</option>
+            <option value="C">Tier C or better</option>
+          {/if}
+          <option value="B">Tier B or better</option>
+          <option value="A">Tier A or better</option>
+          <option value="S">Tier S</option>
+        </select>
+      </label>
+    {/if}
+  </div>
+  <p id={`${id}-archetype-description`} class="archetype-description">
+    {chosen.description}
+  </p>
   <div class="ranking-tools">{@render rankingTools?.()}</div>
 </div>
 
 <style>
   .archetype-controls {
     display: grid;
-    gap: 0.85rem;
+    gap: 0.5rem;
     min-width: 0;
-    margin-block: 1.5rem;
   }
-  fieldset {
-    min-width: 0;
-    margin: 0;
-    padding: 1rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    background: var(--panel-gloss), var(--panel);
-    box-shadow: var(--shadow-panel);
-  }
-  legend {
-    padding-inline: 0.4rem;
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  .archetype-choices {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
-    gap: 0.75rem;
-  }
-  .archetype-choice {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-content: start;
-    gap: 0.4rem 0.65rem;
-    padding: 0.85rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    background: var(--panel-sunken);
-  }
-  .archetype-choice:has(input:not(:disabled)):hover {
-    border-color: var(--line-strong);
-  }
-  .archetype-choice:has(input:checked) {
-    border-color: var(--accent);
-    background: var(--neon-soft);
-  }
-  .archetype-choice:has(input:focus-visible) {
-    outline: 2px solid var(--focus);
-    outline-offset: 3px;
-  }
-  input {
-    width: 1.1rem;
-    height: 1.1rem;
-    margin: 0.15rem 0 0;
-    accent-color: var(--accent);
-  }
-  .archetype-choice label {
-    font-weight: 600;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
-  }
-  label,
-  input {
-    cursor: pointer;
-  }
-  .archetype-choice p {
-    grid-column: 2;
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    line-height: 1.45;
-  }
-  .minimum-tier {
+  .archetype-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
+    align-items: end;
+    gap: 0.6rem 1rem;
+  }
+  .archetype-field,
+  .minimum-tier {
+    display: grid;
+    gap: 0.3rem;
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+  }
+  .archetype-field {
+    flex: 1 1 13rem;
+  }
+  .archetype-field select {
+    width: 100%;
   }
   select {
     padding: 0.5rem 0.75rem;
@@ -182,46 +134,18 @@
     background: var(--panel-sunken);
     color: var(--text);
     font: inherit;
+    cursor: pointer;
+  }
+  .archetype-description {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
   }
   .ranking-tools {
     min-width: 0;
   }
   .ranking-tools:empty {
     display: none;
-  }
-  .is-compact {
-    gap: 0.5rem;
-    margin-block: 0;
-  }
-  .is-compact fieldset {
-    padding: 0.5rem 0.6rem 0.6rem;
-  }
-  .is-compact legend {
-    font-size: 0.85rem;
-  }
-  .is-compact .archetype-choices {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
-    gap: 0.3rem;
-  }
-  .is-compact .archetype-choice {
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.5rem;
-  }
-  .is-compact .archetype-choice label {
-    font-size: 0.78rem;
-    line-height: 1.2;
-    overflow-wrap: normal;
-  }
-  .is-compact input {
-    margin: 0;
-  }
-  .is-compact .archetype-choice p {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 </style>

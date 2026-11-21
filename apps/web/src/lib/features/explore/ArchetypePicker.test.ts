@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/svelte';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ArchetypePicker from './ArchetypePicker.svelte';
@@ -24,49 +30,48 @@ function picker(archetype: 'any' | ArchetypeKey = 'any', anyFloor = false) {
 }
 
 describe('native archetype picker', () => {
-  it('names the group and all nine radios only by their short labels', () => {
+  const typeSelect = () =>
+    screen.getByRole('combobox', { name: 'Colony archetype' });
+
+  it('offers Any and the eight colony types in one dropdown, by their short labels', () => {
     picker();
+    const select = typeSelect();
+    expect(select).toHaveProperty('tagName', 'SELECT');
+    expect(select).toHaveValue('any');
     expect(
-      screen.getByRole('group', { name: 'Colony archetype' }),
-    ).toHaveProperty('tagName', 'FIELDSET');
-    const choices = [
-      { label: 'Any', description: ANY_ARCHETYPE_DESCRIPTION },
-      ...ARCHETYPES,
-    ];
-    expect(screen.getAllByRole('radio')).toHaveLength(9);
-    for (const choice of choices) {
-      const radio = screen.getByRole('radio', {
-        name: choice.label,
-      });
-      expect(radio).toHaveAccessibleDescription(choice.description);
-      const description = document.getElementById(
-        radio.getAttribute('aria-describedby')!,
-      );
-      expect(description).toHaveTextContent(choice.description);
-      expect(description?.closest('label')).toBeNull();
-      expect(screen.getAllByText(choice.description)).toHaveLength(1);
-    }
-    expect(screen.getByRole('radio', { name: 'Any' })).toBeChecked();
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Any', ...ARCHETYPES.map((entry) => entry.label)]);
+    // The chosen type's description is shown under it, and read with it.
+    expect(select).toHaveAccessibleDescription(ANY_ARCHETYPE_DESCRIPTION);
+    expect(screen.getAllByText(ANY_ARCHETYPE_DESCRIPTION)).toHaveLength(1);
     // Galaxy-wide the list is best first already: no "Show only" for Any.
     expect(screen.queryByLabelText('Show only')).not.toBeInTheDocument();
   });
 
-  it('uses one native radio group and leaves its keyboard progression to the platform', async () => {
+  it('commits the chosen type and describes it', async () => {
     const { onArchetypeChange, rerender } = picker();
-    const radios = screen.getAllByRole('radio') as HTMLInputElement[];
-    expect(new Set(radios.map((radio) => radio.name)).size).toBe(1);
-    expect(radios.every((radio) => radio.type === 'radio')).toBe(true);
-    expect(radios.every((radio) => !radio.hasAttribute('tabindex'))).toBe(true);
-    const first = radios[0];
-    first.focus();
-    expect(await fireEvent.keyDown(first, { key: 'ArrowRight' })).toBe(true);
-    // jsdom does not implement the browser's radio arrow-key default action.
-    // Deliver its native change result and verify the controlled commit.
-    await fireEvent.click(radios[1]);
+    await fireEvent.change(typeSelect(), { target: { value: 'paradise' } });
     expect(onArchetypeChange).toHaveBeenCalledExactlyOnceWith('paradise');
     await rerender({ archetype: 'paradise', minimumTier: 'B' });
-    expect(radios[1]).toBeChecked();
-    expect(first).not.toBeChecked();
+    const paradise = ARCHETYPES.find((entry) => entry.key === 'paradise')!;
+    expect(typeSelect()).toHaveValue('paradise');
+    expect(typeSelect()).toHaveAccessibleDescription(paradise.description);
+    await fireEvent.change(typeSelect(), { target: { value: 'any' } });
+    expect(onArchetypeChange).toHaveBeenLastCalledWith('any');
+  });
+
+  it('keeps type keyboard input native and commits only its change event', async () => {
+    const { onArchetypeChange } = picker();
+    const select = typeSelect();
+    select.focus();
+    expect(await fireEvent.keyDown(select, { key: 'ArrowDown' })).toBe(true);
+    expect(onArchetypeChange).not.toHaveBeenCalled();
+    // jsdom does not implement the native select's keyboard default action.
+    await fireEvent.change(select, { target: { value: 'stronghold' } });
+    expect(onArchetypeChange).toHaveBeenCalledExactlyOnceWith('stronghold');
+    expect(select).toHaveFocus();
   });
 
   it('shows only B, A and S minimum tiers for a selected archetype', async () => {
@@ -74,7 +79,9 @@ describe('native archetype picker', () => {
     const select = screen.getByRole('combobox', { name: 'Show only' });
     expect(select).toHaveValue('B');
     expect(
-      screen.getAllByRole('option').map((option) => option.textContent),
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
     ).toEqual(['Tier B or better', 'Tier A or better', 'Tier S']);
     await fireEvent.change(select, { target: { value: 'A' } });
     expect(onMinimumTierChange).toHaveBeenCalledExactlyOnceWith('A');
@@ -85,7 +92,9 @@ describe('native archetype picker', () => {
     const select = screen.getByRole('combobox', { name: 'Show only' });
     expect(select).toHaveValue('C');
     expect(
-      screen.getAllByRole('option').map((option) => option.textContent),
+      within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
     ).toEqual([
       'All systems',
       'Tier C or better',
@@ -122,12 +131,11 @@ describe('native archetype picker', () => {
     expect(select).toHaveFocus();
   });
 
-  it('disables the whole choice group and minimum tier together', async () => {
+  it('disables the type and minimum tier together', async () => {
     const { rerender, onArchetypeChange, onMinimumTierChange } =
       picker('flexible');
     await rerender({ disabled: true });
-    for (const radio of screen.getAllByRole('radio'))
-      expect(radio).toBeDisabled();
+    expect(typeSelect()).toBeDisabled();
     expect(screen.getByRole('combobox', { name: 'Show only' })).toBeDisabled();
     expect(onArchetypeChange).not.toHaveBeenCalled();
     expect(onMinimumTierChange).not.toHaveBeenCalled();
@@ -137,7 +145,7 @@ describe('native archetype picker', () => {
     const { rerender, container } = picker();
     for (const archetype of ['any', 'manufacturing_hub'] as const) {
       await rerender({ archetype });
-      expect(screen.getAllByRole('radio')).toHaveLength(9);
+      expect(within(typeSelect()).getAllByRole('option')).toHaveLength(9);
       expect(screen.queryByRole('slider')).not.toBeInTheDocument();
       expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
       expect(container.querySelector('[name*="weight"]')).toBeNull();

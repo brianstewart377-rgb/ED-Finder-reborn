@@ -717,8 +717,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expectEmptyResults();
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
     expect(api.getArchetypeRankings).not.toHaveBeenCalled();
-    await fireEvent.click(
-      screen.getByRole('radio', { name: 'Manufacturing Hub' }),
+    await fireEvent.change(
+      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      { target: { value: 'manufacturing_hub' } },
     );
     await screen.findByText('Ranked 1');
     expect(
@@ -726,7 +727,10 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         name: 'Galaxy-wide Manufacturing Hub ranking',
       }),
     ).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
+    await fireEvent.change(
+      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      { target: { value: 'any' } },
+    );
     await waitFor(expectEmptyResults);
     expect(api.searchExploreSystems).not.toHaveBeenCalled();
     expect(api.getArchetypeRankings).toHaveBeenCalledTimes(1);
@@ -736,7 +740,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     const history = renderEnabled('', { anchor: anchorA });
     await screen.findByText('Ranked 1');
     await fireEvent.click(
-      screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
+      screen.getByRole('button', { name: 'Stop searching near Anchor A' }),
     );
     await waitFor(expectEmptyResults);
     expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
@@ -761,7 +765,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(1),
     );
     await fireEvent.click(
-      screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
+      screen.getByRole('button', { name: 'Stop searching near Anchor A' }),
     );
     await waitFor(expectEmptyResults);
     finish(finderPage(0, 50));
@@ -1120,10 +1124,14 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       ),
     );
     expect(mockedPage.url.searchParams.has('offset')).toBe(false);
-    await fireEvent.change(
-      screen.getByRole('spinbutton', { name: 'Results per page' }),
-      { target: { value: '2' } },
-    );
+    // Results per page sits with Previous and Next, under the list.
+    const pageSize = screen.getByRole('spinbutton', {
+      name: 'Results per page',
+    });
+    expect(
+      screen.getByRole('navigation', { name: 'Result pages' }),
+    ).toContainElement(pageSize);
+    await fireEvent.change(pageSize, { target: { value: '2' } });
     await screen.findByText('Showing 2 of 3 (results 1–2)');
     expect(api.getArchetypeRankings).toHaveBeenLastCalledWith(
       {
@@ -1201,7 +1209,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       1,
     );
     expect(
-      screen.queryByRole('button', { name: /Clear anchor/ }),
+      screen.queryByRole('button', { name: /Stop searching near/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -1262,7 +1270,10 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     expect(mockedPage.state.anchor).toEqual(anchorA);
     expect(mockedPage.url.searchParams.get('offset')).toBe('1');
     expect(mockedGoto).not.toHaveBeenCalled();
-    await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
+    await fireEvent.change(
+      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      { target: { value: 'any' } },
+    );
     await waitFor(() =>
       expect(api.searchExploreSystems).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -1295,9 +1306,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     );
     await screen.findByText('Ranked 2');
     await fireEvent.click(
-      screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
+      screen.getByRole('button', { name: 'Stop searching near Anchor A' }),
     );
-    await screen.findByText('Anchor cleared; searching galaxy-wide.');
+    await screen.findByText('Showing the whole galaxy, best first.');
     expect(mockedPage.state.anchor).toBeNull();
     expect(mockedPage.url.search).toBe(
       '?page_size=1&selected=9007199254741001&system=9007199254741002&view=cards',
@@ -1309,7 +1320,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       '',
     );
     expect(
-      screen.queryByRole('button', { name: /Clear anchor/ }),
+      screen.queryByRole('button', { name: /Stop searching near/ }),
     ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(api.searchExploreSystems).toHaveBeenLastCalledWith(
@@ -1320,7 +1331,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       ),
     );
     history.back();
-    await screen.findByRole('button', { name: 'Clear anchor Anchor A' });
+    await screen.findByRole('button', { name: 'Stop searching near Anchor A' });
     expect(screen.getByRole('combobox', { name: 'System name' })).toHaveValue(
       'Anchor A',
     );
@@ -1344,7 +1355,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     );
     await screen.findByText('Ranked 2');
     await fireEvent.click(
-      screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
+      screen.getByRole('button', { name: 'Stop searching near Anchor A' }),
     );
     await waitFor(() => expect(mockedPage.state.anchor).toBeNull());
     expect(mockedPage.url.search).toBe(
@@ -1368,12 +1379,16 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     );
   });
 
-  it('exposes the Clear anchor button with no automated accessibility violations', async () => {
+  it('exposes the search box clear button with no automated accessibility violations', async () => {
     renderEnabled('page_size=1', { anchor: anchorA });
     const clear = await screen.findByRole('button', {
-      name: 'Clear anchor Anchor A',
+      name: 'Stop searching near Anchor A',
     });
-    expect(clear).toHaveTextContent('Clear');
+    // An × inside the search box; its name says what it does.
+    expect(clear.closest('.search-control')).toContainElement(
+      screen.getByRole('combobox', { name: 'System name' }),
+    );
+    expect(clear.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(clear).toHaveAttribute('type', 'button');
     expect(clear.tabIndex).toBe(0);
     const result = await axe.run(clear.parentElement!, {
@@ -1403,7 +1418,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       '?page_size=1&selected=9007199254740994&near=9007199254740994',
     );
     history.back();
-    await screen.findByRole('button', { name: 'Clear anchor Anchor A' });
+    await screen.findByRole('button', { name: 'Stop searching near Anchor A' });
     expect(screen.getByRole('combobox', { name: 'System name' })).toHaveValue(
       'Anchor A',
     );
@@ -1814,9 +1829,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     await fireEvent.click(next);
     await screen.findByText('Ranked 2');
     await waitFor(() => expect(next).toHaveFocus());
-    const picker = screen.getByRole('radio', { name: 'Manufacturing Hub' });
+    const picker = screen.getByRole('combobox', { name: 'Colony archetype' });
     picker.focus();
-    await fireEvent.click(picker);
+    await fireEvent.change(picker, { target: { value: 'manufacturing_hub' } });
     await waitFor(() =>
       expect(
         vi.mocked(api.searchExploreSystems).mock.lastCall?.[0],
@@ -1924,9 +1939,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     await waitFor(() =>
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
     );
-    const picker = screen.getByRole('radio', { name: 'Manufacturing Hub' });
+    const picker = screen.getByRole('combobox', { name: 'Colony archetype' });
     picker.focus();
-    await fireEvent.click(picker);
+    await fireEvent.change(picker, { target: { value: 'manufacturing_hub' } });
     // The type is searched near the same anchor, which supersedes the Any one.
     await waitFor(() =>
       expect(
@@ -1936,9 +1951,9 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
     finishAnchor(finderPage(0));
     await waitFor(() => expect(picker).toHaveFocus());
     mockRankedPages();
-    const any = screen.getByRole('radio', { name: 'Any' });
+    const any = screen.getByRole('combobox', { name: 'Colony archetype' });
     any.focus();
-    await fireEvent.click(any);
+    await fireEvent.change(any, { target: { value: 'any' } });
     await waitFor(() =>
       expect(
         screen.getByRole('region', { name: 'Near Anchor A' }),
@@ -3119,7 +3134,7 @@ describe.each([false, true])(
       });
       await screen.findByText('Ranked 1');
       await fireEvent.click(
-        screen.getByRole('button', { name: 'Clear anchor Anchor A' }),
+        screen.getByRole('button', { name: 'Stop searching near Anchor A' }),
       );
       await waitFor(() =>
         expect(mockedPage.url.searchParams.has('near')).toBe(false),
@@ -3323,7 +3338,10 @@ describe('Explore body filters in archetype mode', () => {
       min_score: 60,
       body_filters: { elw_count: { min: 1 } },
     });
-    await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
+    await fireEvent.change(
+      screen.getByRole('combobox', { name: 'Colony archetype' }),
+      { target: { value: 'any' } },
+    );
     await waitFor(() =>
       expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
     );
@@ -3615,8 +3633,9 @@ describe.each([false, true])(
         });
         const resultText = list.textContent;
         expect(within(list).getAllByRole('listitem')).toHaveLength(3);
-        await fireEvent.click(
-          screen.getByRole('radio', { name: 'Manufacturing Hub' }),
+        await fireEvent.change(
+          screen.getByRole('combobox', { name: 'Colony archetype' }),
+          { target: { value: 'manufacturing_hub' } },
         );
         await screen.findByRole('heading', {
           name: 'Ranking temporarily unavailable',
@@ -3639,8 +3658,8 @@ describe.each([false, true])(
         expect(restoredList.textContent).toBe(resultText);
         expect(within(restoredList).getAllByRole('listitem')).toHaveLength(3);
         expect(
-          screen.getByRole('radio', { name: 'Manufacturing Hub' }),
-        ).toBeChecked();
+          screen.getByRole('combobox', { name: 'Colony archetype' }),
+        ).toHaveValue('manufacturing_hub');
         expect(document.querySelectorAll('canvas')).toHaveLength(1);
         expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
         expect(api.getArchetypeRankings).toHaveBeenCalledTimes(1);
@@ -3720,8 +3739,8 @@ describe.each([false, true])(
         });
         expect(within(restoredList).getByText('Ranked 2')).toBeInTheDocument();
         expect(
-          screen.getByRole('radio', { name: 'Manufacturing Hub' }),
-        ).toBeChecked();
+          screen.getByRole('combobox', { name: 'Colony archetype' }),
+        ).toHaveValue('manufacturing_hub');
         expect(screen.getByRole('combobox', { name: 'Show only' })).toHaveValue(
           'A',
         );
@@ -3747,7 +3766,10 @@ describe.each([false, true])(
         expect(api.searchExploreSystems).toHaveBeenCalledTimes(1);
         expect(api.getArchetypeRankings).not.toHaveBeenCalled();
 
-        await fireEvent.click(screen.getByRole('radio', { name: 'Any' }));
+        await fireEvent.change(
+          screen.getByRole('combobox', { name: 'Colony archetype' }),
+          { target: { value: 'any' } },
+        );
         await waitFor(() =>
           expect(api.searchExploreSystems).toHaveBeenCalledTimes(2),
         );
@@ -4529,10 +4551,12 @@ describe.each([false, true])(
       await waitFor(() => expect(map.systemCount()).toBe(51));
       const flights = map.flights.length;
       await fireEvent.click(
-        screen.getByRole('button', { name: 'Clear anchor Sol' }),
+        screen.getByRole('button', { name: 'Stop searching near Sol' }),
       );
       await waitFor(() =>
-        expect(screen.queryByText(/Search anchor:/)).toBeNull(),
+        expect(
+          screen.queryByRole('button', { name: 'Stop searching near Sol' }),
+        ).toBeNull(),
       );
       expect(map.getSelection()?.name).toBe('Sol');
       expect(map.systemCount()).toBe(51);
