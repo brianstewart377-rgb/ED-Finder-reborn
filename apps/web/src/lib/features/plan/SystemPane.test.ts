@@ -79,6 +79,34 @@ describe('system schematic', () => {
   });
 });
 
+describe('the key to the marks', () => {
+  it('explains every mark in the list, folded until asked for', async () => {
+    const { container } = renderSystem();
+    const key = container.querySelector<HTMLDetailsElement>('.plan-key')!;
+    expect(key.open).toBe(false);
+    await fireEvent.click(within(key).getByText('What the marks mean'));
+    expect(key.open).toBe(true);
+    const marks = [...key.querySelectorAll('dt')].map((dt) =>
+      dt.textContent!.replace(/\s+/g, ' ').trim(),
+    );
+    expect(marks).toEqual([
+      '◌ 0/3',
+      '◍ 0/2',
+      'L',
+      'A',
+      'V',
+      'T',
+      '◎Ring mark',
+      'G2, B1',
+      '+',
+    ]);
+    expect(key).toHaveTextContent('Orbital slots: used / total.');
+    expect(key).toHaveTextContent('the body is not landable.');
+    // The slot mark is decoration; the numbers are read.
+    expect(key.querySelector('dt span')).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
 describe('surface slot sources', () => {
   it.each([0, 5])(
     'labels an API surface prediction of %s, leaving orbital slots unknown',

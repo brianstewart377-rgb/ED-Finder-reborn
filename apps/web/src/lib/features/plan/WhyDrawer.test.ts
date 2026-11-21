@@ -272,7 +272,9 @@ describe('plan step Why drawer', () => {
       screen.getByText('Enter the available slot count for this location.'),
     ).toBeInTheDocument();
     expect(screen.getByText('Future rule reason.')).toBeInTheDocument();
-    expect(screen.getByText(/Last good evaluation/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/from before your last change/),
+    ).toBeInTheDocument();
     expect(screen.getByRole('table')).toHaveClass('stale');
   });
 

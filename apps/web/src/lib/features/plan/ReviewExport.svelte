@@ -280,14 +280,14 @@
           {/each}
         </ul>
         {#if !model.sites.length}<p class="plan-muted">
-            Add a Primary Port to evaluate this plan.
+            Add a Primary Port to see this plan's construction points.
           </p>{/if}
         {#if error}<p class="plan-error" role="alert">{error}</p>{/if}
         {#if pending}<p class="plan-muted" role="status">
-            Evaluating plan…
+            Working out the plan…
           </p>{/if}
         {#if stale && evaluation}<p class="plan-muted">
-            Last good evaluation — awaiting a valid current result.
+            Showing the results from before your last change.
           </p>{/if}
         <div class:stale={stale && !!evaluation}>
           {#if evaluation}
@@ -332,9 +332,9 @@
                 {evaluation.summary.NEEDS_INFO} Needs info</span
               >
             </div>
-          {:else}
+          {:else if model.sites.length}
             <p class="plan-empty">
-              The API evaluation will show your construction points here.
+              Construction points show here once the plan is worked out.
             </p>
           {/if}
         </div>

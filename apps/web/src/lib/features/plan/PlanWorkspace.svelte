@@ -619,17 +619,6 @@
         </p>
       </div>
       <div class="plan-header-actions">
-        <div class="plan-view" role="group" aria-label="Points view">
-          <button
-            type="button"
-            aria-pressed={view === 'now'}
-            onclick={() => (view = 'now')}>Now</button
-          ><button
-            type="button"
-            aria-pressed={view === 'after_plan'}
-            onclick={() => (view = 'after_plan')}>After the plan</button
-          >
-        </div>
         <button
           bind:this={reviewTrigger}
           type="button"
@@ -665,7 +654,7 @@
           type="button"
           disabled={!model.sites.length || primaryProtected}
           title={primaryProtected
-            ? 'A completed Primary Port can never be removed (RB-0008).'
+            ? 'A finished Primary Port can never be removed.'
             : undefined}
           onclick={abandon}>Abandon plan</button
         ><input
@@ -788,6 +777,7 @@
         {locations}
         {evaluation}
         {view}
+        onview={(value) => (view = value)}
         error={evaluationError}
         {canRetry}
         {retrySeconds}

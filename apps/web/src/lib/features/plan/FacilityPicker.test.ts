@@ -558,7 +558,7 @@ describe('explicit facility addition', () => {
     expect(within(preview).getByText('Orbital')).toBeVisible();
     expect(within(preview).getByText('Industrial')).toBeVisible();
     expect(
-      within(preview).getByText(/Economy facts unavailable/),
+      within(preview).getByText(/economy data is not available yet/),
     ).toBeVisible();
     expect(list).not.toBeVisible();
     expect(screen.getByRole('tabpanel')).toBeVisible();

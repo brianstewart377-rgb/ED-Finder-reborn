@@ -148,7 +148,7 @@
       >
     </header>
     {#if stale}<p class="muted">
-        Last good evaluation — awaiting a valid current result.
+        Showing the results from before your last change.
       </p>{/if}
     {#if step && !economy}
       <p class="result" class:stale class:blocked={step.result === 'BLOCKED'}>

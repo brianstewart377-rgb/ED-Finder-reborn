@@ -558,9 +558,7 @@
           {/if}
           <h5>Economy and links after adding</h5>
           {#if bodies.economy_facts_generation_id == null}
-            <p>
-              Economy facts unavailable for this system's published generation.
-            </p>
+            <p>This system's economy data is not available yet.</p>
           {:else if economies}
             {#each economies.after_plan as port (port.site_id)}
               <div class="preview-economy">

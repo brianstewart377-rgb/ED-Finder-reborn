@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/svelte';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/svelte';
 import { afterEach, expect, it, vi } from 'vitest';
 import SummaryPane from './SummaryPane.svelte';
 import { compactPlanFixture } from './__fixtures__/compact-plan';
@@ -6,8 +12,8 @@ import { resolvePlanLocations } from './locations';
 
 afterEach(cleanup);
 
-it('keeps initial evaluation guidance readable before any result exists', () => {
-  const fixture = compactPlanFixture(2, 0);
+function beforeAnyResult(siteCount: number) {
+  const fixture = compactPlanFixture(2, siteCount);
   render(SummaryPane, {
     model: fixture.model,
     bodies: fixture.bodies,
@@ -22,8 +28,22 @@ it('keeps initial evaluation guidance readable before any result exists', () => 
     onbody: vi.fn(),
     onwhy: vi.fn(),
   });
+}
+
+it('asks for a Primary Port, once, while the plan is empty', () => {
+  beforeAnyResult(0);
+  expect(
+    screen.getByText(
+      "Add a Primary Port to see this plan's construction points.",
+    ),
+  ).toBeVisible();
+  expect(screen.queryByText(/once the plan is worked out/)).toBeNull();
+});
+
+it('keeps initial evaluation guidance readable before any result exists', () => {
+  beforeAnyResult(1);
   const guidance = screen.getByText(
-    'The API evaluation will show your construction points here.',
+    'Construction points show here once the plan is worked out.',
   );
   expect(guidance).toBeVisible();
   expect(guidance.closest('.stale')).toBeNull();
@@ -70,6 +90,38 @@ it('keeps the API Tier 2 and Tier 3 balances separate in Now and After the plan'
   expectBalance('Tier 2', -3);
   expectBalance('Tier 3', 9);
   expect(fixture).toEqual(original);
+});
+
+it('switches between Now and After the plan beside its heading', async () => {
+  const fixture = compactPlanFixture(2, 1);
+  const onview = vi.fn();
+  const { rerender } = render(SummaryPane, {
+    model: fixture.model,
+    bodies: fixture.bodies,
+    facilities: fixture.facilities,
+    locations: resolvePlanLocations(fixture.bodies),
+    evaluation: null,
+    view: 'after_plan',
+    onview,
+    error: '',
+    pending: false,
+    stale: false,
+    onstep: vi.fn(),
+    onbody: vi.fn(),
+    onwhy: vi.fn(),
+  });
+  const heading = screen.getByRole('heading', { name: 'Summary' });
+  const choice = screen.getByRole('group', { name: 'Points shown' });
+  expect(heading.parentElement).toContainElement(choice);
+  const now = within(choice).getByRole('button', { name: 'Now' });
+  const after = within(choice).getByRole('button', { name: 'After the plan' });
+  expect(after).toHaveAttribute('aria-pressed', 'true');
+  expect(now).toHaveAttribute('aria-pressed', 'false');
+  await fireEvent.click(now);
+  expect(onview).toHaveBeenCalledExactlyOnceWith('now');
+  await rerender({ view: 'now' });
+  expect(now).toHaveAttribute('aria-pressed', 'true');
+  expect(after).toHaveAttribute('aria-pressed', 'false');
 });
 
 it('uses a retired former belt cluster alias to find known slot totals', async () => {

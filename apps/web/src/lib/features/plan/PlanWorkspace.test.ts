@@ -1020,6 +1020,16 @@ describe('Review and DRAFT export', () => {
     );
     expect(primary).toHaveLength(1);
     expect(primary[0]).toHaveAccessibleName('Review & export');
+    // The header holds actions only; Now / After the plan is beside the
+    // Summary, whose points it changes.
+    const actions = document.querySelector('.plan-header-actions')!;
+    expect(
+      within(actions as HTMLElement).queryByRole('button', { name: 'Now' }),
+    ).toBeNull();
+    const summary = document.querySelector<HTMLElement>('[data-plan-summary]')!;
+    expect(
+      within(summary).getByRole('group', { name: 'Points shown' }),
+    ).toBeVisible();
   });
 
   it.each(['Close', 'Escape'] as const)(
@@ -1753,7 +1763,7 @@ describe('planner workspace evaluation and browser state', () => {
     );
     expect(within(summary).getByText('17').closest('.stale')).not.toBeNull();
     expect(
-      within(summary).getByText(/Last good evaluation/),
+      within(summary).getByText(/from before your last change/),
     ).toBeInTheDocument();
     expect(
       within(summary).queryByRole('button', { name: /Try again/ }),
@@ -1874,7 +1884,7 @@ describe('planner workspace evaluation and browser state', () => {
     expect(abandon).toBeDisabled();
     expect(abandon).toHaveAttribute(
       'title',
-      'A completed Primary Port can never be removed (RB-0008).',
+      'A finished Primary Port can never be removed.',
     );
     await fireEvent.click(abandon);
     expect(confirm).not.toHaveBeenCalled();

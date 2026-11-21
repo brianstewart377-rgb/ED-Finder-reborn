@@ -270,9 +270,9 @@ describe('Review & export', () => {
       error: 'Check data could not be refreshed.',
     });
     const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveTextContent('Evaluating plan…');
+    expect(dialog).toHaveTextContent('Working out the plan…');
     expect(dialog).toHaveTextContent(
-      'Last good evaluation — awaiting a valid current result.',
+      'Showing the results from before your last change.',
     );
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Check data could not be refreshed.',
@@ -359,7 +359,7 @@ describe('Review & export', () => {
     ).toBeVisible();
     expect(
       screen.getByText(
-        'The API evaluation will show your construction points here.',
+        'Construction points show here once the plan is worked out.',
       ),
     ).toBeVisible();
     expect(

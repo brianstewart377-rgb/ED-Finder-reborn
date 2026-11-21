@@ -14,6 +14,7 @@
     locations,
     evaluation,
     view,
+    onview,
     error,
     canRetry = false,
     retrySeconds = 0,
@@ -30,6 +31,8 @@
     locations: PlannerLocation[];
     evaluation: PlanEvaluationV1 | null;
     view: 'now' | 'after_plan';
+    /** Shows the Now / After the plan switch beside the heading. */
+    onview?: (view: 'now' | 'after_plan') => void;
     error: string;
     canRetry?: boolean;
     retrySeconds?: number;
@@ -84,10 +87,24 @@
 >
   <div class="pane-heading">
     <h2 id="plan-summary-title">Summary</h2>
-    <span>{view === 'now' ? 'Now' : 'After the plan'}</span>
+    {#if onview}
+      <div class="plan-view" role="group" aria-label="Points shown">
+        <button
+          type="button"
+          aria-pressed={view === 'now'}
+          onclick={() => onview('now')}>Now</button
+        ><button
+          type="button"
+          aria-pressed={view === 'after_plan'}
+          onclick={() => onview('after_plan')}>After the plan</button
+        >
+      </div>
+    {:else}
+      <span>{view === 'now' ? 'Now' : 'After the plan'}</span>
+    {/if}
   </div>
   {#if !model.sites.length}<p class="plan-muted">
-      Add a Primary Port to evaluate this plan.
+      Add a Primary Port to see this plan's construction points.
     </p>{/if}
   {#if error}<p class="plan-error" role="alert">{error}</p>{/if}
   {#if error && canRetry}<button
@@ -98,9 +115,11 @@
         ? `Try again in ${retrySeconds} s`
         : 'Try again'}</button
     >{/if}
-  {#if pending}<p class="plan-muted" role="status">Evaluating plan…</p>{/if}
+  {#if pending}<p class="plan-muted" role="status">
+      Working out the plan…
+    </p>{/if}
   {#if stale && evaluation}<p class="plan-muted">
-      Last good evaluation — awaiting a valid current result.
+      Showing the results from before your last change.
     </p>{/if}
   <div class:stale={stale && !!evaluation}>
     {#if totals && evaluation}
@@ -137,8 +156,8 @@
           {evaluation.summary.NEEDS_INFO} Needs info</span
         >
       </div>
-    {:else}<p class="plan-empty">
-        The API evaluation will show your construction points here.
+    {:else if model.sites.length}<p class="plan-empty">
+        Construction points show here once the plan is worked out.
       </p>{/if}
   </div>
   <h3>Needs attention</h3>
