@@ -14,7 +14,6 @@
     buildCompareRows,
     compareCsv,
     COMPARE_MAX,
-    snapshotProvenanceSummary,
     snapshotScoreSummary,
   } from './compare-metrics';
   import { inspectHref, navigateWithAnchor } from './navigation';
@@ -268,11 +267,6 @@
                   <span class="snapshot-detail"
                     >{snapshotScoreSummary(entry)}</span
                   >
-                  {#if snapshotProvenanceSummary(entry)}
-                    <span class="snapshot-detail"
-                      >{snapshotProvenanceSummary(entry)}</span
-                    >
-                  {/if}
                 {/if}
                 <button
                   type="button"

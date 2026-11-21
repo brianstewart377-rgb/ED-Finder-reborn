@@ -184,14 +184,8 @@ export function snapshotScoreSummary(entry: CompareEntry): string {
     parts.push(`Stored score ${stored === null ? UNKNOWN : stored}`);
   }
   if (!identity.ranking_provenance || identity.score_kind === 'unknown')
-    parts.push('Older save: ranking mode or provenance unknown');
+    parts.push("Older save: we don't know which search scored it");
   return parts.join('; ');
-}
-
-export function snapshotProvenanceSummary(entry: CompareEntry): string | null {
-  const provenance = snapshotRankingIdentity(entry).ranking_provenance;
-  if (!provenance) return null;
-  return `Ranked on generation ${provenance.derived_generation_id}; publication ${provenance.publication_sequence}; archetype manifest ${provenance.archetype_manifest_sha256}`;
 }
 
 export function snapshotCapturedAt(entry: CompareEntry): string | null {
@@ -222,22 +216,24 @@ export function buildCompareNotes(
     )
   )
     notes.push(
-      'Older save: ranking mode or provenance unknown. Stored scores remain visible.',
+      "Older saves: we don't know which search scored them. Their scores are still shown.",
     );
   if (!comparableOverallScores(entries))
     notes.push(
       identities.some((identity) => identity.score_kind === 'unknown')
-        ? 'Score comparison omitted: ranking mode unknown.'
-        : 'Score comparison omitted: different ranking versions or missing ranking provenance.',
+        ? "Scores not compared: we don't know which search scored some of these."
+        : "Scores not compared: they come from different versions of Find's scores, or the version is not known.",
     );
   if (
     identities.some((identity) => identity.score_kind === 'selected_fit') &&
     !comparableSelectedArchetype(entries)
   )
-    notes.push('Selected-fit comparison omitted: different ranking modes.');
+    notes.push(
+      'Colony type fits not compared: these were saved from searches for different colony types.',
+    );
   if (!comparableDistance(entries))
     notes.push(
-      'Distance comparison omitted: different or unknown distance references.',
+      'Distances not compared: they were measured from different systems, or the system is not known.',
     );
   return notes;
 }
