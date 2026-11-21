@@ -27,6 +27,12 @@
   import { createWatchlistQuery } from './watchlist-query.svelte';
 
   type Sort = 'recent' | 'name' | 'development' | 'distance';
+  let {
+    inPopout = false,
+  }: {
+    /** Inside Explore's "Saved systems" pop-out, whose title names it. */
+    inPopout?: boolean;
+  } = $props();
   const { pins, compare } = usePersistenceContext();
   const watchlist = createWatchlistQuery();
   let pinSort = $state<Sort>('recent');
@@ -197,9 +203,13 @@
   }
 </script>
 
-<section class="saved-systems" aria-labelledby="saved-systems-title">
+<section
+  class="saved-systems"
+  class:in-popout={inPopout}
+  aria-labelledby={inPopout ? undefined : 'saved-systems-title'}
+>
   <div class="saved-heading">
-    <h2 id="saved-systems-title">Saved systems</h2>
+    {#if !inPopout}<h2 id="saved-systems-title">Saved systems</h2>{/if}
     <p>
       Pins and comparison selections stay in this browser. Watched systems are
       saved online using this browser's existing watchlist key.
@@ -585,6 +595,27 @@
   .saved-heading,
   .saved-systems > section {
     padding: 1rem 1.15rem;
+  }
+  /* In the pop-out, the pop-out is the panel. */
+  .saved-systems.in-popout {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .in-popout .saved-heading,
+  .in-popout > section {
+    padding-inline: 0;
+  }
+  .in-popout .saved-heading {
+    padding-top: 0;
+  }
+  .in-popout .saved-heading p {
+    margin-top: 0;
+  }
+  /* The design kit's grip dots belong to the pop-out's own header only. */
+  .in-popout .list-heading::before {
+    content: none;
   }
   .saved-systems > section {
     border-top: 1px solid var(--line);

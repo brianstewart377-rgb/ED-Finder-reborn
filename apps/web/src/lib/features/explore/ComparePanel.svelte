@@ -19,7 +19,14 @@
   } from './compare-metrics';
   import { inspectHref, navigateWithAnchor } from './navigation';
 
-  let { onOpenDetail } = $props<{ onOpenDetail?: (id64: Id64) => void }>();
+  let {
+    onOpenDetail,
+    inPopout = false,
+  }: {
+    onOpenDetail?: (id64: Id64) => void;
+    /** Inside Explore's "Compare" pop-out, whose title names it. */
+    inPopout?: boolean;
+  } = $props();
   const { compare } = usePersistenceContext();
   const entries = $derived($compare.value);
   const rows = $derived(
@@ -146,10 +153,14 @@
   }
 </script>
 
-<section class="compare-panel" aria-labelledby={headingId}>
+<section
+  class="compare-panel"
+  class:in-popout={inPopout}
+  aria-labelledby={inPopout ? undefined : headingId}
+>
   <header class="compare-heading">
     <div>
-      <h2 id={headingId}>Compare systems</h2>
+      {#if !inPopout}<h2 id={headingId}>Compare systems</h2>{/if}
       <p>Up to {COMPARE_MAX} candidates side by side.</p>
     </div>
     <span class="compare-count" aria-live="polite"
@@ -330,6 +341,19 @@
     border-radius: 0.75rem;
     background: var(--color-panel);
     padding: 1.1rem;
+  }
+  /* In the pop-out, the pop-out is the panel. */
+  .compare-panel.in-popout {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .in-popout .compare-heading p {
+    margin-top: 0;
+  }
+  /* The design kit's grip dots belong to the pop-out's own header only. */
+  .in-popout .compare-heading::before {
+    content: none;
   }
   .compare-heading {
     display: flex;

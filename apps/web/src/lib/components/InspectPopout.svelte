@@ -11,6 +11,7 @@
     describedby,
     kind,
     closeOnOutside = true,
+    beside,
     onclose,
     children,
   }: {
@@ -20,8 +21,11 @@
     active?: boolean;
     trigger?: HTMLButtonElement;
     describedby?: string;
-    kind: 'sources' | 'evidence' | 'review';
+    kind: 'sources' | 'evidence' | 'review' | 'saved' | 'compare';
     closeOnOutside?: boolean;
+    /** Open beside this element, to its right, where there is room, rather
+     *  than under the trigger (so a tall pop-out does not cover it). */
+    beside?: HTMLElement;
     onclose: () => void;
     children: Snippet;
   } = $props();
@@ -64,6 +68,16 @@
       panelLeft = Math.max(left + margin, left + (width - bounds.width) / 2);
       panelTop = Math.max(top + margin, top + (height - bounds.height) / 2);
       return;
+    }
+    if (beside) {
+      const box = beside.getBoundingClientRect();
+      const room = left + width - margin - (box.right + margin);
+      if (room >= Math.min(bounds.width, 20 * 16)) {
+        panelLeft = box.right + margin;
+        panelMaxWidth = Math.max(0, Math.floor(room));
+        panelTop = Math.max(top + margin, Math.min(box.top, maxTop));
+        return;
+      }
     }
     panelLeft = Math.max(left + margin, Math.min(anchor.left, maxLeft));
     const below = anchor.bottom + margin;
@@ -217,6 +231,13 @@
   /* Review & export sets its summary beside the unresolved items. */
   .review-dialog {
     width: min(60rem, calc(100% - 1rem));
+  }
+  /* Explore's saved systems, and its comparison of up to six side by side. */
+  .saved-dialog {
+    width: min(46rem, calc(100% - 1rem));
+  }
+  .compare-dialog {
+    width: min(72rem, calc(100% - 1rem));
   }
   header {
     position: sticky;

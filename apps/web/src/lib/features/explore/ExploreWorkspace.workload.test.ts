@@ -332,8 +332,10 @@ describe('Explore load and interaction work budget', () => {
         // Watched but not asked: nobody is signed in and nothing is chosen.
         // With the type picker on, one more is watched and not asked: the
         // count of a page that the API answered before counting its
-        // matches, which no page here is.
-        activeQueries: enabled ? 8 : 7,
+        // matches, which no page here is. The watchlist is not among them
+        // until a result's Watch button, or the Saved systems pop-out,
+        // needs it.
+        activeQueries: enabled ? 7 : 6,
         api: { ...quiet, finder: 0, stars: 0, autocomplete: 0 },
       });
       // Choosing a star to search near: one search and one request for its

@@ -1963,6 +1963,78 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
   });
 });
 
+describe('Explore saved systems and Compare pop-outs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryClient.clear();
+    localStorage.clear();
+    stubRuntime();
+    mockFacadeDefaults();
+    featureGate.enabled = true;
+    mockRankedPages();
+  });
+
+  afterEach(() => {
+    cleanup();
+    featureGate.enabled = false;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('opens saved systems from the Finder panel, and closes it with Escape', async () => {
+    renderEnabled('');
+    const finder = document.getElementById('finder-panel')!;
+    const open = within(finder).getByRole('button', {
+      name: 'Saved systems (0 pinned)',
+    });
+    expect(open).toHaveAttribute('aria-expanded', 'false');
+    // Not on the page until asked for.
+    expect(screen.queryByRole('heading', { name: /^Pinned/ })).toBeNull();
+    await fireEvent.click(open);
+    const dialog = await screen.findByRole('dialog', { name: 'Saved systems' });
+    expect(open).toHaveAttribute('aria-expanded', 'true');
+    expect(open).toHaveAttribute('aria-controls', dialog.id);
+    // One title, the pop-out's.
+    expect(
+      within(dialog).getAllByRole('heading', { name: 'Saved systems' }),
+    ).toHaveLength(1);
+    expect(
+      within(dialog).getByRole('heading', { name: /^Pinned/ }),
+    ).toBeVisible();
+    await fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Saved systems' }),
+      ).toBeNull(),
+    );
+    expect(open).toHaveAttribute('aria-expanded', 'false');
+    expect(open).toHaveFocus();
+  });
+
+  it('opens Compare as a second pop-out, leaving saved systems open', async () => {
+    renderEnabled('');
+    const finder = document.getElementById('finder-panel')!;
+    await fireEvent.click(
+      within(finder).getByRole('button', { name: 'Saved systems (0 pinned)' }),
+    );
+    await screen.findByRole('dialog', { name: 'Saved systems' });
+    await fireEvent.click(
+      within(finder).getByRole('button', { name: 'Compare (0)' }),
+    );
+    const compare = await screen.findByRole('dialog', {
+      name: 'Compare systems',
+    });
+    expect(
+      within(compare).getAllByRole('heading', { name: 'Compare systems' }),
+    ).toHaveLength(1);
+    expect(within(compare).getByText('0 / 6 systems')).toBeVisible();
+    expect(
+      screen.getByRole('dialog', { name: 'Saved systems' }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe('ExploreWorkspace My journeys (V3 journal store)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
