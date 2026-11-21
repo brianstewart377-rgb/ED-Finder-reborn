@@ -14,7 +14,6 @@
     formatCaptureTime,
     snapshotCapturedAt,
     snapshotDistance,
-    snapshotProvenanceSummary,
     snapshotScoreSummary,
   } from './compare-metrics';
   import { inspectHref, navigateWithAnchor } from './navigation';
@@ -330,11 +329,6 @@
                 <td>
                   {#if FINDER_F4_ENABLED}
                     {snapshotScoreSummary(entry)}
-                    {#if snapshotProvenanceSummary(entry)}
-                      <span class="detail-line snapshot-provenance"
-                        >{snapshotProvenanceSummary(entry)}</span
-                      >
-                    {/if}
                   {:else}
                     {score(entry) ?? 'Unknown'}
                   {/if}
@@ -453,8 +447,8 @@
     </header>
     {#if FINDER_F4_ENABLED && watched.length > 0 && !watchScoresComparable}
       <p>
-        Watchlist scores have unknown ranking provenance and cannot be sorted by
-        potential.
+        These scores can't be sorted by potential: they come from different
+        versions of Find's scores, or the version is not known.
       </p>
     {/if}
     {#if watchlist.error}
@@ -717,10 +711,6 @@
     margin-top: 0.2rem;
     font-size: 0.75rem;
     color: var(--muted);
-  }
-  .snapshot-provenance {
-    max-width: 24rem;
-    overflow-wrap: anywhere;
   }
   .row-actions {
     min-width: 10rem;

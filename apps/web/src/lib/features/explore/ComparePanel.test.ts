@@ -445,12 +445,10 @@ describe('comparison panel', () => {
     );
     const overall = metricRow(/Best Colony Potential/);
     expect(within(overall).getAllByRole('cell')[0]).toHaveTextContent(/^91$/);
-    expect(
-      screen.getByText(/Ranked on generation generation-1/i),
-    ).toHaveTextContent('publication 1');
-    expect(
-      screen.getByText(/Ranked on generation generation-2/i),
-    ).toHaveTextContent('d'.repeat(64));
+    // Which ranking scored each system is kept, never shown: no internal IDs.
+    expect(document.body).not.toHaveTextContent(/generation-[12]/);
+    expect(document.body).not.toHaveTextContent('d'.repeat(64));
+    expect(document.body).not.toHaveTextContent(/Ranked on generation/i);
   });
 
   it('compares overall potential across Any and selected modes but omits unlike fits', () => {
@@ -474,7 +472,9 @@ describe('comparison panel', () => {
     expect(
       screen.queryByRole('rowheader', { name: /Colony fit/ }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/different ranking modes/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/searches for different colony types/i),
+    ).toBeInTheDocument();
     expect(metricRow(/Distance from Sol/)).toHaveTextContent(
       '0.00 LY Best value',
     );
@@ -498,7 +498,9 @@ describe('comparison panel', () => {
     expect(
       screen.queryByRole('rowheader', { name: /Colony fit/ }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/different ranking versions/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/different versions of Find's scores/i),
+    ).toBeInTheDocument();
     expect(screen.getAllByText(/Best Colony Potential.*91/)).toHaveLength(2);
   });
 

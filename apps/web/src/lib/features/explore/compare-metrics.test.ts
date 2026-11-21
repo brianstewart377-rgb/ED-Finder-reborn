@@ -11,10 +11,10 @@ import {
   COMPARE_MAX,
   snapshotDistance,
   snapshotCapturedAt,
-  snapshotProvenanceSummary,
   snapshotScoreSummary,
 } from './compare-metrics';
 import { snapshotFromExplore } from './shortlist';
+import { snapshotRankingIdentity } from '$lib/persistence/storage';
 
 const entry = (
   id: string,
@@ -226,7 +226,7 @@ describe('F4 mode- and reference-safe comparison', () => {
     ]);
     expect(metric(entries, 'Paradise World fit')).toBeUndefined();
     expect(buildCompareNotes(entries, f4)).toContain(
-      'Selected-fit comparison omitted: different ranking modes.',
+      'Colony type fits not compared: these were saved from searches for different colony types.',
     );
     expect(compareCsv(entries, f4)).toContain(
       '"Best Colony Potential","70","90"',
@@ -382,7 +382,7 @@ describe('F4 mode- and reference-safe comparison', () => {
         expect(metric(entries, 'Best Colony Potential')).toBeUndefined();
         expect(metric(entries, 'Paradise World fit')).toBeUndefined();
         expect(buildCompareNotes(entries, f4).join(' ')).toContain(
-          'different ranking versions',
+          "different versions of Find's scores",
         );
       }
     },
@@ -405,9 +405,13 @@ describe('F4 mode- and reference-safe comparison', () => {
     const entries = [modern('1', selected), next];
     expect(metric(entries, 'Best Colony Potential')).toBeDefined();
     expect(metric(entries, 'Paradise World fit')).toBeDefined();
-    expect(snapshotProvenanceSummary(next)).toBe(
-      'Ranked on generation generation-b; publication 2; archetype manifest manifest-b',
-    );
+    // Kept with the saved system, to decide what can be compared; never
+    // shown.
+    expect(snapshotRankingIdentity(next).ranking_provenance).toMatchObject({
+      derived_generation_id: 'generation-b',
+      publication_sequence: 2,
+      archetype_manifest_sha256: 'manifest-b',
+    });
     expect(buildCompareNotes(entries, f4)).toEqual([]);
   });
 
@@ -421,9 +425,9 @@ describe('F4 mode- and reference-safe comparison', () => {
       ),
     ).toBe(false);
     expect(snapshotScoreSummary(legacy)).toBe(
-      'Stored score 91; Older save: ranking mode or provenance unknown',
+      "Stored score 91; Older save: we don't know which search scored it",
     );
-    expect(snapshotProvenanceSummary(legacy)).toBeNull();
+    expect(snapshotRankingIdentity(legacy).ranking_provenance).toBeFalsy();
     expect(snapshotDistance(legacy)).toBeNull();
     expect(buildCompareNotes(entries, f4).join(' ')).toContain('Older save');
     expect(legacy).not.toHaveProperty('score_kind');
@@ -436,7 +440,7 @@ describe('F4 mode- and reference-safe comparison', () => {
       metric([unknown, modern('2')], 'Best Colony Potential'),
     ).toBeUndefined();
     expect(buildCompareNotes([unknown], f4)).toContain(
-      'Score comparison omitted: ranking mode unknown.',
+      "Scores not compared: we don't know which search scored some of these.",
     );
   });
 
@@ -494,7 +498,7 @@ describe('F4 mode- and reference-safe comparison', () => {
         ),
       ).toBe(false);
       expect(buildCompareNotes(entries, f4).join(' ')).toContain(
-        'different or unknown distance references',
+        'measured from different systems',
       );
     }
   });

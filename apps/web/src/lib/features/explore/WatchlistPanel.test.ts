@@ -189,9 +189,8 @@ describe('saved systems panel', () => {
     expect(within(table).getByText('old custom key')).toBeInTheDocument();
     expect(within(table).getByText('0.00 LY')).toBeInTheDocument();
     expect(within(table).getByText('Distance from Sol')).toBeInTheDocument();
-    expect(
-      within(table).getByText(/Ranked on generation generation-1/),
-    ).toHaveTextContent('publication 1');
+    // Which ranking scored it is kept, never shown: no internal IDs.
+    expect(table).not.toHaveTextContent(/generation-1|Ranked on generation/);
     await fireEvent.click(
       within(table).getByRole('button', { name: 'Compare Candidate 42' }),
     );
