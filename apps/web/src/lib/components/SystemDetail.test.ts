@@ -182,6 +182,10 @@ describe('shared system detail', () => {
     expect(
       within(bodies).getByRole('list', { name: 'System bodies' }),
     ).toBeVisible();
+    // A one-line heading: the name is already the page's title.
+    expect(
+      within(bodies).getByRole('heading', { level: 2, name: 'System map' }),
+    ).toBeVisible();
     // The key is folded away under the map until it is asked for.
     const key = within(bodies).getByText(
       'What the marks mean, and where the layout comes from',
@@ -194,9 +198,12 @@ describe('shared system detail', () => {
       }),
     ).not.toBeVisible();
     await fireEvent.click(key);
-    expect(
-      within(bodies).getByRole('complementary', { name: 'System map legend' }),
-    ).toBeVisible();
+    const legend = within(bodies).getByRole('complementary', {
+      name: 'System map legend',
+    });
+    expect(legend).toBeVisible();
+    // The "not to scale" note is in the key, not above the map.
+    expect(legend).toHaveTextContent('sizes are for reading, not to scale');
     expect(overview).toHaveAttribute('hidden');
     expect(overview).toHaveProperty('inert', true);
     const stations = await openTab('Stations');
