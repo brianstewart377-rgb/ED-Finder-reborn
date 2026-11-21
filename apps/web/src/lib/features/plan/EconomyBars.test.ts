@@ -191,9 +191,7 @@ describe('port economy bars', () => {
     ];
     const { container } = render(EconomyBars, data);
     expect(
-      screen.getByText(
-        "Economy facts unavailable for this system's published generation",
-      ),
+      screen.getByText("This system's economy data is not available yet."),
     ).toBeVisible();
     expect(
       screen.getByRole('list', { name: 'Economy notes' }),
@@ -320,7 +318,7 @@ describe('port economy bars', () => {
     const { rerender } = render(EconomyBars, { ...data, evaluation: null });
     expect(
       screen.getByText(
-        'Economy bars are waiting for a successful plan evaluation.',
+        'Economy bars show here once the plan has a port and is worked out.',
       ),
     ).toBeVisible();
     expect(screen.queryByText('No economy')).not.toBeInTheDocument();
@@ -328,7 +326,7 @@ describe('port economy bars', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     await rerender({ evaluation: data.evaluation, stale: true });
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Economy bars may not match the current plan.',
+      'They may not match the plan now.',
     );
     expect(
       screen.getByRole('button', { name: /Now: Extraction 40%/ }),

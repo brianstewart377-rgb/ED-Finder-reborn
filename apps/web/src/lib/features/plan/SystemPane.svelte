@@ -376,10 +376,62 @@
       >{showNames ? 'Names and types' : 'Types only'}</button
     >
   </div>
-  <p class="plan-muted">
-    Surface slots are predicted unless entered by you. Enter orbital slots from
-    Architect Mode. Unknown totals are shown as ?.
-  </p>
+  <details class="plan-key">
+    <summary>What the marks mean</summary>
+    <dl>
+      <div>
+        <dt><span aria-hidden="true">◌</span> 0/3</dt>
+        <dd>
+          Orbital slots: used / total. Choose it to enter the total the game's
+          Architect Mode shows; until then the total is ?.
+        </dd>
+      </div>
+      <div>
+        <dt><span aria-hidden="true">◍</span> 0/2</dt>
+        <dd>
+          Surface slots: used / total. "predicted" under it means our guess from
+          the body; choose it to enter the game's number instead. – means none:
+          the body is not landable.
+        </dd>
+      </div>
+      <div>
+        <dt>L</dt>
+        <dd>Landable</dd>
+      </div>
+      <div>
+        <dt>A</dt>
+        <dd>Has an atmosphere</dd>
+      </div>
+      <div>
+        <dt>V</dt>
+        <dd>Volcanism</dd>
+      </div>
+      <div>
+        <dt>T</dt>
+        <dd>Terraformable</dd>
+      </div>
+      <div>
+        <dt>
+          <span aria-hidden="true">◎</span><span class="plan-sr-only"
+            >Ring mark</span
+          >
+        </dt>
+        <dd>Rings</dd>
+      </div>
+      <div>
+        <dt>G2, B1</dt>
+        <dd>Geological and biological signals, and how many</dd>
+      </div>
+      <div>
+        <dt>+</dt>
+        <dd>Add a build on that body</dd>
+      </div>
+    </dl>
+    <p>
+      Rest the pointer on a letter for the body's details. On a belt, the
+      letters are the first letters of its type and its reserves.
+    </p>
+  </details>
   {#if schematic.length}
     <SystemSchematic items={schematic} selectedRef={schematicSelected} />
   {/if}

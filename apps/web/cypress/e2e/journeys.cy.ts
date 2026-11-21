@@ -312,4 +312,32 @@ describe('What a visitor does', () => {
       .within(() => cy.contains('button', 'Retry'));
     cy.get('li[data-system-result]').should('have.length', 0);
   });
+
+  it('opens the planner for a system, and is told what its marks mean', () => {
+    theSystemsPageAnswers();
+    // The planner's building catalogue as the live site answered it.
+    cy.intercept('GET', '/api/v1/plan/catalogue', {
+      fixture: 'journeys/plan-catalogue.json',
+    });
+    visit(`/plan?system=${LP_634_1}`);
+
+    cy.contains('h1', 'LP 634-1');
+    // The header holds what can be done with the plan.
+    cy.get('.plan-header-actions').within(() => {
+      cy.contains('button', 'Review & export');
+      cy.contains('summary', 'Import');
+      cy.contains('button', 'Now').should('not.exist');
+    });
+    // Now / After the plan sits with the points it changes.
+    cy.get('[data-plan-summary]').within(() => {
+      cy.contains('[role=group]', 'After the plan');
+      cy.contains("Add a Primary Port to see this plan's construction points.");
+    });
+    // Every body of the system, with its slot counts and marks.
+    cy.get('[data-plan-body]').should('have.length', 5);
+    cy.contains('summary', 'What the marks mean').click();
+    cy.contains('.plan-key', 'Orbital slots: used / total.').should(
+      'be.visible',
+    );
+  });
 });

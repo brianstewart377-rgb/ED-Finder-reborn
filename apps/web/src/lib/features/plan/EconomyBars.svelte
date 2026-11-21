@@ -64,8 +64,8 @@
   <h2 id={`${id}-title`}>Port economies</h2>
   {#if stale && currentEvaluation}
     <p class="muted" role="status">
-      Last good evaluation — awaiting a valid current result. Economy bars may
-      not match the current plan.
+      Showing the economies from before your last change. They may not match the
+      plan now.
     </p>
   {/if}
   {#if currentEvaluation && currentEvaluation.economies.notes.length > 0}
@@ -80,12 +80,10 @@
     </ul>
   {/if}
   {#if bodies.economy_facts_generation_id == null}
-    <p class="muted">
-      Economy facts unavailable for this system's published generation
-    </p>
+    <p class="muted">This system's economy data is not available yet.</p>
   {:else if !currentEvaluation}
     <p class="muted">
-      Economy bars are waiting for a successful plan evaluation.
+      Economy bars show here once the plan has a port and is worked out.
     </p>
   {:else if ports.length === 0}
     <p class="muted">Add a port to see its economies.</p>

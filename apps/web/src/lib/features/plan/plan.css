@@ -200,6 +200,62 @@
 .pane-heading {
   justify-content: space-between;
 }
+/* The key to the marks in the System list, folded until asked for. */
+.plan-key {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.plan-key > summary {
+  width: fit-content;
+  color: var(--neon-hi);
+  cursor: pointer;
+}
+.plan-key > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.plan-key dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0.35rem 1.25rem;
+  margin: 0.6rem 0 0.4rem;
+}
+.plan-key dl > div {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+}
+.plan-key dt {
+  color: var(--text);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.plan-key dd,
+.plan-key p {
+  margin: 0;
+}
+/* Now / After the plan: one choice of two, joined, beside the Summary
+   heading whose points it changes. */
+.summary-pane .plan-view {
+  gap: 0;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+.plan-workspace .summary-pane .plan-view > button {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.plan-workspace .summary-pane .plan-view > button[aria-pressed='true'] {
+  border-color: var(--neon);
+  background: var(--neon-soft);
+}
 .plan-pane h2 {
   font-family: var(--font-hud, inherit);
   font-size: 1.1rem;
