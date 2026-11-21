@@ -104,7 +104,7 @@ function theSystemsPageAnswers(): void {
 function searchNearSol(): void {
   cy.get('#system-search').type('Sol');
   cy.wait('@suggestions');
-  cy.contains('[role=option]', /^Sol\s*10477373803$/u).click();
+  cy.contains('[role=option]', /^Sol$/u).click();
 }
 
 describe('What a visitor does', () => {
@@ -124,8 +124,6 @@ describe('What a visitor does', () => {
   });
 
   it('arrives, and is shown the three things the site does', () => {
-    // The home page asks whether the site is well.
-    cy.intercept('GET', '/api/health', { fixture: 'journeys/health.json' });
     visit('/');
     cy.wait('@session');
     cy.get('h1')

@@ -153,7 +153,6 @@
             onclick={() => choose(hit)}
           >
             <span>{hit.name}</span>
-            <code>{hit.id64}</code>
           </button>
         {/each}
       </div>
@@ -225,10 +224,5 @@
     background: var(--panel-raised);
     outline: 2px solid var(--focus);
     outline-offset: -2px;
-  }
-  code {
-    color: var(--text-muted);
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
   }
 </style>
