@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ArchetypeExplanationEntry } from '$lib/api/client';
 import { colonyTypeReason } from './colony-type-reasons';
-// The live site's own explanations, 21 November 2026.
+// The live site's own explanations, 21 November 2026, after the colony type
+// re-score with the rule of v3-archetype-5.
 import charickDrift from './fixtures/charick-drift-explanation.json';
 import conn from './fixtures/conn-explanation.json';
 import culann from './fixtures/culann-explanation.json';
