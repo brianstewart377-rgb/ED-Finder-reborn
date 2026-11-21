@@ -111,6 +111,13 @@ a {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
+/* A heading the page moves focus to when it opens (Inspect's system name,
+   Plan's Build order), so a screen reader starts there. It is not a
+   control, so it shows no focus box: one appeared around the system name
+   for mouse users too. Anything that can be used keeps its box. */
+:is(h1, h2, h3)[tabindex='-1']:focus {
+  outline: none;
+}
 .skip-link {
   position: fixed;
   z-index: 100;

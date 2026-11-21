@@ -10,7 +10,12 @@
   import WorkspaceHeader from '$lib/components/WorkspaceHeader.svelte';
   import { FINDER_F4_ENABLED } from '$lib/config';
   import { parseId64, type Id64 } from '$lib/domain/id64';
-  import { navigateWithAnchor } from '$lib/features/explore/navigation';
+  import { queryClient, queryKeys } from '$lib/api/query';
+  import type { SystemDetail as SystemDetailData } from '$lib/api/client';
+  import {
+    navigateWithAnchor,
+    readExploreAnchor,
+  } from '$lib/features/explore/navigation';
 
   const rawSystem = $derived(page.url.searchParams.get('system'));
   const urlTab = $derived(parseInspectTab(page.url.searchParams.get('tab')));
@@ -37,20 +42,50 @@
       return null;
     }
   });
-  const backHref = $derived(FINDER_F4_ENABLED ? exploreHref(false) : null);
-  const openHref = $derived(FINDER_F4_ENABLED ? exploreHref(true) : null);
+  const backHref = $derived(FINDER_F4_ENABLED ? exploreHref() : null);
+  // Back to the search Inspect was opened from; "results" only if there was one.
+  const backLabel = $derived(
+    FINDER_F4_ENABLED && page.url.searchParams.get('from')
+      ? 'Back to results'
+      : 'Back to Explore',
+  );
+  const nearHref = $derived(
+    FINDER_F4_ENABLED && systemId ? searchNearHref(systemId) : null,
+  );
 
-  function exploreHref(selectSystem: boolean): string {
+  /** The same search (colony type, Show only, distances, filters), near
+   *  this system, with it selected so the map shows it. */
+  function searchNearHref(id64: Id64): string {
     const params = new URLSearchParams(page.url.searchParams.get('from') ?? '');
-    if (selectSystem && systemId) {
-      // Replace prior selections, including every duplicate in the source query.
-      params.delete('selected');
-      params.delete('system');
-      params.set('selected', systemId);
-      params.set('system', systemId);
-    }
-    const query = params.toString();
-    return `${resolve('/explore')}${query ? `?${query}` : ''}`;
+    for (const name of ['near', 'offset', 'selected', 'system'])
+      params.delete(name);
+    params.set('near', id64);
+    params.set('selected', id64);
+    return `${resolve('/explore')}?${params}`;
+  }
+
+  function followSearchNear(event: MouseEvent): void {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    // Hand Explore the system's position, which Inspect already has, so it
+    // need not look the system up again.
+    const detail = systemId
+      ? queryClient.getQueryData<SystemDetailData>(queryKeys.system(systemId))
+      : undefined;
+    const anchor = detail ? readExploreAnchor({ anchor: detail }) : null;
+    void navigateWithAnchor(nearHref!, anchor ? { state: { anchor } } : {});
+  }
+
+  function exploreHref(): string {
+    const query = page.url.searchParams.get('from') ?? '';
+    return `${resolve('/explore')}${query ? `?${new URLSearchParams(query)}` : ''}`;
   }
 
   function followExplore(event: MouseEvent, destination: string): void {
@@ -81,18 +116,21 @@
         href={FINDER_F4_ENABLED ? backHref! : resolve('/explore')}
         onclick={FINDER_F4_ENABLED
           ? (event) => followExplore(event, backHref!)
-          : undefined}>Back to Explore</a
+          : undefined}>{backLabel}</a
       >
       <span class="inspect-actions-end">
-        <a
-          class="secondary-button"
-          href={FINDER_F4_ENABLED
-            ? openHref!
-            : resolve(`/explore?system=${systemId}`)}
-          onclick={FINDER_F4_ENABLED
-            ? (event) => followExplore(event, openHref!)
-            : undefined}>Open in Explore</a
-        >
+        {#if FINDER_F4_ENABLED}
+          <a
+            class="secondary-button"
+            href={nearHref!}
+            onclick={followSearchNear}>Search near this system</a
+          >
+        {:else}
+          <a
+            class="secondary-button"
+            href={resolve(`/explore?system=${systemId}`)}>Open in Explore</a
+          >
+        {/if}
         <!-- eslint-enable svelte/no-navigation-without-resolve -->
         <a class="primary-button" href={resolve(`/plan?system=${systemId}`)}
           >Continue to Plan</a
