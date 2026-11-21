@@ -22,7 +22,12 @@ ExecStart=/usr/bin/python3 /opt/edfinder/galaxy_update.py run
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
-TimeoutStartSec=6h
+# Runs start 12 hours apart (edfinder-galaxy-update.timer), and systemd never
+# starts one while another is still going, so a run may take up to 11 hours.
+# Most take under one. From 20 November 2026 Spansh's 7-day file grew from
+# about 3 GB to more than 8 GB, most of its systems changed, and two runs in a
+# row were stopped at the old 6 hours before reaching the end of the file.
+TimeoutStartSec=11h
 # When the run ends, well or badly, tell healthchecks.io, which emails the
 # owner about a failure or a night with no word (deploy/report_in.py). It
 # does nothing until the check's address has been saved on the machine, and
