@@ -804,7 +804,7 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
   });
 
   it.each(['click', 'Enter', ' '])(
-    "opens a result's details with %s, where its explanation opens apart from selection",
+    "opens a result's details in a pop-out with %s, and says why it scored what it did",
     async (activation) => {
       vi.mocked(api.getArchetypeExplanation).mockResolvedValue({
         kind: 'explanation_unavailable',
@@ -816,16 +816,14 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       const selection = rows.map((row) =>
         row.querySelector<HTMLButtonElement>('[data-result-select]')!,
       );
-      const disclosureOf = (row: HTMLElement) =>
-        row.querySelector<HTMLButtonElement>(
-          '[data-archetype-explanation-toggle]',
-        );
 
       // Each line gives the fit it is ranked by, with its tier; the details
-      // wait for the result to be selected.
+      // wait for a line to be chosen.
       expect(within(selection[0]).getByText('79')).toBeVisible();
       expect(within(selection[0]).getByText('Tier A')).toBeVisible();
-      expect(disclosureOf(rows[0])).toBeNull();
+      expect(selection[0]).toHaveAttribute('aria-haspopup', 'dialog');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(api.getArchetypeExplanation).not.toHaveBeenCalled();
 
       selection[0].focus();
       if (activation === 'click') await fireEvent.click(selection[0]);
@@ -833,34 +831,24 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
       await waitFor(() =>
         expect(selection[0]).toHaveAttribute('aria-pressed', 'true'),
       );
-      const disclosure = disclosureOf(rows[0])!;
-      expect(disclosure).toBeInstanceOf(HTMLButtonElement);
-      expect(disclosure.closest('[data-result-select]')).toBeNull();
-      expect(disclosure.closest('[data-system-result]')).toBe(rows[0]);
+      const details = await screen.findByRole('dialog', { name: 'Ranked 1' });
+      // A pop-out, not more lines in the list.
+      expect(list).not.toContainElement(details);
       expect(
-        within(rows[0]).getByText(/Best Colony Potential: 89/),
+        within(details).getByText(/Best Colony Potential: 89/),
       ).toBeVisible();
       expect(
-        within(rows[0]).getByText(/Manufacturing Hub fit: 79/),
+        within(details).getByText(/Manufacturing Hub fit: 79/),
       ).toBeVisible();
-      expect(api.getArchetypeExplanation).not.toHaveBeenCalled();
-
-      disclosure.focus();
-      expect(disclosure).toHaveFocus();
-      if (activation === 'click') await fireEvent.click(disclosure);
-      else {
-        await fireEvent.keyDown(disclosure, { key: activation });
-        await fireEvent.keyUp(disclosure, { key: activation });
-        // jsdom does not synthesize the native button click from a keyboard
-        // event. detail: 0 is the browser's keyboard activation click.
-        await fireEvent.click(disclosure, { detail: 0 });
-      }
-      await screen.findByText(
-        'Explanation unavailable for this ranking version',
+      for (const name of ['Show on map', 'Pin Ranked 1', 'Watch Ranked 1'])
+        expect(within(details).getByRole('button', { name })).toBeVisible();
+      expect(
+        within(details).getByRole('link', { name: /^Inspect/ }),
+      ).toBeVisible();
+      // Why it scored what it did is asked for once, straight away.
+      await within(details).findByText(
+        /^The reasons for this score can't be shown/u,
       );
-      expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-      // Opening the explanation leaves the selection alone.
-      expect(selection[0]).toHaveAttribute('aria-pressed', 'true');
       expect(api.getArchetypeExplanation).toHaveBeenCalledTimes(1);
       expect(api.getArchetypeExplanation).toHaveBeenCalledWith(
         rankedRows[0].id64,
@@ -871,20 +859,23 @@ describe('ExploreWorkspace enabled Finder ranking surface', () => {
         }),
         expect.any(AbortSignal),
       );
-      const region = within(rows[0]).getByRole('region', { name: 'Ranked 1' });
-      expect(region).toHaveAttribute(
-        'aria-labelledby',
-        `finder-result-heading-${rankedRows[0].id64}`,
-      );
 
-      // Selecting another result moves the details to it, explanation shut.
+      // Choosing another line shows that one's details instead.
       await fireEvent.click(selection[2]);
       await waitFor(() =>
         expect(selection[2]).toHaveAttribute('aria-pressed', 'true'),
       );
-      expect(disclosureOf(rows[0])).toBeNull();
-      expect(disclosureOf(rows[2])).toHaveAttribute('aria-expanded', 'false');
-      expect(api.getArchetypeExplanation).toHaveBeenCalledTimes(1);
+      await screen.findByRole('dialog', { name: 'Ranked 3' });
+      expect(screen.queryByRole('dialog', { name: 'Ranked 1' })).toBeNull();
+      await waitFor(() =>
+        expect(api.getArchetypeExplanation).toHaveBeenCalledTimes(2),
+      );
+
+      // Escape closes it, keeps the selection, and returns to the line.
+      await fireEvent.keyDown(window, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(selection[2]).toHaveAttribute('aria-pressed', 'true');
+      expect(selection[2]).toHaveFocus();
     },
   );
 
@@ -4210,6 +4201,17 @@ describe.each([false, true])(
       expect(api.getArchetypeRankings).not.toHaveBeenCalled();
     });
 
+    /** The chosen result's line, and its "Show on map": in the result's
+     *  pop-out with the Finder on, under its line with it off. */
+    const lineOf = (list: HTMLElement) =>
+      within(list).getByRole('button', { name: /^Ranked 2\b/ });
+    async function showOnMapFor(list: HTMLElement): Promise<HTMLElement> {
+      if (!enabled)
+        return within(list).getByRole('button', { name: 'Show on map' });
+      const details = await screen.findByRole('dialog', { name: 'Ranked 2' });
+      return within(details).getByRole('button', { name: 'Show on map' });
+    }
+
     it('at phone width Show on map hides the panel over the map and Show Finder returns to the result', async () => {
       vi.stubGlobal('matchMedia', (query: string) => ({
         matches:
@@ -4234,7 +4236,7 @@ describe.each([false, true])(
       );
       list.scrollTop = 96;
       await fireEvent.scroll(list);
-      const opener = within(list).getByRole('button', { name: 'Show on map' });
+      const opener = await showOnMapFor(list);
       opener.focus();
       // The Finder is in the map's place, so the map cannot be seen: it is
       // given nothing to draw and flies nowhere while nobody is looking.
@@ -4262,14 +4264,18 @@ describe.each([false, true])(
       await waitFor(() => expect(show).toHaveFocus());
       await fireEvent.click(show);
       expect(viewState.finderPanelOpen).toBe(true);
-      await waitFor(() => expect(opener).toHaveFocus());
+      // Back to the result: its pop-out gave way to the map, so focus is on
+      // the result's own line.
+      const back = enabled ? lineOf(list) : opener;
+      await waitFor(() => expect(back).toHaveFocus());
       expect(list.scrollTop).toBe(96);
       // Back to the map for the same system: it is centred, not filled again.
       const fills = map.fills;
       map.land();
       await tick();
       map.playerMovesTo({ cursor: [900, 0, 900], distance: 5_000 });
-      await fireEvent.click(opener);
+      if (enabled) await fireEvent.click(lineOf(list));
+      await fireEvent.click(await showOnMapFor(list));
       await waitFor(() => expect(map.flights).toHaveLength(2));
       expect(map.flights[1].target).toEqual(map.flights[0].target);
       expect(map.fills).toBe(fills);
@@ -4326,9 +4332,7 @@ describe.each([false, true])(
       await tick();
       // The player looks elsewhere, then asks to be shown the system again.
       map.playerMovesTo({ cursor: [900, 0, 900], distance: 5_000 });
-      await fireEvent.click(
-        within(list).getByRole('button', { name: 'Show on map' }),
-      );
+      await fireEvent.click(await showOnMapFor(list));
       expect(viewState.finderPanelOpen).toBe(true);
       expect(finderPanel()).not.toHaveAttribute('hidden');
       await tick();
@@ -4402,10 +4406,12 @@ describe.each([false, true])(
       list.scrollTop = 128;
       await fireEvent.scroll(list);
 
-      const opener = within(list).getByRole('button', { name: 'Show on map' });
+      const opener = await showOnMapFor(list);
       await fireEvent.click(opener);
       expect(viewState.mapInFront).toBe(true);
       expect(results).toHaveAttribute('hidden');
+      // The result's pop-out gave way to the map.
+      expect(screen.queryByRole('dialog', { name: 'Ranked 2' })).toBeNull();
       expect(mapWindow).toHaveAttribute('data-map-in-front', 'true');
       expect(mapWindow.inert).toBe(false);
       const back = screen.getByRole('button', { name: 'Show results' });
@@ -4417,14 +4423,17 @@ describe.each([false, true])(
       expect(viewState.mapInFront).toBe(false);
       expect(results).not.toHaveAttribute('hidden');
       expect(mapWindow).toHaveAttribute('data-map-in-front', 'false');
-      await waitFor(() => expect(opener).toHaveFocus());
+      await waitFor(() =>
+        expect(enabled ? lineOf(list) : opener).toHaveFocus(),
+      );
       expect(list.scrollTop).toBe(128);
       expect(
         screen.queryByRole('button', { name: 'Show results' }),
       ).not.toBeInTheDocument();
 
       // A changed search shows its results, even with the map in front.
-      await fireEvent.click(opener);
+      if (enabled) await fireEvent.click(lineOf(list));
+      await fireEvent.click(await showOnMapFor(list));
       expect(viewState.mapInFront).toBe(true);
       await fireEvent.change(screen.getByRole('combobox', { name: 'Within' }), {
         target: { value: '250' },

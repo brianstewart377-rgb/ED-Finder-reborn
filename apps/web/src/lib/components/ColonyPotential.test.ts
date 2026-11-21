@@ -13,6 +13,8 @@ import { parseId64 } from '$lib/domain/id64';
 import ColonyPotentialTestHost from './ColonyPotentialTestHost.svelte';
 // LP 634-1 as the live site answered for it on 21 November 2026.
 import lp6341 from './fixtures/lp-634-1-archetypes.json';
+import pisciumFmU from './fixtures/piscium-fm-u-a3-1-archetypes.json';
+import witchsReach from './fixtures/witchs-reach-archetypes.json';
 
 vi.mock('$lib/api/client', async (loadOriginal) => ({
   ...(await loadOriginal<typeof import('$lib/api/client')>()),
@@ -33,7 +35,10 @@ afterEach(() => {
 
 describe("Inspect's colony potential", () => {
   it('shows what Find showed: the score, its tier and what the system suits', async () => {
-    render(ColonyPotentialTestHost, { props: { id64 } });
+    // The live site holds all 5 of LP 634-1's bodies.
+    render(ColonyPotentialTestHost, {
+      props: { id64, loadedBodyCount: 5, sourceBodyCount: 5 },
+    });
     const section = await screen.findByRole('region', {
       name: 'Colony potential',
     });
@@ -45,7 +50,9 @@ describe("Inspect's colony potential", () => {
     expect(section).toHaveTextContent(
       'Suits Flexible Multi-Role Colony, then Research Hub.',
     );
-    expect(section).toHaveTextContent('Evidence confidence: moderate');
+    // How much is known is a plain fact, not a percentage.
+    expect(section).toHaveTextContent('All 5 bodies known');
+    expect(section).not.toHaveTextContent(/confidence|%/iu);
     expect(getSystemArchetypes).toHaveBeenCalledExactlyOnceWith(
       id64,
       expect.any(AbortSignal),
@@ -67,6 +74,52 @@ describe("Inspect's colony potential", () => {
       Number(row.querySelector('.type-score')!.textContent),
     );
     expect([...scores].sort((a, b) => b - a)).toEqual(scores);
+  });
+
+  it('says a system with no bodies on record is not scored, not that it scores 0', async () => {
+    // Witch's Reach: the API answers 0, Tier D and "Paradise World" for it.
+    vi.mocked(getSystemArchetypes).mockResolvedValue(
+      witchsReach as unknown as SystemArchetypesWire,
+    );
+    render(ColonyPotentialTestHost, {
+      props: {
+        id64: parseId64('1659761592683'),
+        loadedBodyCount: 0,
+        sourceBodyCount: null,
+      },
+    });
+    const section = await screen.findByRole('region', {
+      name: 'Colony potential',
+    });
+    expect(
+      await within(section).findByText(/^Not scored: no bodies known\./u),
+    ).toBeVisible();
+    expect(section.querySelector('.score')).toBeNull();
+    expect(section).not.toHaveTextContent(/Paradise World|Tier D/u);
+    expect(within(section).queryByRole('list')).toBeNull();
+  });
+
+  it('says no colony type fits a system that scores 0 everywhere', async () => {
+    // Piscium Sector FM-U a3-1: two bodies, every colony type 0.
+    vi.mocked(getSystemArchetypes).mockResolvedValue(
+      pisciumFmU as unknown as SystemArchetypesWire,
+    );
+    render(ColonyPotentialTestHost, {
+      props: {
+        id64: parseId64('22953915730728'),
+        loadedBodyCount: 2,
+        sourceBodyCount: 2,
+      },
+    });
+    const section = await screen.findByRole('region', {
+      name: 'Colony potential',
+    });
+    await within(section).findByText('0', { selector: '.score' });
+    expect(section).toHaveTextContent(
+      'No colony type fits what is known here.',
+    );
+    expect(section).not.toHaveTextContent(/Suits/u);
+    expect(section).toHaveTextContent('All 2 bodies known');
   });
 
   it('waits until the Overview is shown before asking', async () => {

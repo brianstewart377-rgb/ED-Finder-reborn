@@ -51,6 +51,10 @@
   );
   const primary = $derived(archetypeLabel(system.primary_archetype));
   const secondary = $derived(archetypeLabel(system.secondary_archetype));
+  // With no bodies on record there was nothing to score: its 0 is no score.
+  const notScored = $derived(system.body_count === 0);
+  // A best score of 0 means no colony type fits; the API still names one.
+  const noFit = $derived(system.overall_development_potential === 0);
 
   // Only what the system has: a count of nothing is left out.
   const bodies = $derived.by(() => {
@@ -70,26 +74,39 @@
   });
 </script>
 
-<span class="line-score" data-score-kind={selected ? 'fit' : 'overall'}
-  ><span class="sr-only">{scoreName}:</span>
-  <span class="score-value"
-    >{#if score === null}<span aria-hidden="true">–</span><span class="sr-only"
-        >Unknown</span
-      >{:else}{score}{/if}</span
+{#if notScored}
+  <span class="line-score" data-score-kind="none"
+    ><span class="sr-only">{scoreName}:</span>
+    <span class="unknown">Not scored</span></span
   >
-  {#if tier}
-    <span class="tier-badge kit-chip" data-tier={tier}>{tierLabel(tier)}</span>
-  {/if}
-</span>
-<span class="line-types"
-  ><span class="sr-only">Primary:</span>
-  {primary ?? 'Unknown'}{#if secondary}<span class="sep" aria-hidden="true"
-      >·</span
-    ><span class="sr-only">; Secondary:</span>
-    {secondary}{/if}</span
->
+  <span class="line-types"><span class="unknown">–</span></span>
+{:else}
+  <span class="line-score" data-score-kind={selected ? 'fit' : 'overall'}
+    ><span class="sr-only">{scoreName}:</span>
+    <span class="score-value"
+      >{#if score === null}<span aria-hidden="true">–</span><span
+          class="sr-only">Unknown</span
+        >{:else}{score}{/if}</span
+    >
+    {#if tier}
+      <span class="tier-badge kit-chip" data-tier={tier}>{tierLabel(tier)}</span
+      >
+    {/if}
+  </span>
+  <span class="line-types"
+    >{#if noFit}<span class="unknown">No colony type fits</span>{:else}<span
+        class="sr-only">Primary:</span
+      >
+      {primary ?? 'Unknown'}{#if secondary}<span class="sep" aria-hidden="true"
+          >·</span
+        ><span class="sr-only">; Secondary:</span>
+        {secondary}{/if}{/if}</span
+  >
+{/if}
 <span class="line-bodies">
-  {#if bodies === null}
+  {#if notScored}
+    <span class="unknown">No bodies known</span>
+  {:else if bodies === null}
     <span class="unknown">Bodies not known</span>
   {:else if bodies.length === 0}
     <span class="unknown">No notable bodies</span>

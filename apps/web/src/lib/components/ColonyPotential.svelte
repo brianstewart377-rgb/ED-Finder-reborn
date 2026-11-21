@@ -6,20 +6,30 @@
   import {
     ARCHETYPES,
     archetypeLabel,
-    evidenceBadge,
     isTier,
     tierLabel,
   } from '$lib/features/explore/archetypes';
+  import { bodiesKnownText } from '$lib/features/explore/bodies-known';
 
   // What Find showed for this system: its best colony potential with the
-  // API's tier, the colony types it suits best, how sure the scores are, and
-  // every colony type's own score. One small request, made when the Overview
-  // is shown.
+  // API's tier, the colony types it suits best, how many of its bodies are
+  // known, and every colony type's own score. One small request, made when
+  // the Overview is shown.
   let {
     id64,
     headingId,
     active = true,
-  }: { id64: Id64; headingId: string; active?: boolean } = $props();
+    loadedBodyCount = null,
+    sourceBodyCount = null,
+  }: {
+    id64: Id64;
+    headingId: string;
+    active?: boolean;
+    /** How many bodies we hold for the system, stars included. */
+    loadedBodyCount?: number | null;
+    /** How many the game says it has, where that is known. */
+    sourceBodyCount?: number | null;
+  } = $props();
 
   // 404: not scored (Find scores systems within 500 ly of inhabited space).
   // 422: an id64 beyond the signed 64-bit key space.
@@ -47,8 +57,12 @@
   const tier = $derived(isTier(data?.best_tier) ? data.best_tier : null);
   const primary = $derived(archetypeLabel(data?.primary_archetype));
   const secondary = $derived(archetypeLabel(data?.secondary_archetype));
-  const evidence = $derived(
-    evidenceBadge('any', data?.confidence, data?.completeness),
+  const bodiesKnown = $derived(
+    bodiesKnownText(loadedBodyCount, sourceBodyCount),
+  );
+  // With no bodies on record there was nothing to score: its 0 is no score.
+  const noBodies = $derived(
+    loadedBodyCount === 0 || data?.facts?.body_count === 0,
   );
   // Every colony type, best first; the API's own tier with each.
   const types = $derived.by(() => {
@@ -91,6 +105,11 @@
         >
       </div>
     {/if}
+  {:else if noBodies}
+    <p class="state-copy" data-not-scored>
+      Not scored: no bodies known. Scores need the system's stars and planets,
+      and none are on record for it yet.
+    </p>
   {:else}
     <div class="headline">
       <span class="score">{overall ?? '–'}</span>
@@ -103,13 +122,12 @@
     </div>
     <p class="suits">
       <span
-        >{#if primary}Suits <strong>{primary}</strong>{#if secondary}, then <strong
+        >{#if overall === 0}No colony type fits what is known here.{:else if primary}Suits
+          <strong>{primary}</strong>{#if secondary}, then <strong
               >{secondary}</strong
             >{/if}.{:else}No colony type stands out.{/if}</span
       >
-      <span class="evidence" title={evidence.description}>
-        {evidence.label}</span
-      >
+      {#if bodiesKnown}<span class="evidence">{bodiesKnown}</span>{/if}
     </p>
     <ol class="type-scores" aria-label="Every colony type, best first">
       {#each types as type (type.key)}

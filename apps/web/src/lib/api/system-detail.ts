@@ -302,23 +302,48 @@ const INSPECT_GENERATION_ATTEMPTS = 2;
  * retryable 503. An unknown system rejects with the system route's 404
  * ApiError; no published generation rejects with 503.
  */
+/** What the system route alone says of a system. */
+export type SystemSummary = Readonly<{
+  /** `null` when the catalogue has no name for it. */
+  name: string | null;
+  /** How many bodies we hold for it, stars included. */
+  loadedBodyCount: number | null;
+  /** How many the game says it has (its scan count), where that is known. */
+  sourceBodyCount: number | null;
+}>;
+
 /**
- * A system's name, with one small request: the system route alone, without
- * its bodies, rings, stations or the generation fence getSystem keeps. For a
- * label (the selected-system bar), never for anything read with the bodies.
- * `null` when the catalogue has no name for it.
+ * A system's name and body counts, with one small request: the system route
+ * alone, without its bodies, rings, stations or the generation fence
+ * getSystem keeps. For a label (the selected-system bar) and for saying how
+ * much of a system is known, never for anything read with the bodies.
  */
-export async function getSystemName(
+export async function getSystemSummary(
   id64: Id64,
   signal?: AbortSignal,
-): Promise<string | null> {
+): Promise<SystemSummary> {
   const { data } = await getV3System({
     path: { system_id: parseId64(id64) },
     throwOnError: true,
     signal,
   });
-  const name = (data as { name?: unknown }).name;
-  return typeof name === 'string' && name.trim() ? name : null;
+  const system = data as {
+    name?: unknown;
+    loaded_body_count?: unknown;
+    source_body_count?: unknown;
+  };
+  const count = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0
+      ? value
+      : null;
+  return {
+    name:
+      typeof system.name === 'string' && system.name.trim()
+        ? system.name
+        : null,
+    loadedBodyCount: count(system.loaded_body_count),
+    sourceBodyCount: count(system.source_body_count),
+  };
 }
 
 export async function getSystem(

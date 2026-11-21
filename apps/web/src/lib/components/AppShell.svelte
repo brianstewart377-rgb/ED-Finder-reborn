@@ -5,7 +5,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
-  import { getSystemName, type SystemDetail } from '$lib/api/client';
+  import { getSystemSummary, type SystemDetail } from '$lib/api/client';
   import { queryClient, queryKeys } from '$lib/api/query';
   import { auth } from '$lib/auth/auth';
   import { FINDER_F4_ENABLED } from '$lib/config';
@@ -31,14 +31,20 @@
   const selectedName = createQuery(() => {
     const id64 = $selectedSystem.value;
     const known = id64
-      ? queryClient.getQueryData<SystemDetail>(queryKeys.system(id64))?.name
+      ? queryClient.getQueryData<SystemDetail>(queryKeys.system(id64))
       : undefined;
     return {
-      queryKey: [...queryKeys.all, 'system-name', id64] as const,
+      queryKey: queryKeys.systemSummary(id64),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
-        getSystemName(id64!, signal),
+        getSystemSummary(id64!, signal),
       enabled: persistenceReady && $selectedSystem.hydrated && id64 !== null,
-      initialData: known ?? undefined,
+      initialData: known?.name
+        ? {
+            name: known.name,
+            loadedBodyCount: known.loadedBodyCount,
+            sourceBodyCount: known.sourceBodyCount,
+          }
+        : undefined,
       staleTime: Infinity,
       retry: 0,
     };
@@ -131,7 +137,8 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 {#if persistenceReady && $selectedSystem.hydrated && $selectedSystem.value}
   <aside class="context-chip" data-testid="selected-system-context">
-    Selected system <strong>{selectedName.data ?? $selectedSystem.value}</strong
+    Selected system <strong
+      >{selectedName.data?.name ?? $selectedSystem.value}</strong
     >
     <!-- eslint-disable svelte/no-navigation-without-resolve -- inspectHref resolves the Inspect route -->
     <a

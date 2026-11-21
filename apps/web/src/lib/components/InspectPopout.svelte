@@ -12,6 +12,7 @@
     kind,
     closeOnOutside = true,
     beside,
+    inside,
     onclose,
     children,
   }: {
@@ -21,11 +22,15 @@
     active?: boolean;
     trigger?: HTMLButtonElement;
     describedby?: string;
-    kind: 'sources' | 'evidence' | 'review' | 'saved' | 'compare';
+    kind: 'sources' | 'evidence' | 'review' | 'saved' | 'compare' | 'result';
     closeOnOutside?: boolean;
     /** Open beside this element, to its right, where there is room, rather
      *  than under the trigger (so a tall pop-out does not cover it). */
     beside?: HTMLElement;
+    /** Open over this element, against its right edge and its top, rather
+     *  than under the trigger (so a list's pop-out stays in one place and
+     *  leaves the start of every line of the list in view). */
+    inside?: HTMLElement;
     onclose: () => void;
     children: Snippet;
   } = $props();
@@ -67,6 +72,15 @@
     if (width < 640) {
       panelLeft = Math.max(left + margin, left + (width - bounds.width) / 2);
       panelTop = Math.max(top + margin, top + (height - bounds.height) / 2);
+      return;
+    }
+    if (inside) {
+      const box = inside.getBoundingClientRect();
+      panelLeft = Math.max(
+        left + margin,
+        Math.min(box.right - bounds.width - margin, maxLeft),
+      );
+      panelTop = Math.max(top + margin, Math.min(box.top + margin, maxTop));
       return;
     }
     if (beside) {
@@ -238,6 +252,10 @@
   }
   .compare-dialog {
     width: min(72rem, calc(100% - 1rem));
+  }
+  /* One Explore result's details, over the end of the results' lines. */
+  .result-dialog {
+    width: min(33rem, calc(100% - 1rem));
   }
   header {
     position: sticky;

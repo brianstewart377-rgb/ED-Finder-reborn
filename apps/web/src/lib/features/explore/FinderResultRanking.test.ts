@@ -36,11 +36,12 @@ const page = (
 });
 
 describe('ranked card facts', () => {
-  it('keeps overall potential, selected score, classification and evidence distinct and ordered', () => {
-    render(FinderResultRanking, {
+  it('keeps overall potential, selected score, classification and what is known distinct and ordered', () => {
+    const { container } = render(FinderResultRanking, {
       variant: 'row',
       system,
       archetype: 'manufacturing_hub',
+      bodiesKnown: '12 of 24 bodies known',
     });
     const overall = screen.getByText('Best Colony Potential: 91');
     const selected = screen.getByText(/Manufacturing Hub fit: 81/);
@@ -48,16 +49,15 @@ describe('ranked card facts', () => {
       'Primary: Flexible Multi-Role Colony; Secondary: Megacomplex',
     );
     const label = screen.getByText('Close fit · Megacomplex 79');
-    const evidence = screen.getByText('Fit confidence: moderate');
+    const evidence = screen.getByText('12 of 24 bodies known');
     expect(screen.getByText('Tier A')).toBeInTheDocument();
     expect(overall).not.toHaveTextContent('Tier');
     expect(selected.contains(label)).toBe(false);
     expect(evidence.contains(label)).toBe(false);
     expect(label.parentElement).toBe(classification.parentElement);
     expect(label).not.toHaveAttribute('aria-label');
-    expect(evidence).toHaveAccessibleDescription(
-      'Fit confidence 82%; evidence 64% complete',
-    );
+    // How much is known is a plain fact: no confidence wording or percentages.
+    expect(container).not.toHaveTextContent(/confidence|%/iu);
     const facts = [overall, selected, classification, evidence];
     for (let index = 1; index < facts.length; index += 1) {
       expect(
@@ -146,39 +146,72 @@ describe('ranked card facts', () => {
     });
     expect(screen.getByText('Best Colony Potential: 91')).toBeInTheDocument();
     expect(screen.getByText(/No clear secondary/)).toBeInTheDocument();
-    expect(
-      screen.getByText('Evidence confidence: moderate'),
-    ).toHaveAccessibleDescription(
-      'Evidence confidence 82%; evidence 64% complete',
-    );
+    expect(container).not.toHaveTextContent(/confidence|%/iu);
     expect(container.textContent?.toLowerCase()).not.toContain('fit');
     expect(container.innerHTML.toLowerCase()).not.toContain('clear fit');
     expect(container.innerHTML.toLowerCase()).not.toContain('close fit');
     expect(screen.queryByText('Tier A')).not.toBeInTheDocument();
   });
 
-  it.each([
-    [null, 0.8, 'unknown'],
-    [0.49, 0.8, ': limited'],
-    [0.5, 0.8, ': moderate'],
-    [0.8, 0.8, ': strong'],
-  ] as const)(
-    'renders confidence %s and completeness %s as %s',
-    (confidence, completeness, suffix) => {
-      render(FinderResultRanking, {
-        variant: 'row',
-        system: { ...system, confidence, completeness },
-        archetype: 'manufacturing_hub',
-      });
-      expect(
-        screen.getByText(
-          suffix === 'unknown'
-            ? 'Fit confidence unknown'
-            : `Fit confidence${suffix}`,
-        ),
-      ).toBeInTheDocument();
-    },
-  );
+  it('leaves the known-bodies line out when it is not given', () => {
+    const { container } = render(FinderResultRanking, {
+      variant: 'row',
+      system,
+      archetype: 'manufacturing_hub',
+    });
+    expect(container.querySelector('.bodies-known')).toBeNull();
+  });
+
+  it('says a system with no bodies on record is not scored', () => {
+    // As the API answers for such a system: 0, and the first colony type.
+    const { container } = render(FinderResultRanking, {
+      variant: 'row',
+      system: {
+        ...system,
+        body_count: 0,
+        overall_development_potential: 0,
+        ranking_score: 0,
+        ranking_tier: 'D',
+        score_kind: 'overall_potential',
+        selected_archetype: null,
+        primary_archetype: 'paradise',
+        secondary_archetype: null,
+      },
+      archetype: 'any',
+      bodiesKnown: 'No bodies known',
+    });
+    expect(screen.getByText('Not scored: no bodies known')).toBeVisible();
+    expect(container).not.toHaveTextContent(
+      /Best Colony Potential|Paradise World|Primary|Tier/u,
+    );
+    // Said once.
+    expect(container.textContent?.match(/o bodies known/gu)).toHaveLength(1);
+  });
+
+  it('says no colony type fits a system that scores 0 with bodies on record', () => {
+    const { container } = render(FinderResultRanking, {
+      variant: 'row',
+      system: {
+        ...system,
+        body_count: 2,
+        overall_development_potential: 0,
+        ranking_score: 0,
+        ranking_tier: 'D',
+        score_kind: 'overall_potential',
+        selected_archetype: null,
+        primary_archetype: 'paradise',
+        secondary_archetype: null,
+      },
+      archetype: 'any',
+      bodiesKnown: 'All 2 bodies known',
+    });
+    expect(screen.getByText('Best Colony Potential: 0')).toBeVisible();
+    expect(
+      screen.getByText('No colony type fits what is known here.'),
+    ).toBeVisible();
+    expect(container).not.toHaveTextContent(/Paradise World|Primary/u);
+    expect(screen.getByText('All 2 bodies known')).toBeVisible();
+  });
 
   it('preserves measured zero scores and keeps absent scores unknown', async () => {
     const { rerender } = render(FinderResultRanking, {
@@ -195,6 +228,10 @@ describe('ranked card facts', () => {
     expect(screen.getByText('Best Colony Potential: 0')).toBeInTheDocument();
     expect(screen.getByText('Manufacturing Hub fit: 0')).toBeInTheDocument();
     expect(screen.getByText('Close fit · Megacomplex 0')).toBeInTheDocument();
+    // A best score of 0: no colony type is named as the one it suits.
+    expect(
+      screen.getByText('No colony type fits what is known here.'),
+    ).toBeInTheDocument();
     await rerender({
       system: {
         ...system,
@@ -226,11 +263,12 @@ describe('ranked card facts', () => {
     expect(screen.getByText('Clear fit')).toBeInTheDocument();
   });
 
-  it('keeps kit badges textual and evidence descriptions linked in both modes', async () => {
+  it('keeps kit badges textual and accessible in both modes', async () => {
     const { container, rerender } = render(FinderResultRanking, {
       variant: 'row',
       system: { ...system, best_tier: 'S' },
       archetype: 'manufacturing_hub',
+      bodiesKnown: 'All 8 bodies known',
     });
     expect(screen.getByText('Tier S')).toHaveClass('kit-chip');
     expect(screen.getByText('Tier A')).toHaveClass('kit-chip');
@@ -239,7 +277,7 @@ describe('ranked card facts', () => {
     );
     for (const archetype of ['manufacturing_hub', 'any'] as const) {
       await rerender({ archetype });
-      expect(screen.getByText(/confidence: moderate/)).toHaveClass('kit-chip');
+      expect(screen.getByText('All 8 bodies known')).toBeVisible();
       expect(
         (
           await axe.run(container, {

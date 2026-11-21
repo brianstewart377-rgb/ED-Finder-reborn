@@ -12,8 +12,6 @@ import {
   TIERS,
   archetypeLabel,
   archetypeMetadata,
-  evidenceBadge,
-  evidenceLevel,
   isArchetypeKey,
   isTier,
   minimumScoreForTier,
@@ -151,66 +149,5 @@ describe('tier presentation and selected-mode minimum tier', () => {
       expect(parseMinimumTier(value)).toBeNull();
     }
     expect(parseMinimumTier('A')).toBe('A');
-  });
-});
-
-describe('honest uncertainty wording', () => {
-  it('classifies at the 0.50 and 0.80 boundaries', () => {
-    expect(evidenceLevel(null, 0.9)).toBe('unknown');
-    expect(evidenceLevel(0.9, undefined)).toBe('unknown');
-    expect(evidenceLevel(Number.NaN, 0.9)).toBe('unknown');
-    expect(evidenceLevel(0.49, 0.9)).toBe('limited');
-    expect(evidenceLevel(0.9, 0.49)).toBe('limited');
-    expect(evidenceLevel(0.5, 0.5)).toBe('moderate');
-    expect(evidenceLevel(0.79, 0.8)).toBe('moderate');
-    expect(evidenceLevel(0.8, 0.79)).toBe('moderate');
-    expect(evidenceLevel(0.8, 0.8)).toBe('strong');
-    expect(evidenceLevel(1, 1)).toBe('strong');
-  });
-
-  it('uses Evidence confidence in Any and Fit confidence for a selected archetype', () => {
-    expect(evidenceBadge('any', 0.82, 0.64)).toEqual({
-      level: 'moderate',
-      label: 'Evidence confidence: moderate',
-      description: 'Evidence confidence 82%; evidence 64% complete',
-    });
-    expect(evidenceBadge('selected', 0.82, 0.64)).toEqual({
-      level: 'moderate',
-      label: 'Fit confidence: moderate',
-      description: 'Fit confidence 82%; evidence 64% complete',
-    });
-    expect(evidenceBadge('selected', 0.4, 0.9).label).toBe(
-      'Fit confidence: limited',
-    );
-    expect(evidenceBadge('any', 0.95, 0.85).label).toBe(
-      'Evidence confidence: strong',
-    );
-  });
-
-  it('says unknown when either value is missing and never synthesizes one', () => {
-    expect(evidenceBadge('any', null, 0.7)).toEqual({
-      level: 'unknown',
-      label: 'Evidence confidence unknown',
-      description: 'Evidence confidence unknown; evidence 70% complete',
-    });
-    expect(evidenceBadge('selected', 0.7, null)).toEqual({
-      level: 'unknown',
-      label: 'Fit confidence unknown',
-      description: 'Fit confidence 70%; evidence completeness unknown',
-    });
-  });
-
-  it('never uses the word fit in Any-mode visible or accessible text', () => {
-    const samples: Array<[number | null, number | null]> = [
-      [null, null],
-      [0.1, 0.2],
-      [0.5, 0.6],
-      [0.9, 0.95],
-    ];
-    for (const [confidence, completeness] of samples) {
-      const badge = evidenceBadge('any', confidence, completeness);
-      expect(badge.label.toLowerCase()).not.toContain('fit');
-      expect(badge.description.toLowerCase()).not.toContain('fit');
-    }
   });
 });
