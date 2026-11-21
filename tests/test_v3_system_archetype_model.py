@@ -33,7 +33,7 @@ from scripts.v3_system_archetype_model import (
 
 MODEL_PATH = Path(canonical_model.__file__)
 EXPECTED_ARCHETYPE_MODEL_SHA256 = (
-    'dbf62b783fb2220d92202ab84c7f9adf556ed8be43218716c5a69e052c552533'
+    'c86a589f492e429acf883e09053c8a97b67b4cb08c85b6cfeaaa44451c909823'
 )
 
 
@@ -92,7 +92,7 @@ def test_tier_thresholds():
 
 
 def test_version_and_ordered_key_set():
-    assert ARCHETYPE_VERSION == 'v3-archetype-4'
+    assert ARCHETYPE_VERSION == 'v3-archetype-5'
     assert ARCHETYPE_KEYS == (
         'paradise',
         'mining_hub',
@@ -153,18 +153,94 @@ def test_summary_picks_primary_and_secondary_by_score():
     assert 0.0 <= summary['archetype_confidence'] <= 1.0
 
 
+def _flexible(vectors):
+    return {item.key: item for item in fit_all(vectors)}['flexible']
+
+
 def test_flexible_rewards_breadth():
     broad = _vectors(
         pot=(60, 60, 60, 60, 0, 0, 0),
         qual=(60, 60, 60, 60, None, None, None),
+        opp={ordinal: (8, 80.0) for ordinal in (1, 2, 3, 4)},
     )
     narrow = _vectors(
         pot=(90, 0, 0, 0, 0, 0, 0),
         qual=(90, None, None, None, None, None, None),
+        opp={1: (8, 80.0)},
     )
-    broad_fit = {item.key: item for item in fit_all(broad)}['flexible']
-    narrow_fit = {item.key: item for item in fit_all(narrow)}['flexible']
-    assert broad_fit.score > narrow_fit.score
+    assert _flexible(broad).score > _flexible(narrow).score
+
+
+def test_flexible_scores_the_three_strongest_economies_like_an_anchored_type():
+    # Each economy: potential x (0.85 + 0.15 x quality) x (0.6 + 0.4 x bodies).
+    # Agriculture 80 x 0.97 x 0.92 = 71.392; Refinery 70 x 0.94 x 0.76 =
+    # 50.008 (4 bodies, half of the 8 that count in full); Industrial
+    # 60 x 0.91 x 0.76 = 41.496. Tourism (50 x 1.00 x 0.65 = 32.5, one body)
+    # is the weakest of the four and is left out. Then 0.6 x 41.496 +
+    # 0.4 x 54.299 = 46.617 -> 47.
+    vectors = _vectors(
+        pot=(80, 70, 60, 0, 0, 50, 0),
+        qual=(80, 60, 40, None, None, 100, None),
+        opp={1: (8, 80.0), 2: (4, 80.0), 3: (8, 40.0), 6: (1, 100.0)},
+    )
+    fit = _flexible(vectors)
+    assert fit.score == 47 and fit.tier == 'C'
+    assert fit.explanation['economies'] == [1, 2, 3]
+    assert fit.explanation['components']['strength'] == {
+        1: 71.392, 2: 50.008, 3: 41.496,
+    }
+    assert fit.explanation['components']['spec'] == {1: 0.97, 2: 0.94, 3: 0.91}
+    assert fit.explanation['components']['cap'] == {1: 0.92, 2: 0.76, 3: 0.76}
+    assert fit.explanation['components']['opp_count'] == {1: 8, 2: 4, 3: 8}
+    assert fit.explanation['core'] == 46.617
+
+
+def test_flexible_needs_three_strong_economies_not_one_or_two():
+    # Two excellent economies and nothing else: the third strongest is 0, and
+    # the weakest counts most. The old rule (count the economies over 55)
+    # gave this 50.
+    vectors = _vectors(
+        pot=(100, 100, 0, 0, 0, 0, 0),
+        qual=(100, 100, None, None, None, None, None),
+        opp={1: (8, 100.0), 2: (8, 100.0)},
+    )
+    assert _flexible(vectors).score == 27
+
+
+def test_flexible_without_bodies_that_suit_an_economy_is_held_down():
+    # Potential alone is not enough: with no body suited to them, each
+    # economy keeps only the 0.6 floor for bodies.
+    strong = _vectors(
+        pot=(90, 90, 90, 0, 0, 0, 0),
+        qual=(100, 100, 100, None, None, None, None),
+        opp={ordinal: (8, 100.0) for ordinal in (1, 2, 3)},
+    )
+    unsupported = _vectors(
+        pot=(90, 90, 90, 0, 0, 0, 0),
+        qual=(100, 100, 100, None, None, None, None),
+    )
+    assert _flexible(strong).score == 90
+    assert _flexible(unsupported).score == 54
+
+
+def test_flexible_ties_take_the_lower_economy_number():
+    vectors = _vectors(pot=(50,) * 7, qual=(50,) * 7)
+    assert _flexible(vectors).explanation['economies'] == [1, 2, 3]
+
+
+def test_flexible_confidence_comes_from_its_three_economies():
+    vectors = _vectors(
+        pot=(80, 70, 60, 0, 0, 0, 10),
+        qual=(80, 60, None, None, None, None, 10),
+        qual_min=(0, 0, 20, 0, 0, 0, 0),
+        qual_max=(0, 0, 60, 0, 0, 0, 0),
+        opp={1: (8, 80.0), 2: (8, 80.0), 3: (8, 80.0)},
+        confidence=(1.0, 0.8, 0.9, 1.0, 1.0, 1.0, 0.1),
+        completeness=(0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.1),
+    )
+    # Extraction's low confidence is not among the three; Industrial's
+    # quality is unknown, so its midpoint is used and confidence drops.
+    assert _flexible(vectors).confidence == round(0.8 * 0.5 * 0.85, 6)
 
 
 def test_confidences_retain_existing_six_decimal_semantics():
@@ -182,6 +258,7 @@ def test_confidences_retain_existing_six_decimal_semantics():
         qual=(60,) * 7,
         completeness=(0.5,) * 7,
     )
+    # Flexible: min over its three economies, as an anchored type does.
     assert {item.key: item for item in fit_all(flexible)}[
         'flexible'
     ].confidence == 0.5
@@ -352,13 +429,13 @@ def test_model_digest_excludes_version_and_explanation_construction(tmp_path):
     baseline = _digest_for_source(tmp_path, source)
     version_edit = _changed(
         source,
-        "ARCHETYPE_VERSION = 'v3-archetype-4'",
+        "ARCHETYPE_VERSION = 'v3-archetype-5'",
         "ARCHETYPE_VERSION = 'storage-only-version'",
     )
     explanation_edit = _changed(
         source,
-        "'breadth': breadth,",
-        "'breadth': breadth + 999,",
+        'ordinal: round(strengths[ordinal][0], 3) for ordinal in chosen',
+        'ordinal: round(strengths[ordinal][0], 3) + 999 for ordinal in chosen',
     )
     assert _digest_for_source(tmp_path, version_edit) == baseline
     assert _digest_for_source(tmp_path, explanation_edit) == baseline
@@ -389,7 +466,10 @@ def test_model_digest_ignores_comments_docstrings_and_formatting(tmp_path):
          'return lo if x <= lo else hi if x > hi else x'),
         ('/ 2.0, True', '/ 2.01, True'),
         ('core * spec * cap + synergy', 'core * spec * cap + synergy + 0.01'),
-        ('breadth / BREADTH_TARGET', 'breadth / (BREADTH_TARGET + 1)'),
+        ('FLEXIBLE_ECONOMIES = 3', 'FLEXIBLE_ECONOMIES = 4'),
+        ('ranked[:FLEXIBLE_ECONOMIES]', 'ranked[1:FLEXIBLE_ECONOMIES]'),
+        ('spec = SPEC_FLOOR + SPEC_SPAN * (quality / 100.0)',
+         'spec = SPEC_FLOOR + SPEC_SPAN * (quality / 101.0)'),
         ('for key in ARCHETYPE_KEYS\n', 'for key in reversed(ARCHETYPE_KEYS)\n'),
         ('return min(v.confidence) * min(v.completeness)',
          'return min(v.confidence) * min(v.completeness) * 0.99'),

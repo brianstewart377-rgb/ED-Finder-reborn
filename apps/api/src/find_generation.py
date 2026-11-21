@@ -12,6 +12,20 @@ from typing import Any
 import asyncpg
 from fastapi import HTTPException
 
+from shared_contracts.v3_system_archetype_model import (
+    ARCHETYPE_VERSION,
+    archetype_model_sha256,
+)
+
+# The colony type model this API runs. Every colony type row is written by the
+# deployed model: the nightly scoring since migration 025, and a colony type
+# re-score (spansh_delta.colony_types) after the model changes. So the scores'
+# identity is the deployed model's, not the one recorded when the product was
+# first built and published (that manifest is immutable and now only says
+# which publication the rows belong to). Each row carries the version that
+# wrote it; the explanation route serves only rows of this version.
+DEPLOYED_ARCHETYPE_MODEL_SHA256 = archetype_model_sha256()
+
 
 # The derived products a V3 Finder ranked read depends on. A generation may be
 # published before either Finder product is attached, and a READY product stays
@@ -39,10 +53,7 @@ async def _current_derived_generation(connection: asyncpg.Connection) -> dict[st
         SELECT product_code,
                lifecycle_state,
                published_at,
-               product_version AS archetype_version,
-               encode(manifest_sha256, 'hex') AS archetype_manifest_sha256,
-               manifest ->> 'archetype_model_sha256' AS archetype_model_sha256,
-               manifest ->> 'model_file_sha256' AS model_file_sha256
+               encode(manifest_sha256, 'hex') AS archetype_manifest_sha256
         FROM v3_meta.derived_product
         WHERE derived_generation_id = $1
           AND product_code = ANY($2::text[])
@@ -70,20 +81,16 @@ async def _current_derived_generation(connection: asyncpg.Connection) -> dict[st
     archetype_product = next(
         product for product in products if product['product_code'] == 'system_archetype'
     )
-    identity = {
-        'archetype_version': archetype_product['archetype_version'],
-        'archetype_manifest_sha256': archetype_product['archetype_manifest_sha256'],
-        'archetype_model_sha256': archetype_product['archetype_model_sha256'],
-    }
-    if any(not value for value in identity.values()):
+    if not archetype_product['archetype_manifest_sha256']:
         raise HTTPException(
             503,
             'Finder archetype product identity is incomplete for the published generation.',
         )
     return {
         **dict(row),
-        **identity,
-        'model_file_sha256': archetype_product.get('model_file_sha256'),
+        'archetype_version': ARCHETYPE_VERSION,
+        'archetype_manifest_sha256': archetype_product['archetype_manifest_sha256'],
+        'archetype_model_sha256': DEPLOYED_ARCHETYPE_MODEL_SHA256,
     }
 
 

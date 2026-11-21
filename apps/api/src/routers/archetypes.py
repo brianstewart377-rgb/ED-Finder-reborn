@@ -38,9 +38,7 @@ Route scope:
 """
 
 from collections.abc import Mapping
-import hashlib
 import math
-from pathlib import Path as FilePath
 import re
 import time
 from typing import Annotated, Any, Optional
@@ -151,9 +149,6 @@ _OPPORTUNITY_READ_ASYNCPG_SQL = _psycopg_sql_to_asyncpg(
     OPPORTUNITY_READ_SQL,
     _MODEL_SQL_PARAMETER_ORDER,
 )
-_DEPLOYED_ARCHETYPE_MODEL_FILE_SHA256 = hashlib.sha256(
-    FilePath(archetype_model.__file__).read_bytes()
-).hexdigest()
 
 _PERSISTED_ARCHETYPE_COLUMNS = tuple(
     column
@@ -586,12 +581,7 @@ def _raise_for_explanation_identity_mismatch(
         expected_manifest_sha256 is not None
         and expected_manifest_sha256 != generation_row['archetype_manifest_sha256']
     )
-    deployed_product_mismatch = (
-        generation_row['archetype_version'] != ARCHETYPE_VERSION
-        or generation_row.get('model_file_sha256')
-        != _DEPLOYED_ARCHETYPE_MODEL_FILE_SHA256
-    )
-    if mismatched_expectation or deployed_product_mismatch:
+    if mismatched_expectation:
         raise HTTPException(409, _EXPLANATION_UNAVAILABLE_DETAIL)
 
 

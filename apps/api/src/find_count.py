@@ -62,6 +62,8 @@ def known_qualifying(
         != str(generation_row['derived_generation_id'])
         or known_count.get('publication_sequence')
         != generation_row['publication_sequence']
+        or known_count.get('archetype_version')
+        != generation_row['archetype_version']
     ):
         return None
     return qualifying
@@ -80,12 +82,16 @@ def count_to_keep(response: dict[str, Any]) -> dict[str, Any] | None:
         or not isinstance(total, int)
         or ranking.get('derived_generation_id') is None
         or ranking.get('publication_sequence') is None
+        or ranking.get('archetype_version') is None
     ):
         return None
     return {
         'qualifying': total + (1 if response.get('total_is_capped') else 0),
         'derived_generation_id': str(ranking['derived_generation_id']),
         'publication_sequence': ranking['publication_sequence'],
+        # Tiers come from the colony type scores, so a count is kept under the
+        # model that scored them (part of its cache key).
+        'archetype_version': ranking['archetype_version'],
     }
 
 

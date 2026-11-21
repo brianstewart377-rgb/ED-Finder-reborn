@@ -5,6 +5,10 @@ import { colonyTypeReason } from './colony-type-reasons';
 import charickDrift from './fixtures/charick-drift-explanation.json';
 import conn from './fixtures/conn-explanation.json';
 import culann from './fixtures/culann-explanation.json';
+// Sol as the frozen fixture set has it (tests/fixtures/ratings_v4_sources),
+// scored by the real pipeline and served by the API's own explanation route,
+// colony types by the rule of v3-archetype-5.
+import sol from './fixtures/sol-explanation.json';
 
 type Answer = { archetypes: ArchetypeExplanationEntry[] };
 const entry = (answer: unknown, key: string): ArchetypeExplanationEntry =>
@@ -71,14 +75,40 @@ describe('why a colony type got its score, in plain words', () => {
     );
   });
 
-  it('says how Flexible counts strong economies', () => {
-    expect(entry(charickDrift, 'flexible').score).toBe(75);
-    expect(colonyTypeReason(entry(charickDrift, 'flexible'))).toEqual({
+  it('says which three economies make Flexible, and how strong each is', () => {
+    expect(entry(sol, 'flexible').score).toBe(70);
+    expect(colonyTypeReason(entry(sol, 'flexible'))).toEqual({
       needs:
-        'Flexible Multi-Role Colony needs several strong economies, of any kind.',
-      economies: ['3 of the 7 economies are strong enough here.'],
-      steps: ['Each one is worth 25, up to 4 of them.'],
+        'Flexible Multi-Role Colony needs three strong economies, of any kind. Its three strongest here:',
+      economies: [
+        'Industrial: 85 out of 100, from 26 bodies that suit it. With quality and bodies: 77.3.',
+        'Extraction: 82 out of 100, from 13 bodies that suit it. With quality and bodies: 70.',
+        'High Tech: 84 out of 100, from 6 bodies that suit it. With quality and bodies: 68.',
+      ],
+      steps: ['69.5 for the three together. The weakest counts most.'],
     });
+  });
+
+  it('says so when Flexible has fewer than three economies to draw on', () => {
+    const flexible = entry(sol, 'flexible');
+    const explanation = flexible.explanation as {
+      components: Record<string, Record<string, number>>;
+    };
+    const thin = {
+      ...flexible,
+      explanation: {
+        ...flexible.explanation,
+        components: {
+          ...explanation.components,
+          pot: { ...explanation.components.pot, '4': 0 },
+          opp_count: { ...explanation.components.opp_count, '4': 0 },
+          strength: { ...explanation.components.strength, '4': 0 },
+        },
+      },
+    } as ArchetypeExplanationEntry;
+    expect(colonyTypeReason(thin).economies[2]).toBe(
+      'High Tech: 0 out of 100. No body here suits it.',
+    );
   });
 
   it('puts nothing into words that the explanation does not give', () => {

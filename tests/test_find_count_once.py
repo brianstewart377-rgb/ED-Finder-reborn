@@ -43,7 +43,7 @@ from tests.test_find_reach import (  # noqa: E402,F401  (the shared fixture)
 from tests.test_find_type_near import PICKED, RADIUS, _expected  # noqa: E402
 
 GENERATION = {"derived_generation_id": "11111111-1111-4111-8111-111111111111",
-              "publication_sequence": 4}
+              "publication_sequence": 4, "archetype_version": "v3-archetype-5"}
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +111,11 @@ def test_what_is_kept_of_a_count_is_what_the_count_query_would_say():
     assert count_to_keep({"total": 37, "total_is_capped": False}) is None
     assert count_to_keep({"total": 37, "ranking": {"derived_generation_id": None,
                                                     "publication_sequence": 4}}) is None
+    # Nor without the colony type model that scored it: tiers come from it.
+    unscored = {key: value for key, value in GENERATION.items() if key != "archetype_version"}
+    assert count_to_keep({"total": 37, "ranking": unscored}) is None
+    # A count made under another colony type model is not used.
+    assert known_qualifying(kept, {**GENERATION, "archetype_version": "v3-archetype-4"}) is None
 
 
 def _body(**changes) -> dict:
@@ -140,6 +145,11 @@ def test_every_page_of_a_search_shares_one_count_and_no_other_search_does():
     # And so is the same search on another generation or publication.
     assert key(_body(), {**GENERATION, "publication_sequence": 5}) != first
     assert key(_body(), {**GENERATION, "derived_generation_id": "other"}) != first
+    # Or scored by another colony type model: page and count both move.
+    rescored = {**GENERATION, "archetype_version": "v3-archetype-4"}
+    assert key(_body(), rescored) != first
+    assert (search_route._search_cache_key(_body(), rescored)
+            != search_route._search_cache_key(_body(), GENERATION))
     # It is never the page's own key.
     assert first != search_route._search_cache_key(_body(), GENERATION)
 

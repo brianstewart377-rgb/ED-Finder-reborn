@@ -42,7 +42,7 @@ describe('canonical V3 archetype metadata', () => {
       key: 'flexible',
       label: 'Flexible Multi-Role Colony',
       description:
-        'Several viable economies rather than one narrow specialism.',
+        'Three or more strong economies rather than one narrow specialism.',
     });
     expect(archetypeLabel('manufacturing_hub')).toBe('Manufacturing Hub');
     expect(archetypeLabel('paradise')).toBe('Paradise World');
