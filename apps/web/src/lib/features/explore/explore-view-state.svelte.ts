@@ -69,6 +69,9 @@ export class ExploreViewState {
   mapResume: MapResume | null = null;
   // A picked selection is immutable too; never proxy a retained API row.
   retainedSelectedSystem = $state.raw<ExploreSystem | null>(null);
+  // A system just chosen, until the address saying so has arrived. Until
+  // then the address still names the system selected before it.
+  pendingSelection = $state<Id64 | null>(null);
   resultScrollTop = $state(0);
   hasMounted = false;
   // Retain only the displayed response identity; its immutable data stays in
