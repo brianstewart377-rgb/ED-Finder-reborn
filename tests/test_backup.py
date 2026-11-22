@@ -120,9 +120,17 @@ os.execv(os.path.join(os.environ["FAKE_PG_PROGRAMS"], program),
 '''
 
 FAKE_SYSTEMCTL = r'''#!%(python)s
-"""systemctl is-active: the units named in FAKE_SYSTEMCTL_RUNNING are running."""
+"""systemctl is-active: the units named in FAKE_SYSTEMCTL_RUNNING are running.
+With FAKE_SYSTEMCTL_CHECKS_LEFT naming a file that holds a number, they run
+for that many more questions only, then have finished."""
 import os, sys
 running = set((os.environ.get("FAKE_SYSTEMCTL_RUNNING") or "").split())
+left = os.environ.get("FAKE_SYSTEMCTL_CHECKS_LEFT")
+if left:
+    count = int(open(left).read())
+    open(left, "w").write(str(count - 1))
+    if count <= 0:
+        running = set()
 units = sys.argv[2:]
 for unit in units:
     print("activating" if unit in running else "inactive")
@@ -258,11 +266,30 @@ def test_a_full_backup_brings_every_row_back(kit, capsys):
             admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(scratch)))
 
 
-def test_a_full_backup_will_not_run_beside_a_nightly_job(kit, capsys, monkeypatch):
+def test_a_full_backup_waits_for_a_nightly_job_to_finish(kit, capsys, monkeypatch, tmp_path):
+    """Seen on the Pi on 22 November 2026: the galaxy update was still running
+    when the Sunday backup was due. The backup waits for it, then runs."""
+    monkeypatch.setattr(tool, "WAIT_POLL_SECONDS", 0)
+    monkeypatch.setenv("FAKE_SYSTEMCTL_RUNNING", "edfinder-galaxy-update.service")
+    left = tmp_path / "checks-left"
+    left.write_text("3")
+    monkeypatch.setenv("FAKE_SYSTEMCTL_CHECKS_LEFT", str(left))
+    code, said = kit.run("full", capsys)
+    assert code == 0, said
+    assert "Waiting for edfinder-galaxy-update.service to finish before the backup starts ..." in said
+    assert "It has finished, after 0 min. Starting the backup." in said
+    assert len([name for name in kit.names("full") if name.endswith(".dump")]) == 1
+    assert "pg_dump" in kit.log.read_text()
+    assert int(left.read_text()) < 0, "it asked until the job had finished"
+
+
+def test_a_full_backup_gives_up_on_a_nightly_job_that_runs_too_long(kit, capsys, monkeypatch):
+    monkeypatch.setattr(tool, "WAIT_POLL_SECONDS", 0)
+    monkeypatch.setattr(tool, "WAIT_FOR_JOBS_SECONDS", 0.2)
     monkeypatch.setenv("FAKE_SYSTEMCTL_RUNNING", "edfinder-state-refresh.service")
     code, said = kit.run("full", capsys)
     assert code == 1
-    assert "FAILED: edfinder-state-refresh.service is running" in said
+    assert "FAILED: edfinder-state-refresh.service is still running after 0 min of waiting" in said
     assert kit.names("full") == [] and "pg_dump" not in kit.log.read_text()
     # The small backup takes a minute and holds nothing up: it runs.
     code, said = kit.run("small", capsys)
@@ -530,6 +557,28 @@ def unit(name: str) -> dict[str, list[str]]:
     return found
 
 
+def test_no_two_of_our_services_wait_for_each_other():
+    """systemd refuses to start a job that waits, through After=, for itself:
+    on 22 November 2026 the full backup and the galaxy update each waited
+    for the other, and the Sunday backup never started."""
+    names = sorted(path.name for path in (ROOT / "deploy").glob("edfinder-*.service"))
+    after = {name: [other for line in unit(name).get("After", []) for other in line.split()
+                    if other in names] for name in names}
+    assert after["edfinder-galaxy-update.service"], "the test reads the units' orders"
+
+    def loop_from(name: str, path: tuple[str, ...]) -> tuple[str, ...] | None:
+        if name in path:
+            return path[path.index(name):] + (name,)
+        for other in after[name]:
+            found = loop_from(other, path + (name,))
+            if found:
+                return found
+        return None
+
+    for name in names:
+        assert loop_from(name, ()) is None, " waits for ".join(loop_from(name, ()) or ())
+
+
 def test_the_timers_run_each_backup_at_a_time_no_nightly_job_starts():
     assert unit("edfinder-backup-small.service")["ExecStart"] == ["/usr/bin/python3 /opt/edfinder/backup.py small"]
     assert unit("edfinder-backup-full.service")["ExecStart"] == ["/usr/bin/python3 /opt/edfinder/backup.py full"]
@@ -539,9 +588,11 @@ def test_the_timers_run_each_backup_at_a_time_no_nightly_job_starts():
     # has from 07:00 to 16:30 to itself.
     assert unit("edfinder-state-refresh.timer")["OnCalendar"] == ["*-*-* 03:30:00 UTC"]
     assert unit("edfinder-galaxy-update.timer")["OnCalendar"] == ["*-*-* 04,16:30:00 UTC"]
-    # And each side waits for the other if they ever meet.
+    # If they ever meet, the nightly jobs wait for the backup (systemd), and
+    # the backup waits for them in backup.py: not in systemd, which would be
+    # a loop (see the next test).
     nightly = ("edfinder-state-refresh.service", "edfinder-galaxy-update.service")
-    assert set(nightly) <= set(unit("edfinder-backup-full.service")["After"][0].split())
+    assert unit("edfinder-backup-full.service")["After"] == ["docker.service"]
     for name in nightly:
         assert "edfinder-backup-full.service" in unit(name)["After"][0].split()
     assert tool.DEFAULTS["EDFINDER_BACKUP_NOT_DURING"].split() == sorted(nightly)
