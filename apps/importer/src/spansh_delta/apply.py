@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
@@ -84,6 +85,11 @@ EXIT_NO_CONNECTION = 3
 STATEMENT_TIMEOUT = "15min"
 BATCH_SYSTEMS = 200
 PROGRESS_SECONDS = 60
+# Where a run's time goes, as its progress lines and its summary say: reading
+# Spansh's file (unpacking it and making sense of each system), reading the
+# rows we hold for those systems, comparing the two, and writing what changed.
+STAGES = (("file", "reading the file"), ("rows", "reading our rows"),
+          ("compare", "comparing"), ("write", "writing"))
 # Session-level advisory lock: only one update may write at a time.
 LOCK_KEY = int.from_bytes(hashlib.sha256(b"edfinder.galaxy_update").digest()[:8], "big", signed=True)
 RETIRED_REASON = "absent from the Spansh system record"
@@ -188,10 +194,25 @@ class Report:
     unknown_words: Counter = field(default_factory=Counter)
     seconds: float = 0.0
     stopped_early: bool = False
+    timing: Counter = field(default_factory=Counter)
 
     @property
     def to_write(self) -> int:
         return self.changed + self.new
+
+    @contextmanager
+    def timed(self, stage: str) -> Iterator[None]:
+        """Add the time spent inside to ``stage`` (one of STAGES)."""
+        began = time.monotonic()
+        try:
+            yield
+        finally:
+            self.timing[stage] += time.monotonic() - began
+
+    def stage_minutes(self) -> str:
+        """Whole minutes in each stage so far, for a progress line."""
+        return ", ".join(f"{label} {int(self.timing[stage]) // 60} min"
+                         for stage, label in STAGES if stage in self.timing)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -213,6 +234,8 @@ class Report:
             "queued": self.queued,
             "unknown_words": len(self.unknown_words),
             "seconds": round(self.seconds, 1),
+            "seconds_by_stage": {stage: round(self.timing[stage], 1)
+                                 for stage, _ in STAGES if stage in self.timing},
             "stopped_early": self.stopped_early,
         }
 
@@ -259,9 +282,19 @@ class Report:
                        "   (left blank, or left out)")
             for (domain, token), count in self.unknown_words.most_common(8):
                 out.append(f"      {domain}: \"{token}\" in {count:,} systems")
-        minutes, seconds = divmod(int(self.seconds), 60)
-        out.append(f"Took {minutes} min {seconds} s.")
+        out.append(f"Took {_duration(self.seconds)}.")
+        if self.timing:
+            for stage, label in STAGES:
+                if stage in self.timing:
+                    out.append(f"  {label + ':':<32}{_duration(self.timing[stage]):>12}")
+            out.append(f"  {'everything else:':<32}"
+                       f"{_duration(max(self.seconds - sum(self.timing.values()), 0)):>12}")
         return out
+
+
+def _duration(seconds: float) -> str:
+    minutes, seconds = divmod(int(seconds), 60)
+    return f"{minutes} min {seconds} s"
 
 
 # -- the database we are writing to -----------------------------------------
@@ -735,31 +768,34 @@ def plan_systems(connection: psycopg.Connection[Any], target: Target,
     """
     adapter = SpanshAdapter(source_id=run.source_id, source_run_id=run.source_run_id,
                             observed_at=run.observed_at)
-    stored = read_stored(connection, target, [system.id64 for system, _ in systems])
+    with report.timed("rows"):
+        stored = read_stored(connection, target, [system.id64 for system, _ in systems])
     items: list[Incoming] = []
-    for system, record in systems:
-        held = stored.get(system.id64)
-        change = classify_material_change(system, held.tables if held else None,
-                                          policy="strict", include_carriers=True)
-        if change.status == "unchanged":
-            report.unchanged += 1
-            continue
-        if held is not None and held.checked_at is not None and held.checked_at > run.observed_at:
-            report.older += 1
-            continue
-        batch = adapter.adapt_system(dict(record))
-        keys = {table: {int(row[_KEY_INDEX[table]]) for row in batch.rows.get(table, ())}
-                for table in PARENT_KEY}
-        tables = change.changed_tables if change.status == "changed" else tuple(
-            table for table in CONTENT_TABLES if batch.rows.get(table))
-        items.append(Incoming(system.id64, change.status, tables, batch, keys, held,
-                              system.unmapped_vocabulary))
+    with report.timed("compare"):
+        for system, record in systems:
+            held = stored.get(system.id64)
+            change = classify_material_change(system, held.tables if held else None,
+                                              policy="strict", include_carriers=True)
+            if change.status == "unchanged":
+                report.unchanged += 1
+                continue
+            if held is not None and held.checked_at is not None and held.checked_at > run.observed_at:
+                report.older += 1
+                continue
+            batch = adapter.adapt_system(dict(record))
+            keys = {table: {int(row[_KEY_INDEX[table]]) for row in batch.rows.get(table, ())}
+                    for table in PARENT_KEY}
+            tables = change.changed_tables if change.status == "changed" else tuple(
+                table for table in CONTENT_TABLES if batch.rows.get(table))
+            items.append(Incoming(system.id64, change.status, tables, batch, keys, held,
+                                  system.unmapped_vocabulary))
 
     # A body or ring id that already belongs to another system cannot simply be
     # taken over: other rows point at it. Set that system aside.
     for table in ("bodies", "rings"):
-        owners = _owners(connection, target.schema, table,
-                         sorted({key for item in items for key in item.keys[table]}))
+        with report.timed("rows"):
+            owners = _owners(connection, target.schema, table,
+                             sorted({key for item in items for key in item.keys[table]}))
         for item in list(items):
             clash = [key for key in item.keys[table] if key in owners and owners[key][0] != item.id64]
             if clash:
@@ -769,8 +805,9 @@ def plan_systems(connection: psycopg.Connection[Any], target: Target,
 
     left_behind: dict[int, tuple[str, ...]] = {}
     moved = 0
-    owners = _owners(connection, target.schema, "stations",
-                     sorted({key for item in items for key in item.keys["stations"]}))
+    with report.timed("rows"):
+        owners = _owners(connection, target.schema, "stations",
+                         sorted({key for item in items for key in item.keys["stations"]}))
     for item in items:
         for key in item.keys["stations"]:
             previous = owners.get(key)
@@ -807,16 +844,17 @@ def process_batch(connection: psycopg.Connection[Any], target: Target, records: 
                   report: Report, *, run: Run, writer: Writer | None) -> None:
     """Compare one batch of Spansh systems with what we hold; write if asked."""
     systems: list[tuple[NormalizedSystem, Mapping[str, Any]]] = []
-    for record in records:
-        report.systems_read += 1
-        try:
-            system = normalize_system(record)
-        except (ValueError, TypeError, KeyError) as error:
-            report.unusable[_reason(error)] += 1
-            continue
-        systems.append((system, record))
-        for word in system.unmapped_vocabulary:
-            report.unknown_words[word] += 1
+    with report.timed("file"):
+        for record in records:
+            report.systems_read += 1
+            try:
+                system = normalize_system(record)
+            except (ValueError, TypeError, KeyError) as error:
+                report.unusable[_reason(error)] += 1
+                continue
+            systems.append((system, record))
+            for word in system.unmapped_vocabulary:
+                report.unknown_words[word] += 1
 
     before = (report.unchanged, report.older, dict(report.set_aside))
     plan = plan_systems(connection, target, systems, report, run)
@@ -824,7 +862,9 @@ def process_batch(connection: psycopg.Connection[Any], target: Target, records: 
         _count(report, plan, {table: len(keys) for table, keys in plan.retire.items()})
         return
     try:
-        _count(report, plan, writer.write(plan))
+        with report.timed("write"):
+            retired = writer.write(plan)
+        _count(report, plan, retired)
         return
     except ROW_ERRORS:
         pass
@@ -836,7 +876,9 @@ def process_batch(connection: psycopg.Connection[Any], target: Target, records: 
         if not plan.items:
             continue
         try:
-            _count(report, plan, writer.write(plan))
+            with report.timed("write"):
+                retired = writer.write(plan)
+            _count(report, plan, retired)
         except ROW_ERRORS as error:
             report.set_aside[pair[0].id64] = _database_reason(error)
 
@@ -1011,7 +1053,8 @@ def _progress(report: Report, total: int | None, seconds: float) -> str:
     if total and report.systems_read:
         minutes = int(seconds * max(total - report.systems_read, 0) / report.systems_read) // 60
         line += f", about {minutes // 60} h {minutes % 60} min to go"
-    return line
+    stages = report.stage_minutes()
+    return line + (f" ({stages})" if stages else "")
 
 
 def _run_batches(connection: psycopg.Connection[Any], target: Target, path: Path, report: Report,
@@ -1019,7 +1062,12 @@ def _run_batches(connection: psycopg.Connection[Any], target: Target, path: Path
                  started: float, total: int | None = None) -> Report:
     try:
         last = started
-        for records in _batches(path, report, limit):
+        batches = _batches(path, report, limit)
+        while True:
+            with report.timed("file"):
+                records = next(batches, None)
+            if records is None:
+                break
             process_batch(connection, target, records, report, run=run, writer=writer)
             allowed = max(MAX_SET_ASIDE, int(report.systems_read * MAX_SET_ASIDE_SHARE))
             if len(report.set_aside) > allowed:
