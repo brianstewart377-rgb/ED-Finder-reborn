@@ -7,8 +7,8 @@ derived projections (`v3_app.system_search`, `v3_app.system_archetype`,
 
 - `RANKING_VERSION` — the current profile's version string.
 - `PROFILE_SPEC` — the canonical, hashable ranking definition (primary-score
-  rule, order rule, uncertainty factor, tie-break, tier thresholds,
-  hard-filter keys, archetype keys) plus its own recorded `ranking_sha256`.
+  rule, uncertainty modifier, tie-break, tier thresholds, hard-filter keys,
+  archetype keys) plus its own recorded `ranking_sha256`.
 - `ranking_sha256()` — recomputes the sha256 of the canonical spec so a
   drift-guard test can assert the recorded value never silently diverges
   from the live definition.
@@ -30,9 +30,7 @@ import hashlib
 import json
 from typing import Any, Final
 
-# -3 (21 November 2026): score-ordered lists sort by the score Find shows; the
-# uncertainty factor only breaks ties (ORDER_RULE). -2 sorted by the factor.
-RANKING_VERSION: Final[str] = "v3-colony-potential-3"
+RANKING_VERSION: Final[str] = "v3-colony-potential-2"
 
 # The 8 V3-native archetype keys computed by F2b (scripts/v3_system_archetype_
 # model.py's `ARCHETYPE_KEYS` is the source of truth). Duplicated here as a
@@ -112,23 +110,6 @@ HARD_FILTER_KEYS: Final[tuple[str, ...]] = (
 # The stored key's only ranking tie-break. Distance is a separate primary sort
 # for anchored nearest-first requests, not part of picked-archetype ranking.
 TIE_BREAK: Final[tuple[str, ...]] = ("system_id64",)
-
-# How a score-ordered list is ordered: the score Find shows first, then the
-# stored weighted key (the score times the uncertainty factor), which only
-# breaks ties between equal scores, then TIE_BREAK. Migration 031's indexes
-# walk this order. Nearest-first lists keep distance first.
-ORDER_RULE: Final[dict[str, list[str]]] = {
-    "none": [
-        "system_archetype_summary.best_colony_potential DESC",
-        "system_archetype_summary.weighted_potential DESC NULLS LAST",
-        "system_id64 ASC",
-    ],
-    "archetype": [
-        "archetype_columns[picked_archetype].score DESC",
-        "archetype_columns[picked_archetype].weighted_key DESC",
-        "system_id64 ASC",
-    ],
-}
 
 ARCHETYPE_SCORE_FLOOR_DEFAULT: Final[int] = 60
 ACCEPTED_ARCHETYPE_SCORE_FLOORS: Final[tuple[int, ...]] = (60, 76, 88)
@@ -229,16 +210,15 @@ def _canonical_base() -> dict[str, Any]:
             "none": "system_archetype_summary.best_colony_potential",
         },
         "uncertainty": {
-            # Never a hard filter (unknown != absent), and since -3 it no
-            # longer moves a system past a higher score: it only orders
-            # systems whose shown score is equal (ORDER_RULE). Still part of
-            # the hashed identity, so any retune bumps ranking_sha256.
+            # Soft modifier only (unknown != absent) — never a hard filter.
+            # Starting curve is the plain product of confidence and
+            # completeness; both bounded [0, 1]. This curve is a tunable,
+            # benchmark-calibrated profile parameter and is part of the
+            # hashed identity, so any future retune bumps ranking_sha256.
             "factor_expr": "confidence * completeness",
             "confidence_range": [0.0, 1.0],
             "completeness_range": [0.0, 1.0],
-            "role": "tie-break between equal scores",
         },
-        "order_rule": {key: list(value) for key, value in ORDER_RULE.items()},
         "tie_break": list(TIE_BREAK),
         "tier_thresholds": dict(TIER_THRESHOLDS),
         "hard_filter_keys": list(HARD_FILTER_KEYS),
