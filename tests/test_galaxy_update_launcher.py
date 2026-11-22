@@ -334,6 +334,31 @@ def test_colony_types_by_hand_need_no_file_and_are_scored_in_the_container(
     assert "FAILED: the colony type scoring ended with code 2" in capsys.readouterr().out
 
 
+def test_the_speed_trial_needs_no_file_and_runs_in_the_container(spansh, docker, tmp_path, capsys):
+    chosen = settings(spansh, tmp_path / "galaxy")
+    assert tool.cmd_apply(chosen, "speed-trial", None) == 0
+    worked = docker.calls("run")[-1]
+    assert worked[worked.index("-m"):] == ["-m", "spansh_delta.speed_trial", "run"]
+    assert spansh.downloads() == [] and not chosen.record.exists()
+    assert "Running the speed trial from " + IMAGE in capsys.readouterr().out
+    # Another sample size.
+    assert tool.cmd_apply(chosen, "speed-trial", 50000) == 0
+    worked = docker.calls("run")[-1]
+    assert worked[worked.index("-m"):] == ["-m", "spansh_delta.speed_trial", "run", "--limit", "50000"]
+    docker.state["run_exit"]["local"] = 1
+    docker.save()
+    assert tool.cmd_apply(chosen, "speed-trial", None) == 1
+    assert "FAILED: the speed trial ended with code 1" in capsys.readouterr().out
+
+
+def test_main_knows_the_speed_trial(spansh, docker, tmp_path, monkeypatch):
+    monkeypatch.setenv("EDFINDER_GALAXY_DIR", str(tmp_path / "galaxy"))
+    monkeypatch.setenv("EDFINDER_GALAXY_SOURCE", spansh.origin + "/")
+    assert tool.main(["speed-trial", "--limit", "2000"]) == 0
+    assert docker.calls("run")[-1][-4:] == ["spansh_delta.speed_trial", "run", "--limit", "2000"]
+    assert spansh.downloads() == []
+
+
 # Filling in what bodies orbit, once (spansh_delta.parents): read from Spansh's
 # whole-galaxy file as it downloads, inside the job, so nothing is kept here.
 WHOLE_GALAXY = "galaxy.json.gz"
