@@ -508,6 +508,10 @@ In order:
       no longer ordered after the nightly jobs, and `backup.py full` waits
       for one that is running instead (8 hours at most). A test now checks
       that no two units wait for each other.
+      (22 Nov, evening) The backup's 12-hour time limit counted that wait
+      too, leaving as little as 4 hours for a backup that took 3 hours 25
+      minutes on 14 Nov. Now 20 hours: up to 8 for the wait, 12 for the
+      backup. A test ties the two numbers together.
       (14 Nov) A drive for backups is on the Pi: a 12 TB drive in a USB
       caddy, ext4, at `/mnt/backup` (owner). Its whole surface is being
       read through once to see that it is sound. Until that comes back

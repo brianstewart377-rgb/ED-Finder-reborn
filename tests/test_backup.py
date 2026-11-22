@@ -579,6 +579,14 @@ def test_no_two_of_our_services_wait_for_each_other():
         assert loop_from(name, ()) is None, " waits for ".join(loop_from(name, ()) or ())
 
 
+def test_the_full_backup_still_has_12_hours_after_the_longest_wait():
+    """systemd's time limit counts the wait for a nightly job too: until
+    22 November 2026 a long wait left the backup as little as 4 hours."""
+    (limit,) = unit("edfinder-backup-full.service")["TimeoutStartSec"]
+    assert limit.endswith("h"), limit
+    assert int(limit[:-1]) * 3600 >= tool.WAIT_FOR_JOBS_SECONDS + 12 * 3600
+
+
 def test_the_timers_run_each_backup_at_a_time_no_nightly_job_starts():
     assert unit("edfinder-backup-small.service")["ExecStart"] == ["/usr/bin/python3 /opt/edfinder/backup.py small"]
     assert unit("edfinder-backup-full.service")["ExecStart"] == ["/usr/bin/python3 /opt/edfinder/backup.py full"]

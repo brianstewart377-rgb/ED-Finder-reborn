@@ -27,7 +27,11 @@ ExecStart=/usr/bin/python3 /opt/edfinder/backup.py full
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
-TimeoutStartSec=12h
+# Up to 8 hours waiting for a nightly job (backup.py), then up to 12 for the
+# backup itself: systemd counts the wait as part of the start. The first full
+# backup took 3 hours 25 minutes. Until 22 November 2026 this was 12 hours in
+# all, wait included.
+TimeoutStartSec=20h
 # When the run ends, well or badly, tell healthchecks.io (see the small
 # backup's unit).
 ExecStopPost=-/usr/bin/python3 /opt/edfinder/report_in.py backup-full
