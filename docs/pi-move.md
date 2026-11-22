@@ -886,6 +886,19 @@ show a numerical indicator of how many ground slots the body has" and
   game's. One thing to watch: where our data has no signal count for a body,
   the rule quietly gives no bonus for geology or life, so it can come out
   one low.
+- **Checked against the game (22 November).** In-game counts the owner read
+  in two of his systems (not named here): Raven Colonial's rule was right on
+  all six bodies whose count was certain, and on one system's whole total
+  (19); ours on three of the six, and 22 for that system. Ours had drifted
+  from Raven's in four ways: a slot for life signals, 1 rather than 2 for a
+  thin atmosphere, at most 3 for all the bonuses together, and the step to 4
+  base slots at 5,500 km rather than 6,000. The owner had taken ours to be
+  Raven's. It is now the same (`raven-slot-v1`), and
+  `tests/test_slot_rule.py` holds the six counts. Life signals no longer
+  count, so a missing life count no longer matters; a missing geology count
+  or volcanism can still make a prediction one low. The two rules agree on
+  every body under 5,500 km with no atmosphere and no life signals, the most
+  common kind to build on.
 - **Sites and slots are not the same count.** In LHS 3447 our data holds
   more sites on the ground than the slots predicted on five of the six
   bodies (5 against 4; 4 against 3). The page shows the two numbers side by

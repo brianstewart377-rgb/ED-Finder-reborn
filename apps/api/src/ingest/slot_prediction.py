@@ -1,8 +1,28 @@
-"""Canonical validated slot prediction for colony planning.
+"""Canonical slot prediction for colony planning.
 
 This module is the only runtime source for predicted slot counts.
 It intentionally does not fall back to legacy radius/class heuristics.
 When required inputs are missing, it returns unknown with reasons.
+
+Ground slots follow Raven Colonial's rule, unchanged there since
+19 November 2025 (``src/slot-prediction.ts`` in njthomson/RavenColonialWeb),
+written here in our own words:
+
+  * a body that cannot be landed on, is hotter than 700 K or pulls more than
+    2.7 g has none;
+  * otherwise a base from the radius: under 1,500 km 1, under 3,750 km 2,
+    under 6,000 km 3, bigger 4;
+  * plus 1 for a high metal content world, 1 for terraformable, 1 for
+    volcanism or geological signals, and 2 for any atmosphere, thin or not;
+  * never more than 7.
+
+Life signals add nothing. Until 22 November 2026 this file had drifted from
+that rule in four ways: a slot for life signals, 1 rather than 2 for a thin
+atmosphere, at most 3 for all the bonuses together, and the step to 4 at
+5,500 km. Checked that day against counts read in the game's System Architect
+view: Raven's rule was right on all six bodies whose count was certain, and
+on one system's whole total; the drifted rule on three of the six. The
+orbital estimate is our own; the planner does not publish it.
 """
 from __future__ import annotations
 
@@ -10,10 +30,10 @@ from dataclasses import dataclass, field
 import re
 from typing import Any, Literal, Optional
 
-PREDICTION_VERSION = 'validated-slot-v1'
+PREDICTION_VERSION = 'raven-slot-v1'
 VALIDATION_NOTE = (
-    'Validated against the supplied evidence set with only 2 true mismatches '
-    'after data-entry corrections.'
+    "Raven Colonial's ground-slot rule. Checked on 22 November 2026 against "
+    'in-game counts: right on all 6 bodies whose count was certain.'
 )
 INSUFFICIENT_DATA_REASON = 'insufficient data for validated prediction algorithm'
 
@@ -239,11 +259,6 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
         bonus += 1
         reasons.append({'factor': 'geo_or_volcanism', 'value': True, 'note': 'Geo/volcanism bonus +1.'})
 
-    has_bio = _has_bio(scan_fact)
-    if has_bio:
-        bonus += 1
-        reasons.append({'factor': 'bio', 'value': True, 'note': 'Biological signal bonus +1.'})
-
     atmosphere_bonus = _atmosphere_bonus(atmosphere)
     if atmosphere_bonus:
         bonus += atmosphere_bonus
@@ -253,7 +268,6 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
             'note': f'Atmosphere bonus +{atmosphere_bonus}.',
         })
 
-    bonus = min(bonus, 3)
     ground_slots = min(base_ground + bonus, 7)
 
     return SlotPrediction(
@@ -306,7 +320,7 @@ def _ground_base_from_radius_km(radius_km: float) -> int:
         return 1
     if radius_km < 3750:
         return 2
-    if radius_km < 5500:
+    if radius_km < 6000:
         return 3
     return 4
 
@@ -322,11 +336,10 @@ def _orbital_base_from_radius_km(radius_km: float) -> int:
 
 
 def _atmosphere_bonus(atmosphere: str) -> int:
+    """2 for any atmosphere, thin or not; 0 for none."""
     normalised = atmosphere.strip().lower()
     if not normalised or normalised == 'no atmosphere':
         return 0
-    if 'thin' in normalised:
-        return 1
     return 2
 
 
@@ -345,12 +358,6 @@ def _has_geo_or_volcanism(scan_fact: dict[str, Any]) -> bool:
     volcanism_norm = volcanism.strip().lower()
     has_volcanism = bool(volcanism_norm and volcanism_norm not in {'no volcanism', 'none'})
     return bool(has_geo or (geo_count is not None and geo_count > 0) or has_volcanism)
-
-
-def _has_bio(scan_fact: dict[str, Any]) -> bool:
-    has_bio = _coerce_bool(scan_fact.get('has_bio'))
-    bio_count = _coerce_int(scan_fact.get('bio_signal_count'))
-    return bool(has_bio or (bio_count is not None and bio_count > 0))
 
 
 def _clean_text(value: Any) -> Optional[str]:

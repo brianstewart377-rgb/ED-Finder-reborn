@@ -218,7 +218,7 @@ def test_every_real_body_that_can_be_landed_on_gets_its_ground_slots(galaxy):  #
     # A trace of pressure, 85.57 pascals, and no kind: no atmosphere.
     trace = by_name["Thaile HW-V e2-7 B 11 a"]
     assert (trace.atmosphere, trace.predicted_surface_slots) == (NO_ATMOSPHERE, 1)
-    # Its neighbour at 134.5 pascals has a name, and gains a slot for it.
+    # Its neighbour at 134.5 pascals has a name, and gains two slots for it.
     thin = by_name["Thaile HW-V e2-7 B 11 b"]
     assert (thin.atmosphere, thin.predicted_surface_slots) == ("Thin Ammonia", 3)
     assert by_name["Earth"].atmosphere is None and by_name["Jupiter"].atmosphere is None
