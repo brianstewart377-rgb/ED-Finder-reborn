@@ -29,7 +29,6 @@ only.
 from __future__ import annotations
 
 import argparse
-from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 import itertools
@@ -49,6 +48,7 @@ from edfinder_api.routers.plan_economy_facts import (
     aggregate_reserve_levels,
     economy_kind,
     economy_topology,
+    galaxy_body_facts,
 )
 from edfinder_api.routers.plan_slot_predictions import predict_surface_slots
 
@@ -74,9 +74,8 @@ SAMPLE_SQL = (
     "SELECT system_id64 FROM v3_state.system_reach TABLESAMPLE BERNOULLI (%s) REPEATABLE (%s)"
 )
 # As the Plan page reads a system's bodies (routers/plan.py), for many systems
-# at once, with the facts it takes from Ratings V4 read from the galaxy tables
-# themselves: the class (migration 027), tidal lock, and the words for
-# volcanism and terraforming.
+# at once, with the facts it makes from them: the class (migration 027), tidal
+# lock, and the words for volcanism and terraforming.
 BODIES_SQL = """
 SELECT body.system_id64, body.body_pk, body.name, body.direct_parent_body_pk,
        body_type.public_code AS body_type, body.is_main_star, body.is_landable,
@@ -165,44 +164,19 @@ class PlannerInputs:
     rows: Mapping[str, Mapping[str, Any]]
 
 
-def _words(value: str | None) -> str:
-    return " ".join((value or "").casefold().split())
-
-
 def mechanics(rows: SystemRows) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]], set[int]]:
-    """The body facts the Plan page reads from Ratings V4, made the way the
-    frozen scoring makes them (domain/ratings_v4_canonical.py): only for a
-    body that is still there and is not a barycentre or a belt cluster; a
-    reserve from the body's own rings and belts. Also the belts, and the
+    """The body facts the Plan page makes (``galaxy_body_facts``), the belts, and the
     bodies that have rings."""
-    reserves: dict[int, set[str]] = defaultdict(set)
     belts, ringed = [], set()
     for ring in rows.rings:
         if ring["lifecycle_state"] != "ACTIVE":
             continue
-        if ring["reserve"] is not None:
-            reserves[ring["body_pk"]].add(_words(ring["reserve"]))
         if ring["kind"] == "BELT":
             belts.append({"body_pk": ring["body_pk"], "reserve": ring["reserve"],
                           "lifecycle_state": ring["lifecycle_state"]})
         else:
             ringed.add(ring["body_pk"])
-    facts = {}
-    for body in rows.bodies:
-        if body["lifecycle_state"] != "ACTIVE" or _words(body["body_type"]).replace("_", " ") in (
-                "barycentre", "belt cluster"):
-            continue
-        volcanism, terraforming = _words(body["volcanism"]), _words(body["terraforming_state"])
-        own = reserves.get(body["body_pk"], set())
-        facts[body["body_pk"]] = {
-            "body_class": body["body_class"],
-            "spectral_class": body["spectral_class"],
-            "volcanism": volcanism != "no volcanism" if volcanism else None,
-            "terraformable": terraforming != "not terraformable" if terraforming else None,
-            "tidally_locked": body["is_tidally_locked"],
-            "reserve_level": next(iter(own)) if len(own) == 1 else None,
-        }
-    return facts, belts, ringed
+    return galaxy_body_facts(rows.bodies, rows.rings), belts, ringed
 
 
 def planner_inputs(rows: SystemRows) -> PlannerInputs:
@@ -232,7 +206,7 @@ def planner_inputs(rows: SystemRows) -> PlannerInputs:
             geological_signals=signal["geological_signals"] if signal else 0,
             biological_signals=signal["biological_signals"] if signal else 0,
         ))
-        slots[ref] = predict_surface_slots(row, fact, signal, generation_reason=None).predicted_surface_slots
+        slots[ref] = predict_surface_slots(row, fact, signal).predicted_surface_slots
         by_ref[ref] = row
     active = set(kinds.values())
     system = EconomySystem(

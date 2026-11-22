@@ -34,11 +34,11 @@ from edfinder_api.routers.plan_economy_facts import (
     aggregate_reserve_levels,
     economy_kind,
     economy_topology,
+    galaxy_body_facts,
 )
 from edfinder_api.routers.plan_slot_predictions import (
     atmosphere_in_words,
     predict_surface_slots,
-    prediction_generation_reason,
 )
 from edfinder_api.routers.v3 import (
     SystemId,
@@ -352,7 +352,8 @@ async def bodies(
                    atmosphere.display_name AS atmosphere,
                    terraforming.display_name AS terraforming_state,
                    volcanism.display_name AS volcanism,body.distance_from_arrival_ls,
-                   body.signals_complete,body.lifecycle_state
+                   body.signals_complete,body.lifecycle_state,
+                   body.is_tidally_locked,body.body_class,body.spectral_class
               FROM {schema}.bodies body
               LEFT JOIN v3_vocab.body_type body_type USING(body_type_id)
               LEFT JOIN v3_vocab.atmosphere_classification atmosphere
@@ -362,12 +363,14 @@ async def bodies(
              WHERE body.system_id64=$1 ORDER BY body.body_pk""",
         numeric_id,
     ))
+    # Every ring and belt, for the bodies that have rings and for each body's
+    # reserve (galaxy_body_facts).
     ring_rows = await _bounded(pool.fetch(
-        f"""SELECT ring.body_pk
+        f"""SELECT ring.body_pk,ring.kind,reserve_type.display_name AS reserve,
+                   ring.lifecycle_state
               FROM {schema}.rings ring
-             WHERE ring.system_id64=$1 AND ring.kind='RING'
-               AND ring.lifecycle_state='ACTIVE'
-             GROUP BY ring.body_pk""",
+              LEFT JOIN v3_vocab.reserve_type reserve_type USING(reserve_type_id)
+             WHERE ring.system_id64=$1""",
         numeric_id,
     ))
     signal_rows = await _bounded(pool.fetch(
@@ -397,39 +400,21 @@ async def bodies(
              ORDER BY ring.ring_pk""",
         numeric_id,
     ))
-    published = await _bounded(pool.fetchrow("""
-        SELECT c.derived_generation_id,d.canonical_generation_id
-          FROM v3_meta.current_derived_generation c
-          JOIN v3_meta.derived_generation d USING(derived_generation_id)
-         WHERE d.lifecycle_state='PUBLISHED'
-    """))
-    facts_generation_id = None
-    mechanics_by_body = {}
-    topology = {}
-    reserve_level = None
-    economy_notes = []
-    active_kinds = set()
-    generation_reason = prediction_generation_reason(generation.generation_id, published)
-    if generation_reason is None:
-        assert published is not None
-        facts_generation_id = published["derived_generation_id"]
-        mechanics_rows = await _bounded(pool.fetch("""
-            SELECT body_pk,body_class,spectral_class,luminosity_class,volcanism,
-                   terraformable,tidally_locked,reserve_level
-              FROM v3_derived.body_mechanics
-             WHERE derived_generation_id=$1 AND system_id64=$2
-             ORDER BY body_pk
-        """, facts_generation_id, numeric_id))
-        mechanics_by_body = {row["body_pk"]: row for row in mechanics_rows}
-        topology = economy_topology(rows)
-        reserve_level, economy_notes = aggregate_reserve_levels(rows, mechanics_by_body, belt_rows)
-        active_kinds = {
-            economy_kind(mechanics["body_class"], mechanics["spectral_class"])
-            for row in rows
-            if row["lifecycle_state"] == "ACTIVE"
-            and (mechanics := mechanics_by_body.get(row["body_pk"])) is not None
-        }
-    ringed_bodies = {row["body_pk"] for row in ring_rows}
+    # The facts the planner needs, from the same rows (until 22 November 2026
+    # they were read from Ratings V4's table, v3_derived.body_mechanics).
+    mechanics_by_body = galaxy_body_facts(rows, ring_rows)
+    topology = economy_topology(rows)
+    reserve_level, economy_notes = aggregate_reserve_levels(rows, mechanics_by_body, belt_rows)
+    active_kinds = {
+        economy_kind(mechanics["body_class"], mechanics["spectral_class"])
+        for row in rows
+        if row["lifecycle_state"] == "ACTIVE"
+        and (mechanics := mechanics_by_body.get(row["body_pk"])) is not None
+    }
+    ringed_bodies = {
+        row["body_pk"] for row in ring_rows
+        if row["kind"] == "RING" and row["lifecycle_state"] == "ACTIVE"
+    }
     signals_by_body = {row["body_pk"]: row for row in signal_rows}
     result = []
     for row in rows:
@@ -467,20 +452,19 @@ async def bodies(
             tidally_locked=mechanics["tidally_locked"] if mechanics is not None else None,
             volcanism_present=mechanics["volcanism"] if mechanics is not None else None,
             terraformable=mechanics["terraformable"] if mechanics is not None else None,
-            **asdict(predict_surface_slots(
-                row, mechanics, signal, generation_reason=generation_reason,
-            )),
+            **asdict(predict_surface_slots(row, mechanics, signal)),
         ))
     return PlanBodiesV1(
         generation_id=generation.generation_id,
         publication_sequence=generation.publication_sequence,
         # Echo the canonical decimal form, so "000123" and "123" answer alike.
         system_id64=str(numeric_id),
-        economy_facts_generation_id=str(facts_generation_id) if facts_generation_id is not None else None,
+        # The facts come from this same galaxy generation.
+        economy_facts_generation_id=generation.generation_id,
         reserve_level=reserve_level,
-        has_black_hole="black_hole" in active_kinds if facts_generation_id is not None else None,
-        has_white_dwarf="white_dwarf" in active_kinds if facts_generation_id is not None else None,
-        has_neutron_star="neutron_star" in active_kinds if facts_generation_id is not None else None,
+        has_black_hole="black_hole" in active_kinds,
+        has_white_dwarf="white_dwarf" in active_kinds,
+        has_neutron_star="neutron_star" in active_kinds,
         economy_notes=economy_notes,
         bodies=result,
         belts=[

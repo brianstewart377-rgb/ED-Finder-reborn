@@ -49,7 +49,7 @@ from shared_contracts.surface_pressure import (  # noqa: E402
     true_pascals,
 )
 from tests.test_galaxy_scores import galaxy, template  # noqa: E402,F401
-from tests.test_galaxy_update import SOL, Galaxy  # noqa: E402
+from tests.test_galaxy_update import SOL, Galaxy, fill_classes  # noqa: E402
 from v3_spansh.contracts import COPY_COLUMNS  # noqa: E402
 from v3_spansh_classified.adapter import ClassifiedSpanshAdapter  # noqa: E402
 
@@ -192,6 +192,10 @@ def ask(galaxy: Galaxy, call):  # noqa: F811
 def test_every_real_body_that_can_be_landed_on_gets_its_ground_slots(galaxy):  # noqa: F811
     from edfinder_api.routers import plan
 
+    # The Plan page takes each body's class from the galaxy tables, and every
+    # body on the Pi has its class (the copy filled them in). Until 22 November
+    # 2026 it took the class from Ratings V4's table.
+    fill_classes(galaxy.connection, galaxy.schema, galaxy.records.values())
     words, slots = Counter(), Counter()
     by_name = {}
     for system_id, record in sorted(galaxy.records.items()):

@@ -1,10 +1,11 @@
 """The speed trial (spansh_delta.speed_trial): it gives the planner what the
 Plan page gives it, from the galaxy tables alone, and it writes nothing.
 
-The Plan page takes six facts about each body from Ratings V4
-(v3_derived.body_mechanics). The trial makes them from the galaxy tables, as
-the ratings rebuild will (design doc, build steps 1 and 2). For every body of
-the twelve real fixture systems, that has to come out the same.
+The trial makes each body's facts from the galaxy tables with the Plan
+page's own code (plan_economy_facts.galaxy_body_facts; until 22 November 2026
+the page read them from Ratings V4's table, see tests/test_plan_body_facts.py),
+and works out the rest itself. For every body of the twelve real fixture
+systems, what it gives the planner has to be what the page gives it.
 
 Runs on PostgreSQL 18 with every migration applied; needs
 RATINGS_V4_VALIDATION_DATABASE_URL, like the other database tests.
