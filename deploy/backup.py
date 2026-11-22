@@ -33,9 +33,12 @@ A full backup reads every table for hours, and while it does, no job can
 have a table to itself. The nightly state refresh needs that for a moment
 (it empties one table and fills it again), and would wait behind the backup
 with everything that reads that table waiting behind it. So a full backup
-will not start while a nightly job is running, and its timer is set for a
-time when none starts for hours. Start one by hand through systemd, so that
-the nightly jobs wait their turn:
+waits for a nightly job that is running to finish (8 hours at most), the
+nightly jobs wait for a full backup that is running (systemd's order), and
+its timer is set for a time when none starts for hours. The wait is done here
+because systemd cannot do it both ways: two jobs that each wait for the other
+are a loop, and systemd refuses to start the second of them. Start one by
+hand through systemd, so that the nightly jobs wait their turn:
 
     sudo systemctl start edfinder-backup-full.service
 
@@ -106,6 +109,11 @@ PARTIAL = ".partial"
 FIRST_FULL_SHARE = 0.4
 # With an earlier one to go by: its size, and this much more.
 NEXT_FULL_GROWTH = 1.25
+# A full backup waits this long at most for a nightly job to finish: with the
+# few hours the backup itself takes, that stays inside its service's 12 hours.
+WAIT_FOR_JOBS_SECONDS = 8 * 3600
+WAIT_POLL_SECONDS = 60
+WAIT_NOTE_SECONDS = 30 * 60
 
 TABLES_SQL = "SELECT count(*) FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')"
 SIZE_SQL = "SELECT pg_database_size(current_database())"
@@ -368,6 +376,40 @@ def running_jobs(settings: Settings) -> List[str]:
     return [unit for index, unit in enumerate(settings.not_during) if states[index] in ("active", "activating")]
 
 
+def minutes_text(seconds: float) -> str:
+    minutes = int(seconds) // 60
+    hours, minutes = divmod(minutes, 60)
+    return ("%d h %d min" % (hours, minutes)) if hours else ("%d min" % minutes)
+
+
+def wait_for_jobs(settings: Settings) -> None:
+    """Wait until no nightly job is running. A full backup holds every table
+    open for hours, and those jobs need one to themselves.
+
+    systemd cannot do this wait: the nightly jobs already wait for a full
+    backup, and two jobs that each wait for the other are a loop. On
+    22 November 2026 a galaxy update that ran long made systemd refuse to
+    start the Sunday backup at all ("Found ordering cycle")."""
+    busy = running_jobs(settings)
+    if not busy:
+        return
+    say("Waiting for %s to finish before the backup starts ..." % " and ".join(busy))
+    began = last_note = time.monotonic()
+    while busy:
+        waited = time.monotonic() - began
+        if waited >= WAIT_FOR_JOBS_SECONDS:
+            raise BackupError("%s is still running after %s of waiting. A full backup holds every "
+                              "table open for hours, and that job needs one to itself. Start the "
+                              "backup once it has finished" % (" and ".join(busy), minutes_text(waited)))
+        time.sleep(WAIT_POLL_SECONDS)
+        busy = running_jobs(settings)
+        if busy and time.monotonic() - last_note >= WAIT_NOTE_SECONDS:
+            last_note = time.monotonic()
+            say("  still waiting for %s, %s so far ..." % (" and ".join(busy),
+                                                           minutes_text(last_note - began)))
+    say("It has finished, after %s. Starting the backup." % minutes_text(time.monotonic() - began))
+
+
 def stamp() -> str:
     return datetime.now(timezone.utc).strftime(STAMP)
 
@@ -465,10 +507,7 @@ def make_room(settings: Settings, needed: float) -> None:
 def full(settings: Settings) -> int:
     prepare(settings)
     with lock(settings, "full"):
-        busy = running_jobs(settings)
-        if busy:
-            raise BackupError("%s is running. A full backup holds every table open for hours, and that job "
-                              "needs one to itself. Start the backup once it has finished" % " and ".join(busy))
+        wait_for_jobs(settings)
         folder = settings.full_directory
         clear_partials(folder)
         needed, why = room_for_full(settings)

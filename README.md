@@ -337,10 +337,13 @@ of thing:
 A full backup reads every table for hours, and while it does no job can have
 a table to itself. The nightly state refresh needs that for a moment, and
 would wait behind the backup with every reader of that table waiting behind
-it. So a full backup will not start while a nightly job is running, the
-nightly jobs wait for one that is, and its timer is set for when no job
-starts for nine hours. Start one by hand through systemd, never with
-`python3 backup.py full`, so that they queue:
+it. So a full backup waits for a nightly job that is running to finish
+(8 hours at most), the nightly jobs wait for one that is running, and its
+timer is set for when no job starts for nine hours. The first wait is in
+`backup.py`, not systemd: two jobs that each wait for the other are a loop,
+and systemd refuses to start the second (seen on 22 November 2026). Start one
+by hand through systemd, never with `python3 backup.py full`, so that they
+queue:
 
 ```bash
 sudo systemctl start edfinder-backup-full.service

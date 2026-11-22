@@ -492,6 +492,14 @@ In order:
       when `backup.py` is fetched again.
       (14 Nov) The first full backup finished: 133.5 GB, 120 tables,
       3 hours 25 minutes.
+      (22 Nov) The Sunday full backup never started. Spansh's 7-day file
+      had grown to 8.4 GB (2.9 GB on 13 Nov), and the 04:30 galaxy update
+      was still running at 07:00. Each unit was ordered after the other,
+      which systemd treats as a loop: "Found ordering cycle ... Unable to
+      break cycle", and it dropped the backup. Fixed: the backup's unit is
+      no longer ordered after the nightly jobs, and `backup.py full` waits
+      for one that is running instead (8 hours at most). A test now checks
+      that no two units wait for each other.
       (14 Nov) A drive for backups is on the Pi: a 12 TB drive in a USB
       caddy, ext4, at `/mnt/backup` (owner). Its whole surface is being
       read through once to see that it is sound. Until that comes back

@@ -4,15 +4,18 @@
 # A full backup reads every table for hours, and while it does no job can
 # have a table to itself. The nightly state refresh needs that for a moment,
 # and would wait behind the backup with everything that reads that table
-# waiting behind it. So this runs after the nightly jobs, never beside them
-# (After= here, and After= this unit in theirs), and backup.py itself will not
-# start while one of them is running.
+# waiting behind it. So the two never run side by side: the nightly jobs wait
+# for this one (After= this unit in theirs), and backup.py waits for a
+# nightly job that is running, for 8 hours at most.
 #
 # To start one by hand, do it through systemd, so the nightly jobs wait
 # their turn:   sudo systemctl start edfinder-backup-full.service
 [Unit]
 Description=ED-Finder: back up the whole database
-After=docker.service edfinder-state-refresh.service edfinder-galaxy-update.service
+# Not after the nightly jobs: they wait for this one, and waiting both ways
+# is a loop systemd refuses to start (22 November 2026). backup.py waits
+# for a nightly job that is running instead.
+After=docker.service
 # When a backup has ended well, run Find's usual first searches once: it has
 # read every table, so they are slow until then (edfinder-find-warmup.service).
 OnSuccess=edfinder-find-warmup.service
