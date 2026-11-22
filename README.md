@@ -148,21 +148,30 @@ applies it:
 
 Which file:
 
-- Each night the 7-day file, not Spansh's one-day file. Spansh makes its files
-  at a different time each night (02:10 UTC on 10 November, 03:20 UTC on
-  11 November), so two one-day files can leave a gap between them, and a night
-  the update does not run would lose that day for good. The 7-day file reaches
-  back over the last six nights too. What we already have is left alone, so
-  only what really changed is written and scored.
-- The launcher chooses by how long ago the file of the last finished update
-  was made, or before the first update, the whole-galaxy file the galaxy was
-  imported from. The database records both (`v3_source.source_run.effective_at`),
-  so the choice still works after the database is copied to another machine.
-  6 days or less: the 7-day file. 7 to 31 days: the 32-day file
-  (`galaxy_1month.json.gz`, about 6 GB). More: it stops and says so, because
-  only the full galaxy file reaches back that far: `catch-up` does that. A day
-  is kept spare in both, because when exactly a file's days begin is Spansh's
-  to say.
+- Most nights Spansh's 1-day file (`galaxy_1day.json.gz`, about 1 GB). The one
+  of 22 November 2026 held 96,296 systems, against about 5.5 million in that
+  night's 7-day file, which the Pi was still reading after nearly 5 hours.
+- The 7-day file instead after a missed night, and every sixth night whatever
+  happens. Spansh makes its files at a different time each night (02:10 UTC on
+  10 November, 03:20 UTC on 11 November). The 1-day file of 22 November held
+  the changes from 22:00 to 22:00 UTC, so 1-day files probably follow on from
+  each other without a gap, but that has been seen on one night only. The
+  7-day file reaches back over the six nights before as well, so it fills any
+  gap they leave. Nothing is lost for good; at worst a change arrives a few
+  days late.
+- The launcher chooses by when the file of the last finished update was made,
+  or before the first update, the whole-galaxy file the galaxy was imported
+  from. The database records both (`v3_source.source_run.effective_at`), so
+  the choice still works after the database is copied to another machine.
+  The night after (tonight's files made a day and a half or less after it):
+  the 1-day file, or the 7-day file on the sixth night after the last 7-day,
+  32-day or whole-galaxy file. 6 days or less: the 7-day file. 7 to 31 days:
+  the 32-day file (`galaxy_1month.json.gz`, about 6 GB). More: it stops and
+  says so, because only the full galaxy file reaches back that far:
+  `catch-up` does that. Files made less than 12 hours after the last update's
+  are that same night's, so there is nothing new in them. A day is kept spare
+  in the 7-day and 32-day files, because when exactly a file's days begin is
+  Spansh's to say.
 - `EDFINDER_GALAXY_URL` gives one fixed file instead, for the full galaxy file
   or for trying something out. `run` refuses one that does not reach back to
   the last update (the one-day file, or a 7-day or 32-day file too far on),

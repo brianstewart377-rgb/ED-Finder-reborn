@@ -1,5 +1,6 @@
-# Fetch Spansh's file of recent changes to the galaxy (the 7-day file, or the
-# 32-day file after a longer gap) and apply it (deploy/galaxy_update.py).
+# Fetch Spansh's file of recent changes to the galaxy (most nights the 1-day
+# file; the top of deploy/galaxy_update.py says when it takes the 7-day or
+# 32-day file instead) and apply it.
 # Started twice a day by edfinder-galaxy-update.timer. When Spansh has published
 # nothing new there is nothing to apply. With scoring switched on
 # (EDFINDER_GALAXY_SCORES=on in deploy.conf) each run then gives new scores to

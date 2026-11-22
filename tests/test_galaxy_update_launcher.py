@@ -136,7 +136,7 @@ def settings(spansh: Spansh, directory: Path, **extra: str):
 
 def test_defaults_point_at_spansh_and_the_production_database():
     chosen = tool.Settings(environ={}, conf={})
-    # No fixed file: each run chooses Spansh's 7-day or 32-day file.
+    # No fixed file: each run chooses Spansh's 1-day, 7-day or 32-day file.
     assert chosen.url is None and chosen.source == "https://downloads.spansh.co.uk/"
     assert chosen.usual_file == "galaxy_7days.json.gz"
     assert chosen.path(chosen.usual_file) == Path("/var/lib/edfinder-galaxy/galaxy_7days.json.gz")
@@ -733,6 +733,9 @@ WEEK = "galaxy_7days.json.gz"
 MONTH = "galaxy_1month.json.gz"
 TONIGHT = "Thu, 12 Nov 2026 03:05:00 GMT"
 COVERED = "max(r.effective_at)"
+# Only in the question about the last 7-day or bigger file: a stand-in answers
+# the first of its needles found in a statement, so this one goes first.
+SWEPT = "<> 'galaxy_1day.json.gz'"
 
 
 def choosing(spansh: Spansh, directory: Path, **extra: str):
@@ -741,10 +744,14 @@ def choosing(spansh: Spansh, directory: Path, **extra: str):
                     EDFINDER_GALAXY_SOURCE=spansh.origin + "/", **extra)
 
 
-def database_says(docker, last_update: str | None) -> None:
+def database_says(docker, last_update: str | None, last_week_or_bigger: str | None = None) -> None:
     """The last finished update applied Spansh's files of ``last_update``
-    (UTC); None: no update has finished."""
-    docker.state["psql"] = {COVERED: last_update or ""}
+    (UTC); None: no update has finished. The last 7-day or bigger file applied
+    was made at ``last_week_or_bigger``, or if not given, the same as the last
+    update's."""
+    replies = {} if last_week_or_bigger is None else {SWEPT: last_week_or_bigger}
+    replies[COVERED] = last_update or ""
+    docker.state["psql"] = replies
     docker.save()
 
 
@@ -753,7 +760,9 @@ def applied(docker) -> list[str]:
             if call[call.index("-m") + 1] == "spansh_delta.apply"]
 
 
-def test_each_night_takes_the_7_day_file(spansh, docker, tmp_path, capsys):
+def test_when_spansh_cannot_be_asked_about_its_1_day_file_the_7_day_file_does(
+        spansh, docker, tmp_path, capsys):
+    # The tests further up that choose leave the 1-day file out too.
     spansh.publish(WEEK, b"seven days", TONIGHT)
     spansh.publish(MONTH, b"thirty-two days", TONIGHT)
     chosen = choosing(spansh, tmp_path / "galaxy")
@@ -765,7 +774,10 @@ def test_each_night_takes_the_7_day_file(spansh, docker, tmp_path, capsys):
     (run,) = docker.calls("run")
     assert run[-2:] == ["--made-at", "2026-11-12T03:05:00+00:00"]
     assert tool.fetch.read_record(chosen.record)["applied"]["modified"] == TONIGHT
-    assert "Downloading galaxy_7days.json.gz" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert ("Going by Spansh's 7-day file alone: asking about its 1-day file failed (%s/%s: "
+            "could not be reached (the server answered 404))." % (spansh.origin, FILE)) in out
+    assert "Downloading galaxy_7days.json.gz" in out
 
 
 def test_a_file_made_up_to_6_days_after_the_last_one_is_still_the_7_day_file(spansh, docker, tmp_path):
@@ -829,6 +841,132 @@ def test_before_the_first_update_the_file_is_chosen_from_the_import():
     # real schema in tests/test_catch_up.py).
     assert "acquisition_kind IN ('DELTA', 'BULK_SNAPSHOT')" in tool.COVERED_SQL
     assert "run_state = 'SUCCEEDED'" in tool.COVERED_SQL
+
+
+# Most nights the 1-day file. The 7-day file after a missed night, and every
+# sixth night whatever happens, to fill any gap between the 1-day files.
+
+def tonights_files(spansh: Spansh) -> None:
+    for name in (FILE, WEEK, MONTH):
+        spansh.publish(name, b"tonight's " + name.encode(), TONIGHT)
+
+
+def test_the_night_after_an_update_takes_the_1_day_file(spansh, docker, tmp_path, capsys):
+    tonights_files(spansh)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-11 03:19:43", last_week_or_bigger="2026-11-08 02:40:00")
+
+    assert tool.cmd_apply(chosen, "run", None) == 0
+
+    assert spansh.downloads() == [FILE] and applied(docker) == ["/data/" + FILE]
+    (run,) = docker.calls("run")
+    assert run[-2:] == ["--made-at", "2026-11-12T03:05:00+00:00"]
+    assert tool.fetch.read_record(chosen.record)["applied"]["url"].endswith("/" + FILE)
+    out = capsys.readouterr().out
+    assert "Downloading galaxy_1day.json.gz" in out and "Taking" not in out
+
+
+def test_up_to_a_day_and_a_half_on_is_the_night_after_and_more_is_a_missed_night(
+        spansh, docker, tmp_path, capsys):
+    tonights_files(spansh)
+    database_says(docker, "2026-11-10 15:05:00")  # exactly 36 hours before tonight's files
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "after"), "run", None) == 0
+    assert spansh.downloads() == [FILE]
+
+    database_says(docker, "2026-11-10 15:04:59")  # one second more
+    capsys.readouterr()
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "missed"), "run", None) == 0
+    assert spansh.downloads() == [FILE, WEEK] and applied(docker) == ["/data/" + FILE, "/data/" + WEEK]
+    assert ("The last update applied Spansh's files of 10 Nov 2026 15:04 UTC, more than a day "
+            "and a half before tonight's, so a night was missed. Taking the 7-day file instead "
+            "of the 1-day one.") in capsys.readouterr().out
+
+
+def test_after_more_missed_nights_the_7_day_and_32_day_files_are_chosen_as_before(
+        spansh, docker, tmp_path, capsys):
+    tonights_files(spansh)
+    database_says(docker, "2026-11-06 03:05:00")  # 6 days: still the 7-day file
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "six"), "run", None) == 0
+    database_says(docker, "2026-11-06 03:04:59")  # more: the 32-day file
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "more"), "run", None) == 0
+    assert spansh.downloads() == [WEEK, MONTH]
+    out = capsys.readouterr().out
+    assert "Taking the 32-day file instead of the 7-day one." in out
+    assert out.count("Taking the 7-day file instead of the 1-day one.") == 1  # the first run
+
+
+def test_the_sixth_night_after_the_last_7_day_file_takes_the_7_day_file_again(
+        spansh, docker, tmp_path, capsys):
+    tonights_files(spansh)
+    # Five and a half days on: the sixth night.
+    database_says(docker, "2026-11-11 03:19:43", last_week_or_bigger="2026-11-06 15:05:00")
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "sixth"), "run", None) == 0
+    assert spansh.downloads() == [WEEK]
+    assert ("The last 7-day or bigger file applied was Spansh's of 06 Nov 2026 15:05 UTC, six or "
+            "more nights ago. Taking the 7-day file tonight instead of the 1-day one, to fill any "
+            "gap between the 1-day files.") in capsys.readouterr().out
+
+    # A second less: the fifth night, so the 1-day file.
+    database_says(docker, "2026-11-11 03:19:43", last_week_or_bigger="2026-11-06 15:05:01")
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "fifth"), "run", None) == 0
+    assert spansh.downloads() == [WEEK, FILE]
+
+
+def test_the_16_30_run_after_the_1_day_file_finds_nothing_new(spansh, docker, tmp_path, capsys):
+    tonights_files(spansh)
+    chosen = choosing(spansh, tmp_path / "galaxy", EDFINDER_GALAXY_SCORES="on")
+    database_says(docker, "2026-11-11 03:19:43")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+
+    # The database now dates the last update by tonight's files. The 7-day
+    # file is that same night's, even if Spansh finished it a little later.
+    database_says(docker, "2026-11-12 03:05:00", last_week_or_bigger="2026-11-11 03:19:43")
+    spansh.publish(WEEK, b"tonight's seven days", "Thu, 12 Nov 2026 03:40:00 GMT")
+    capsys.readouterr()
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert spansh.downloads() == [FILE] and applied(docker) == ["/data/" + FILE]
+    assert "Spansh has published nothing new since the last update." in capsys.readouterr().out
+    assert modules(docker)[-1] == ("spansh_delta.scores", "apply")
+
+
+def test_the_16_30_run_after_the_7_day_file_finds_nothing_new(spansh, docker, tmp_path, capsys):
+    tonights_files(spansh)
+    chosen = choosing(spansh, tmp_path / "galaxy")
+    database_says(docker, "2026-11-11 03:19:43", last_week_or_bigger="2026-11-05 03:00:00")
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert spansh.downloads() == [WEEK]
+
+    database_says(docker, "2026-11-12 03:05:00")
+    spansh.publish(FILE, b"tonight's one day", "Thu, 12 Nov 2026 03:06:00 GMT")
+    capsys.readouterr()
+    assert tool.cmd_apply(chosen, "run", None) == 0
+    assert spansh.downloads() == [WEEK] and applied(docker) == ["/data/" + WEEK]
+    assert "Spansh has published nothing new since the last update." in capsys.readouterr().out
+
+
+def test_a_new_1_day_file_without_a_new_7_day_file(spansh, docker, tmp_path):
+    spansh.publish(FILE, b"tonight's one day", TONIGHT)
+    spansh.publish(WEEK, b"last night's seven days", "Wed, 11 Nov 2026 03:19:43 GMT")
+    # It follows on from the last update: taken, even on the sixth night.
+    database_says(docker, "2026-11-11 03:19:43", last_week_or_bigger="2026-11-01 03:00:00")
+    assert tool.cmd_apply(choosing(spansh, tmp_path / "follows"), "run", None) == 0
+    assert spansh.downloads() == [FILE]
+
+    # A night was missed before it, and only a 7-day file covers that night.
+    spansh.publish(WEEK, b"older seven days", "Tue, 10 Nov 2026 03:00:00 GMT")
+    database_says(docker, "2026-11-10 03:00:00")
+    with pytest.raises(tool.UpdateError) as refused:
+        tool.cmd_apply(choosing(spansh, tmp_path / "missed"), "run", None)
+    message = str(refused.value)
+    assert "does not follow on from the last update (its files of 10 Nov 2026 03:00 UTC)" in message
+    assert "a night was missed in between" in message and "Nothing was changed" in message
+    assert spansh.downloads() == [FILE] and applied(docker) == ["/data/" + FILE]
+
+
+def test_the_stand_in_database_can_tell_the_two_questions_apart():
+    # What they mean is tested against the real schema in tests/test_catch_up.py.
+    assert SWEPT in tool.SWEPT_SQL and SWEPT not in tool.COVERED_SQL
+    assert COVERED in tool.SWEPT_SQL and COVERED in tool.COVERED_SQL
 
 
 # A file given by hand must reach back to the last update: otherwise what
@@ -976,8 +1114,9 @@ def test_status_says_how_the_file_is_chosen(spansh, docker, tmp_path, capsys):
     docker.save()
     assert tool.cmd_status(chosen) == 0
     out = capsys.readouterr().out
-    assert ("Each run takes Spansh's 7-day file, or its 32-day file when the last update "
-            "is more than 6 days old.") in out
+    assert ("Each run takes Spansh's 1-day file the night after the last update, its 7-day "
+            "file every sixth night or after a missed night, and its 32-day file when the last "
+            "update is more than 6 days old.") in out
     assert "No Spansh file on disk yet." in out
 
 
