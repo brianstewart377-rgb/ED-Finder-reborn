@@ -54,6 +54,14 @@ given the one-day file by hand. catch-up brings it back.)
                                       (the Pi; migration 028). Needed once
                                       before the scoring can run there; after
                                       that the scoring does it each week.
+    python3 galaxy_update.py speed-trial
+                                      time the planner's economy rules on
+                                      20,000 systems within 500 ly taken at
+                                      random (--limit N: another number),
+                                      and say how long a night's run and a
+                                      run over every one of them would take
+                                      (python -m spansh_delta.speed_trial).
+                                      Read only; minutes, not hours.
     python3 galaxy_update.py check-parents
                                       say how many bodies imported before
                                       16 November 2026 the whole-galaxy file
@@ -479,6 +487,8 @@ JOBS = {
     "score": ("spansh_delta.scores", "apply", False),
     "reach": ("spansh_delta.reach", "rebuild", False),
     "colony-types": ("spansh_delta.colony_types", "apply", False),
+    # Read only: times the planner's rules on a sample of the database.
+    "speed-trial": ("spansh_delta.speed_trial", "run", False),
     # These read the file as it downloads: they are given its address.
     "check-parents": ("spansh_delta.parents", "check", True),
     "fill-parents": ("spansh_delta.parents", "apply", True),
@@ -545,7 +555,7 @@ def run_job(settings: Settings, command_name: str, version: Dict[str, Any],
             raise UpdateError("the API's settings file %s was not found" % settings.api_env_file)
         say("Running the %s from %s ..." % (
             {"run": "update", "score": "scoring", "reach": "work on reach",
-             "colony-types": "colony type scoring",
+             "colony-types": "colony type scoring", "speed-trial": "speed trial",
              "fill-parents": "fill-in of parents",
              "catch-up-save": "first half of the catch-up"}.get(command_name, "check"), image)
             if position == 0 else
@@ -688,6 +698,10 @@ def cmd_apply(settings: Settings, mode: str, limit: Optional[int],
         if mode == "colony-types":
             # So is everything colony types are worked out from.
             return finished(run_job(settings, "colony-types", {}, limit), "colony type scoring")
+        if mode == "speed-trial":
+            # Read only, from the database. Under the lock, so it never runs
+            # beside a nightly update and its times are not thrown off.
+            return finished(run_job(settings, "speed-trial", {}, limit), "speed trial")
         if mode == "catch-up":
             return catch_up(settings, since, limit)
         if mode in ("check-parents", "fill-parents"):
@@ -795,10 +809,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Fetch Spansh's file of recent changes to the galaxy and apply it.")
     parser.add_argument("command", choices=("check", "run", "status", "check-scores", "score", "reach",
-                                            "colony-types", "check-parents", "fill-parents",
-                                            "catch-up"))
+                                            "colony-types", "speed-trial", "check-parents",
+                                            "fill-parents", "catch-up"))
     parser.add_argument("--limit", type=int, default=None,
-                        help="stop after this many systems (for timing a very big file)")
+                        help="stop after this many systems (for timing a very big file); "
+                             "speed-trial: how many systems to take")
     parser.add_argument("--since", default=None,
                         help="catch-up: save the systems changed on or after this day (YYYY-MM-DD)")
     args = parser.parse_args(argv)
