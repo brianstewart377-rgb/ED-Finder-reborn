@@ -189,6 +189,11 @@ How it works:
   `RETIRED`, never deleted. Every reader already skips rows that are not
   `ACTIVE`.
 - It is safe to interrupt and safe to run twice.
+- Each minute it writes a progress line to the log, and at the end a summary.
+  Both say where the time went: reading the file (unpacking it and making
+  sense of each system), reading our rows for those systems, comparing the
+  two, and writing what changed. The run's record in `v3_source.source_run`
+  keeps the same (`seconds_by_stage`).
 
 Scores are worked out from a system's rows in the galaxy tables, by the frozen
 scoring code (`scripts/ratings_v4`, `scripts/v3_system_*`, `shared_contracts`).

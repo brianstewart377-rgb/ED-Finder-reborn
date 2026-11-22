@@ -213,6 +213,19 @@ def test_the_progress_says_how_long_is_left_when_the_total_is_known():
     assert galaxy_update._progress(report, None, 3_600).endswith("changed or new, 60 min")
 
 
+def test_the_progress_says_where_the_time_has_gone():
+    report = galaxy_update.Report("apply", "galaxy_1day.json.gz")
+    report.systems_read = 250
+    report.timing.update(file=730.0, rows=1_859.9, compare=360.0, write=600.0)
+    assert galaxy_update._progress(report, None, 3_600) == (
+        "  ... 250 systems read, 0 changed or new, 60 min (reading the file 12 min, "
+        "reading our rows 30 min, comparing 6 min, writing 10 min)")
+    # A check writes nothing, so it has no writing to tell of.
+    del report.timing["write"]
+    assert galaxy_update._progress(report, 1_000, 3_600).endswith(
+        "about 3 h 0 min to go (reading the file 12 min, reading our rows 30 min, comparing 6 min)")
+
+
 # -- where the galaxy is up to (the launcher's queries) ------------------------------
 
 

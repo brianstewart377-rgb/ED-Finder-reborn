@@ -392,6 +392,23 @@ def test_check_says_what_would_change_and_writes_nothing(galaxy, tmp_path):
     assert "Systems that would be rewritten" in text and "Rows that would be written" in text
 
 
+def test_a_run_says_where_its_time_went(galaxy, tmp_path):
+    check = run(galaxy, tmp_path, galaxy.records.values(), mode="check")
+    assert set(check.timing) == {"file", "rows", "compare"}  # a check writes nothing
+    report = run(galaxy, tmp_path, galaxy.records.values())
+    assert set(report.timing) == {"file", "rows", "compare", "write"}
+    assert all(seconds > 0 for seconds in report.timing.values())
+    assert sum(report.timing.values()) <= report.seconds  # each moment counted once at most
+    text = "\n".join(report.lines())
+    for label in ("reading the file:", "reading our rows:", "comparing:", "writing:",
+                  "everything else:"):
+        assert "\n  " + label in text, label
+    # The run's record keeps them too.
+    recorded = galaxy.one("SELECT scope_contract FROM v3_source.source_run WHERE acquisition_kind = 'DELTA'")[0]
+    assert recorded["seconds_by_stage"] == {stage: round(seconds, 1)
+                                            for stage, seconds in report.timing.items()}
+
+
 def test_check_needs_no_queue_table_but_apply_does(template, tmp_path):
     migrations = ROOT / "sql" / "v3" / "migrations"
     with canonical_database() as (connection, canonical, _, payloads):
