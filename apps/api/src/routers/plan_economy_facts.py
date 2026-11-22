@@ -1,7 +1,11 @@
-"""Pure adapters from published body facts to the planner's economy inputs.
+"""Pure adapters from the galaxy tables' body facts to the planner's economy
+inputs.
 
-Ratings V4 is frozen. These mappings belong to the planner and deliberately
-do not import its scorer or canonical adapter.
+The facts are made from the galaxy tables themselves (``galaxy_body_facts``), the
+way Ratings V4 made them for its own table (v3_derived.body_mechanics), which
+the Plan page read until 22 November 2026. Ratings V4 is frozen and is being
+retired ("Ratings rebuild — design", build step 2). These mappings belong to
+the planner and deliberately do not import its scorer or canonical adapter.
 """
 
 from __future__ import annotations
@@ -62,6 +66,51 @@ def economy_kind(body_class: str | None, spectral_class: str | None = None) -> B
     if spectral in {'L', 'T', 'Y'}:
         return 'brown_dwarf'
     return 'other_star' if spectral else None
+
+
+def _words(value: str | None) -> str:
+    return ' '.join((value or '').casefold().split())
+
+
+def galaxy_body_facts(
+    bodies: Sequence[Mapping[str, Any]],
+    rings: Sequence[Mapping[str, Any]],
+) -> dict[int, dict[str, Any]]:
+    """Each body's facts for the planner, from the galaxy tables: its class,
+    spectral class, tidal lock, volcanism, whether it is terraformable, and
+    its reserve.
+
+    Made as Ratings V4 made them (domain/ratings_v4_canonical.py): only for a
+    body that is still there and is not a barycentre or a belt cluster, and a
+    reserve only where the body's own rings and belts that are still there
+    agree on one. On 22 November 2026 every fact of every such body of the
+    twelve real test systems came out the same as Ratings V4's.
+
+    ``bodies``: body_pk, body_type, lifecycle_state, body_class,
+    spectral_class, is_tidally_locked, and the words for volcanism and
+    terraforming_state. ``rings`` (rings and belts): body_pk, reserve (its
+    words) and lifecycle_state.
+    """
+    reserves: dict[int, set[str]] = {}
+    for ring in rings:
+        if ring['lifecycle_state'] == 'ACTIVE' and ring['reserve'] is not None:
+            reserves.setdefault(ring['body_pk'], set()).add(_words(ring['reserve']))
+    facts = {}
+    for body in bodies:
+        if body['lifecycle_state'] != 'ACTIVE' or _words(body['body_type']).replace('_', ' ') in (
+                'barycentre', 'belt cluster'):
+            continue
+        volcanism, terraforming = _words(body['volcanism']), _words(body['terraforming_state'])
+        own = reserves.get(body['body_pk'], set())
+        facts[body['body_pk']] = {
+            'body_class': body['body_class'],
+            'spectral_class': body['spectral_class'],
+            'volcanism': volcanism != 'no volcanism' if volcanism else None,
+            'terraformable': terraforming != 'not terraformable' if terraforming else None,
+            'tidally_locked': body['is_tidally_locked'],
+            'reserve_level': next(iter(own)) if len(own) == 1 else None,
+        }
+    return facts
 
 
 def economy_topology(

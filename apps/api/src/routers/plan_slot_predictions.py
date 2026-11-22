@@ -1,7 +1,8 @@
 """Pure V3 row adapter for the canonical surface-slot predictor.
 
-The planner never publishes the predictor's orbital estimate. Canonical and
-derived facts must have matching lineage before a planet class can be used.
+The planner never publishes the predictor's orbital estimate. The planet
+class comes from the galaxy tables, like the rest of the body's row
+(``plan_economy_facts.galaxy_body_facts``).
 """
 
 from __future__ import annotations
@@ -57,18 +58,6 @@ class SurfaceSlotPrediction:
     prediction_reason: str | None = None
 
 
-def prediction_generation_reason(
-    canonical_generation_id: str,
-    published: Mapping[str, Any] | None,
-) -> str | None:
-    """Explain unavailable derived facts without rejecting canonical bodies."""
-    if published is None:
-        return 'published derived generation is unavailable'
-    if str(published['canonical_generation_id']) != canonical_generation_id:
-        return 'published derived generation uses a different canonical generation'
-    return None
-
-
 def slot_prediction_inputs(
     body: Mapping[str, Any],
     mechanics: Mapping[str, Any] | None,
@@ -96,12 +85,8 @@ def predict_surface_slots(
     body: Mapping[str, Any],
     mechanics: Mapping[str, Any] | None,
     signals: Mapping[str, Any] | None,
-    *,
-    generation_reason: str | None,
 ) -> SurfaceSlotPrediction:
     """Expose only eligible surface predictions; entered slots live in the plan."""
-    if generation_reason is not None:
-        return SurfaceSlotPrediction(prediction_reason=generation_reason)
     body_type = ' '.join((body['body_type'] or '').casefold().replace('_', ' ').split())
     if body_type in {'barycentre', 'belt', 'belt cluster', 'star'}:
         return SurfaceSlotPrediction(
