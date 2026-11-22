@@ -89,7 +89,6 @@ def slot_prediction_inputs(
         'terraform_state': body['terraforming_state'],
         'volcanism': body['volcanism'],
         'geo_signal_count': signals['geological_signals'] if signals is not None else no_signals,
-        'bio_signal_count': signals['biological_signals'] if signals is not None else no_signals,
     }
 
 
