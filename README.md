@@ -355,9 +355,10 @@ it. So a full backup waits for a nightly job that is running to finish
 (8 hours at most), the nightly jobs wait for one that is running, and its
 timer is set for when no job starts for nine hours. The first wait is in
 `backup.py`, not systemd: two jobs that each wait for the other are a loop,
-and systemd refuses to start the second (seen on 22 November 2026). Start one
-by hand through systemd, never with `python3 backup.py full`, so that they
-queue:
+and systemd refuses to start the second (seen on 22 November 2026). systemd
+counts that wait as part of the backup's time, so its time limit is 20 hours:
+up to 8 for the wait and 12 for the backup. Start one by hand through
+systemd, never with `python3 backup.py full`, so that they queue:
 
 ```bash
 sudo systemctl start edfinder-backup-full.service
