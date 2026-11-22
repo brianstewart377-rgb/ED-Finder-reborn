@@ -41,7 +41,7 @@
       "notes": "Shows a player ship's cockpit edge with its ship ident in one corner. Creator permission is the owner's own. Frontier-derived, so it stays noncommercial-only: do not use for promotional or commercial purposes without a separate written Frontier grant."
     },
     {
-      "filename": "docs/reference/colonisation/cre-rulebook/rulebook.json",
+      "filename": "apps/api/src/cpe/data/rulebook.json",
       "asset_type": "data",
       "distribution": "bundled_source",
       "source_kind": "original",
