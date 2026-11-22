@@ -12,7 +12,7 @@ and need RATINGS_V4_VALIDATION_DATABASE_URL like the other database tests.
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import date
+from datetime import date, timedelta
 import importlib.util
 import json
 from pathlib import Path
@@ -223,6 +223,16 @@ def test_the_launcher_knows_when_the_galaxy_was_imported_and_last_brought_up_to_
     assert answer(launcher.IMPORTED_SQL) == "2026-08-24"
     # Before any update, the choice of file starts from the import.
     assert answer(launcher.COVERED_SQL).startswith("2026-08-24 ")
+    assert answer(launcher.SWEPT_SQL) == answer(launcher.COVERED_SQL)
     run(galaxy, tmp_path, list(galaxy.records.values())[:2])
     assert answer(launcher.COVERED_SQL) == "2026-09-08 16:00:00"
+    assert answer(launcher.SWEPT_SQL) == "2026-09-08 16:00:00"
     assert answer(launcher.IMPORTED_SQL) == "2026-08-24"
+    # A 1-day file brings the last update on, but it is not a 7-day or bigger
+    # file, so the night the 7-day file is next due stays where it was.
+    one_day = write_galaxy(tmp_path / launcher.DAY_FILE, list(galaxy.records.values())[2:4])
+    report = galaxy_update.run_file(galaxy.connection, one_day, mode="apply",
+                                    made_at=SEPTEMBER + timedelta(days=1), progress=False)
+    assert not report.stopped_early
+    assert answer(launcher.COVERED_SQL) == "2026-09-09 16:00:00"
+    assert answer(launcher.SWEPT_SQL) == "2026-09-08 16:00:00"

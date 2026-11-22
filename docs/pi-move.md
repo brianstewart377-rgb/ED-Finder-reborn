@@ -231,6 +231,14 @@ In order:
       needed. Chosen from the database's record of the last update, so it
       also works on the Pi after the copy. Not yet installed on the current
       server.
+      (22 Nov) Back to the 1-day file most nights. From 20 November the
+      7-day file was 8.4 GB, and the Pi was still reading it after nearly
+      5 hours. The 1-day file of 22 November held 96,296 systems, changed
+      between 22:00 UTC one evening and 22:00 the next: if every 1-day file
+      covers 22:00 to 22:00, the 70 minutes above were never missing. Seen
+      on one night only, so now each run takes the 1-day file the night
+      after an update, and the 7-day file after a missed night and on every
+      sixth night, which fills any gap the 1-day files left.
 - [x] **One catch-up pass** over Spansh's full galaxy file (118.9 GB) with the
       same code, because no smaller file reaches back to 27 August. Timed on
       the first million systems before the full run. (12 Nov) Moved to the Pi,

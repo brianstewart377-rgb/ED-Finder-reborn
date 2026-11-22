@@ -1,35 +1,48 @@
 #!/usr/bin/env python3
-"""Keep the galaxy tables fresh: fetch Spansh's 7-day file and apply it.
+"""Keep the galaxy tables fresh: fetch Spansh's latest changes and apply them.
 
-Spansh publishes, once a night, every system that changed in the last 7 days
-(galaxy_7days.json.gz, about 3 GB). This fetches it and brings our systems,
-bodies, rings and stations up to date from it (edfinder-galaxy-update.timer).
-What we already have is left alone, so each night only what really changed is
-written.
+Spansh publishes, once a night, every system that changed in the last day
+(galaxy_1day.json.gz, about 1 GB), the last 7 days (galaxy_7days.json.gz,
+3 to 8 GB) and the last 32 days (galaxy_1month.json.gz). This fetches one of
+them and brings our systems, bodies, rings and stations up to date from it
+(edfinder-galaxy-update.timer). What we already have is left alone, so each
+night only what really changed is written.
 
-Why 7 days and not Spansh's one-day file: Spansh makes its files at a
-different time each night (02:10 UTC on 10 November, 03:20 UTC on 11
-November), so two one-day files can leave a gap between them, and a night the
-update does not run would lose that day for good. Each 7-day file reaches back
-over the last six nights as well, so neither can happen.
+Most nights the 1-day file is enough. The one of 22 November 2026 held 96,296
+systems, every one changed in the same 24 hours (22:00 to 22:00 UTC), against
+about 5.5 million in that night's 7-day file, which the Pi was still reading
+after nearly 5 hours. Spansh finishes its files at a different time each night
+(02:10 UTC on 10 November, 03:20 UTC on 11 November). If every 1-day file
+covers 22:00 to 22:00 UTC, as that one did, each follows on from the one
+before without a gap, but that has been seen on one night only. So the 7-day
+file is taken instead after a night that was missed, and every sixth night
+whatever happens: it reaches back over the six nights before as well, so it
+fills any gap the 1-day files left. Nothing is lost for good; at worst a
+change arrives a few days late.
 
-The file is chosen by how long ago the last update's file was made, or before
-the first update, the whole-galaxy file the database was imported from (the
+The file is chosen by when the last update's file was made, or before the
+first update, the whole-galaxy file the database was imported from (the
 database records both, so the choice still works after a copy to another
 machine):
 
+  * The night after (tonight's files made a day and a half or less after it):
+    the 1-day file. But the 7-day file on the sixth night after the last
+    7-day, 32-day or whole-galaxy file applied.
   * 6 days or less: the 7-day file.
   * 7 to 31 days: Spansh's 32-day file (galaxy_1month.json.gz, about 6 GB).
   * More: the update stops and says so. Only Spansh's whole-galaxy file
     reaches back that far: run catch-up (below).
 
-A day is kept spare in both, because when exactly a file's days begin is
-Spansh's to say. For the same reason `run` refuses a file given by hand with
-EDFINDER_GALAXY_URL that does not reach back that far: the one-day file, a
-7-day file more than 6 days on, the 32-day file more than 31 days on. Applying
-it would leave out what Spansh changed in between, for good. (That is how
-24 August to 6 November 2026 went missing on the Pi: the first update was
-given the one-day file by hand. catch-up brings it back.)
+Files made less than 12 hours after the last update's are that same night's,
+so there is nothing new in them. A day is kept spare in the 7-day and 32-day
+files, because when exactly a file's days begin is Spansh's to say. For the
+same reason `run` refuses a file given by hand with EDFINDER_GALAXY_URL that
+does not reach back that far: the one-day file (leave EDFINDER_GALAXY_URL
+empty and the update takes that itself when it follows on from the last
+update), a 7-day file more than 6 days on, the 32-day file more than 31 days
+on. Applying it would leave out what Spansh changed in between, for
+good. (That is how 24 August to 6 November 2026 went missing on the Pi: the
+first update was given the one-day file by hand. catch-up brings it back.)
 
     python3 galaxy_update.py check    fetch the file, then say what would change.
                                       Read only: the database is not touched.
@@ -80,7 +93,7 @@ given the one-day file by hand. catch-up brings it back.)
                                       (less two days; --since YYYY-MM-DD gives
                                       another day) to a file here (python -m
                                       spansh_delta.recent), then applies that
-                                      file the way `run` applies the 7-day one,
+                                      file the way `run` applies Spansh's,
                                       scores included. Run again after a stop,
                                       it carries on from the saved file. With
                                       --limit N it only tries the first N
@@ -186,6 +199,15 @@ MONTH_FILE = "galaxy_1month.json.gz"
 FULL_FILE = "galaxy.json.gz"
 WEEK_REACH = timedelta(days=6)
 MONTH_REACH = timedelta(days=31)
+# Spansh makes its files once a night, a day apart give or take an hour or
+# two (top of this file). Files made less than SAME_NIGHT after the last
+# update's are that night's. The 1-day file follows on from the last update
+# when it was made no more than NEXT_NIGHT after it; later, a night was missed.
+# The 7-day file is taken on the sixth night after the last 7-day or bigger
+# file: SWEEP_AFTER or more after it.
+SAME_NIGHT = timedelta(hours=12)
+NEXT_NIGHT = timedelta(hours=36)
+SWEEP_AFTER = timedelta(days=5, hours=12)
 # How far back a file given by hand may be from the last update: a day less
 # than it spans. Other files (the whole galaxy, or another name) are not held
 # to it.
@@ -214,6 +236,14 @@ COVERED_SQL = (
     "SELECT coalesce(to_char(max(r.effective_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'), '') "
     "FROM v3_source.source_run r WHERE r.acquisition_kind IN ('DELTA', 'BULK_SNAPSHOT') "
     "AND r.run_state = 'SUCCEEDED'"
+)
+# The same, leaving out updates that took a 1-day file: when the last file
+# that reaches back a week or more was made (a 7-day or 32-day file, a
+# catch-up, or the import).
+SWEPT_SQL = (
+    "SELECT coalesce(to_char(max(r.effective_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'), '') "
+    "FROM v3_source.source_run r WHERE r.acquisition_kind IN ('DELTA', 'BULK_SNAPSHOT') "
+    "AND r.run_state = 'SUCCEEDED' AND coalesce(r.scope_contract->>'file', '') <> '%s'" % DAY_FILE
 )
 # When the whole-galaxy file the galaxy was imported from was made.
 IMPORTED_SQL = (
@@ -282,7 +312,8 @@ class Settings:
 
     @property
     def usual_file(self) -> str:
-        """The file a run takes when nothing is unusual."""
+        """The file to look for on disk, and the one check-scores fetches, when the
+        file the last update applied is not here."""
         return fetch.file_name(self.url) if self.url else WEEK_FILE
 
     @property
@@ -366,7 +397,16 @@ def describe(rows: List[List[str]]) -> str:
 
 def covered_until(settings: Settings) -> Optional[datetime]:
     """When the file of the last finished update (or the import) was made, or None."""
-    rows = query(settings, COVERED_SQL)
+    return _made(settings, COVERED_SQL)
+
+
+def swept_until(settings: Settings) -> Optional[datetime]:
+    """When the last file reaching back a week or more that was applied was made, or None."""
+    return _made(settings, SWEPT_SQL)
+
+
+def _made(settings: Settings, statement: str) -> Optional[datetime]:
+    rows = query(settings, statement)
     text = rows[0][0] if rows and rows[0] else ""
     if not text:
         return None
@@ -384,13 +424,17 @@ def applied_here(settings: Settings, version: Dict[str, Any]) -> bool:
 
 def choose(settings: Settings) -> Tuple[str, Dict[str, Any], bool]:
     """Which Spansh file to take: its address, its version, and whether it has
-    already been applied (so there is nothing new)."""
+    already been applied (so there is nothing new). See the top of this file."""
     if settings.url:
         version = fetch.remote_version(settings.url)
         return settings.url, version, applied_here(settings, version)
-    week_url = settings.source + WEEK_FILE
+    week_url, day_url = settings.source + WEEK_FILE, settings.source + DAY_FILE
     week = fetch.remote_version(week_url)
-    if applied_here(settings, week):
+    day = one_day_file(settings, day_url)
+    # A file this machine has applied brings nothing new, however the database
+    # dates it: the database dates a run by the first time its content was applied.
+    week_applied = applied_here(settings, week)
+    if week_applied and day is None:
         return week_url, week, True
     made = published(week)
     if made is None:
@@ -403,9 +447,39 @@ def choose(settings: Settings) -> Tuple[str, Dict[str, Any], bool]:
             "galaxy update, so there is no telling how far back the first update has to reach. "
             "Apply a first file by hand with EDFINDER_GALAXY_URL (see the top of "
             "galaxy_update.py). Nothing was changed.")
-    if made <= last:
+    week_new = not week_applied and made - last > SAME_NIGHT
+    made_day = published(day) if day is not None else None
+    why = ""
+    if made_day is not None and SAME_NIGHT < made_day - last <= NEXT_NIGHT:
+        # Tonight's 1-day file follows on from the last update.
+        if not week_new:
+            return day_url, day, False
+        swept = swept_until(settings)
+        if swept is not None and made - swept < SWEEP_AFTER:
+            return day_url, day, False
+        if swept is None:
+            why = "No 7-day or bigger file has been applied yet."
+        else:
+            why = ("The last 7-day or bigger file applied was Spansh's of %s, six or more "
+                   "nights ago." % when_text(swept))
+        why += (" Taking the 7-day file tonight instead of the 1-day one, to fill any gap "
+                "between the 1-day files.")
+    elif made_day is not None and made_day - last > NEXT_NIGHT:
+        # A night was missed: the 1-day file would leave it out.
+        if not week_new:
+            raise UpdateError(
+                "Spansh's new 1-day file does not follow on from the last update (its files of "
+                "%s): a night was missed in between. Its 7-day file, which would cover that "
+                "night, is not new yet. Nothing was changed; a run after Spansh publishes its "
+                "next 7-day file takes that." % when_text(last))
+        why = ("The last update applied Spansh's files of %s, more than a day and a half before "
+               "tonight's, so a night was missed. Taking the 7-day file instead of the 1-day "
+               "one." % when_text(last))
+    if not week_new:
         return week_url, week, True
     if made - last <= WEEK_REACH:
+        if why:
+            say(why)
         return week_url, week, False
     month_url = settings.source + MONTH_FILE
     month = fetch.remote_version(month_url)
@@ -418,6 +492,17 @@ def choose(settings: Settings) -> Tuple[str, Dict[str, Any], bool]:
         "the galaxy was last brought up to date with Spansh's files of %s, more than 31 days "
         "ago. Spansh's 32-day file no longer reaches back that far; only its whole-galaxy file "
         "does. Run: python3 galaxy_update.py catch-up. Nothing was changed." % when_text(last))
+
+
+def one_day_file(settings: Settings, url: str) -> Optional[Dict[str, Any]]:
+    """Spansh's 1-day file, or None when this machine has applied it already or
+    Spansh could not be asked about it (the 7-day file is enough on its own)."""
+    try:
+        version = fetch.remote_version(url)
+    except fetch.RefreshError as error:
+        say("Going by Spansh's 7-day file alone: asking about its 1-day file failed (%s)." % error)
+        return None
+    return None if applied_here(settings, version) else version
 
 
 def check_reach(settings: Settings, url: str, version: Dict[str, Any]) -> None:
@@ -793,8 +878,9 @@ def cmd_status(settings: Settings) -> int:
     if settings.url:
         say("Each run takes %s (EDFINDER_GALAXY_URL)." % settings.url)
     else:
-        say("Each run takes Spansh's 7-day file, or its 32-day file when the last update "
-            "is more than 6 days old.")
+        say("Each run takes Spansh's 1-day file the night after the last update, its 7-day "
+            "file every sixth night or after a missed night, and its 32-day file when the last "
+            "update is more than 6 days old.")
     name = file_on_disk(settings)
     if name:
         noted = fetch.read_record(settings.path(name + ".version"))
