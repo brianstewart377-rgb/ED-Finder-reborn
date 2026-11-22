@@ -899,6 +899,13 @@ show a numerical indicator of how many ground slots the body has" and
   or volcanism can still make a prediction one low. The two rules agree on
   every body under 5,500 km with no atmosphere and no life signals, the most
   common kind to build on.
+- **The owner's sheet of in-game counts (22 November).** 7,403 bodies in 446
+  systems, now `tests/fixtures/slot_counts`: Raven's rule is right on 4,596
+  of the 4,599 that can be landed on (99.93%); ours before the change was
+  right on 4,273 (92.91%). The sheet's "Prediction 3" (Raven's, with
+  terraformable, volcanism and atmosphere together limited to 3) is wrong on
+  one more body than Raven's, so it was not taken. `tests/test_slot_rule.py`
+  checks every row, and names the three bodies the rule gets wrong.
 - **Sites and slots are not the same count.** In LHS 3447 our data holds
   more sites on the ground than the slots predicted on five of the six
   bodies (5 against 4; 4 against 3). The page shows the two numbers side by

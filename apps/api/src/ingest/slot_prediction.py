@@ -21,8 +21,11 @@ that rule in four ways: a slot for life signals, 1 rather than 2 for a thin
 atmosphere, at most 3 for all the bonuses together, and the step to 4 at
 5,500 km. Checked that day against counts read in the game's System Architect
 view: Raven's rule was right on all six bodies whose count was certain, and
-on one system's whole total; the drifted rule on three of the six. The
-orbital estimate is our own; the planner does not publish it.
+on one system's whole total; the drifted rule on three of the six. On the
+owner's sheet of 7,403 bodies with in-game counts (tests/fixtures/slot_counts),
+Raven's rule is right on 4,596 of the 4,599 that can be landed on (99.93%),
+and the drifted rule was on 4,273 (92.91%). The orbital estimate is our own;
+the planner does not publish it.
 """
 from __future__ import annotations
 
@@ -32,8 +35,8 @@ from typing import Any, Literal, Optional
 
 PREDICTION_VERSION = 'raven-slot-v1'
 VALIDATION_NOTE = (
-    "Raven Colonial's ground-slot rule. Checked on 22 November 2026 against "
-    'in-game counts: right on all 6 bodies whose count was certain.'
+    "Raven Colonial's ground-slot rule. Against in-game counts: right on 4,596 "
+    'of 4,599 bodies that can be landed on (99.93%).'
 )
 INSUFFICIENT_DATA_REASON = 'insufficient data for validated prediction algorithm'
 

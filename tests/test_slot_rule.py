@@ -1,6 +1,6 @@
 """The ground-slot rule is Raven Colonial's (apps/api/src/ingest/slot_prediction.py).
 
-Checked two ways:
+Checked three ways:
 
 1. Against the game. These six bodies had their ground slots read in the
    game's System Architect view in November 2026. Their systems are not named,
@@ -11,9 +11,12 @@ Checked two ways:
    Raven's: life signals add nothing, any atmosphere adds 2, the bonuses have
    no limit of their own (only the 7 overall), and 3 base slots reach up to
    6,000 km.
+3. Against the owner's sheet of in-game counts: 7,403 bodies in 446 systems
+   (tests/fixtures/slot_counts). The rule is right on all but three of them.
 """
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import pytest
@@ -130,3 +133,52 @@ def test_the_answers_carry_the_new_version_name():
     # The Plan page's export shows it, so a plan made with the older rule can
     # be told apart.
     assert PREDICTION_VERSION == "raven-slot-v1"
+
+
+SHEET = ROOT / "tests" / "fixtures" / "slot_counts" / "in_game_slot_counts.csv"
+# The sheet's bodies where the game has a slot more or fewer than the rule:
+# (in the game, by the rule). Two hot metal-rich planets with one more, though
+# the other 74 metal-rich planets between 600 and 700 K come out right; and
+# one whose water geysers add no slot, though they do on nine other bodies.
+MISSES = {
+    ("2MASS J05363149+0945016", "B 5"): (3, 4),
+    ("DM99 4.3", "1"): (6, 5),
+    ("Dryio Flyuae OZ-O d6-1381", "1"): (7, 6),
+}
+
+
+def sheet_rows() -> list[dict[str, str]]:
+    with SHEET.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def rule_on_sheet(row: dict[str, str]) -> int | None:
+    """The rule's answer for a row of the sheet, given as the Plan page gives it."""
+    return predict_body_slots({
+        "body_id": row["body_id64"], "is_landable": row["landable"] == "true",
+        "radius": float(row["radius_km"]) * 1000, "surface_temp": float(row["temperature_k"]),
+        "gravity": float(row["gravity_g"]), "atmosphere": row["atmosphere"],
+        "planet_class": row["subtype"],
+        "terraform_state": "Terraformable" if row["terraformable"] == "true" else "Not terraformable",
+        "volcanism": row["volcanism"], "geo_signal_count": 1 if row["geological"] == "true" else 0,
+    }).predicted_ground_slots
+
+
+def test_the_rule_against_every_count_in_the_sheet():
+    rows = sheet_rows()
+    assert len(rows) == 7403
+    assert sum(1 for row in rows if row["landable"] == "true") == 4599
+    wrong = {
+        (row["system_name"], row["body"]): (int(row["ground_slots"]), slots)
+        for row in rows if (slots := rule_on_sheet(row)) != int(row["ground_slots"])
+    }
+    # Right on 4,596 of the 4,599 bodies that can be landed on (99.93%), and
+    # on every one that cannot. The rule used until 22 November 2026 was right
+    # on 4,273 of them (92.91%).
+    assert wrong == MISSES
+
+
+def test_the_sheet_has_each_body_once():
+    rows = sheet_rows()
+    assert len({row["body_id64"] for row in rows}) == len(rows)
+    assert {row["landable"] for row in rows} == {"true", "false"}
