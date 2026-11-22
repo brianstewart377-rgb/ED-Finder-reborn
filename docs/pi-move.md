@@ -988,6 +988,13 @@ repo holds, and what is on record:
   (see "EDDN" above).
 - On no plan: what becomes of the two separate GitHub repos, and when the
   two scoring fixes agreed on 21 October ("V4.1") are made.
+- (22 Nov) The first change to the rulebook here, by the owner's decision
+  on the ratings rebuild (decision 6 in "Ratings rebuild — design"): the
+  Agriculture penalty for icy bodies now also hits rocky ice bodies
+  (RB-0018), as the guide's farm case study has it (p. 88; its list of
+  modifiers, p. 55, names icy bodies only). Its release tag is now
+  `cre-knowledge-v0.5.0+edfinder.1`; the CRE repo itself is unchanged. The
+  planner's tests, left behind in the old repo, came over first.
 
 ### The System Map look: decided (owner, 14 November)
 

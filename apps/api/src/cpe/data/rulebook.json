@@ -1,7 +1,7 @@
 {
   "schema": "cre-rulebook/v1",
-  "knowledge_version": "0.5.0",
-  "release_tag": "cre-knowledge-v0.5.0",
+  "knowledge_version": "0.5.0+edfinder.1",
+  "release_tag": "cre-knowledge-v0.5.0+edfinder.1",
   "title": "Colonisation Research Engine rulebook",
   "purpose": "A pinned, machine-readable list of Elite Dangerous colonisation rules with stable IDs, exact values and sources. Tools such as ed-finder read a tagged release of this file; a rule enters or changes here only after owner review.",
   "game_basis": {
@@ -874,6 +874,14 @@
                   "MG-0001"
                 ],
                 "status": "Confirmed"
+              },
+              {
+                "condition": "on_or_orbiting_rocky_ice_body",
+                "listed_by": [
+                  "MG-0001"
+                ],
+                "status": "Extracted",
+                "note": "Added in ED-Finder on 22 November 2026 by the owner's decision (release cre-knowledge-v0.5.0+edfinder.1). The guide's farm case study counts rocky ice bodies (page 88); its list of modifiers names icy bodies only (page 55)."
               },
               {
                 "condition": "on_or_orbiting_planet_tidally_locked_to_star",

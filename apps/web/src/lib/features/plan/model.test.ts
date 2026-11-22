@@ -294,6 +294,23 @@ describe('planner request and slots', () => {
     });
   });
 
+  it("counts a star's asteroid belt as a ring for its economies", () => {
+    const data = bodies();
+    data.economy_facts_generation_id = 'fixture';
+    // Body 1 has no rings of its own, but belt 10 circles it.
+    expect(
+      toPlanRequest(emptyPlan('42'), data).bodies?.[0].economy?.has_rings,
+    ).toBe(true);
+    expect(
+      toPlanRequest(emptyPlan('42'), data).bodies?.[1].economy?.has_rings,
+    ).toBe(false);
+    // A belt that is no longer there does not count.
+    data.belts[0].lifecycle_state = 'RETIRED';
+    expect(
+      toPlanRequest(emptyPlan('42'), data).bodies?.[0].economy?.has_rings,
+    ).toBe(false);
+  });
+
   it.each([
     [false, 0, 0, null, null],
     [null, 0, 0, null, null],

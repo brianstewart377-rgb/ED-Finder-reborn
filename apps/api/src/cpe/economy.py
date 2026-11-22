@@ -244,6 +244,7 @@ class _Evaluation:
             'on_or_orbiting_body_with_organics': organics,
             'on_or_orbiting_body_with_geologicals': geologicals,
             'on_or_orbiting_icy_body': body.kind == 'icy_body',
+            'on_or_orbiting_rocky_ice_body': body.kind == 'rocky_ice_body',
             'on_or_orbiting_planet_tidally_locked_to_star': locked_to_star,
             'orbiting_moon_tidally_locked_to_planet_tidally_locked_to_star': locked_moon and site.slot_kind == 'orbital',
             'on_moon_tidally_locked_to_planet_tidally_locked_to_star': locked_moon and site.slot_kind == 'surface',

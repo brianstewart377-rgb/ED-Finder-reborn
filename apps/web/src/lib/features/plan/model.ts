@@ -213,6 +213,13 @@ export function toPlanRequest(
     });
   }
   const beltRefs = new Set(evaluationRef.keys());
+  // A star's asteroid belt counts as a ring for the star's economies:
+  // "Has rings (includes stars with asteroid belts)": Extraction (RB-0011).
+  const beltParents = new Set(
+    data.belts
+      .filter((belt) => belt.lifecycle_state === 'ACTIVE')
+      .map((belt) => belt.parent_body_id),
+  );
   return {
     system_id64: model.system_id64,
     bodies: [
@@ -239,7 +246,7 @@ export function toPlanRequest(
                   tidally_locked: body.tidally_locked ?? null,
                   volcanism: body.volcanism_present ?? null,
                   terraformable: body.terraformable ?? null,
-                  has_rings: body.has_rings,
+                  has_rings: body.has_rings || beltParents.has(body.body_id),
                   geological_signals:
                     body.signals_complete !== true &&
                     body.geological_signals === 0
