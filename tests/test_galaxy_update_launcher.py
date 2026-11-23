@@ -1176,6 +1176,33 @@ def test_status_says_when_reach_was_worked_out(spansh, docker, tmp_path, capsys)
             "39,176,623 systems within 500 ly, 15,102,345 of them within 250 ly.") in capsys.readouterr().out
 
 
+def test_status_says_how_far_finds_facts_have_got(spansh, docker, tmp_path, capsys):
+    chosen = settings(spansh, tmp_path / "galaxy")
+    docker.state["psql"] = {"acquisition_kind = 'DELTA'": "", "rescore_queue": "0", "economy_facts_fill": None}
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Find's facts for each system are not kept in this database (migration 031 has not "
+            "been applied).") in capsys.readouterr().out
+    docker.state["psql"]["economy_facts_fill"] = ""
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Find's facts for each system: no fill has started yet. The next scoring run starts it."
+            in capsys.readouterr().out)
+    docker.state["psql"]["economy_facts_fill"] = (
+        "cre-knowledge-v0.5.0+edfinder.1/facts-1|2026-11-24 04:41||3500000|40912345")
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Find's facts for each system: the fill for cre-knowledge-v0.5.0+edfinder.1/facts-1 started "
+            "2026-11-24 04:41 UTC, 3,500,000 of 40,912,345 systems within 500 ly done so far; it carries "
+            "on after each run.") in capsys.readouterr().out
+    docker.state["psql"]["economy_facts_fill"] = (
+        "cre-knowledge-v0.5.0+edfinder.1/facts-1|2026-11-24 04:41|2026-11-30 18:02|40912345|40912345")
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("the fill for cre-knowledge-v0.5.0+edfinder.1/facts-1 started 2026-11-24 04:41 UTC, finished "
+            "2026-11-30 18:02 UTC.") in capsys.readouterr().out
+
+
 def test_main_prints_a_plain_failure_and_exits_1(spansh, docker, tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("EDFINDER_GALAXY_DIR", str(tmp_path / "galaxy"))
     monkeypatch.setenv("EDFINDER_GALAXY_URL", spansh.origin + "/" + FILE)  # not published

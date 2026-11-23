@@ -591,14 +591,17 @@ server. Nothing of it was saved.
 
 ## Changes to the plan since 8 November
 
-The plan says the database stays exactly as it is. Four small additions have
-been made or agreed since, each as a reviewed migration after a fresh backup:
+The plan says the database stays exactly as it is. Small additions have been
+made or agreed since, each as a reviewed migration after a fresh backup:
 
 - `025` (10 November): the nightly jobs may change published scores.
 - `026` (10 November): the waiting list of systems that need new scores.
 - `027` (11 November): each body's class, one column on the bodies table.
 - `028` (built 12 November, for the Pi only, not yet applied): which systems
   are within 500 ly and 250 ly of an inhabited system (three new tables).
+- `031` (built 23 November, not yet applied): Find's facts for each system
+  within 500 ly, for the ratings rebuild (two new tables; about 10 GB once
+  filled). The owner agreed the table's design on 23 November.
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had

@@ -74,6 +74,7 @@ from scripts.ratings_v4.canonical_stream import CanonicalSnapshot
 from shared_contracts import v3_system_archetype_model as model
 
 from . import apply as galaxy
+from . import economy_facts
 from . import reach
 from .normalize import NormalizedSystem, classify_material_change, normalize_system
 
@@ -761,6 +762,8 @@ class ApplyReport:
     reach_report: reach.ReachReport | None = None
     outside_reach: int = 0
     unscored_in_reach: int = 0
+    # Find's facts for each system (economy_facts), where reach is kept.
+    facts: economy_facts.FactsReport | None = None
 
     def as_dict(self) -> dict[str, Any]:
         found = {
@@ -772,6 +775,8 @@ class ApplyReport:
         if self.reach_report is not None:
             found.update(reach=self.reach_report.as_dict(), outside_reach=self.outside_reach,
                          unscored_in_reach=self.unscored_in_reach)
+        if self.facts is not None:
+            found["economy_facts"] = self.facts.as_dict()
         return found
 
     def lines(self) -> list[str]:
@@ -802,6 +807,8 @@ class ApplyReport:
         if self.find_only:
             out.append(row("  of those, for a station coming or going only:", self.find_only))
         out.append(row("Systems still waiting for new scores:", self.still_waiting))
+        if self.facts is not None:
+            out += self.facts.lines()
         minutes, seconds = divmod(int(self.seconds), 60)
         out.append(f"Took {minutes} min {seconds} s.")
         return out
@@ -880,11 +887,15 @@ def waiting_batch(scorer: Scorer, queue: Mapping[int, Sequence[str]], report: Ap
 
 
 def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = None,
-                  progress: bool = True) -> ApplyReport:
+                  progress: bool = True,
+                  fill_minutes: float = economy_facts.FILL_MINUTES) -> ApplyReport:
     """Score the systems on the waiting list from the database alone.
 
     ``connection`` must be autocommit. Systems are taken in batches, one
     transaction each, so this can be stopped and started again at any point.
+    Where reach is kept, Find's facts for each system are kept up to date
+    beside the scores (``economy_facts``); the first fill of them carries on
+    for up to ``fill_minutes`` at the end.
     """
     if not connection.autocommit:
         raise ValueError("the connection must be in autocommit mode")
@@ -900,6 +911,9 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
         if reach.available(connection):
             report.reach_report = reach.update(connection, target, progress=progress)
             report.outside_reach = reach.drop_outside(connection)
+            report.facts = (economy_facts.FactsReport() if economy_facts.available(connection)
+                            else economy_facts.FactsReport(
+                                skipped="not kept in this database (migration 031 has not been applied)"))
         take = sql.SQL("SELECT system_id64, changed_tables FROM {} WHERE system_id64 > %s "
                        "ORDER BY system_id64 LIMIT %s").format(sql.SQL(galaxy.QUEUE_TABLE))
         last, after = started, -1
@@ -912,7 +926,13 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
             if not rows:
                 break
             after = rows[-1][0]
-            waiting_batch(scorer, {int(system_id): list(tables) for system_id, tables in rows}, report)
+            batch = {int(system_id): list(tables) for system_id, tables in rows}
+            waiting_batch(scorer, batch, report)
+            if report.facts is not None:
+                economy_facts.changed(
+                    connection, target.schema,
+                    [system_id for system_id, tables in batch.items() if set(tables) & set(SCORING_TABLES)],
+                    report.facts)
             if progress and time.monotonic() - last >= galaxy.PROGRESS_SECONDS:
                 last = time.monotonic()
                 galaxy.say(f"  ... {report.systems_read:,} systems taken from the waiting list, "
@@ -938,6 +958,9 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
                     last = time.monotonic()
                     galaxy.say(f"  ... {position:,} of {len(unscored):,} systems in reach "
                                f"without scores done, {int(last - started) // 60} min")
+        if report.facts is not None and not report.stopped_early:
+            economy_facts.carry_on(connection, target.schema, report.facts, minutes=fill_minutes,
+                                   progress=progress)
         report.still_waiting = connection.execute(
             sql.SQL("SELECT count(*) FROM {}").format(sql.SQL(galaxy.QUEUE_TABLE))).fetchone()[0]
     finally:

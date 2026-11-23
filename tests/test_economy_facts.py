@@ -1,0 +1,267 @@
+"""Find's facts for each system within 500 ly (spansh_delta.economy_facts,
+migration 031). Ratings rebuild, build step 4.
+
+The galaxy is the twelve real fixture systems, as in tests/test_reach.py:
+with Sol inhabited, eight of them are within 500 ly. The facts come from the
+planner's own code (cpe/body_facts.py); these tests check that each stored
+number sorts systems exactly as that code's orders do, that the nightly
+scoring keeps the rows up to date, and that the first fill can stop and
+carry on.
+
+Runs on PostgreSQL 18 with every migration applied; needs
+RATINGS_V4_VALIDATION_DATABASE_URL, like the other database tests.
+"""
+from __future__ import annotations
+
+from copy import deepcopy
+from datetime import timedelta
+from functools import cmp_to_key
+import itertools
+import os
+from pathlib import Path
+import sys
+
+import pytest
+
+os.environ.setdefault("CORS_ORIGINS", "https://economy-facts-test.invalid")
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps" / "importer" / "src"))
+
+from edfinder_api.cpe.body_facts import (  # noqa: E402
+    ECONOMIES,
+    PAIRS,
+    best_for_pair,
+    pair_key,
+    purest,
+    purest_key,
+    strongest,
+    strongest_key,
+)
+from spansh_delta import economy_facts as facts  # noqa: E402
+from spansh_delta import speed_trial  # noqa: E402
+from tests.helpers import finder_seed  # noqa: E402
+from tests.test_galaxy_scores import template  # noqa: E402,F401
+from tests.test_galaxy_update import SEPTEMBER, SOL, fill_classes, run  # noqa: E402
+from tests.test_reach import WITHIN_500_OF_SOL, inhabit, pi, waiting, work_out  # noqa: E402,F401
+
+
+def rows(pi) -> dict[int, tuple]:
+    return {row[0]: row[1:] for row in pi.all(
+        "SELECT system_id64, bodies_known, ground_slots, strongest, purest, pairs FROM v3_state.economy_facts")}
+
+
+def body_facts_of(pi, system_id64: int):
+    """Each body's facts, worked out straight from the galaxy tables."""
+    found = speed_trial.read(pi.connection, pi.schema, [system_id64])[system_id64]
+    return speed_trial.facts_for(speed_trial.planner_inputs(found))
+
+
+def filled(pi, tmp_path) -> facts.FactsReport:
+    """Sol inhabited, reach worked out, every system written once, and the
+    waiting list worked through: the first fill runs to its end."""
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    run(pi, tmp_path, pi.records.values())
+    return waiting(pi).facts
+
+
+# -- the migration --------------------------------------------------------------
+
+
+def test_the_migration_adds_two_empty_tables_and_can_run_again(pi):
+    assert facts.available(pi.connection)
+    assert pi.one("SELECT count(*) FROM v3_state.economy_facts") == (0,)
+    assert pi.one("SELECT count(*) FROM v3_state.economy_facts_fill") == (0,)
+    finder_seed.apply_migration(pi.connection, 31)
+    assert facts.status_lines(pi.connection) == ["Economy facts: no fill has started yet; 0 rows."]
+
+
+# -- the numbers sort as the planner's orders do ------------------------------------
+
+
+def test_each_number_sorts_bodies_exactly_as_its_order_does(pi):
+    """For every pair of bodies in the twelve real systems, the packed numbers
+    compare the way the planner's order keys do."""
+    fill_classes(pi.connection, pi.schema, pi.records.values())
+    compared = 0
+    for system_id64 in pi.records:
+        bodies = body_facts_of(pi, system_id64)
+        for economy in ECONOMIES:
+            able = [body for body in bodies if body.adds[economy] > 0]
+            for key, steps in ((strongest_key, facts.STRONGEST_STEPS), (purest_key, facts.PUREST_STEPS)):
+                for one, two in itertools.combinations(able, 2):
+                    first, second = key(one, economy), key(two, economy)
+                    packed = (facts.pack(first, steps), facts.pack(second, steps))
+                    assert (first > second) == (packed[0] > packed[1])
+                    assert (first == second) == (packed[0] == packed[1])
+                    compared += 1
+        for left, right in PAIRS:
+            able = [body for body in bodies if body.adds[left] > 0 and body.adds[right] > 0]
+            for one, two in itertools.combinations(able, 2):
+                first, second = pair_key(one, left, right), pair_key(two, left, right)
+                packed = (facts.pack(first, facts.PAIR_STEPS), facts.pack(second, facts.PAIR_STEPS))
+                assert (first > second) == (packed[0] > packed[1])
+                assert (first == second) == (packed[0] == packed[1])
+                compared += 1
+    assert compared > 10_000
+
+
+def test_a_number_is_above_zero_and_refuses_what_it_cannot_hold():
+    steps = ((10, 0, 4), (1, 15, 4))
+    assert facts.pack((0.0, 0), steps) == 1 << 8 | 15
+    assert facts.pack((0.3, -2), steps) > facts.pack((0.2, 0), steps)
+    with pytest.raises(facts.PackError, match="does not fit"):
+        facts.pack((0.15, 0), steps)
+    with pytest.raises(facts.PackError, match="does not fit"):
+        facts.pack((1.6, 0), steps)
+    with pytest.raises(facts.PackError, match="does not fit"):
+        facts.pack((0.1, -16), steps)
+    with pytest.raises(facts.PackError, match="steps where the layout has"):
+        facts.pack((0.1,), steps)
+
+
+# -- the first fill and the rows it writes -----------------------------------------
+
+
+def test_the_first_fill_gives_every_system_in_reach_its_row(pi, tmp_path):
+    report = filled(pi, tmp_path)
+    found = rows(pi)
+    assert set(found) == WITHIN_500_OF_SOL
+    for system_id64, row in found.items():
+        expected = facts.system_facts(
+            system_id64, speed_trial.read(pi.connection, pi.schema, [system_id64])[system_id64])
+        assert row == (expected.bodies_known, expected.ground_slots, list(expected.strongest),
+                       list(expected.purest), list(expected.pairs))
+    # Sol: its stars, planets and moons, not its belt clusters or barycentres.
+    record = pi.records[SOL]
+    counted = sum(1 for body in record["bodies"] if body.get("type") in ("Star", "Planet"))
+    assert found[SOL][0] == counted
+    fill = facts.latest_fill(pi.connection)
+    assert (fill.version, fill.systems, fill.finished_at is not None) == (facts.VERSION, 8, True)
+    # Seven of them changed in the galaxy tables; the eighth only gained or
+    # lost a station. The fill then worked all eight out.
+    assert (report.changed, report.filled, report.failed, report.fill_finished_now) == (7, 8, {}, True)
+    text = "\n".join(report.lines())
+    assert "The first fill finished: 8 systems." in text
+    assert report.as_dict()["fill_finished"] is True
+    assert facts.status_lines(pi.connection)[0].startswith(f"Economy facts: the fill for {facts.VERSION} started ")
+
+
+def test_sorting_systems_by_a_stored_number_follows_the_order_of_their_best_bodies(pi, tmp_path):
+    filled(pi, tmp_path)
+    stored = rows(pi)
+    for position, economy in enumerate(ECONOMIES):
+        for column, choose, key in ((2, strongest, strongest_key), (3, purest, purest_key)):
+            best = {system_id64: choose(body_facts_of(pi, system_id64), economy) for system_id64 in stored}
+            able = [system_id64 for system_id64, body in best.items() if body is not None]
+            assert {system_id64 for system_id64 in stored if stored[system_id64][column][position] > 0} \
+                == set(able)
+
+            def by_key(one, two, key=key, best=best, economy=economy):
+                first, second = key(best[one], economy), key(best[two], economy)
+                return (first > second) - (first < second)
+
+            def by_number(one, two, column=column, position=position):
+                first, second = stored[one][column][position], stored[two][column][position]
+                return (first > second) - (first < second)
+
+            for one, two in itertools.combinations(able, 2):
+                assert by_key(one, two) == by_number(one, two)
+            assert sorted(able, key=cmp_to_key(by_key)) == sorted(able, key=cmp_to_key(by_number))
+    for position, (left, right) in enumerate(PAIRS):
+        best = {system_id64: best_for_pair(body_facts_of(pi, system_id64), left, right)
+                for system_id64 in stored}
+        for one, two in itertools.combinations([s for s, body in best.items() if body is not None], 2):
+            first, second = pair_key(best[one], left, right), pair_key(best[two], left, right)
+            numbers = stored[one][4][position], stored[two][4][position]
+            assert (first > second) == (numbers[0] > numbers[1])
+
+
+def test_the_first_fill_carries_on_where_it_stopped(pi, tmp_path, monkeypatch):
+    fill_classes(pi.connection, pi.schema, pi.records.values())
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    monkeypatch.setattr(facts, "BATCH_SYSTEMS", 3)
+    # A clock that allows one batch and then says the time is up.
+    ticks = iter([0, 0, 0])
+    monkeypatch.setattr(facts, "_now", lambda: next(ticks, 10_000))
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, minutes=1, progress=False)
+    monkeypatch.undo()
+    fill = facts.latest_fill(pi.connection)
+    first_three = sorted(WITHIN_500_OF_SOL)[:3]
+    assert (fill.systems, fill.last_system_id64, fill.finished_at) == (3, first_three[-1], None)
+    assert set(rows(pi)) == set(first_three) and report.filled == 3
+    assert "The first fill has done 3 of 8 systems within 500 ly" in "\n".join(report.lines())
+    # The next run carries on from there, and finishes.
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, progress=False)
+    fill = facts.latest_fill(pi.connection)
+    assert (fill.systems, fill.finished_at is not None, report.filled) == (8, True, 5)
+    assert set(rows(pi)) == WITHIN_500_OF_SOL
+
+
+def test_a_changed_system_gets_its_new_row_the_same_night(pi, tmp_path):
+    filled(pi, tmp_path)
+    before = rows(pi)[SOL]
+    stamp = pi.one("SELECT worked_out_at FROM v3_state.economy_facts WHERE system_id64 = %s", SOL)[0]
+    without = deepcopy(pi.records[SOL])
+    ringed = next(body for body in without["bodies"] if body.get("rings") and body.get("type") == "Planet")
+    without["bodies"].remove(ringed)
+    run(pi, tmp_path, [without], made_at=SEPTEMBER + timedelta(days=1))
+    report = waiting(pi).facts
+    assert report.changed == 1 and report.came_within_reach == 0 and report.filled == 0
+    after = rows(pi)[SOL]
+    assert after[0] == before[0] - 1
+    assert pi.one("SELECT worked_out_at FROM v3_state.economy_facts WHERE system_id64 = %s", SOL)[0] > stamp
+
+
+def test_a_system_that_comes_within_reach_gets_its_row(pi, tmp_path):
+    filled(pi, tmp_path)
+    pi.connection.execute("DELETE FROM v3_state.economy_facts WHERE system_id64 = %s", (SOL,))
+    report = waiting(pi).facts
+    assert report.came_within_reach == 1 and SOL in rows(pi)
+
+
+def test_a_new_version_starts_a_new_fill_and_rows_out_of_reach_go_when_it_ends(pi, tmp_path, monkeypatch):
+    filled(pi, tmp_path)
+    # A row for a system that is no longer within 500 ly.
+    outside = next(system_id64 for system_id64 in pi.records if system_id64 not in WITHIN_500_OF_SOL)
+    pi.connection.execute(
+        "INSERT INTO v3_state.economy_facts (system_id64, bodies_known, ground_slots, worked_out_at) "
+        "VALUES (%s, 0, 0, now())", (outside,))
+    monkeypatch.setattr(facts, "VERSION", "a later rulebook/facts-1")
+    assert "a new fill starts with the next run" in facts.status_lines(pi.connection)[0]
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, progress=False)
+    fill = facts.latest_fill(pi.connection)
+    assert (fill.version, fill.systems, fill.finished_at is not None) == ("a later rulebook/facts-1", 8, True)
+    assert report.deleted_outside_reach == 1 and set(rows(pi)) == WITHIN_500_OF_SOL
+    assert pi.one("SELECT count(*) FROM v3_state.economy_facts_fill") == (2,)
+
+
+def test_a_system_that_cannot_be_worked_out_keeps_its_row_and_the_report_says_why(pi, tmp_path, monkeypatch):
+    filled(pi, tmp_path)
+    before = rows(pi)
+
+    def refuse(system_id64, found):
+        raise facts.PackError("does not fit")
+
+    monkeypatch.setattr(facts, "system_facts", refuse)
+    report = facts.FactsReport()
+    facts.changed(pi.connection, pi.schema, [SOL], report)
+    assert report.failed == {SOL: "PackError: does not fit"} and report.changed == 0
+    assert rows(pi) == before
+    assert f"for example system {SOL}: PackError: does not fit" in "\n".join(report.lines())
+
+
+def test_without_migration_031_the_scoring_says_so_and_goes_on(pi, tmp_path):
+    pi.connection.execute("DROP TABLE v3_state.economy_facts, v3_state.economy_facts_fill")
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    run(pi, tmp_path, pi.records.values())
+    report = waiting(pi)
+    assert report.facts.skipped == "not kept in this database (migration 031 has not been applied)"
+    assert "Economy facts: not kept in this database" in "\n".join(report.lines())
+    assert report.added + report.changed + report.same == 7
