@@ -140,7 +140,7 @@ applies it:
 |---|---|
 | `check` | Downloads the file and says what would change. Read only: the database is not touched. |
 | `run` | Downloads the file and applies it. If Spansh has nothing new there is nothing to apply. With scoring switched on, it then gives new scores to the systems on the waiting list, either way. |
-| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, which file each run takes, and the file on disk. |
+| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, how far Find's facts for each system have got (migration `031`), which file each run takes, and the file on disk. |
 | `check-scores` | Works scores out again for the systems of the file on disk, from Spansh's records and from our own rows, and compares them with the stored ones. Read only. |
 | `score` | Gives new scores to the systems on the waiting list. Needs no file. |
 | `reach` | Works out afresh which systems are within 500 ly and 250 ly of an inhabited system. Needs migration `028` (the Pi). |
@@ -246,6 +246,18 @@ too. Where that table exists, the scoring:
   update has just found against the same inhabited systems;
 - takes systems further than 500 ly off the waiting list unscored;
 - after the waiting list, scores any system in reach that has no scores yet.
+
+Where migration `031` is applied too, the scoring keeps Find's facts for each
+system in reach up to date as well (`v3_state.economy_facts`,
+`apps/importer/src/spansh_delta/economy_facts.py`; the ratings rebuild, build
+step 4). Each row holds how many of the system's bodies we know, its predicted
+ground slots, and one number per economy and pair that puts it in Find's order.
+Systems whose galaxy rows changed get new rows, beside their scores. The first
+fill of every system in reach goes on for up to 2 hours after each run,
+carrying on where it stopped, until it is done; `galaxy_update.py status`
+says how far it has got. When the rulebook changes, a new fill starts from the
+beginning. Nothing reads the table yet. Without `031` the scoring says so and
+carries on as before.
 
 So a new colony counts within a week. The systems it brings within 500 ly lie
 250 to 500 ly from it, far from where anyone colonises next. Working reach out

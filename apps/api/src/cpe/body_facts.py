@@ -3,8 +3,8 @@
 "Ratings rebuild — design", build step 3: Find shows, for each body and each
 economy, what a port there starts with and what each facility there adds;
 this module works both out with the Plan page's own engine (economy.py), so
-Find and the Plan page cannot disagree. Build step 4 stores the answers for
-every system; nothing reads them yet.
+Find and the Plan page cannot disagree. Build step 4 stores where each
+system's best bodies stand in these orders (spansh_delta.economy_facts).
 
 Every number is the engine's: a port's own economies, and the strong link of
 the best facility that is not a port, with the rulebook's bonuses and
@@ -151,34 +151,49 @@ def _first(candidates: Sequence[BodyFacts], key: Callable[[BodyFacts], tuple]) -
     return max(enumerate(candidates), key=lambda pair: (key(pair[1]), -pair[0]))[1]
 
 
-def strongest(facts: Sequence[BodyFacts], economy: str) -> BodyFacts | None:
-    """Find's default for one economy: the biggest ground part (decision 8),
-    then what each facility adds, then fewer third economies, then what the
-    port starts with, then room. Only bodies where a facility can add it."""
-    return _first([body for body in facts if body.adds[economy] > 0], lambda body: (
-        body.total(economy), body.adds[economy], -body.third_economies(economy),
-        body.starts.get(economy, 0.0), body.room(economy)))
+def strongest_key(body: BodyFacts, economy: str) -> tuple:
+    """Where a body stands in Find's default order for one economy: the
+    biggest ground part (decision 8), then what each facility adds, then
+    fewer third economies, then what the port starts with, then room."""
+    return (body.total(economy), body.adds[economy], -body.third_economies(economy),
+            body.starts.get(economy, 0.0), body.room(economy))
 
 
-def purest(facts: Sequence[BodyFacts], economy: str) -> BodyFacts | None:
-    """The guide's "pure market" choice (p. 51-52): fewest third economies
-    once it is built, a second one being harmless (second review, rows 3 and
-    4), then a port that starts with it, then the ground part, what each
-    facility adds and room."""
-    return _first([body for body in facts if body.adds[economy] > 0], lambda body: (
-        -body.third_economies(economy), economy in body.starts,
-        body.total(economy), body.adds[economy], body.room(economy)))
+def purest_key(body: BodyFacts, economy: str) -> tuple:
+    """Where a body stands in the guide's "pure market" order (p. 51-52):
+    fewest third economies once it is built, a second one being harmless
+    (second review, rows 3 and 4), then a port that starts with it, then the
+    ground part, what each facility adds and room."""
+    return (-body.third_economies(economy), economy in body.starts,
+            body.total(economy), body.adds[economy], body.room(economy))
 
 
-def best_for_pair(facts: Sequence[BodyFacts], first: str, second: str) -> BodyFacts | None:
-    """The one body that suits both: fewest third economies first (decision
+def pair_key(body: BodyFacts, first: str, second: str) -> tuple:
+    """Where a body stands for a pair: fewest third economies first (decision
     7), then the weaker and the stronger ground part with the ground slots
     shared out (decision 8), then the weaker and the stronger of what each
     facility adds, then what the port starts with for the two, then room."""
-    def key(body: BodyFacts) -> tuple:
-        adds = (body.adds[first], body.adds[second])
-        return (-body.third_economies(first, second), body.pair_totals(first, second),
-                min(adds), max(adds),
-                round(body.starts.get(first, 0.0) + body.starts.get(second, 0.0), 2),
-                body.room(first, second))
-    return _first([body for body in facts if body.adds[first] > 0 and body.adds[second] > 0], key)
+    adds = (body.adds[first], body.adds[second])
+    return (-body.third_economies(first, second), body.pair_totals(first, second),
+            min(adds), max(adds),
+            round(body.starts.get(first, 0.0) + body.starts.get(second, 0.0), 2),
+            body.room(first, second))
+
+
+def strongest(facts: Sequence[BodyFacts], economy: str) -> BodyFacts | None:
+    """Find's default for one economy (``strongest_key``). Only bodies where a
+    facility can add it."""
+    return _first([body for body in facts if body.adds[economy] > 0],
+                  lambda body: strongest_key(body, economy))
+
+
+def purest(facts: Sequence[BodyFacts], economy: str) -> BodyFacts | None:
+    """The guide's "pure market" choice (``purest_key``)."""
+    return _first([body for body in facts if body.adds[economy] > 0],
+                  lambda body: purest_key(body, economy))
+
+
+def best_for_pair(facts: Sequence[BodyFacts], first: str, second: str) -> BodyFacts | None:
+    """The one body that suits both (``pair_key``)."""
+    return _first([body for body in facts if body.adds[first] > 0 and body.adds[second] > 0],
+                  lambda body: pair_key(body, first, second))

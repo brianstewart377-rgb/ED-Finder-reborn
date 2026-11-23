@@ -55,6 +55,10 @@ first update was given the one-day file by hand. catch-up brings it back.)
     python3 galaxy_update.py score    give new scores to the systems on the
                                       waiting list. Needs no file: everything
                                       the scores use is in the database.
+                                      Where migration 031 is applied it keeps
+                                      Find's facts for each system up to date
+                                      too, and carries their first fill on for
+                                      up to 2 hours (spansh_delta.economy_facts).
     python3 galaxy_update.py colony-types
                                       score every system's colony types again
                                       with the rule the app now runs, from the
@@ -255,6 +259,13 @@ WAITING_SQL = "SELECT count(*) FROM v3_state.rescore_queue"
 REACH_SQL = (
     "SELECT to_char(worked_out_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), anchors, systems, within_250 "
     "FROM v3_state.reach_log ORDER BY reach_id DESC LIMIT 1"
+)
+# How far Find's facts for each system have got (migration 031): the last fill.
+FACTS_SQL = (
+    "SELECT f.version, to_char(f.started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), "
+    "coalesce(to_char(f.finished_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), ''), f.systems, "
+    "(SELECT count(*) FROM v3_state.system_reach) "
+    "FROM v3_state.economy_facts_fill f ORDER BY f.fill_id DESC LIMIT 1"
 )
 # What the database accepts from a local client. Names and methods only.
 RULES_SQL = (
@@ -875,6 +886,21 @@ def cmd_status(settings: Settings) -> int:
         say("Reach last worked out afresh %s UTC, from %s inhabited systems: %s systems within "
             "500 ly, %s of them within 250 ly." % (when, thousands(anchors), thousands(systems),
                                                      thousands(near)))
+    try:
+        facts = query(settings, FACTS_SQL)
+    except UpdateError:
+        facts = None
+    if facts is None:
+        say("Find's facts for each system are not kept in this database (migration 031 has not "
+            "been applied).")
+    elif not facts or len(facts[0]) != 5:
+        say("Find's facts for each system: no fill has started yet. The next scoring run starts it.")
+    else:
+        version, started, ended, done, in_reach = facts[0]
+        say("Find's facts for each system: the fill for %s started %s UTC, %s." % (
+            version, started, "finished %s UTC" % ended if ended else
+            "%s of %s systems within 500 ly done so far; it carries on after each run" % (
+                thousands(done), thousands(in_reach))))
     if settings.url:
         say("Each run takes %s (EDFINDER_GALAXY_URL)." % settings.url)
     else:
