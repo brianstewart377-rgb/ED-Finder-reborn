@@ -403,6 +403,7 @@ describe('planner request and slots', () => {
         surface_slots: 0,
         is_landable: false,
         is_ringed: true,
+        is_belt: true,
       },
     ]);
     expect(request.sites).toEqual([
@@ -460,6 +461,7 @@ describe('planner request and slots', () => {
       surface_slots: 0,
       is_landable: false,
       is_ringed: true,
+      is_belt: true,
     });
     expect(
       request.sites.map(({ site_id, body_ref }) => [site_id, body_ref]),
@@ -594,6 +596,7 @@ describe('planner request and slots', () => {
       surface_slots: 0,
       is_landable: false,
       is_ringed: true,
+      is_belt: true,
     });
     expect(request.sites?.map(({ body_ref }) => body_ref)).toEqual(
       model.sites.map(({ body_ref }) => body_ref),
@@ -784,18 +787,22 @@ describe('planner request and slots', () => {
     const orbital = { allowed_location: 'orbital' } as PlanFacilityV1;
     const ringed = { allowed_location: 'orbital_ringed' } as PlanFacilityV1;
     const model = setSlotCount(
-      setSlotCount(plan(site('used')), '1', 'orbital', 1),
+      setSlotCount(plan(site('used')), '1', 'orbital', 2),
       '4',
       'orbital',
       1,
     );
-    expect(findFreeLocation(model, locations, orbital)).toBe('4');
+    expect(findFreeLocation(model, locations, orbital)).toBe('1');
     expect(findFreeLocation(model, locations, ringed)).toBe('4');
+    const bodyFull = addSite(model, site('second'));
+    // The belt's free slot takes only an asteroid base.
+    expect(findFreeLocation(bodyFull, locations, orbital)).toBeNull();
+    expect(findFreeLocation(bodyFull, locations, ringed)).toBe('4');
     expect(
       findFreeLocation(
-        addSite(model, site('belt', { body_ref: '4' })),
+        addSite(bodyFull, site('belt', { body_ref: '4' })),
         locations,
-        orbital,
+        ringed,
       ),
     ).toBeNull();
     expect(findFreeLocation(emptyPlan('42'), locations, orbital)).toBeNull();

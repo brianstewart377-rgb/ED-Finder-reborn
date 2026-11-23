@@ -1091,6 +1091,10 @@ export type PlanBodyV1 = {
      * Is Ringed
      */
     is_ringed?: boolean | null;
+    /**
+     * Is Belt
+     */
+    is_belt?: boolean;
     economy?: PlanBodyEconomyV1 | null;
 };
 

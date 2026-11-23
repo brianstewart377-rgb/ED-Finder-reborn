@@ -62,6 +62,10 @@ def check_step(
                 blocked.append('NOT_RINGED')
             elif body.is_ringed is None:
                 unknown.append('RINGED_UNKNOWN')
+        elif body.is_belt:
+            # A star's asteroid belt takes only an asteroid base, the one
+            # facility that needs rings.
+            blocked.append('BELT_ASTEROID_BASE_ONLY')
     return tuple(blocked), tuple(unknown)
 
 
@@ -73,7 +77,7 @@ def _fits(
     for body in bodies:
         if (
             template.can_go_orbital
-            and (not template.needs_ringed_body or body.is_ringed is True)
+            and (body.is_ringed is True if template.needs_ringed_body else not body.is_belt)
             and body.orbital_slots is not None
             and occupied.get((body.body_ref, 'orbital'), 0) < body.orbital_slots
         ):
@@ -81,6 +85,7 @@ def _fits(
         if (
             template.can_go_surface
             and body.is_landable is True
+            and not body.is_belt
             and body.surface_slots is not None
             and occupied.get((body.body_ref, 'surface'), 0) < body.surface_slots
         ):

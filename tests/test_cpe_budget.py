@@ -299,6 +299,37 @@ def test_asteroid_base_needs_rings(ringed, reason, expected_result, after, numbe
     assert balances(result) == ((3, 0), after)
 
 
+def test_a_star_belt_takes_only_an_asteroid_base() -> None:
+    # A star's asteroid belt is its own build spot, and it takes only an
+    # asteroid base (the EDCPS planner records this as checked in the game on
+    # 28 July 2026). A planet's rings are different: see BODY above.
+    belt = Body('belt', 64, 0, False, True, is_belt=True)
+    result = evaluate_plan(plan(PRIMARY, *funds(2),
+                                site('farm', 'orbital_installation_space_farm', body_ref='belt'),
+                                site('asteroid', 'asteroid_base', body_ref='belt'),
+                                bodies=(BODY, belt)))
+    farm, asteroid = result.steps[-2:]
+    assert farm.result == 'BLOCKED' and farm.reasons == ('BELT_ASTEROID_BASE_ONLY',)
+    assert asteroid.result == 'OK' and asteroid.reasons == ()
+
+
+@pytest.mark.parametrize(('is_belt', 'payers'), [
+    (False, ('orbital_installation_government', 'orbital_installation_medical',
+             'orbital_installation_space_bar')),
+    (True, ()),
+])
+def test_payers_go_on_a_star_belt_never(is_belt, payers) -> None:
+    # The only free orbital slots are on the second location; if it is a
+    # star's belt, nothing that pays for a Tier 3 port can go there.
+    full = replace(BODY, orbital_slots=3, surface_slots=0)
+    other = Body('other', 64, 0, False, True, is_belt=is_belt)
+    result = evaluate_plan(plan(PRIMARY, *funds(2), site('blocked', 'orbis_t3', body_ref='other'),
+                                bodies=(full, other)))
+    blocked = result.steps[-1]
+    assert 'INSUFFICIENT_T3' in blocked.reasons
+    assert blocked.payers == payers
+
+
 def test_six_building_sites_report_plan_level_rule_check() -> None:
     buildings = tuple(site(str(i), 'orbital_installation_space_farm', 'building') for i in range(6))
     result = evaluate_plan(plan(PRIMARY, *buildings))

@@ -268,7 +268,10 @@ describe('build order facility editing', () => {
           .map((option) => (option as HTMLOptionElement).value),
       ).toEqual([
         '',
-        ...resolvePlanLocations(fixture.bodies).map((entry) => entry.body_ref),
+        ...resolvePlanLocations(fixture.bodies)
+          // A star's asteroid belt takes only an asteroid base, not an outpost.
+          .filter((entry) => entry.kind !== 'belt')
+          .map((entry) => entry.body_ref),
       ]);
       const status = screen.getByRole('combobox', {
         name: 'Status for step 1',

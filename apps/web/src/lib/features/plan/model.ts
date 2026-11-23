@@ -268,6 +268,7 @@ export function toPlanRequest(
         surface_slots: 0,
         is_landable: false,
         is_ringed: true,
+        is_belt: true,
         ...(hasEconomyFacts
           ? { economy: { kind: null, parent_ref, has_rings: true } }
           : {}),

@@ -231,6 +231,9 @@ export function facilityFitsLocation(
   location: PlannerLocation,
 ): boolean {
   const allowed = facility.allowed_location.toLowerCase();
+  // A star's asteroid belt takes only an asteroid base, the one facility that
+  // needs rings (as recorded by the EDCPS planner, checked in game 28 July 2026).
+  if (location.kind === 'belt') return allowed.includes('ring');
   if (allowed.includes('surface')) return location.is_landable !== false;
   if (allowed.includes('ring')) return location.has_rings;
   return allowed.includes('orbital');
