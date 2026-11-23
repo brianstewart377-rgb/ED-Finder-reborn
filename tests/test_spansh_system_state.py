@@ -100,6 +100,15 @@ def test_faction_list_is_kept_with_influence_and_states(real_systems):
         assert by_name[faction["name"]]["pendingStates"] == faction["pendingStates"]
 
 
+# Two of the real fixture systems, by id64, picked for their construction sites.
+FOUR_SITES = 7780836610810  # two construction depots in orbit and two on the ground
+TWO_GROUND_DEPOTS = 5076786292249  # two ground depots named like ordinary settlements
+
+
+def by_id(real_systems: dict, id64: int) -> dict:
+    return next(system for system in real_systems.values() if system["id64"] == id64)
+
+
 def test_every_power_in_the_system_is_listed(real_systems):
     row = state.system_row(real_systems["Deriv-Dar"])
     assert [power["power"] for power in row["powers"]] == [
@@ -107,7 +116,7 @@ def test_every_power_in_the_system_is_listed(real_systems):
 
 
 def test_power_conflict_progress_is_kept(real_systems):
-    row = state.system_row(real_systems["Wregoe ZN-X c28-28"])
+    row = state.system_row(by_id(real_systems, FOUR_SITES))
     progress = {power["power"]: power["conflict_progress"] for power in row["powers"]}
     assert progress["Nakato Kaine"] == 0.0
 
@@ -126,16 +135,16 @@ def test_stations_under_bodies_are_counted_as_well_as_top_level_ones(real_system
 
 
 def test_construction_sites_are_counted_in_orbit_and_on_the_ground(real_systems):
-    row = state.system_row(real_systems["Wregoe ZN-X c28-28"])
+    row = state.system_row(by_id(real_systems, FOUR_SITES))
     assert row["station_type_counts"]["Space Construction Depot"] == 2
     assert row["station_type_counts"]["Planetary Construction Depot"] == 2
     assert row["construction_site_count"] == 4
 
 
 def test_construction_site_is_found_by_type_even_when_its_name_does_not_say_so(real_systems):
-    # Praea Euq WV-W b2-2 has two "Planetary Construction Depot" stations named
-    # like ordinary settlements ("Okada Chemical Productions").
-    row = state.system_row(real_systems["Praea Euq WV-W b2-2"])
+    # This system has two "Planetary Construction Depot" stations named like
+    # ordinary settlements ("Okada Chemical Productions").
+    row = state.system_row(by_id(real_systems, TWO_GROUND_DEPOTS))
     assert row["construction_site_count"] == 2
 
 
@@ -188,8 +197,8 @@ def test_nine_of_the_twelve_real_systems_are_kept(real_systems):
     kept = sorted(name for name, system in real_systems.items()
                   if state.system_row(system) is not None)
     assert kept == sorted([
-        "Sol", "Alioth", "Col 285 Sector BW-U c3-5", "Achenar", "Deriv-Dar", "Borann",
-        "Praea Euq WV-W b2-2", "Wregoe ZN-X c28-28", "Maia"])
+        "Sol", "Alioth", "Col 285 Sector BW-U c3-5", "Achenar", "Deriv-Dar", "Borann", "Maia",
+        by_id(real_systems, TWO_GROUND_DEPOTS)["name"], by_id(real_systems, FOUR_SITES)["name"]])
 
 
 # -- claimed-but-empty systems ------------------------------------------------

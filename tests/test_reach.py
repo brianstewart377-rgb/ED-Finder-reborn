@@ -3,7 +3,7 @@ and the nightly scoring keeping to them (spansh_delta.reach, migration 028).
 
 The galaxy is the twelve real fixture systems, with their real positions:
 eight lie within 500 ly of Sol (five of them within 250 ly), and four lie
-further out (Praea Euq WV-W b2-2 at 678 ly, and three thousands of ly away).
+further out (one at 678 ly, and three thousands of ly away).
 Which systems are inhabited is set in v3_state.system_state, as the nightly
 state refresh would set it.
 
