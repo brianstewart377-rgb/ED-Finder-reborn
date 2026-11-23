@@ -31,7 +31,6 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-import itertools
 import random
 import resource
 import sys
@@ -41,9 +40,16 @@ from typing import Any
 import psycopg
 from psycopg import sql
 
-from edfinder_api.cpe.catalogue import planner_facilities
-from edfinder_api.cpe.economy import EconomyBody, EconomySystem, _Evaluation
-from edfinder_api.cpe.plan import Site
+from edfinder_api.cpe.body_facts import (
+    ECONOMIES,
+    PAIRS,
+    BodyFacts,
+    best_for_pair,
+    body_facts,
+    purest,
+    strongest,
+)
+from edfinder_api.cpe.economy import EconomyBody, EconomySystem
 from edfinder_api.routers.plan_economy_facts import (
     aggregate_reserve_levels,
     economy_kind,
@@ -54,10 +60,6 @@ from edfinder_api.routers.plan_slot_predictions import predict_surface_slots
 
 from .apply import EXIT_NO_CONNECTION, Refused, _reason, connect, preflight, say
 
-ECONOMIES = ("Agriculture", "Extraction", "HighTech", "Industrial", "Military", "Refinery", "Tourism")
-PAIRS = tuple(itertools.combinations(ECONOMIES, 2))
-# Refinery and Industrial are ranked by what a port and its ground could build.
-GROUND_FIRST = ("Industrial", "Refinery")
 DEFAULT_SYSTEMS = 20_000
 BATCH_SYSTEMS = 500
 # The sample is the same for the same N, as long as reach is the same.
@@ -218,94 +220,21 @@ def planner_inputs(rows: SystemRows) -> PlannerInputs:
 # -- working out ---------------------------------------------------------------
 
 
-def best_tiers() -> dict[str, dict[str, int]]:
-    """Per economy, the biggest strong link (hundredths) a facility that is
-    not a port gives, in orbit and on the ground."""
-    out = {name: {"orbital": 0, "surface": 0} for name in ECONOMIES}
-    for template in planner_facilities().values():
-        if template.is_port or template.economy not in out:
-            continue
-        base = round(template.strong_link_value * 100)
-        if template.can_go_orbital:
-            out[template.economy]["orbital"] = max(out[template.economy]["orbital"], base)
-        if template.can_go_surface:
-            out[template.economy]["surface"] = max(out[template.economy]["surface"], base)
-    return out
+def facts_for(inputs: PlannerInputs) -> list[BodyFacts]:
+    """Each body's facts, by the planner's own code (cpe/body_facts.py)."""
+    landable = {ref: row["is_landable"] is True for ref, row in inputs.rows.items()}
+    return body_facts(inputs.bodies, inputs.system, inputs.slots, landable)
 
 
-@dataclass(frozen=True)
-class BodyFacts:
-    """For one body: what a port there starts with, and per economy the best
-    link a facility there would add (orbit or ground) and the ground one."""
+def best_bodies(facts: Sequence[BodyFacts]) -> tuple[
+        dict[str, tuple[str | None, str | None]], dict[str, str | None]]:
+    """What Find will keep for one system: per economy, its strongest and its
+    purest body; per pair, its best body (None: no body suits)."""
+    def ref(found: BodyFacts | None) -> str | None:
+        return found.body_ref if found else None
 
-    body_ref: str
-    kind: str
-    starts: Mapping[str, float]
-    link: Mapping[str, float]
-    ground_link: Mapping[str, float]
-    landable: bool
-    slots: int
-
-
-def body_facts(inputs: PlannerInputs, tiers: Mapping[str, Mapping[str, int]]) -> list[BodyFacts]:
-    """The three facts for every body a port could go at."""
-    evaluation = _Evaluation([], inputs.bodies, inputs.system)
-    found = []
-    for body in inputs.bodies:
-        if body.kind is None:
-            continue
-        slots = inputs.slots[body.body_ref]
-        landable = inputs.rows[body.body_ref]["is_landable"] is True and (slots is None or slots > 0)
-        orbital = Site("port", "coriolis_station", body.body_ref, "orbital", "complete")
-        ground = Site("hub", "refinery", body.body_ref, "surface", "complete")
-        starts = {name: item.value / 100 for name, item in evaluation.own_economies(orbital).items()}
-        link, ground_link = {}, {}
-        for name in ECONOMIES:
-            best = 0.0
-            for place, site in (("orbital", orbital), ("surface", ground)):
-                base = tiers[name][place]
-                if base == 0 or (place == "surface" and not landable):
-                    continue
-                value = evaluation.modified_item(site, name, "strong_link", base, ()).value / 100
-                best = max(best, value)
-                if place == "surface":
-                    ground_link[name] = value
-            # A tier 1 port beside a bigger one at the same body passes its
-            # economy on as a 0.4 link: the Industrial Outpost anywhere, the
-            # Refinery one only where the body gives Refinery.
-            if name == "Industrial" or (name == "Refinery" and "Refinery" in starts):
-                best = max(best, evaluation.modified_item(orbital, name, "strong_link", 40, ()).value / 100)
-            link[name] = round(best, 2)
-        found.append(BodyFacts(body.body_ref, body.kind, starts, link, ground_link,
-                               landable, (slots or 0) if landable else 0))
-    return found
-
-
-def built(body: BodyFacts, name: str) -> float:
-    """What the port starts with, plus one facility on every ground slot."""
-    return round(body.starts.get(name, 0.0) + body.slots * body.ground_link.get(name, 0.0), 2)
-
-
-def best_bodies(facts: Sequence[BodyFacts]) -> tuple[dict[str, str], dict[str, str]]:
-    """Per economy and per pair, the body that comes first, by the design's
-    order: the link (for Refinery and Industrial, the total built on the
-    ground), then fewer other economies, then a bigger start, then room on the
-    ground."""
-    singles, pairs = {}, {}
-    for name in ECONOMIES:
-        candidates = [body for body in facts if body.link[name] > 0]
-        if candidates:
-            singles[name] = max(candidates, key=lambda body: (
-                built(body, name) if name in GROUND_FIRST else body.link[name],
-                -sum(1 for other in body.starts if other != name),
-                body.starts.get(name, 0.0), body.slots)).body_ref
-    for first, second in PAIRS:
-        candidates = [body for body in facts if body.link[first] > 0 and body.link[second] > 0]
-        if candidates:
-            pairs[f"{first}+{second}"] = max(candidates, key=lambda body: (
-                min(body.link[first], body.link[second]), max(body.link[first], body.link[second]),
-                -sum(1 for other in body.starts if other not in (first, second)),
-                body.starts.get(first, 0.0) + body.starts.get(second, 0.0), body.slots)).body_ref
+    singles = {name: (ref(strongest(facts, name)), ref(purest(facts, name))) for name in ECONOMIES}
+    pairs = {f"{first}+{second}": ref(best_for_pair(facts, first, second)) for first, second in PAIRS}
     return singles, pairs
 
 
@@ -409,7 +338,6 @@ def run(connection: psycopg.Connection[Any], *, limit: int = DEFAULT_SYSTEMS,
     system_ids, trial.in_reach = sample(connection, limit)
     trial.picking_seconds = time.perf_counter() - started
     trial.sampled = len(system_ids)
-    tiers = best_tiers()
     last_note = time.monotonic()
     for start in range(0, len(system_ids), BATCH_SYSTEMS):
         batch = system_ids[start:start + BATCH_SYSTEMS]
@@ -420,7 +348,7 @@ def run(connection: psycopg.Connection[Any], *, limit: int = DEFAULT_SYSTEMS,
             rows = found[system_id]
             began = time.perf_counter()
             try:
-                best_bodies(body_facts(planner_inputs(rows), tiers))
+                best_bodies(facts_for(planner_inputs(rows)))
             except (ArithmeticError, LookupError, TypeError, ValueError) as error:
                 trial.failed += 1
                 trial.first_failure = trial.first_failure or f"system {system_id}: {type(error).__name__}"
