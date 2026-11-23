@@ -71,14 +71,14 @@ def test_the_planner_gets_what_the_plan_page_gives_it(pi):  # noqa: F811
 def test_every_real_system_is_worked_out_and_its_best_bodies_found(pi):  # noqa: F811
     fill_classes(pi.connection, pi.schema, pi.records.values())
     found = speed_trial.read(pi.connection, pi.schema, sorted(pi.records))
-    tiers = speed_trial.best_tiers()
     for system_id, rows in found.items():
-        facts = speed_trial.body_facts(speed_trial.planner_inputs(rows), tiers)
+        facts = speed_trial.facts_for(speed_trial.planner_inputs(rows))
         singles, pairs = speed_trial.best_bodies(facts)
-        refs = {body.body_ref for body in facts}
-        assert set(singles.values()) <= refs and set(pairs.values()) <= refs, system_id
+        refs = {body.body_ref for body in facts} | {None}
+        assert {ref for picks in singles.values() for ref in picks} <= refs, system_id
+        assert set(pairs.values()) <= refs and len(pairs) == 21, system_id
     # Sol: Earth starts with Agriculture, High Tech, Military and Tourism.
-    sol = speed_trial.body_facts(speed_trial.planner_inputs(found[SOL]), tiers)
+    sol = speed_trial.facts_for(speed_trial.planner_inputs(found[SOL]))
     earth = next(body for body in sol if body.kind == "earth_like_world")
     assert set(earth.starts) == {"Agriculture", "HighTech", "Military", "Tourism"}
 
