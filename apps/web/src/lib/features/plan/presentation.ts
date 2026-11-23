@@ -22,6 +22,8 @@ export const reasonLabels: Readonly<Record<string, string>> = {
   LANDABLE_UNKNOWN: 'It is not yet known whether this body is landable.',
   NOT_RINGED: 'This facility needs a location with rings or an asteroid belt.',
   RINGED_UNKNOWN: 'It is not yet known whether this location has rings.',
+  BELT_ASTEROID_BASE_ONLY:
+    "A star's asteroid belt only takes an asteroid base.",
 };
 
 export function previewReasonLabel(reason: string): string {

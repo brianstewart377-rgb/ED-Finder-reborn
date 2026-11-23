@@ -75,6 +75,24 @@ function optionValues(container: HTMLElement) {
 afterEach(cleanup);
 
 describe('build order facility editing', () => {
+  it('keeps a completed outpost shown on the belt it was built on, though a belt now takes only an asteroid base', async () => {
+    const fixture = facilityFixture();
+    fixture.model.sites[0].body_ref = 'belt:1';
+    fixture.model.sites[0].status = 'complete';
+    renderOrder(fixture);
+    await fireEvent.click(screen.getByLabelText('Edit Colony site 1'));
+    const bodySelect = screen.getByRole('combobox', {
+      name: 'Body for step 1',
+    });
+    expect(bodySelect).toHaveValue('belt:1');
+    // The other belt is not offered to the outpost.
+    expect(
+      within(bodySelect)
+        .getAllByRole('option')
+        .map((option) => (option as HTMLOptionElement).value),
+    ).not.toContain('belt:2');
+  });
+
   it('offers only ports of both slot kinds for a planned Primary Port on a landable body, preserving order within each group', async () => {
     renderOrder();
     await fireEvent.click(screen.getByLabelText('Edit Colony site 1'));
@@ -268,7 +286,10 @@ describe('build order facility editing', () => {
           .map((option) => (option as HTMLOptionElement).value),
       ).toEqual([
         '',
-        ...resolvePlanLocations(fixture.bodies).map((entry) => entry.body_ref),
+        ...resolvePlanLocations(fixture.bodies)
+          // A star's asteroid belt takes only an asteroid base, not an outpost.
+          .filter((entry) => entry.kind !== 'belt')
+          .map((entry) => entry.body_ref),
       ]);
       const status = screen.getByRole('combobox', {
         name: 'Status for step 1',

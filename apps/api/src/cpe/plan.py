@@ -14,6 +14,10 @@ class Body:
     surface_slots: int | None
     is_landable: bool | None
     is_ringed: bool | None
+    # A star's asteroid belt: its own build spot, which takes only an asteroid
+    # base. The EDCPS planner (github.com/gaborauth/ed-colonisation-planner)
+    # records this as checked in the game on 28 July 2026.
+    is_belt: bool = False
 
 
 @dataclass(frozen=True)

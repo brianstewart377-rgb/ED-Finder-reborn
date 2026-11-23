@@ -303,14 +303,18 @@ describe('planner body locations', () => {
     );
   });
 
-  it('offers ringed-orbital facilities on belts and excludes surface facilities', () => {
+  it('offers only ringed-orbital facilities (the asteroid base) on belts', () => {
     const locations = resolvePlanLocations(
       data([body('1', null, 'star')], [belt('a')]),
     );
     const ringed = { allowed_location: 'orbital_ringed' } as PlanFacilityV1;
+    const orbital = { allowed_location: 'orbital' } as PlanFacilityV1;
     const surface = { allowed_location: 'surface' } as PlanFacilityV1;
     expect(facilityFitsLocation(ringed, locations[0])).toBe(false);
     expect(facilityFitsLocation(ringed, locations[1])).toBe(true);
+    expect(facilityFitsLocation(orbital, locations[0])).toBe(true);
+    // A star's asteroid belt takes only an asteroid base.
+    expect(facilityFitsLocation(orbital, locations[1])).toBe(false);
     expect(facilityFitsLocation(surface, locations[1])).toBe(false);
     expect(shortBodyName('Test A Belt', 'Test')).toBe('A Belt');
     expect(shortBodyName('Another Test', 'Test')).toBe('Another Test');

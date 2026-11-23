@@ -162,6 +162,8 @@ class PlanBodyV1(BaseModel):
     surface_slots: int | None = Field(default=None, ge=0, le=64, strict=True)
     is_landable: bool | None = Field(default=None, strict=True)
     is_ringed: bool | None = Field(default=None, strict=True)
+    # A star's asteroid belt, which takes only an asteroid base.
+    is_belt: bool = Field(default=False, strict=True)
     economy: PlanBodyEconomyV1 | None = None
 
 

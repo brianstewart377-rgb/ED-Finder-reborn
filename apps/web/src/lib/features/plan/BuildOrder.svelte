@@ -89,8 +89,12 @@
     const facility = facilityById.get(site.facility_id);
     return locations.filter(
       (location) =>
-        (site.slot_kind !== 'surface' || location.is_landable !== false) &&
-        (!facility || facilityFitsLocation(facility, location)),
+        // A site stays shown where it is, even where it no longer fits: the
+        // game once let anything be built on a star's belt, and those sites
+        // are still there.
+        location.body_ref === site.body_ref ||
+        ((site.slot_kind !== 'surface' || location.is_landable !== false) &&
+          (!facility || facilityFitsLocation(facility, location))),
     );
   }
   function facilityOptions(site: PlannerSite, index: number): PlanFacilityV1[] {
