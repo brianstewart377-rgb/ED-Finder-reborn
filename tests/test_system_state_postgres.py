@@ -193,7 +193,10 @@ def test_construction_sites_can_be_found_after_loading(real_systems, tmp_path):
     rows = query("SELECT name, construction_site_count, "
                  "station_type_counts->>'Space Construction Depot' "
                  "FROM v3_state.system_state WHERE construction_site_count > 0 ORDER BY name")
-    assert rows == [["Praea Euq WV-W b2-2", "2", ""], ["Wregoe ZN-X c28-28", "4", "2"]]
+    # Two of the fixture systems, by id64: one with two construction depots on
+    # the ground, one with two in orbit and two on the ground.
+    names = {system["id64"]: system["name"] for system in real_systems.values()}
+    assert rows == sorted([[names[5076786292249], "2", ""], [names[7780836610810], "4", "2"]])
 
 
 def test_a_faction_can_be_looked_up_across_systems(tmp_path):

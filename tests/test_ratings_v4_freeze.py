@@ -79,12 +79,14 @@ def test_source_faithful_cohort_retains_the_twelve_documented_economy_roles(veri
     _, _, cohort = verified
     scores = {row['name']: {economy: rating['potential_score'] for economy, rating in row['ratings'].items()}
               for row in cohort['systems']}
-    wregoe = scores['Wregoe ZN-X c28-28']
-    assert wregoe['Extraction'] > wregoe['Industrial'] > wregoe['Refinery'] >= 75
-    praea = scores['Praea Euq WV-W b2-2']
-    assert min(praea['Agriculture'], praea['Tourism']) >= 80
-    assert abs(praea['Agriculture'] - praea['Tourism']) <= 1
-    assert min(praea['Industrial'], praea['Extraction']) >= 80
+    by_id = {row['system_id64']: scores[row['name']] for row in cohort['systems']}
+    # Two of the fixture systems, by id64 (tests/test_spansh_system_state.py).
+    four_sites = by_id[7780836610810]
+    assert four_sites['Extraction'] > four_sites['Industrial'] > four_sites['Refinery'] >= 75
+    two_ground_depots = by_id[5076786292249]
+    assert min(two_ground_depots['Agriculture'], two_ground_depots['Tourism']) >= 80
+    assert abs(two_ground_depots['Agriculture'] - two_ground_depots['Tourism']) <= 1
+    assert min(two_ground_depots['Industrial'], two_ground_depots['Extraction']) >= 80
     assert sum(score >= 75 for score in scores['Sol'].values()) >= 6
     achenar = scores['Achenar']
     assert all(achenar[economy] > achenar['Military'] for economy in ('Agriculture', 'HighTech', 'Tourism'))

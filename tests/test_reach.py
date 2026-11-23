@@ -3,7 +3,7 @@ and the nightly scoring keeping to them (spansh_delta.reach, migration 028).
 
 The galaxy is the twelve real fixture systems, with their real positions:
 eight lie within 500 ly of Sol (five of them within 250 ly), and four lie
-further out (Praea Euq WV-W b2-2 at 678 ly, and three thousands of ly away).
+further out (one at 678 ly, and three thousands of ly away).
 Which systems are inhabited is set in v3_state.system_state, as the nightly
 state refresh would set it.
 
@@ -40,7 +40,7 @@ from tests.test_galaxy_update import (  # noqa: E402
 )
 
 ACHENAR, MAIA, BORANN = 164098653, 8216113749, 5070611621289
-PRAEA = 5076786292249  # Praea Euq WV-W b2-2: 678 ly from Sol
+FAR_AWAY = 5076786292249  # a fixture system 678 ly from Sol
 NEAR_SOL = {SOL, 1109989017963, 2037701937507, BORANN, ACHENAR}  # within 250 ly
 FURTHER = {1457973727914, 7780836610810, MAIA}  # 287, 298 and 383 ly from Sol
 WITHIN_500_OF_SOL = NEAR_SOL | FURTHER
@@ -177,7 +177,7 @@ def test_working_it_out_again_changes_only_what_differs(pi, monkeypatch):
 
     # A colony 10 ly from Praea Euq brings it in, within 250 ly; one 100 ly
     # from Maia brings Maia, and Col 285 Sector beside it, within 250 ly.
-    x, y, z = position(pi, PRAEA)
+    x, y, z = position(pi, FAR_AWAY)
     inhabit(pi, 9001, x + 10, y, z)
     x, y, z = position(pi, MAIA)
     inhabit(pi, 9002, x, y + 100, z)
@@ -185,9 +185,9 @@ def test_working_it_out_again_changes_only_what_differs(pi, monkeypatch):
     after = in_reach(pi)
     assert after == expected(pi)
     added, removed, crossed = changes(before, after)
-    assert (added, removed, crossed) == ({PRAEA}, set(), {MAIA, 1457973727914})
+    assert (added, removed, crossed) == ({FAR_AWAY}, set(), {MAIA, 1457973727914})
     assert (report.added, report.removed, report.crossed_250) == (1, 0, 2)
-    assert after[PRAEA] is True
+    assert after[FAR_AWAY] is True
     # Only the rows that changed were written.
     rewritten = {system_id for system_id, version in pi.all(
         "SELECT system_id64, xmin::text FROM v3_state.system_reach") if versions.get(system_id) != version}
@@ -196,9 +196,9 @@ def test_working_it_out_again_changes_only_what_differs(pi, monkeypatch):
     # The colony at Praea is abandoned. (Fewer inhabited systems than before:
     # allowed here, where there are only three.)
     monkeypatch.setattr(reach, "SHRINK_LIMIT", 0.0)
-    inhabit(pi, 9001, *position(pi, PRAEA), population=0)
+    inhabit(pi, 9001, *position(pi, FAR_AWAY), population=0)
     report = work_out(pi)
-    assert in_reach(pi) == expected(pi) and changes(after, in_reach(pi)) == (set(), {PRAEA}, set())
+    assert in_reach(pi) == expected(pi) and changes(after, in_reach(pi)) == (set(), {FAR_AWAY}, set())
     assert (report.anchors, report.added, report.removed, report.crossed_250) == (2, 0, 1, 0)
     assert pi.all("SELECT system_id64 FROM v3_state.reach_anchor ORDER BY 1") == [(9002,), (SOL,)]
     assert pi.one("SELECT count(*) FROM v3_state.reach_log") == (3,)
@@ -256,7 +256,7 @@ def test_the_scoring_takes_only_systems_within_reach(pi, tmp_path):
     run(pi, tmp_path, pi.records.values())
     assert len(queue(pi)) == 12
     stored = {table: pi.all(f"SELECT xmin::text, t::text FROM v3_derived.{table} t "
-                            "WHERE system_id64 = ANY(%s) ORDER BY 2", [THAILE, HD_38179, PRAEA])
+                            "WHERE system_id64 = ANY(%s) ORDER BY 2", [THAILE, HD_38179, FAR_AWAY])
               for table in SCORE_TABLES}
     report = waiting(pi)
     assert (report.outside_reach, report.systems_read, report.still_waiting) == (4, 8, 0)
@@ -267,7 +267,7 @@ def test_the_scoring_takes_only_systems_within_reach(pi, tmp_path):
     assert report.unscored_in_reach == 0
     # The four further away keep the scores they had; nothing scored them.
     assert stored == {table: pi.all(f"SELECT xmin::text, t::text FROM v3_derived.{table} t "
-                                    "WHERE system_id64 = ANY(%s) ORDER BY 2", [THAILE, HD_38179, PRAEA])
+                                    "WHERE system_id64 = ANY(%s) ORDER BY 2", [THAILE, HD_38179, FAR_AWAY])
                       for table in SCORE_TABLES}
     text = "\n".join(report.lines())
     assert "Taken off the waiting list, further than 500 ly:" in text and "(not scored)" in text
@@ -278,7 +278,7 @@ def test_new_systems_are_measured_against_the_same_inhabited_systems(pi, tmp_pat
     inhabit(pi, SOL, 0, 0, 0)
     work_out(pi)
     # A colony founded since reach was worked out does not count until next time.
-    x, y, z = position(pi, PRAEA)
+    x, y, z = position(pi, FAR_AWAY)
     inhabit(pi, 9001, x, y, z + 5)
     newcomers = {
         7001: newcomer(pi, 7001, (10.0, 0.0, 0.0), 0),
@@ -312,18 +312,18 @@ def test_a_system_that_comes_within_reach_gets_scores_from_its_own_rows(pi, tmp_
     work_out(pi)
     # Praea Euq has no scores (on the Pi, systems out of reach have none), and
     # the galaxy update rewrites its rows, so they have their classes.
-    forget_scores(pi, PRAEA)
-    run(pi, tmp_path, [pi.records[PRAEA]])
+    forget_scores(pi, FAR_AWAY)
+    run(pi, tmp_path, [pi.records[FAR_AWAY]])
     report = waiting(pi)
     assert (report.outside_reach, report.systems_read, report.unscored_in_reach) == (1, 0, 0)
-    assert set(has_scores(pi, PRAEA).values()) == {0} and queue(pi) == {}
+    assert set(has_scores(pi, FAR_AWAY).values()) == {0} and queue(pi) == {}
 
-    x, y, z = position(pi, PRAEA)
+    x, y, z = position(pi, FAR_AWAY)
     inhabit(pi, 9001, x + 10, y, z)
     work_out(pi)
     report = waiting(pi)
     assert (report.systems_read, report.unscored_in_reach, report.added, report.cannot_score) == (0, 1, 1, {})
-    assert has_scores(pi, PRAEA)["system_rating_vector"] == 1 and has_scores(pi, PRAEA)["system_search"] == 1
+    assert has_scores(pi, FAR_AWAY)["system_rating_vector"] == 1 and has_scores(pi, FAR_AWAY)["system_search"] == 1
     assert "Systems within 500 ly that had no scores:" in "\n".join(report.lines())
     # Scored once; the next night there is nothing more to do.
     assert waiting(pi).unscored_in_reach == 0
@@ -334,11 +334,11 @@ def test_reach_is_worked_out_afresh_each_week_and_after_a_full_galaxy_file(pi, t
     work_out(pi)
     assert waiting(pi).reach_report.rebuilt is False
     pi.connection.execute("UPDATE v3_state.reach_log SET worked_out_at = now() - interval '8 days'")
-    x, y, z = position(pi, PRAEA)
+    x, y, z = position(pi, FAR_AWAY)
     inhabit(pi, 9001, x, y, z + 5)
     report = waiting(pi)
     assert (report.reach_report.rebuilt, report.reach_report.why) == (True, "last done 8 days ago")
-    assert PRAEA in in_reach(pi) and pi.one("SELECT count(*) FROM v3_state.reach_log") == (2,)
+    assert FAR_AWAY in in_reach(pi) and pi.one("SELECT count(*) FROM v3_state.reach_log") == (2,)
     assert "Reach worked out afresh (last done 8 days ago)" in "\n".join(report.lines())
 
     # So many systems waiting that measuring them one by one would be slower.
