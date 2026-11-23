@@ -24,8 +24,13 @@ view: Raven's rule was right on all six bodies whose count was certain, and
 on one system's whole total; the drifted rule on three of the six. On the
 owner's sheet of 7,403 bodies with in-game counts (tests/fixtures/slot_counts),
 Raven's rule is right on 4,596 of the 4,599 that can be landed on (99.93%),
-and the drifted rule was on 4,273 (92.91%). The orbital estimate is our own;
-the planner does not publish it.
+and the drifted rule was on 4,273 (92.91%).
+
+Orbital slots are never predicted: nobody has found a rule for them. A search
+of code, data, game data feeds and community research on 23 November 2026
+found none, and the radius guess this file used to make was wrong for 25 of
+42 bodies checked in the game on 31 October 2026. Counts read in the game
+pass through unchanged as observed.
 """
 from __future__ import annotations
 
@@ -58,10 +63,6 @@ class SlotPrediction:
     required_input_missing: list[str] = field(default_factory=list)
 
     # Backward-compatible aliases used by existing call-sites/tests.
-    @property
-    def orbital_slots(self) -> int:
-        return int(self.predicted_orbital_slots or 0)
-
     @property
     def surface_slots(self) -> int:
         return int(self.predicted_ground_slots or 0)
@@ -102,7 +103,10 @@ class SlotPrediction:
 
 
 def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
-    """Predict orbital/ground slots for a single body using validated rules."""
+    """Predict a body's ground slots by Raven Colonial's rule.
+
+    Orbital slots are only ever passed through, when they were read in the game.
+    """
     system_address = _coerce_identifier(scan_fact.get('system_address'))
     body_id = _coerce_identifier(scan_fact.get('body_id'))
     body_name = _clean_text(scan_fact.get('body_name'))
@@ -172,8 +176,6 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
             required_input_missing=sorted(set(missing)),
         )
 
-    orbital_slots = _predict_orbital_slots(scan_fact, radius_m, reasons)
-
     if is_landable is False:
         reasons.append({
             'factor': 'is_landable',
@@ -184,9 +186,9 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
             system_address=system_address,
             body_id=body_id,
             body_name=body_name,
-            predicted_orbital_slots=orbital_slots,
+            predicted_orbital_slots=None,
             predicted_ground_slots=0,
-            prediction_status='predicted' if orbital_slots is not None else 'unknown',
+            prediction_status='predicted',
             confidence_label='validated_high_accuracy',
             prediction_version=PREDICTION_VERSION,
             reasons=reasons,
@@ -209,9 +211,9 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
             system_address=system_address,
             body_id=body_id,
             body_name=body_name,
-            predicted_orbital_slots=orbital_slots,
+            predicted_orbital_slots=None,
             predicted_ground_slots=0,
-            prediction_status='predicted' if orbital_slots is not None else 'unknown',
+            prediction_status='predicted',
             confidence_label='validated_high_accuracy',
             prediction_version=PREDICTION_VERSION,
             reasons=reasons,
@@ -228,9 +230,9 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
             system_address=system_address,
             body_id=body_id,
             body_name=body_name,
-            predicted_orbital_slots=orbital_slots,
+            predicted_orbital_slots=None,
             predicted_ground_slots=0,
-            prediction_status='predicted' if orbital_slots is not None else 'unknown',
+            prediction_status='predicted',
             confidence_label='validated_high_accuracy',
             prediction_version=PREDICTION_VERSION,
             reasons=reasons,
@@ -277,13 +279,13 @@ def predict_body_slots(scan_fact: dict[str, Any]) -> SlotPrediction:
         system_address=system_address,
         body_id=body_id,
         body_name=body_name,
-        predicted_orbital_slots=orbital_slots,
+        predicted_orbital_slots=None,
         predicted_ground_slots=ground_slots,
-        prediction_status='predicted' if orbital_slots is not None else 'unknown',
+        prediction_status='predicted',
         confidence_label='validated_high_accuracy',
         prediction_version=PREDICTION_VERSION,
         reasons=reasons,
-        required_input_missing=[] if orbital_slots is not None else ['radius'],
+        required_input_missing=[],
     )
 
 
@@ -300,23 +302,6 @@ def confidence_label(confidence: Optional[float]) -> str:
     return 'Estimated'
 
 
-def _predict_orbital_slots(
-    scan_fact: dict[str, Any],
-    radius_m: Optional[float],
-    reasons: list[dict[str, Any]],
-) -> Optional[int]:
-    if radius_m is None:
-        return None
-    radius_km = radius_m / 1000.0
-    orbital = _orbital_base_from_radius_km(radius_km)
-
-    is_ringed = _coerce_bool(scan_fact.get('is_ringed'))
-    if is_ringed:
-        orbital = min(4, orbital + 1)
-        reasons.append({'factor': 'is_ringed', 'value': True, 'note': 'Ringed body orbital bonus +1.'})
-
-    return min(max(orbital, 1), 4)
-
 
 def _ground_base_from_radius_km(radius_km: float) -> int:
     if radius_km < 1500:
@@ -327,15 +312,6 @@ def _ground_base_from_radius_km(radius_km: float) -> int:
         return 3
     return 4
 
-
-def _orbital_base_from_radius_km(radius_km: float) -> int:
-    if radius_km < 1500:
-        return 1
-    if radius_km < 3750:
-        return 2
-    if radius_km < 5500:
-        return 3
-    return 4
 
 
 def _atmosphere_bonus(atmosphere: str) -> int:

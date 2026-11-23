@@ -152,8 +152,8 @@ def sheet_rows() -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def rule_on_sheet(row: dict[str, str]) -> int | None:
-    """The rule's answer for a row of the sheet, given as the Plan page gives it."""
+def prediction_on_sheet(row: dict[str, str]):
+    """The prediction for a row of the sheet, given as the Plan page gives it."""
     return predict_body_slots({
         "body_id": row["body_id64"], "is_landable": row["landable"] == "true",
         "radius": float(row["radius_km"]) * 1000, "surface_temp": float(row["temperature_k"]),
@@ -161,7 +161,12 @@ def rule_on_sheet(row: dict[str, str]) -> int | None:
         "planet_class": row["subtype"],
         "terraform_state": "Terraformable" if row["terraformable"] == "true" else "Not terraformable",
         "volcanism": row["volcanism"], "geo_signal_count": 1 if row["geological"] == "true" else 0,
-    }).predicted_ground_slots
+    })
+
+
+def rule_on_sheet(row: dict[str, str]) -> int | None:
+    """The rule's answer for a row of the sheet."""
+    return prediction_on_sheet(row).predicted_ground_slots
 
 
 def test_the_rule_against_every_count_in_the_sheet():
@@ -176,6 +181,15 @@ def test_the_rule_against_every_count_in_the_sheet():
     # on every one that cannot. The rule used until 22 November 2026 was right
     # on 4,273 of them (92.91%).
     assert wrong == MISSES
+
+
+def test_orbital_slots_are_never_predicted():
+    # Nobody has found a rule for orbital slots (a search of 23 November 2026
+    # found none), and the radius guess this code used to make was wrong for
+    # 25 of 42 bodies checked in the game on 31 October 2026.
+    predictions = [prediction_on_sheet(row) for row in sheet_rows()]
+    assert {prediction.predicted_orbital_slots for prediction in predictions} == {None}
+    assert {prediction.prediction_status for prediction in predictions} == {"predicted"}
 
 
 def test_the_sheet_has_each_body_once():
