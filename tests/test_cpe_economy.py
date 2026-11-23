@@ -177,6 +177,39 @@ def test_an_icy_body_with_organics_matches_a_port_measured_in_game() -> None:
     assert economy(result.ports[0], 'Terraforming').items[0].modifiers == ()
 
 
+def test_a_rocky_ice_body_takes_the_farm_penalty_too() -> None:
+    # Added 22 November 2026 by the owner's decision: the guide's farm case
+    # study (p. 88) counts rocky ice bodies; its modifier list (p. 55) names
+    # icy bodies only.
+    result = evaluate_economies(
+        (site('port', 'orbital_outpost_civilian'), site('farm', 'orbital_installation_space_farm')),
+        (body(kind='rocky_ice_body', biological_signals=1),), EconomySystem('major'), 'now',
+    )
+    (port,) = result.ports
+    assert strengths(port) == {'Industrial': 1.4, 'Refinery': 1.4, 'Agriculture': 1.4, 'Terraforming': 1.0}
+    own, farm = economy(port, 'Agriculture').items
+    assert own.modifiers == farm.modifiers == (
+        ('on_or_orbiting_body_with_organics', 0.4), ('on_or_orbiting_rocky_ice_body', -0.4),
+    )
+    assert (own.value, farm.kind, farm.value) == (1.0, 'strong_link', 0.4)
+    # Without organics a space farm there falls to the floor.
+    result = evaluate_economies(
+        (site('port', 'orbital_outpost_civilian'), site('farm', 'orbital_installation_space_farm')),
+        (body(kind='rocky_ice_body'),), EconomySystem(), 'now',
+    )
+    (farm,) = economy(result.ports[0], 'Agriculture').items
+    assert farm.modifiers == (('on_or_orbiting_rocky_ice_body', -0.4),)
+    assert (farm.floored, farm.value) == (True, 0.1)
+    # Other bodies are not touched by it.
+    for kind in ('rocky_body', 'icy_body', 'high_metal_content_world'):
+        result = evaluate_economies(
+            (site('port', 'orbital_outpost_civilian'), site('farm', 'orbital_installation_space_farm')),
+            (body(kind=kind),), EconomySystem(), 'now',
+        )
+        (farm,) = economy(result.ports[0], 'Agriculture').items
+        assert ('on_or_orbiting_rocky_ice_body', -0.4) not in farm.modifiers, kind
+
+
 @pytest.mark.parametrize('farms_demolished', [False, True])
 def test_binary_pair_water_worlds_lose_0_45_each_when_their_farms_go(farms_demolished: bool) -> None:
     # Measured in game (EV-0006): two tidally locked water worlds in a binary

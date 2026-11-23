@@ -28,7 +28,9 @@ def test_runtime_rulebook_matches_its_asset_record():
     runtime = (ROOT / path).read_bytes()
 
     assert hashlib.sha256(runtime).hexdigest() == entry['sha256']
-    assert RULEBOOK_RELEASE == 'cre-knowledge-v0.5.0'
+    # CRE's release cre-knowledge-v0.5.0, with one change made here (the farm
+    # penalty for rocky ice bodies, 22 November 2026).
+    assert RULEBOOK_RELEASE == 'cre-knowledge-v0.5.0+edfinder.1'
     assert f'({RULEBOOK_RELEASE})' in entry['attribution_text']
 
 
