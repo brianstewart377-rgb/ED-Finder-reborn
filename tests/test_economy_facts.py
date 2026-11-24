@@ -202,6 +202,20 @@ def test_the_first_fill_carries_on_where_it_stopped(pi, tmp_path, monkeypatch):
     assert set(rows(pi)) == WITHIN_500_OF_SOL
 
 
+def test_the_fill_says_how_far_it_has_got_every_ten_minutes(pi, monkeypatch, capsys):
+    fill_classes(pi.connection, pi.schema, pi.records.values())
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    monkeypatch.setattr(facts, "BATCH_SYSTEMS", 2)
+    # Each look at the clock is 4 minutes on: four batches take 8 looks.
+    clock = iter(range(0, 100_000, 240))
+    monkeypatch.setattr(facts, "_now", lambda: next(clock))
+    facts.carry_on(pi.connection, pi.schema, facts.FactsReport(), minutes=10_000)
+    said = [line for line in capsys.readouterr().out.splitlines() if "the fill has done" in line]
+    assert facts.FILL_PROGRESS_SECONDS == 600
+    assert 1 <= len(said) < 4 and said[0].endswith("systems")
+
+
 def test_a_changed_system_gets_its_new_row_the_same_night(pi, tmp_path):
     filled(pi, tmp_path)
     before = rows(pi)[SOL]

@@ -75,6 +75,9 @@ BATCH_SYSTEMS = 500
 # How long the first fill goes on after each nightly run, at most. It runs
 # after the galaxy update and the scoring, twice a day.
 FILL_MINUTES = 120
+# The fill says how far it has got this often. Every minute, as the galaxy
+# update does, was 120 lines a run and pushed the rest out of the log.
+FILL_PROGRESS_SECONDS = 600
 # The body types counted in bodies_known: not barycentres or belt clusters.
 COUNTED_BODY_TYPES = ("star", "planet")
 
@@ -347,7 +350,7 @@ def carry_on(connection: psycopg.Connection[Any], schema: str, report: FactsRepo
                 break
             report.filled += write(connection, schema, batch, report, fill=fill)
             fill = latest_fill(connection)
-            if progress and _now() - last >= galaxy.PROGRESS_SECONDS:
+            if progress and _now() - last >= FILL_PROGRESS_SECONDS:
                 last = _now()
                 galaxy.say(f"  ... economy facts: the fill has done {fill.systems:,} systems")
     report.fill = latest_fill(connection)
