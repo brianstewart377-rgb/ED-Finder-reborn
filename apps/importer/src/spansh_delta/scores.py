@@ -912,8 +912,7 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
             report.reach_report = reach.update(connection, target, progress=progress)
             report.outside_reach = reach.drop_outside(connection)
             report.facts = (economy_facts.FactsReport() if economy_facts.available(connection)
-                            else economy_facts.FactsReport(
-                                skipped="not kept in this database (migration 031 has not been applied)"))
+                            else economy_facts.FactsReport(skipped=economy_facts.NOT_KEPT))
         take = sql.SQL("SELECT system_id64, changed_tables FROM {} WHERE system_id64 > %s "
                        "ORDER BY system_id64 LIMIT %s").format(sql.SQL(galaxy.QUEUE_TABLE))
         last, after = started, -1

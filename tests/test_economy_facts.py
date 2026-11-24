@@ -1,12 +1,14 @@
 """Find's facts for each system within 500 ly (spansh_delta.economy_facts,
-migration 031). Ratings rebuild, build step 4.
+migrations 031 and 032). Ratings rebuild, build steps 4 and 5.
 
 The galaxy is the twelve real fixture systems, as in tests/test_reach.py:
 with Sol inhabited, eight of them are within 500 ly. The facts come from the
 planner's own code (cpe/body_facts.py); these tests check that each stored
 number sorts systems exactly as that code's orders do, that the nightly
-scoring keeps the rows up to date, and that the first fill can stop and
-carry on.
+scoring keeps the rows up to date, that the first fill can stop and carry on,
+and that each row says where its system is, in coordinates and as a cell
+(edfinder_api.find_cells), with the rows put in cell order on disk when a
+fill finishes.
 
 Runs on PostgreSQL 18 with every migration applied; needs
 RATINGS_V4_VALIDATION_DATABASE_URL, like the other database tests.
@@ -28,6 +30,7 @@ os.environ.setdefault("CORS_ORIGINS", "https://economy-facts-test.invalid")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "importer" / "src"))
 
+from edfinder_api import find_cells  # noqa: E402
 from edfinder_api.cpe.body_facts import (  # noqa: E402
     ECONOMIES,
     PAIRS,
@@ -69,12 +72,133 @@ def filled(pi, tmp_path) -> facts.FactsReport:
 # -- the migration --------------------------------------------------------------
 
 
-def test_the_migration_adds_two_empty_tables_and_can_run_again(pi):
+def test_the_migrations_add_two_empty_tables_and_can_run_again(pi):
     assert facts.available(pi.connection)
     assert pi.one("SELECT count(*) FROM v3_state.economy_facts") == (0,)
     assert pi.one("SELECT count(*) FROM v3_state.economy_facts_fill") == (0,)
     finder_seed.apply_migration(pi.connection, 31)
+    finder_seed.apply_migration(pi.connection, 32)
     assert facts.status_lines(pi.connection) == ["Economy facts: no fill has started yet; 0 rows."]
+
+
+def test_migration_032_empties_the_tables_once_only(pi, tmp_path):
+    """The rows written before it have no coordinates, so it empties both
+    tables the first time. Run again, it keeps what is there."""
+    filled(pi, tmp_path)
+    before = pi.all("SELECT system_id64, cell, worked_out_at FROM v3_state.economy_facts ORDER BY 1")
+    fills = pi.all("SELECT fill_id, systems, finished_at FROM v3_state.economy_facts_fill")
+    finder_seed.apply_migration(pi.connection, 32)
+    assert pi.all("SELECT system_id64, cell, worked_out_at FROM v3_state.economy_facts ORDER BY 1") == before
+    assert pi.all("SELECT fill_id, systems, finished_at FROM v3_state.economy_facts_fill") == fills
+    assert len(before) == 8
+    # As it finds a database that has 031 only: rows without coordinates.
+    pi.connection.execute("DROP INDEX v3_state.economy_facts_cell_idx")
+    pi.connection.execute(
+        "ALTER TABLE v3_state.economy_facts DROP COLUMN cell, DROP COLUMN x_ly, DROP COLUMN y_ly, "
+        "DROP COLUMN z_ly")
+    pi.connection.execute("ALTER TABLE v3_state.economy_facts_fill DROP COLUMN tidied_at")
+    assert not facts.available(pi.connection)
+    finder_seed.apply_migration(pi.connection, 32)
+    assert facts.available(pi.connection)
+    assert pi.one("SELECT count(*) FROM v3_state.economy_facts") == (0,)
+    assert pi.one("SELECT count(*) FROM v3_state.economy_facts_fill") == (0,)
+    # The next scoring run starts the fill again, from the first system.
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, progress=False)
+    assert set(rows(pi)) == WITHIN_500_OF_SOL and report.filled == 8
+    assert pi.one("SELECT fill_id FROM v3_state.economy_facts_fill") == (1,)
+
+
+# -- where each system is ----------------------------------------------------------
+
+
+def test_each_row_says_where_its_system_is_and_the_cell_is_the_one_python_works_out(pi, tmp_path):
+    filled(pi, tmp_path)
+    stored = pi.all("SELECT system_id64, x_ly, y_ly, z_ly, cell FROM v3_state.economy_facts")
+    assert len(stored) == 8
+    for system_id64, x_ly, y_ly, z_ly, cell in stored:
+        coords = pi.records[system_id64]["coords"]
+        assert (x_ly, y_ly, z_ly) == (coords["x"], coords["y"], coords["z"])
+        assert cell == find_cells.cell_of(x_ly, y_ly, z_ly)
+    # Sol is at the corner of a cell; systems on both sides of zero are here.
+    assert find_cells.cell_of(0.0, 0.0, 0.0) == (4096 << 26) | (4096 << 13) | 4096
+    assert any(x_ly < 0 for _, x_ly, _, _, _ in stored) and any(z_ly < 0 for _, _, _, z_ly, _ in stored)
+    assert len({cell for *_, cell in stored}) > 1
+
+
+@pytest.mark.parametrize("x_ly, y_ly, z_ly", [
+    (0.0, 0.0, 0.0), (-0.03125, 31.96875, 32.0), (-32.0, -32.03125, 63.96875),
+    (-131072.0, 131071.96875, 65279.0), (25.21875, -20.90625, 25899.96875),
+    (-1111.5625, -134.21875, 65269.75),
+])
+def test_python_and_the_database_put_a_point_in_the_same_cell(pi, x_ly, y_ly, z_ly):
+    """The column's own expression, on points at and beside cell edges."""
+    expression = pi.one(
+        "SELECT pg_get_expr(d.adbin, d.adrelid) FROM pg_attrdef d JOIN pg_attribute a "
+        "ON a.attrelid = d.adrelid AND a.attnum = d.adnum "
+        "WHERE d.adrelid = 'v3_state.economy_facts'::regclass AND a.attname = 'cell'")[0]
+    in_database = pi.one(
+        f"SELECT {expression} FROM (SELECT %s::float8 AS x_ly, %s::float8 AS y_ly, %s::float8 AS z_ly) point",
+        x_ly, y_ly, z_ly)[0]
+    assert in_database == find_cells.cell_of(x_ly, y_ly, z_ly)
+
+
+def test_a_point_outside_the_cells_is_refused_by_python_and_by_the_table(pi):
+    for point in ((131072.0, 0.0, 0.0), (0.0, -131072.03125, 0.0), (0.0, 0.0, float("nan"))):
+        with pytest.raises(ValueError, match="a coordinate must be from"):
+            find_cells.cell_of(*point)
+    with pytest.raises(Exception, match="economy_facts_x_ly_check"):
+        pi.connection.execute(
+            "INSERT INTO v3_state.economy_facts (system_id64, bodies_known, ground_slots, worked_out_at, "
+            "x_ly, y_ly, z_ly) VALUES (1, 0, 0, now(), 131072, 0, 0)")
+
+
+def test_when_a_fill_finishes_the_rows_are_put_in_cell_order_on_disk(pi, tmp_path):
+    report = filled(pi, tmp_path)
+    fill = facts.latest_fill(pi.connection)
+    assert fill.finished_at is not None and fill.tidied_at is not None
+    assert report.tidy_seconds is not None and report.tidy_failed is None
+    assert "The rows were put in order on disk for searching near a system" in "\n".join(report.lines())
+    on_disk = [row[0] for row in pi.all("SELECT cell FROM v3_state.economy_facts ORDER BY ctid")]
+    assert on_disk == sorted(on_disk) and len(on_disk) == 8
+    assert ", rows in order on disk since " in facts.status_lines(pi.connection)[0]
+    # It is done once for a fill: the next run leaves the table alone.
+    again = waiting(pi).facts
+    assert again.tidy_seconds is None and facts.latest_fill(pi.connection).tidied_at == fill.tidied_at
+
+
+def test_a_tidy_that_fails_is_reported_and_tried_again_the_next_run(pi, tmp_path):
+    fill_classes(pi.connection, pi.schema, pi.records.values())
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    pi.connection.execute("ALTER INDEX v3_state.economy_facts_cell_idx RENAME TO put_aside")
+    pi.connection.execute("SET statement_timeout = '7min'")
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, progress=False)
+    fill = facts.latest_fill(pi.connection)
+    assert fill.finished_at is not None and fill.tidied_at is None and report.tidy_seconds is None
+    assert "economy_facts_cell_idx" in report.tidy_failed
+    said = "\n".join(report.lines())
+    assert "The rows could NOT be put in order on disk" in said and "the next run tries again" in said
+    assert ", rows not yet in order on disk" in facts.status_lines(pi.connection)[0]
+    assert report.as_dict()["tidy_failed"] == report.tidy_failed
+    # The statement time limit is as it was before the attempt.
+    assert pi.one("SHOW statement_timeout") == ("7min",)
+    pi.connection.execute("ALTER INDEX v3_state.put_aside RENAME TO economy_facts_cell_idx")
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, progress=False)
+    assert facts.latest_fill(pi.connection).tidied_at is not None and report.tidy_failed is None
+
+
+def test_a_system_the_galaxy_tables_do_not_place_is_reported_and_gets_no_row(pi, tmp_path, monkeypatch):
+    fill_classes(pi.connection, pi.schema, pi.records.values())
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    monkeypatch.setattr(facts, "POSITIONS_SQL", facts.POSITIONS_SQL + f" AND id64 <> {SOL}")
+    report = facts.FactsReport()
+    facts.changed(pi.connection, pi.schema, sorted(WITHIN_500_OF_SOL), report)
+    assert report.failed == {SOL: "LookupError: the galaxy tables do not say where it is"}
+    assert set(rows(pi)) == WITHIN_500_OF_SOL - {SOL} and report.changed == 7
 
 
 # -- the numbers sort as the planner's orders do ------------------------------------
@@ -243,8 +367,8 @@ def test_a_new_version_starts_a_new_fill_and_rows_out_of_reach_go_when_it_ends(p
     # A row for a system that is no longer within 500 ly.
     outside = next(system_id64 for system_id64 in pi.records if system_id64 not in WITHIN_500_OF_SOL)
     pi.connection.execute(
-        "INSERT INTO v3_state.economy_facts (system_id64, bodies_known, ground_slots, worked_out_at) "
-        "VALUES (%s, 0, 0, now())", (outside,))
+        "INSERT INTO v3_state.economy_facts (system_id64, bodies_known, ground_slots, worked_out_at, "
+        "x_ly, y_ly, z_ly) VALUES (%s, 0, 0, now(), 0, 0, 0)", (outside,))
     monkeypatch.setattr(facts, "VERSION", "a later rulebook/facts-1")
     assert "a new fill starts with the next run" in facts.status_lines(pi.connection)[0]
     report = facts.FactsReport()
@@ -270,12 +394,13 @@ def test_a_system_that_cannot_be_worked_out_keeps_its_row_and_the_report_says_wh
     assert f"for example system {SOL}: PackError: does not fit" in "\n".join(report.lines())
 
 
-def test_without_migration_031_the_scoring_says_so_and_goes_on(pi, tmp_path):
+def test_without_the_migrations_the_scoring_says_so_and_goes_on(pi, tmp_path):
     pi.connection.execute("DROP TABLE v3_state.economy_facts, v3_state.economy_facts_fill")
     inhabit(pi, SOL, 0, 0, 0)
     work_out(pi)
     run(pi, tmp_path, pi.records.values())
     report = waiting(pi)
-    assert report.facts.skipped == "not kept in this database (migration 031 has not been applied)"
+    assert report.facts.skipped == (
+        "not kept in this database (migrations 031 and 032 have not both been applied)")
     assert "Economy facts: not kept in this database" in "\n".join(report.lines())
     assert report.added + report.changed + report.same == 7

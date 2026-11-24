@@ -247,16 +247,21 @@ too. Where that table exists, the scoring:
 - takes systems further than 500 ly off the waiting list unscored;
 - after the waiting list, scores any system in reach that has no scores yet.
 
-Where migration `031` is applied too, the scoring keeps Find's facts for each
-system in reach up to date as well (`v3_state.economy_facts`,
+Where migrations `031` and `032` are applied too, the scoring keeps Find's
+facts for each system in reach up to date as well (`v3_state.economy_facts`,
 `apps/importer/src/spansh_delta/economy_facts.py`; the ratings rebuild, build
-step 4). Each row holds how many of the system's bodies we know, its predicted
-ground slots, and one number per economy and pair that puts it in Find's order.
-Systems whose galaxy rows changed get new rows, beside their scores. The first
-fill of every system in reach goes on for up to 2 hours after each run,
-carrying on where it stopped, until it is done; `galaxy_update.py status`
-says how far it has got. When the rulebook changes, a new fill starts from the
-beginning. Nothing reads the table yet. Without `031` the scoring says so and
+steps 4 and 5). Each row holds how many of the system's bodies we know, its
+predicted ground slots, one number per economy and pair that puts it in Find's
+order, and where the system is: its coordinates and the 32 ly cube of space
+("cell") it is in. Systems whose galaxy rows changed get new rows, beside
+their scores. The first fill of every system in reach goes on for up to
+2 hours after each run, carrying on where it stopped, until it is done;
+`galaxy_update.py status` says how far it has got. When a fill finishes, the
+rows are put in cell order on disk (`CLUSTER`), so that a search near a system
+reads a few stretches of the table: that writes the table afresh, needs as
+much free disk again as the table takes, and nothing can read the table while
+it runs. When the rulebook changes, a new fill starts from the beginning.
+Nothing reads the table yet. Without both migrations the scoring says so and
 carries on as before.
 
 So a new colony counts within a week. The systems it brings within 500 ly lie
