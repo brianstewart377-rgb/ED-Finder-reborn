@@ -172,6 +172,8 @@ class Kit:
             "EDFINDER_BACKUP_DIR": str(self.directory),
             # Not checked unless a test says where the database's drive is.
             "EDFINDER_BACKUP_DATA_DIR": "",
+            # Nor whether a drive is attached, unless a test gives the list.
+            "EDFINDER_BACKUP_FSTAB": "",
             "EDFINDER_BACKUP_SETTINGS": " ".join(str(path) for path in self.settings_paths),
             "EDFINDER_BACKUP_SPARE_GB": "0",
             "EDFINDER_DB_CONTAINER": CONTAINER_NAME,
@@ -506,6 +508,69 @@ def test_backups_are_refused_on_the_databases_own_drive(kit, capsys, monkeypatch
         code, said = kit.run("check", capsys)
         assert code == 0 and "That is a different drive from the database's" in said and "READY." in said
         assert kit.run("small", capsys)[0] == 0
+
+
+# A Raspberry Pi's list of drives. The last line is the Pi's own line for its
+# 12 TB backup drive (24 November 2026), with the drive's id and the folder
+# replaced; the lines above it are the usual ones, written for this test.
+PI_FSTAB = """proc            /proc           proc    defaults          0       0
+PARTUUID=aaaaaaaa-01  /boot/firmware  vfat    defaults          0       2
+PARTUUID=aaaaaaaa-02  /               ext4    defaults,noatime  0       1
+# the database's drive
+LABEL=edfdata   /srv/data       ext4    defaults,noatime  0       2
+UUID=bbbbbbbb-cccc-dddd-eeee-ffffffffffff %(place)s ext4 defaults,noatime,nofail,x-systemd.device-timeout=30 0 2
+"""
+
+
+def test_backups_are_refused_while_the_backup_drive_is_not_attached(kit, capsys, monkeypatch, tmp_path):
+    """On the Pi the drive's power button was pressed by accident on
+    14 November 2026. The folder it is attached at was still there, on the
+    drive the Pi starts from, and ten days of backups went to it unnoticed."""
+    place = tmp_path / "mnt-backup"
+    place.mkdir()
+    fstab = tmp_path / "fstab"
+    fstab.write_text(PI_FSTAB % {"place": place})
+    monkeypatch.setenv("EDFINDER_BACKUP_DIR", str(place / "edfinder"))
+    monkeypatch.setenv("EDFINDER_BACKUP_FSTAB", str(fstab))
+
+    for command in ("small", "full", "check", "status"):
+        code, said = kit.run(command, capsys)
+        assert code == 1 and "the backup drive is not attached" in said, (command, said)
+        assert "says a drive belongs at %s, and none is attached there" % place in said
+    assert list(place.iterdir()) == [], "nothing was written"
+    assert kit.log.read_text().count("pg_dump") == 0
+
+    # With a drive attached there, they run.
+    really = os.path.ismount
+    monkeypatch.setattr(tool.os.path, "ismount", lambda path: Path(path) == place or really(path))
+    code, said = kit.run("check", capsys)
+    assert code == 0 and "The drive %s lists at %s is attached." % (fstab, place) in said, said
+    assert kit.run("small", capsys)[0] == 0 and kit.run("status", capsys)[0] == 0
+    assert (place / "edfinder" / "small").is_dir()
+
+
+def test_the_list_of_drives_is_read_for_the_backup_folder_only(tmp_path):
+    fstab = tmp_path / "fstab"
+    fstab.write_text(
+        "# /mnt/commented ext4\n"
+        "\n"
+        "LABEL=a /mnt ext4 defaults 0 2\n"
+        "LABEL=b /mnt/backup ext4 defaults,nofail 0 2   # the deepest wins\n"
+        "LABEL=c /mnt/backup-other ext4 defaults 0 2\n"
+        "LABEL=d /mnt/with\\040space ext4 defaults 0 2\n"
+        "LABEL=e none swap sw 0 0\n"
+        "PARTUUID=x / ext4 defaults 0 1\n")
+    listed = tool.listed_drive
+    assert listed(Path("/mnt/backup/edfinder"), fstab) == Path("/mnt/backup")
+    assert listed(Path("/mnt/backup"), fstab) == Path("/mnt/backup")
+    assert listed(Path("/mnt/backup-other/edfinder"), fstab) == Path("/mnt/backup-other")
+    assert listed(Path("/mnt/elsewhere"), fstab) == Path("/mnt")
+    assert listed(Path("/mnt/with space/edfinder"), fstab) == Path("/mnt/with space")
+    # On the drive the machine starts from: no drive to wait for.
+    assert listed(Path("/var/backups/edfinder"), fstab) is None
+    assert listed(Path("/mnt/commented/edfinder"), fstab) == Path("/mnt")
+    # A machine with no such list is not checked.
+    assert listed(Path("/mnt/backup/edfinder"), tmp_path / "no-such-file") is None
 
 
 # -- looking ----------------------------------------------------------------------

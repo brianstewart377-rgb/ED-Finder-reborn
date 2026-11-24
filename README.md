@@ -353,7 +353,15 @@ of thing:
 - **Where.** `EDFINDER_BACKUP_DIR` (default `/var/backups/edfinder`), which
   must be on a different drive from the database: a backup on the database's
   own drive is lost with it, so the tool refuses that. On the Pi the database
-  is on the 2 TB drive and the backups are on the drive it starts from.
+  is on the 2 TB drive and the backups are on the 12 TB USB drive, attached at
+  `/mnt/backup`.
+- **Only with the backup drive attached.** Where `/etc/fstab` says a drive
+  belongs at the backup folder or above it, every command refuses to run
+  unless a drive is attached there, and says so; the failed job then reports
+  in like any other (next section). Without this the folder is still there
+  with the drive switched off, on the drive the machine starts from, and the
+  backups quietly go to it: that happened on the Pi from 14 to 24 November
+  2026, after the drive's power button was pressed by accident.
 - **When.** `edfinder-backup-small.timer` every night at 02:30 UTC;
   `edfinder-backup-full.timer` on Sundays at 07:00 UTC.
 - **How many.** The newest 14 small ones and the newest 2 full ones. An older
