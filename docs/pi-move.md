@@ -518,6 +518,18 @@ In order:
       clean, the full backups on the drive the Pi starts from
       (`/var/backups/edfinder/full`) are kept; the owner looks on the
       evening of 15 Nov.
+      (24 Nov) That drive had been off since the night of 14 Nov: the
+      caddy's power button was pressed by accident. Its line in `/etc/fstab`
+      has `nofail`, so the Pi started without it and nothing complained;
+      `/mnt/backup` was then an ordinary folder on the drive the Pi starts
+      from, and every backup since went there (two full ones, ten small
+      ones), filling that drive to 89%. Found on 24 Nov. The drive was
+      switched back on and its filing system checked (it finished its
+      half-written notes, no errors); the backups made in between are being
+      copied onto it and compared byte for byte before the copies on the
+      Pi's own drive are removed. `backup.py` now refuses to run while a
+      drive that `/etc/fstab` lists at the backup folder is not attached, so
+      the same thing ends in a failed job and an email the same night.
 - [x] (14 Nov) **Find's usual first searches, run after the nightly jobs.**
       A job that reads a lot of the database pushes what Find needs out of
       memory, and the next visitor's first search then waits on the drive.

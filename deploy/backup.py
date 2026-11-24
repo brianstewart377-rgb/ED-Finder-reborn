@@ -20,7 +20,11 @@ Two kinds of backup, because the database is two kinds of thing.
 
 Where they go: EDFINDER_BACKUP_DIR, which must be on a different drive from
 the database. A backup on the database's own drive is lost with it, so the
-tool refuses that. Each backup is written under a name ending in ".partial"
+tool refuses that. Where the machine's list of drives (/etc/fstab) says a
+drive is attached at that folder or above it, the tool also refuses to run
+unless one is: with the drive switched off, the folder is still there, on
+another drive, and the backups would quietly go to it (they did, for ten
+days in November 2026). Each backup is written under a name ending in ".partial"
 and given its real name only when it is complete and has been read back, so a
 backup that is there is a whole one.
 
@@ -76,6 +80,10 @@ DEFAULTS: Dict[str, str] = {
     # The folder the database's drive is mounted at. Backups may not go on
     # that drive. Empty: do not check (a machine with one drive only).
     "EDFINDER_BACKUP_DATA_DIR": "/srv/data",
+    # The machine's list of its drives and the folder each is attached at.
+    # Where it says a drive belongs at the backup folder or above it, a backup
+    # is refused unless a drive is attached there. Empty: do not check.
+    "EDFINDER_BACKUP_FSTAB": "/etc/fstab",
     # How many of each kind to keep.
     "EDFINDER_BACKUP_KEEP_SMALL": "14",
     "EDFINDER_BACKUP_KEEP_FULL": "2",
@@ -166,6 +174,8 @@ class Settings:
             raise BackupError("EDFINDER_BACKUP_DIR: %r is not a full path" % values["EDFINDER_BACKUP_DIR"])
         data = values["EDFINDER_BACKUP_DATA_DIR"].strip()
         self.data_directory: Optional[Path] = Path(data) if data else None
+        fstab = values["EDFINDER_BACKUP_FSTAB"].strip()
+        self.fstab: Optional[Path] = Path(fstab) if fstab else None
         try:
             self.keep_small = int(values["EDFINDER_BACKUP_KEEP_SMALL"])
             self.keep_full = int(values["EDFINDER_BACKUP_KEEP_FULL"])
@@ -280,8 +290,47 @@ def nearest_existing(path: Path) -> Path:
     return path
 
 
+def listed_drive(folder: Path, fstab: Path) -> Optional[Path]:
+    """The folder a drive must be attached at for ``folder`` to be on it, by
+    the machine's own list (fstab's second column): the deepest one that is
+    the folder or above it. None where the list names none but "/": the
+    folder is then on the drive the machine starts from, which is always
+    there."""
+    try:
+        lines = fstab.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    found: Optional[Path] = None
+    for line in lines:
+        fields = line.split("#", 1)[0].split()
+        if len(fields) < 2 or not fields[1].startswith("/"):
+            continue
+        # The list writes a space in a name as \040.
+        place = Path(re.sub(r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)), fields[1]))
+        if place == Path("/") or not (place == folder or place in folder.parents):
+            continue
+        if found is None or len(place.parts) > len(found.parts):
+            found = place
+    return found
+
+
+def unattached_drive(settings: Settings) -> Optional[str]:
+    """What to say when the backup drive is not attached, or None."""
+    if settings.fstab is None:
+        return None
+    place = listed_drive(settings.directory, settings.fstab)
+    if place is None or os.path.ismount(place):
+        return None
+    return ("the backup drive is not attached. %s says a drive belongs at %s, and none is attached there, "
+            "so a backup would land on another drive. Check that the drive is switched on and plugged "
+            "in. Nothing was written" % (settings.fstab, place))
+
+
 def drive_problem(settings: Settings) -> Optional[str]:
     """Why backups may not go where they are set to go, or None."""
+    unattached = unattached_drive(settings)
+    if unattached:
+        return unattached
     if settings.data_directory is None:
         return None
     if not settings.data_directory.exists():
@@ -566,12 +615,16 @@ def describe(kind: str, found: List[Path], keep: int, stale_days: float) -> bool
 
 
 def status(settings: Settings) -> int:
+    unattached = unattached_drive(settings)
+    if unattached:
+        # What is listed below is then whatever landed on the other drive.
+        say("PROBLEM: %s." % unattached)
     say("Backups in %s:" % settings.directory)
     describe("Small (every night)", backups(settings.small_directory, SMALL_NAME), settings.keep_small, 2)
     describe("Full (every week)", backups(settings.full_directory, FULL_NAME), settings.keep_full, 8)
     if settings.directory.exists():
         say("  Free on that drive: %s." % size_text(shutil.disk_usage(settings.directory).free))
-    return 0
+    return 1 if unattached else 0
 
 
 def check(settings: Settings) -> int:
@@ -584,6 +637,10 @@ def check(settings: Settings) -> int:
         say("  Not checked: whether that is the database's own drive (EDFINDER_BACKUP_DATA_DIR is empty).")
     else:
         say("  That is a different drive from the database's (%s)." % settings.data_directory)
+    if not problem and settings.fstab is not None:
+        place = listed_drive(settings.directory, settings.fstab)
+        if place is not None:
+            say("  The drive %s lists at %s is attached." % (settings.fstab, place))
     missing = [str(path) for path in settings.settings_paths if not path.exists()]
     if missing:
         problems.append("EDFINDER_BACKUP_SETTINGS names what is not there: %s" % ", ".join(missing))
