@@ -63,6 +63,7 @@ from edfinder_api.routers.meta import router as meta_router
 from edfinder_api.routers.profile import router as profile_router
 from edfinder_api.routers.ratings_v4 import router as ratings_v4_router
 from edfinder_api.routers.search import router as search_router
+from edfinder_api.routers.find_economy import router as find_economy_router
 from edfinder_api.routers.watchlist import router as watchlist_router
 from edfinder_api.routers.v3 import router as v3_router
 from edfinder_api.routers.plan import router as plan_router
@@ -313,6 +314,7 @@ app.include_router(watchlist_router)
 app.include_router(profile_router)
 app.include_router(ratings_v4_router)
 app.include_router(search_router)
+app.include_router(find_economy_router)
 app.include_router(map_router)
 app.include_router(archetypes_router)
 app.include_router(v3_router)
