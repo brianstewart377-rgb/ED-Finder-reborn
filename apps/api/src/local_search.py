@@ -267,6 +267,46 @@ _SORT_BY_TO_MODE: dict[str, str] = {
 }
 
 
+def body_filter_bounds(raw_body_filters: dict | None) -> dict[str, int]:
+    """A request's body-count filters as ``<column>_min`` / ``<column>_max``
+    bounds over the search row's count columns.
+
+    A key that names no projected column is refused (422), never dropped. A
+    ``min`` of 0 or less is no condition on a count and is left out; a ``max``
+    of 0 is a real one ("none of this body type"). Two request keys can name
+    the same column (``elw`` and ``elw_count``): the tighter bound wins.
+    """
+    raw_body_filters = raw_body_filters or {}
+    for key in raw_body_filters:
+        if key not in _KNOWN_BODY_FILTER_KEYS:
+            raise HTTPException(
+                422,
+                f"Unsupported body filter '{key}' — no v3_app.system_search "
+                "projection exists for it.",
+            )
+
+    body_filters = normalise_body_filters(raw_body_filters)
+    bounds: dict[str, int] = {}
+    for key, rng in body_filters.items():
+        col = BODY_FILTER_COLS.get(key)
+        if col is None:
+            # A camelCase alias whose snake_case canonical
+            # `normalise_body_filters` already added (and which carries the
+            # value); skip the alias key itself.
+            continue
+        if not isinstance(rng, dict):
+            continue
+        mn = rng.get('min')
+        mx = rng.get('max')
+        if mn is not None and int(mn) > 0:
+            key_min = f'{col}_min'
+            bounds[key_min] = max(int(mn), int(bounds.get(key_min, int(mn))))
+        if mx is not None:
+            key_max = f'{col}_max'
+            bounds[key_max] = min(int(mx), int(bounds.get(key_max, int(mx))))
+    return bounds
+
+
 def _v3_hard_filters(ctx: LocalSearchContext) -> dict[str, Any]:
     """Map `LocalSearchContext` body/feature filters onto the
     `HARD_FILTER_KEYS` convention.
@@ -283,39 +323,7 @@ def _v3_hard_filters(ctx: LocalSearchContext) -> dict[str, Any]:
     the caller explicitly set would return results the caller reads as "no
     matches for that filter" when the filter was never applied.
     """
-    raw_body_filters = ctx.body_filters or {}
-    for key in raw_body_filters:
-        if key not in _KNOWN_BODY_FILTER_KEYS:
-            raise HTTPException(
-                422,
-                f"Unsupported body filter '{key}' — no v3_app.system_search "
-                "projection exists for it.",
-            )
-
-    body_filters = normalise_body_filters(raw_body_filters)
-    hard_filters: dict[str, Any] = {}
-
-    for key, rng in body_filters.items():
-        col = BODY_FILTER_COLS.get(key)
-        if col is None:
-            # A camelCase alias whose snake_case canonical
-            # `normalise_body_filters` already added (and which carries the
-            # value); skip the alias key itself.
-            continue
-        if not isinstance(rng, dict):
-            continue
-        mn = rng.get('min')
-        mx = rng.get('max')
-        # Two request keys can alias the same projection column (e.g. `elw` and
-        # `elw_count`). Merge to the MOST RESTRICTIVE bound (max of mins, min of
-        # maxes) rather than letting whichever alias is visited last silently
-        # overwrite the other and return systems that violate a requested bound.
-        if mn is not None and int(mn) > 0:
-            key_min = f'{col}_min'
-            hard_filters[key_min] = max(int(mn), int(hard_filters.get(key_min, int(mn))))
-        if mx is not None:
-            key_max = f'{col}_max'
-            hard_filters[key_max] = min(int(mx), int(hard_filters.get(key_max, int(mx))))
+    hard_filters: dict[str, Any] = body_filter_bounds(ctx.body_filters)
 
     # require_terra means "at least one terraformable body": a floor of 1,
     # never weaker than an explicit terraformable_count minimum.

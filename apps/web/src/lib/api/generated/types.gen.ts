@@ -568,6 +568,42 @@ export type CoordsModel = {
 };
 
 /**
+ * EconomyFactsState
+ *
+ * Which fill of the facts the answer was read from.
+ */
+export type EconomyFactsState = {
+    /**
+     * Version
+     */
+    version: string;
+    /**
+     * Fill Id
+     */
+    fill_id: number;
+    /**
+     * Finished At
+     */
+    finished_at: string;
+    /**
+     * In Order On Disk
+     */
+    in_order_on_disk: boolean;
+    /**
+     * Updating
+     */
+    updating: boolean;
+    /**
+     * Updating To
+     */
+    updating_to?: string | null;
+    /**
+     * Updating Systems Done
+     */
+    updating_systems_done?: number | null;
+};
+
+/**
  * EconomyItemV1
  */
 export type EconomyItemV1 = {
@@ -643,6 +679,334 @@ export type EconomyNoteV1 = {
      * Message
      */
     message: string;
+};
+
+/**
+ * EconomyPairBody
+ *
+ * order = pair. The weaker and the stronger of the two economies, the
+ * ground slots shared out between them; which economy is the weaker is not
+ * in the number.
+ */
+export type EconomyPairBody = {
+    /**
+     * Third Economies
+     */
+    third_economies: number;
+    /**
+     * Ground Slots
+     */
+    ground_slots: number;
+    /**
+     * Asteroid Base Room
+     */
+    asteroid_base_room: boolean;
+    /**
+     * Weaker Ground Part
+     */
+    weaker_ground_part: number;
+    /**
+     * Stronger Ground Part
+     */
+    stronger_ground_part: number;
+    /**
+     * Weaker Each Facility Adds
+     */
+    weaker_each_facility_adds: number;
+    /**
+     * Stronger Each Facility Adds
+     */
+    stronger_each_facility_adds: number;
+    /**
+     * Port Starts With Both
+     */
+    port_starts_with_both: number;
+};
+
+/**
+ * EconomyPurestBody
+ *
+ * order = purest.
+ */
+export type EconomyPurestBody = {
+    /**
+     * Third Economies
+     */
+    third_economies: number;
+    /**
+     * Ground Slots
+     */
+    ground_slots: number;
+    /**
+     * Asteroid Base Room
+     */
+    asteroid_base_room: boolean;
+    /**
+     * Port Starts With It
+     */
+    port_starts_with_it: boolean;
+    /**
+     * Ground Part
+     */
+    ground_part: number;
+    /**
+     * Each Facility Adds
+     */
+    each_facility_adds: number;
+};
+
+/**
+ * EconomySearchRequest
+ */
+export type EconomySearchRequest = {
+    /**
+     * Economies
+     */
+    economies: Array<'Agriculture' | 'Refinery' | 'Industrial' | 'HighTech' | 'Military' | 'Tourism' | 'Extraction'>;
+    /**
+     * Order
+     */
+    order?: 'strongest' | 'purest' | 'pair' | null;
+    reference_coords: CoordsModel;
+    /**
+     * Radius Ly
+     */
+    radius_ly?: number;
+    /**
+     * Reach Ly
+     */
+    reach_ly?: 250 | 500;
+    body_filters?: BodyFilters | null;
+    /**
+     * Size
+     */
+    size?: number;
+    /**
+     * From
+     */
+    from?: number;
+    /**
+     * Wait For Count
+     */
+    wait_for_count?: boolean;
+};
+
+/**
+ * EconomySearchResponse
+ */
+export type EconomySearchResponse = {
+    /**
+     * Results
+     */
+    results: Array<EconomySearchRow>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Total Is Capped
+     */
+    total_is_capped: boolean;
+    /**
+     * Total Is Counted
+     */
+    total_is_counted: boolean;
+    /**
+     * Query Ms
+     */
+    query_ms: number;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Economies
+     */
+    economies: Array<'Agriculture' | 'Refinery' | 'Industrial' | 'HighTech' | 'Military' | 'Tourism' | 'Extraction'>;
+    /**
+     * Order
+     */
+    order: 'strongest' | 'purest' | 'pair';
+    /**
+     * Radius Ly
+     */
+    radius_ly: number;
+    /**
+     * Reach Ly
+     */
+    reach_ly: 250 | 500;
+    facts: EconomyFactsState;
+};
+
+/**
+ * EconomySearchRow
+ */
+export type EconomySearchRow = {
+    /**
+     * Id64
+     */
+    id64: number;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    coords: CoordsModel;
+    /**
+     * Distance
+     */
+    distance: number;
+    /**
+     * Main Star
+     */
+    main_star?: string | null;
+    /**
+     * Claim Status
+     */
+    claim_status?: string | null;
+    /**
+     * Claim Station Seen At
+     */
+    claim_station_seen_at?: string | null;
+    /**
+     * Bodies Known
+     */
+    bodies_known: number;
+    /**
+     * Ground Slots
+     */
+    ground_slots: number;
+    /**
+     * Order Number
+     */
+    order_number: number;
+    /**
+     * Best Body
+     */
+    best_body: EconomyStrongestBody | EconomyPurestBody | EconomyPairBody;
+    /**
+     * Body Count
+     */
+    body_count?: number | null;
+    /**
+     * Station Count
+     */
+    station_count?: number | null;
+    /**
+     * Elw Count
+     */
+    elw_count?: number | null;
+    /**
+     * Ww Count
+     */
+    ww_count?: number | null;
+    /**
+     * Ammonia Count
+     */
+    ammonia_count?: number | null;
+    /**
+     * Gas Giant Count
+     */
+    gas_giant_count?: number | null;
+    /**
+     * Landable Count
+     */
+    landable_count?: number | null;
+    /**
+     * Terraformable Count
+     */
+    terraformable_count?: number | null;
+    /**
+     * Bio Signal Total
+     */
+    bio_signal_total?: number | null;
+    /**
+     * Geo Signal Total
+     */
+    geo_signal_total?: number | null;
+    /**
+     * Neutron Count
+     */
+    neutron_count?: number | null;
+    /**
+     * Black Hole Count
+     */
+    black_hole_count?: number | null;
+    /**
+     * White Dwarf Count
+     */
+    white_dwarf_count?: number | null;
+    /**
+     * Hmc Count
+     */
+    hmc_count?: number | null;
+    /**
+     * Metal Rich Count
+     */
+    metal_rich_count?: number | null;
+    /**
+     * Rocky Count
+     */
+    rocky_count?: number | null;
+    /**
+     * Rocky Ice Count
+     */
+    rocky_ice_count?: number | null;
+    /**
+     * Icy Count
+     */
+    icy_count?: number | null;
+    /**
+     * Other Star Count
+     */
+    other_star_count?: number | null;
+    /**
+     * Ring Count
+     */
+    ring_count?: number | null;
+    /**
+     * Walkable Count
+     */
+    walkable_count?: number | null;
+};
+
+/**
+ * EconomyStrongestBody
+ *
+ * order = strongest.
+ */
+export type EconomyStrongestBody = {
+    /**
+     * Third Economies
+     */
+    third_economies: number;
+    /**
+     * Ground Slots
+     */
+    ground_slots: number;
+    /**
+     * Asteroid Base Room
+     */
+    asteroid_base_room: boolean;
+    /**
+     * Ground Part
+     */
+    ground_part: number;
+    /**
+     * Each Facility Adds
+     */
+    each_facility_adds: number;
+    /**
+     * Port Starts With
+     */
+    port_starts_with: number;
 };
 
 /**
@@ -3770,6 +4134,31 @@ export type LocalSearchEndpointApiLocalSearchPostResponses = {
 };
 
 export type LocalSearchEndpointApiLocalSearchPostResponse = LocalSearchEndpointApiLocalSearchPostResponses[keyof LocalSearchEndpointApiLocalSearchPostResponses];
+
+export type FindByEconomyApiFindEconomyPostData = {
+    body: EconomySearchRequest;
+    path?: never;
+    query?: never;
+    url: '/api/find/economy';
+};
+
+export type FindByEconomyApiFindEconomyPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FindByEconomyApiFindEconomyPostError = FindByEconomyApiFindEconomyPostErrors[keyof FindByEconomyApiFindEconomyPostErrors];
+
+export type FindByEconomyApiFindEconomyPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EconomySearchResponse;
+};
+
+export type FindByEconomyApiFindEconomyPostResponse = FindByEconomyApiFindEconomyPostResponses[keyof FindByEconomyApiFindEconomyPostResponses];
 
 export type MapSystemsApiMapSystemsGetData = {
     body?: never;

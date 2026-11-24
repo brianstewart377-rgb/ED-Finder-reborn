@@ -12,6 +12,7 @@ RATINGS_V4_VALIDATION_DATABASE_URL, like the other database tests.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 import math
@@ -46,8 +47,8 @@ FURTHER = {1457973727914, 7780836610810, MAIA}  # 287, 298 and 383 ly from Sol
 WITHIN_500_OF_SOL = NEAR_SOL | FURTHER
 
 
-@pytest.fixture
-def pi(template):  # noqa: F811  (the fixture imported above)
+@contextmanager
+def copy_of(template):  # noqa: F811  (the fixture imported above)
     """A copy of the scored galaxy as the Pi has it: it keeps reach."""
     database, schema, records, generation = template
     dsn = os.environ["RATINGS_V4_VALIDATION_DATABASE_URL"]
@@ -63,6 +64,13 @@ def pi(template):  # noqa: F811  (the fixture imported above)
                 yield found
         finally:
             admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+@pytest.fixture
+def pi(template):  # noqa: F811  (the fixture imported above)
+    """A copy of the scored galaxy for one test."""
+    with copy_of(template) as found:
+        yield found
 
 
 def inhabit(galaxy: Galaxy, system_id64: int, x: float, y: float, z: float, population: int = 1000) -> None:

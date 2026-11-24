@@ -261,8 +261,16 @@ rows are put in cell order on disk (`CLUSTER`), so that a search near a system
 reads a few stretches of the table: that writes the table afresh, needs as
 much free disk again as the table takes, and nothing can read the table while
 it runs. When the rulebook changes, a new fill starts from the beginning.
-Nothing reads the table yet. Without both migrations the scoring says so and
-carries on as before.
+Without both migrations the scoring says so and carries on as before.
+
+The API reads the table for `POST /api/find/economy`
+(`apps/api/src/find_economy.py`; build step 5): the systems within a distance
+of a point (250 ly at most), in order for one economy (strongest or purest)
+or for a pair. It sorts the systems of the cells the sphere touches, then
+applies Find's rules (claims, reach, body-count filters) to the sorted systems
+one at a time until the page is full. It answers once a fill has finished;
+until then it answers 503 and says how far the fill has got. No page calls it
+yet, and `/api/local/search` is unchanged.
 
 So a new colony counts within a week. The systems it brings within 500 ly lie
 250 to 500 ly from it, far from where anyone colonises next. Working reach out

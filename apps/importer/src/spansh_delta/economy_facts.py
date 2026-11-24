@@ -22,8 +22,8 @@ migration 028), ``v3_state.economy_facts`` (migration 031) holds one row:
     cells its sphere touches.
 
 A system with no known bodies has ``bodies_known`` 0 and no numbers. Each
-number packs every step of its order into one (``pack``), so that the database
-can sort millions of systems by it. The card's details are not stored: a page
+number packs every step of its order into one (``edfinder_api.find_numbers``),
+so that the database can sort millions of systems by it. The card's details are not stored: a page
 works them out again for the cards it shows, by the same code.
 
 The nightly scoring (``spansh_delta.scores``) keeps the table up to date, by
@@ -39,8 +39,8 @@ The nightly scoring (``spansh_delta.scores``) keeps the table up to date, by
     on disk (``tidy``), so that the systems of one part of space lie together
     and a search near a system reads a few stretches of the table.
 
-A fill is for one ``VERSION``: the rulebook's release, and the layout of the
-numbers. When the version changes, a new fill starts from the beginning; until
+A fill is for one ``VERSION`` (``edfinder_api.find_numbers``): the rulebook's
+release, and the layout of the numbers. When the version changes, a new fill starts from the beginning; until
 it finishes, the table holds old and new numbers side by side. So Find (build
 step 5) uses the table only once a fill of the version it runs has finished.
 """
@@ -69,7 +69,14 @@ from edfinder_api.cpe.body_facts import (
     strongest,
     strongest_key,
 )
-from edfinder_api.cpe.rules import RULEBOOK_RELEASE
+from edfinder_api.find_numbers import (  # noqa: F401  (PackError and pack are used through this module)
+    PAIR_STEPS,
+    PUREST_STEPS,
+    STRONGEST_STEPS,
+    VERSION,
+    PackError,
+    pack,
+)
 
 from . import apply as galaxy
 from .speed_trial import SystemRows, facts_for, planner_inputs, read
@@ -88,52 +95,6 @@ FILL_MINUTES = 120
 FILL_PROGRESS_SECONDS = 600
 # The body types counted in bodies_known: not barycentres or belt clusters.
 COUNTED_BODY_TYPES = ("star", "planet")
-
-# How each order's steps are packed (``pack``). A step is (scale, offset,
-# bits): its value times scale, plus offset, must be a whole number from 0 to
-# 2**bits - 1. Fewer third economies count first, so those steps hold minus
-# the count, plus 15. A room step is ground slots (0 to 7), then whether the
-# body has rings or a belt that counts (0 or 1).
-STRONGEST_STEPS = ((10, 0, 8), (10, 0, 6), (1, 15, 4), (10, 0, 6), (1, 0, 3), (1, 0, 1))
-PUREST_STEPS = ((1, 15, 4), (1, 0, 1), (10, 0, 8), (10, 0, 6), (1, 0, 3), (1, 0, 1))
-PAIR_STEPS = ((1, 15, 4), (10, 0, 8), (10, 0, 8), (10, 0, 6), (10, 0, 6), (10, 0, 7),
-              (1, 0, 3), (1, 0, 1))
-# Change this when the layout above, ECONOMIES or PAIRS change.
-LAYOUT = "facts-1"
-VERSION = f"{RULEBOOK_RELEASE}/{LAYOUT}"
-
-
-class PackError(ValueError):
-    """A step's value does not fit the layout."""
-
-
-def _flat(key: Iterable[Any]) -> list[float]:
-    out: list[float] = []
-    for step in key:
-        if isinstance(step, tuple):
-            out.extend(_flat(step))
-        else:
-            out.append(float(step))
-    return out
-
-
-def pack(key: tuple, steps: Sequence[tuple[int, int, int]]) -> int:
-    """One number that sorts as the key does: each step in its own bits, the
-    first step highest. A leading bit makes it above 0, which stands for "no
-    body suits"."""
-    values = _flat(key)
-    if len(values) != len(steps):
-        raise PackError(f"{len(values)} steps where the layout has {len(steps)}")
-    packed, width = 0, 0
-    for value, (scale, offset, bits) in zip(values, steps, strict=True):
-        scaled = value * scale + offset
-        whole = round(scaled)
-        if abs(scaled - whole) > 1e-6 or not 0 <= whole < (1 << bits):
-            raise PackError(f"{value} does not fit (times {scale}, plus {offset}, in {bits} bits)")
-        packed = (packed << bits) | whole
-        width += bits
-    return (1 << width) | packed
-
 
 # -- one system ---------------------------------------------------------------
 
