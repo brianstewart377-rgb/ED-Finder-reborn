@@ -599,9 +599,13 @@ made or agreed since, each as a reviewed migration after a fresh backup:
 - `027` (11 November): each body's class, one column on the bodies table.
 - `028` (built 12 November, for the Pi only, not yet applied): which systems
   are within 500 ly and 250 ly of an inhabited system (three new tables).
-- `031` (built 23 November, not yet applied): Find's facts for each system
-  within 500 ly, for the ratings rebuild (two new tables; about 10 GB once
-  filled). The owner agreed the table's design on 23 November.
+- `031` (applied by 24 November): Find's facts for each system within 500 ly,
+  for the ratings rebuild (two new tables; about 10 GB once filled). The owner
+  agreed the table's design on 23 November.
+- `032` (built 24 November, not yet applied): where each system is, in that
+  table (its coordinates, and the 32 ly cube of space it is in), so that Find's
+  search near a system reads one stretch of one table. It empties the table,
+  so the first fill starts again; about 12 GB once filled.
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had

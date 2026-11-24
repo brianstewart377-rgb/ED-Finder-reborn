@@ -16,6 +16,10 @@ migration 028), ``v3_state.economy_facts`` (migration 031) holds one row:
     that order (cpe/body_facts.py), or 0 where no body suits.
   * ``pairs``: the same for each of the 21 pairs, in the order of ``PAIRS``.
   * ``worked_out_at``: when the rows these were worked out from were read.
+  * ``x_ly``, ``y_ly``, ``z_ly``: where the system is, and ``cell``, the 32 ly
+    cube of space it is in, which the database makes from them (migration 032;
+    ``edfinder_api.find_cells``). Find reads the systems near a point by the
+    cells its sphere touches.
 
 A system with no known bodies has ``bodies_known`` 0 and no numbers. Each
 number packs every step of its order into one (``pack``), so that the database
@@ -31,7 +35,9 @@ The nightly scoring (``spansh_delta.scores``) keeps the table up to date, by
     ``v3_state.economy_facts_fill`` records how far it has got;
   * once it is done, systems in reach without a row get one each night:
     systems that came within reach, mostly. When a fill finishes, rows of
-    systems no longer in reach are deleted.
+    systems no longer in reach are deleted, and the rows are put in cell order
+    on disk (``tidy``), so that the systems of one part of space lie together
+    and a search near a system reads a few stretches of the table.
 
 A fill is for one ``VERSION``: the rulebook's release, and the layout of the
 numbers. When the version changes, a new fill starts from the beginning; until
@@ -50,6 +56,7 @@ import time
 from typing import Any
 
 import psycopg
+from psycopg import sql
 
 from edfinder_api.cpe.body_facts import (
     ECONOMIES,
@@ -68,6 +75,7 @@ from . import apply as galaxy
 from .speed_trial import SystemRows, facts_for, planner_inputs, read
 
 TABLE = "v3_state.economy_facts"
+CELL_INDEX = "economy_facts_cell_idx"
 FILLS = "v3_state.economy_facts_fill"
 REACH = "v3_state.system_reach"
 # Systems worked out at a time.
@@ -170,11 +178,16 @@ def system_facts(system_id64: int, rows: SystemRows) -> SystemFacts:
 # -- the tables ---------------------------------------------------------------
 
 
+NOT_KEPT = "not kept in this database (migrations 031 and 032 have not both been applied)"
+
+
 def available(connection: psycopg.Connection[Any]) -> bool:
-    """Whether this database keeps the facts (migration 031) and reach (028)."""
+    """Whether this database keeps the facts, with where each system is
+    (migrations 031 and 032), and reach (028)."""
     return connection.execute(
         "SELECT to_regclass(%s) IS NOT NULL AND to_regclass(%s) IS NOT NULL "
-        "AND to_regclass(%s) IS NOT NULL", (TABLE, FILLS, REACH)).fetchone()[0]
+        "AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass(%s) "
+        "AND attname = 'cell' AND NOT attisdropped)", (FILLS, REACH, TABLE)).fetchone()[0]
 
 
 @dataclass(frozen=True)
@@ -185,30 +198,34 @@ class Fill:
     finished_at: datetime | None
     last_system_id64: int | None
     systems: int
+    # When its rows were put in cell order on disk (``tidy``).
+    tidied_at: datetime | None
 
 
 def latest_fill(connection: psycopg.Connection[Any]) -> Fill | None:
     row = connection.execute(
-        f"SELECT fill_id, version, started_at, finished_at, last_system_id64, systems FROM {FILLS} "
-        "ORDER BY fill_id DESC LIMIT 1").fetchone()
+        f"SELECT fill_id, version, started_at, finished_at, last_system_id64, systems, tidied_at "
+        f"FROM {FILLS} ORDER BY fill_id DESC LIMIT 1").fetchone()
     return Fill(*row) if row else None
 
 
 def _start_fill(connection: psycopg.Connection[Any]) -> Fill:
     row = connection.execute(
         f"INSERT INTO {FILLS} (version) VALUES (%s) "
-        "RETURNING fill_id, version, started_at, finished_at, last_system_id64, systems",
+        "RETURNING fill_id, version, started_at, finished_at, last_system_id64, systems, tidied_at",
         (VERSION,)).fetchone()
     return Fill(*row)
 
 
 UPSERT = (
     f"INSERT INTO {TABLE} (system_id64, bodies_known, ground_slots, strongest, purest, pairs, "
-    "worked_out_at) VALUES (%s, %s, %s, %s, %s, %s, %s) "
+    "worked_out_at, x_ly, y_ly, z_ly) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
     "ON CONFLICT (system_id64) DO UPDATE SET bodies_known = excluded.bodies_known, "
     "ground_slots = excluded.ground_slots, strongest = excluded.strongest, "
-    "purest = excluded.purest, pairs = excluded.pairs, worked_out_at = excluded.worked_out_at"
+    "purest = excluded.purest, pairs = excluded.pairs, worked_out_at = excluded.worked_out_at, "
+    "x_ly = excluded.x_ly, y_ly = excluded.y_ly, z_ly = excluded.z_ly"
 )
+POSITIONS_SQL = "SELECT id64, x_ly, y_ly, z_ly FROM {systems} WHERE id64 = ANY(%s::bigint[])"
 
 
 def _list(numbers: tuple[int, ...] | None) -> list[int] | None:
@@ -229,6 +246,9 @@ class FactsReport:
     in_reach: int = 0
     fill_finished_now: bool = False
     deleted_outside_reach: int = 0
+    # Putting the rows in cell order on disk: how long it took, or why it failed.
+    tidy_seconds: float | None = None
+    tidy_failed: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         if self.skipped:
@@ -239,7 +259,9 @@ class FactsReport:
         }
         if self.fill is not None:
             found.update(fill_systems=self.fill.systems, fill_finished=self.fill.finished_at is not None,
-                         in_reach=self.in_reach)
+                         fill_tidied=self.fill.tidied_at is not None, in_reach=self.in_reach)
+        if self.tidy_failed:
+            found["tidy_failed"] = self.tidy_failed
         return found
 
     def lines(self) -> list[str]:
@@ -262,6 +284,13 @@ class FactsReport:
             elif self.fill_finished_now:
                 out.append(f"  The first fill finished: {self.fill.systems:,} systems. Rows of "
                            f"{self.deleted_outside_reach:,} systems no longer within 500 ly were deleted.")
+        if self.tidy_seconds is not None:
+            minutes, seconds = divmod(int(self.tidy_seconds), 60)
+            out.append(f"  The rows were put in order on disk for searching near a system: "
+                       f"{minutes} min {seconds} s.")
+        if self.tidy_failed:
+            out.append(f"  The rows could NOT be put in order on disk: {self.tidy_failed}. Searches near a "
+                       "system will be slow until that works; the next run tries again.")
         return out
 
 
@@ -275,17 +304,23 @@ def write(connection: psycopg.Connection[Any], schema: str, system_ids: Sequence
         return 0
     read_at = connection.execute("SELECT now()").fetchone()[0]
     rows = read(connection, schema, system_ids)
-    found: list[SystemFacts] = []
+    positions = {row[0]: row[1:] for row in connection.execute(
+        sql.SQL(POSITIONS_SQL).format(systems=sql.Identifier(schema, "systems")),
+        (list(system_ids),)).fetchall()}
+    found: list[tuple[SystemFacts, tuple[float, float, float]]] = []
     for system_id in system_ids:
         try:
-            found.append(system_facts(system_id, rows[system_id]))
+            if system_id not in positions:
+                raise LookupError("the galaxy tables do not say where it is")
+            found.append((system_facts(system_id, rows[system_id]), positions[system_id]))
         except Exception as error:  # noqa: BLE001  (one odd system must not stop the night)
             report.failed[system_id] = f"{type(error).__name__}: {error}"
     with connection.transaction():
         with connection.cursor() as cursor:
             cursor.executemany(UPSERT, [
                 (item.system_id64, item.bodies_known, item.ground_slots, _list(item.strongest),
-                 _list(item.purest), _list(item.pairs), read_at) for item in found])
+                 _list(item.purest), _list(item.pairs), read_at, *position)
+                for item, position in found])
         if fill is not None:
             connection.execute(
                 f"UPDATE {FILLS} SET last_system_id64 = %s, systems = systems + %s WHERE fill_id = %s",
@@ -317,10 +352,37 @@ def changed(connection: psycopg.Connection[Any], schema: str, system_ids: Sequen
             report.changed += write(connection, schema, batch, report)
 
 
+def tidy(connection: psycopg.Connection[Any], fill: Fill, report: FactsReport, *,
+         progress: bool = True) -> None:
+    """Put the table's rows in cell order on disk, so that the systems of one
+    part of space lie together, and note on the fill that it was done.
+
+    CLUSTER writes the whole table afresh: it needs as much free disk again as
+    the table takes, and nothing can read the table while it runs. If it fails
+    the table is as it was, the report says why, and the next run tries again.
+    """
+    if progress:
+        galaxy.say("  Economy facts: putting the rows in order on disk for searching near a system "
+                   "(this takes a while) ...")
+    started = _now()
+    before = connection.execute("SELECT setting FROM pg_settings WHERE name = 'statement_timeout'").fetchone()[0]
+    connection.execute("SET statement_timeout = 0")
+    try:
+        connection.execute(f"CLUSTER {TABLE} USING {CELL_INDEX}")
+        connection.execute(f"ANALYZE {TABLE}")
+        connection.execute(f"UPDATE {FILLS} SET tidied_at = now() WHERE fill_id = %s", (fill.fill_id,))
+        report.tidy_seconds = _now() - started
+    except psycopg.Error as error:
+        report.tidy_failed = galaxy._reason(error)
+    finally:
+        connection.execute(sql.SQL("SET statement_timeout = {}").format(sql.Literal(before)))
+
+
 def carry_on(connection: psycopg.Connection[Any], schema: str, report: FactsReport, *,
              minutes: float = FILL_MINUTES, progress: bool = True) -> None:
     """After the waiting list: carry the fill on, or once it is done, give rows to
-    systems in reach that have none."""
+    systems in reach that have none. A finished fill whose rows are not yet in
+    order on disk is tidied (``tidy``)."""
     if report.skipped is not None:
         return
     fill = latest_fill(connection)
@@ -353,13 +415,16 @@ def carry_on(connection: psycopg.Connection[Any], schema: str, report: FactsRepo
             if progress and _now() - last >= FILL_PROGRESS_SECONDS:
                 last = _now()
                 galaxy.say(f"  ... economy facts: the fill has done {fill.systems:,} systems")
+    fill = latest_fill(connection)
+    if fill.finished_at is not None and fill.tidied_at is None:
+        tidy(connection, fill, report, progress=progress)
     report.fill = latest_fill(connection)
     report.in_reach = connection.execute(f"SELECT count(*) FROM {REACH}").fetchone()[0]
 
 
 def status_lines(connection: psycopg.Connection[Any]) -> list[str]:
     if not available(connection):
-        return ["Economy facts are not kept in this database (migrations 028 and 031)."]
+        return ["Economy facts are not kept in this database (migrations 028, 031 and 032)."]
     fill = latest_fill(connection)
     rows = connection.execute(f"SELECT count(*) FROM {TABLE}").fetchone()[0]
     if fill is None:
@@ -367,7 +432,12 @@ def status_lines(connection: psycopg.Connection[Any]) -> list[str]:
     def when(moment: datetime) -> str:
         return moment.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    state = "finished " + when(fill.finished_at) if fill.finished_at else f"{fill.systems:,} systems done so far"
+    if fill.finished_at is None:
+        state = f"{fill.systems:,} systems done so far"
+    else:
+        state = "finished " + when(fill.finished_at) + (
+            ", rows in order on disk since " + when(fill.tidied_at) if fill.tidied_at
+            else ", rows not yet in order on disk")
     note = "" if fill.version == VERSION else f" (this code runs {VERSION}: a new fill starts with the next run)"
     return [f"Economy facts: the fill for {fill.version} started {when(fill.started_at)}, "
             f"{state}; {rows:,} rows.{note}"]
