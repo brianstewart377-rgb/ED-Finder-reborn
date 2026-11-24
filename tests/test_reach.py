@@ -175,7 +175,7 @@ def test_working_it_out_again_changes_only_what_differs(pi, monkeypatch):
     before = in_reach(pi)
     versions = dict(pi.all("SELECT system_id64, xmin::text FROM v3_state.system_reach"))
 
-    # A colony 10 ly from Praea Euq brings it in, within 250 ly; one 100 ly
+    # A colony 10 ly from the far-away system brings it in, within 250 ly; one 100 ly
     # from Maia brings Maia, and Col 285 Sector beside it, within 250 ly.
     x, y, z = position(pi, FAR_AWAY)
     inhabit(pi, 9001, x + 10, y, z)
@@ -193,7 +193,7 @@ def test_working_it_out_again_changes_only_what_differs(pi, monkeypatch):
         "SELECT system_id64, xmin::text FROM v3_state.system_reach") if versions.get(system_id) != version}
     assert rewritten == added | crossed
 
-    # The colony at Praea is abandoned. (Fewer inhabited systems than before:
+    # The colony beside the far-away system is abandoned. (Fewer inhabited systems than before:
     # allowed here, where there are only three.)
     monkeypatch.setattr(reach, "SHRINK_LIMIT", 0.0)
     inhabit(pi, 9001, *position(pi, FAR_AWAY), population=0)
@@ -310,7 +310,7 @@ def test_new_systems_are_measured_against_the_same_inhabited_systems(pi, tmp_pat
 def test_a_system_that_comes_within_reach_gets_scores_from_its_own_rows(pi, tmp_path):
     inhabit(pi, SOL, 0, 0, 0)
     work_out(pi)
-    # Praea Euq has no scores (on the Pi, systems out of reach have none), and
+    # The far-away system has no scores (on the Pi, systems out of reach have none), and
     # the galaxy update rewrites its rows, so they have their classes.
     forget_scores(pi, FAR_AWAY)
     run(pi, tmp_path, [pi.records[FAR_AWAY]])
