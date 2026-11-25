@@ -30,6 +30,16 @@ timer too:
 
     sudo systemctl disable --now edfinder-eddn-check.timer
 
+Being the one look that runs all day, it also asks systemd whether any of
+ED-Finder's timers has stopped. A timer that cannot start its job ("Failed to
+queue unit startup job") is marked failed, and from then on it never goes off:
+the job does not run, so nothing fails, so nobody is told. On the Pi the
+weekly full backup's timer sat like that from 22 to 25 November 2026. A
+stopped timer fails this run, which names it and says how to restart it;
+nothing is restarted from here, since restarting some timers starts a long
+job at once. A timer that was switched off on purpose (disabled) is not
+"failed" and is left alone.
+
 Standard library only; needs Python 3.8 or newer and to run as root (Docker).
 """
 from __future__ import annotations
@@ -51,7 +61,11 @@ FORMAT = ("{{.State.Status}} "
           "{{if .State.Health}}{{.State.Health.Status}} {{.State.Health.FailingStreak}}"
           "{{else}}none 0{{end}}")
 
+# ED-Finder's own timers, as systemd is asked for them.
+TIMERS = "edfinder-*.timer"
+
 Docker = Callable[[Sequence[str]], Tuple[int, str]]
+Systemctl = Callable[[Sequence[str]], Tuple[int, str]]
 
 
 def docker(arguments: Sequence[str]) -> Tuple[int, str]:
@@ -66,6 +80,47 @@ def docker(arguments: Sequence[str]) -> Tuple[int, str]:
     except PermissionError:
         return 126, "docker could not be run; this needs sudo"
     return result.returncode, (result.stdout + result.stderr).strip()
+
+
+def systemctl(arguments: Sequence[str]) -> Tuple[int, str]:
+    """Run one systemctl command. Its exit code, and what it printed (both streams)."""
+    try:
+        result = subprocess.run(["systemctl", *arguments], capture_output=True, text=True,
+                                timeout=COMMAND_SECONDS)
+    except FileNotFoundError:
+        return 127, "systemctl is not installed"
+    except subprocess.TimeoutExpired:
+        return 124, "systemctl did not answer within %d seconds" % COMMAND_SECONDS
+    except PermissionError:
+        return 126, "systemctl could not be run"
+    return result.returncode, (result.stdout + result.stderr).strip()
+
+
+def stopped_timers(ask: Systemctl) -> Tuple[bool, List[str]]:
+    """Whether none of ED-Finder's timers has stopped, and the lines to print.
+
+    systemd lists the ones it has marked failed, one a line: the timer's name,
+    then "loaded failed failed" and its description. Some versions put a mark
+    in front of the name.
+    """
+    code, printed = ask(["list-units", "--type=timer", "--state=failed", "--all",
+                         "--plain", "--no-legend", "--no-pager", TIMERS])
+    if code != 0:
+        return False, ["Could not ask systemd about ED-Finder's timers: %s" % (
+            printed.splitlines()[-1] if printed else "systemctl gave no reason")]
+    names = []
+    for line in printed.splitlines():
+        name = next((word for word in line.split() if word.endswith(".timer")), None)
+        if name and "failed" in line.split() and name not in names:
+            names.append(name)
+    lines = []
+    for name in names:
+        lines += ["The timer %s has stopped: systemd could not start its job and has given up "
+                  "on the timer. The job will not run again until the timer is restarted." % name,
+                  "To see why: systemctl status %s --no-pager" % name,
+                  "To restart it (a job whose time was missed then starts at once): "
+                  "sudo systemctl restart %s" % name]
+    return not names, lines
 
 
 def look(ask: Docker) -> Tuple[str, str, int]:
@@ -125,16 +180,19 @@ def check(ask: Docker, restart: bool) -> Tuple[bool, List[str]]:
     return False, lines
 
 
-def main(argv: Optional[Sequence[str]] = None, ask: Docker = docker) -> int:
+def main(argv: Optional[Sequence[str]] = None, ask: Docker = docker,
+         timers: Systemctl = systemctl) -> int:
     parser = argparse.ArgumentParser(
-        description="Look at the EDDN listener, and start it afresh if it has stopped working.")
+        description="Look at the EDDN listener, and start it afresh if it has stopped working. "
+                    "Also say whether any of ED-Finder's timers has stopped.")
     parser.add_argument("--look", action="store_true",
                         help="only look and say; change nothing")
     arguments = parser.parse_args(argv)
     well, lines = check(ask, restart=not arguments.look)
-    for line in lines:
+    going, more = stopped_timers(timers)
+    for line in lines + more:
         print(line, flush=True)
-    return 0 if well else 1
+    return 0 if well and going else 1
 
 
 if __name__ == "__main__":
