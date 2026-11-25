@@ -59,6 +59,10 @@ first update was given the one-day file by hand. catch-up brings it back.)
                                       Find's facts for each system up to date
                                       too, and carries their first fill on for
                                       up to 2 hours (spansh_delta.economy_facts).
+                                      Once that fill has finished it writes
+                                      Find's ranked lists across the band
+                                      afresh (spansh_delta.economy_top;
+                                      migration 033).
     python3 galaxy_update.py colony-types
                                       score every system's colony types again
                                       with the rule the app now runs, from the
@@ -266,6 +270,12 @@ FACTS_SQL = (
     "coalesce(to_char(f.finished_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), ''), f.systems, "
     "(SELECT count(*) FROM v3_state.system_reach) "
     "FROM v3_state.economy_facts_fill f ORDER BY f.fill_id DESC LIMIT 1"
+)
+# Find's ranked lists across the band (migration 033): the set searches read.
+LISTS_SQL = (
+    "SELECT b.version, to_char(b.finished_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), b.depth, "
+    "(SELECT count(*) FROM v3_state.economy_top t WHERE t.build_id = b.build_id) "
+    "FROM v3_state.economy_top_build b WHERE b.is_current"
 )
 # What the database accepts from a local client. Names and methods only.
 RULES_SQL = (
@@ -901,6 +911,20 @@ def cmd_status(settings: Settings) -> int:
             version, started, "finished %s UTC" % ended if ended else
             "%s of %s systems within 500 ly done so far; it carries on after each run" % (
                 thousands(done), thousands(in_reach))))
+    try:
+        lists = query(settings, LISTS_SQL)
+    except UpdateError:
+        lists = None
+    if lists is None:
+        say("Find's lists across the band are not kept in this database (migration 033 has not "
+            "been applied).")
+    elif not lists or len(lists[0]) != 4:
+        say("Find's lists across the band: not made yet. The scoring makes them after each run, "
+            "once the first fill of Find's facts has finished.")
+    else:
+        version, written, depth, places = lists[0]
+        say("Find's lists across the band: written %s UTC for %s, %s places in all (up to %s a list)." % (
+            written, version, thousands(places), thousands(depth)))
     if settings.url:
         say("Each run takes %s (EDFINDER_GALAXY_URL)." % settings.url)
     else:

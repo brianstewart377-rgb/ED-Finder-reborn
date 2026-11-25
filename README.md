@@ -267,9 +267,20 @@ it runs. When the rulebook changes, a new fill starts from the beginning.
 Without `031` and `032` the scoring says so and carries on as before. Without
 `033` it writes the rows without the counts and says how many; the migration
 gives every row it finds without counts its counts, so the first fill does not
-start again. Migration `033` also adds the tables for the ranked lists that
-the search across the whole band will read (`v3_state.economy_top`); nothing
-fills them yet.
+start again.
+
+Once a fill has finished, the scoring also writes Find's ranked lists across
+the whole band afresh after each run (`v3_state.economy_top`, migration `033`;
+`apps/importer/src/spansh_delta/economy_top.py`). The band holds about 41
+million systems, too many to sort for one search, so the best 20,000 are
+written down in order for each of 36 lists: each economy by Strongest, each by
+Purest, each pair, and no economy at all (most ground slots, then most known
+bodies). A rebuild reads one row in a hundred to find about where each list
+will end, reads the table once keeping only the rows above those marks, and
+reads a list again whole if it came out short, so the sample only decides how
+long the work takes, never what a list holds. The new set replaces the old one
+in one step; if anything fails, the old set stays and the run says why.
+`galaxy_update.py status` says when the lists were last written.
 
 The API reads the table for `POST /api/find/economy`
 (`apps/api/src/find_economy.py`; build step 5): the systems within a distance
@@ -280,6 +291,15 @@ applies Find's other rules (claims, reach) to the sorted systems one at a time
 until the page is full. It answers once a fill has finished;
 until then it answers 503 and says how far the fill has got. No page calls it
 yet, and `/api/local/search` is unchanged.
+
+With `"scope": "band"` the same route looks across the whole band and needs no
+point: it reads the search's ranked list from its first place down, applies
+the body-count filters to the list's own rows and Find's other rules to each
+system as it comes to it. `economies` may be empty there (the list for no
+economy). It looks within the list's 20,000 places and no further, and the
+answer says how deep the list is (`lists.depth`, `lists.places`) and each
+system's place in it, so that a page can say "6 of the best 20,000 for
+Refinery". It answers 503 with the reason until the lists have been written.
 
 So a new colony counts within a week. The systems it brings within 500 ly lie
 250 to 500 ly from it, far from where anyone colonises next. Working reach out

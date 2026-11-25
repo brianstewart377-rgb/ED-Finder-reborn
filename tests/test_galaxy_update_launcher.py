@@ -1203,6 +1203,29 @@ def test_status_says_how_far_finds_facts_have_got(spansh, docker, tmp_path, caps
             "2026-11-30 18:02 UTC.") in capsys.readouterr().out
 
 
+def test_status_says_when_finds_lists_across_the_band_were_written(spansh, docker, tmp_path, capsys):
+    chosen = settings(spansh, tmp_path / "galaxy")
+    docker.state["psql"] = {"acquisition_kind = 'DELTA'": "", "rescore_queue": "0", "economy_top_build": None}
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Find's lists across the band are not kept in this database (migration 033 has not "
+            "been applied).") in capsys.readouterr().out
+    docker.state["psql"]["economy_top_build"] = ""
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Find's lists across the band: not made yet. The scoring makes them after each run, "
+            "once the first fill of Find's facts has finished.") in capsys.readouterr().out
+    docker.state["psql"]["economy_top_build"] = (
+        "cre-knowledge-v0.5.0+edfinder.1/facts-1|2026-11-30 18:10|20000|720000")
+    docker.save()
+    assert tool.cmd_status(chosen) == 0
+    assert ("Find's lists across the band: written 2026-11-30 18:10 UTC for "
+            "cre-knowledge-v0.5.0+edfinder.1/facts-1, 720,000 places in all (up to 20,000 a list)."
+            ) in capsys.readouterr().out
+    # Each question of the database is its own: neither is mistaken for the other.
+    assert "economy_top_build" not in tool.FACTS_SQL and "economy_facts_fill" not in tool.LISTS_SQL
+
+
 def test_main_prints_a_plain_failure_and_exits_1(spansh, docker, tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("EDFINDER_GALAXY_DIR", str(tmp_path / "galaxy"))
     monkeypatch.setenv("EDFINDER_GALAXY_URL", spansh.origin + "/" + FILE)  # not published

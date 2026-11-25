@@ -74,7 +74,7 @@ from scripts.ratings_v4.canonical_stream import CanonicalSnapshot
 from shared_contracts import v3_system_archetype_model as model
 
 from . import apply as galaxy
-from . import economy_facts
+from . import economy_facts, economy_top
 from . import reach
 from .normalize import NormalizedSystem, classify_material_change, normalize_system
 
@@ -762,8 +762,10 @@ class ApplyReport:
     reach_report: reach.ReachReport | None = None
     outside_reach: int = 0
     unscored_in_reach: int = 0
-    # Find's facts for each system (economy_facts), where reach is kept.
+    # Find's facts for each system (economy_facts), where reach is kept, and
+    # its ranked lists across the band (economy_top), written afresh from them.
     facts: economy_facts.FactsReport | None = None
+    lists: economy_top.ListsReport | None = None
 
     def as_dict(self) -> dict[str, Any]:
         found = {
@@ -777,6 +779,8 @@ class ApplyReport:
                          unscored_in_reach=self.unscored_in_reach)
         if self.facts is not None:
             found["economy_facts"] = self.facts.as_dict()
+        if self.lists is not None:
+            found["economy_lists"] = self.lists.as_dict()
         return found
 
     def lines(self) -> list[str]:
@@ -809,6 +813,8 @@ class ApplyReport:
         out.append(row("Systems still waiting for new scores:", self.still_waiting))
         if self.facts is not None:
             out += self.facts.lines()
+        if self.lists is not None:
+            out += self.lists.lines()
         minutes, seconds = divmod(int(self.seconds), 60)
         out.append(f"Took {minutes} min {seconds} s.")
         return out
@@ -895,7 +901,9 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
     transaction each, so this can be stopped and started again at any point.
     Where reach is kept, Find's facts for each system are kept up to date
     beside the scores (``economy_facts``); the first fill of them carries on
-    for up to ``fill_minutes`` at the end.
+    for up to ``fill_minutes`` at the end. Once a fill has finished, Find's
+    ranked lists across the band are written afresh from the facts
+    (``economy_top``).
     """
     if not connection.autocommit:
         raise ValueError("the connection must be in autocommit mode")
@@ -960,6 +968,8 @@ def apply_waiting(connection: psycopg.Connection[Any], *, limit: int | None = No
         if report.facts is not None and not report.stopped_early:
             economy_facts.carry_on(connection, target.schema, report.facts, minutes=fill_minutes,
                                    progress=progress)
+            if report.facts.skipped is None:
+                report.lists = economy_top.rebuild(connection, progress=progress)
         report.still_waiting = connection.execute(
             sql.SQL("SELECT count(*) FROM {}").format(sql.SQL(galaxy.QUEUE_TABLE))).fetchone()[0]
     finally:

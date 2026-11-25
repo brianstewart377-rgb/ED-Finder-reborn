@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any, Final
 
+from edfinder_api.cpe.body_facts import ECONOMIES, PAIRS
 from edfinder_api.cpe.rules import RULEBOOK_RELEASE
 
 Steps = tuple[tuple[int, int, int], ...]
@@ -53,6 +54,40 @@ VERSION: Final[str] = f"{RULEBOOK_RELEASE}/{LAYOUT}"
 def layout_of(version: str) -> str:
     """The layout a fill's version names: what follows its last "/"."""
     return version.rsplit("/", 1)[-1]
+
+
+# -- the ranked lists across the band ---------------------------------------------
+#
+# ``v3_state.economy_top`` (migration 033) holds the best systems of the whole
+# band, in order, as numbered lists: one for each economy by Strongest, one for
+# each by Purest, one for each pair, and one for no economy at all (most
+# ground slots first). The nightly scoring writes them
+# (``spansh_delta.economy_top``) and Find's search across the band reads them
+# (``find_economy.py``), both by these numbers.
+
+# The facts column each kind of list is in order of, and the list before its first.
+_LISTS_BEFORE: Final[dict[str, int]] = {
+    "strongest": 0, "purest": len(ECONOMIES), "pairs": 2 * len(ECONOMIES)}
+# The list for no economy: the system's ground slots, then its known bodies.
+LIST_NO_ECONOMY: Final = 2 * len(ECONOMIES) + len(PAIRS) + 1
+LIST_COUNT: Final = LIST_NO_ECONOMY
+
+
+def list_no(column: str, index: int) -> int:
+    """The list for the ``index``-th number (from 1) of a facts column."""
+    size = len(PAIRS) if column == "pairs" else len(ECONOMIES)
+    if column not in _LISTS_BEFORE or not 1 <= index <= size:
+        raise ValueError(f"no list for {column}[{index}]")
+    return _LISTS_BEFORE[column] + index
+
+
+def list_expressions() -> tuple[str, ...]:
+    """What each list is in order of, as an expression on a facts row: list 1
+    first. Made from this file's own names only."""
+    return (*(f"strongest[{index}]" for index in range(1, len(ECONOMIES) + 1)),
+            *(f"purest[{index}]" for index in range(1, len(ECONOMIES) + 1)),
+            *(f"pairs[{index}]" for index in range(1, len(PAIRS) + 1)),
+            "ground_slots::bigint")
 
 
 class PackError(ValueError):
