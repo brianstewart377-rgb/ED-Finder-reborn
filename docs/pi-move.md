@@ -640,10 +640,17 @@ made or agreed since, each as a reviewed migration after a fresh backup:
 - `031` (applied by 24 November): Find's facts for each system within 500 ly,
   for the ratings rebuild (two new tables; about 10 GB once filled). The owner
   agreed the table's design on 23 November.
-- `032` (built 24 November, not yet applied): where each system is, in that
-  table (its coordinates, and the 32 ly cube of space it is in), so that Find's
-  search near a system reads one stretch of one table. It empties the table,
-  so the first fill starts again; about 12 GB once filled.
+- `032` (applied by 25 November): where each system is, in that table (its
+  coordinates, and the 32 ly cube of space it is in), so that Find's search
+  near a system reads one stretch of one table. It emptied the table, so the
+  first fill started again; about 12 GB once filled.
+- `033` (built 25 November, not yet applied): the 19 counts Find's body
+  filters use, on each row of that table (about 13.5 GB once filled), and two
+  new tables for Find's ranked lists across the whole band (36 lists of the
+  best 20,000 systems each; a few hundred MB). The owner agreed the design on
+  25 November. The rows already filled get their counts from the search table
+  inside the migration, so the first fill carries on where it was. Deploy the
+  build first, then apply it.
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had

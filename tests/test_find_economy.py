@@ -167,7 +167,11 @@ def test_the_rules_are_applied_to_the_sorted_systems_not_inside_the_sort():
     assert "f.strongest[2] > 0" in sorted_systems and "ORDER BY number DESC, " in sorted_systems
     for table in RULE_TABLES:
         assert table not in sorted_systems and table in rules, table
-    assert "s.elw_count >= " in rules and "s.elw_count <= " in rules and ") AS kept" in rules
+    # The body filters are answered from the facts row itself, before the
+    # sort, and no rule looks a count up anywhere else.
+    assert ("AND f.elw_count >= $6::bigint" in sorted_systems
+            and "AND f.elw_count <= $7::bigint" in sorted_systems)
+    assert "elw_count" not in rules and ") AS kept" in rules
     # The cheapest rule first: no look-up, then the small table, then the big ones.
     assert rules.index("NOT IN (") < rules.index("system_state") < rules.index("system_reach") \
         < rules.index("system_search")
@@ -179,6 +183,8 @@ def test_the_rules_are_applied_to_the_sorted_systems_not_inside_the_sort():
     assert values[-2:] == [50, 0] and values[-4:-2] == [1, 3]
     count, count_values = find_economy.count_query(search)
     assert "LIMIT 1001" in count and "ORDER BY" not in count
+    assert ("AND f.elw_count >= $6::bigint" in count and "AND f.elw_count <= $7::bigint" in count
+            and "s.elw_count" not in count)
     assert count_values == values[:-2]
     # No text of the request is in the SQL: only places for its values.
     assert "Extraction" not in page + count
@@ -296,6 +302,14 @@ def test_body_filters_keep_the_systems_whose_search_row_passes(near):
     assert all(row["landable_count"] >= floor for row in response["results"])
     none = ask(near, request(("Refinery",), body_filters={"landable_count": {"max": levels[0] - 1}}))
     assert (none["results"], none["total"], none["total_is_counted"]) == ([], 0, True)
+    # The counts are stored two bytes wide; a request may ask for any whole
+    # number. More than a count can be finds nothing, and does not fail.
+    everything = answered(ask(near, request(("Refinery",))))
+    for outsized in (40_000, 3_000_000_000, 10 ** 30):
+        too_many = ask(near, request(("Refinery",), body_filters={"landable_count": {"min": outsized}}))
+        assert (too_many["results"], too_many["total"]) == ([], 0), outsized
+        at_most = ask(near, request(("Refinery",), body_filters={"landable_count": {"max": outsized}}))
+        assert answered(at_most) == everything, outsized
 
 
 def test_systems_that_are_level_are_listed_nearer_first(pi, tmp_path):
@@ -382,6 +396,18 @@ def test_the_search_says_so_until_a_fill_has_finished(pi, tmp_path):
     assert refusal(pi, body) == (503, "Find's facts for each system are not kept in this database yet.")
 
 
+def test_a_filtered_search_says_so_where_the_facts_have_no_counts_yet(pi, tmp_path):
+    """The build can be live a little before migration 033 is applied."""
+    filled(pi, tmp_path)
+    pi.connection.execute("DROP TABLE v3_state.economy_top, v3_state.economy_top_build")
+    pi.connection.execute("ALTER TABLE v3_state.economy_facts "
+                          + ", ".join(f"DROP COLUMN {column}" for column in find_numbers.COUNT_COLUMNS))
+    assert refusal(pi, request(("Refinery",), body_filters={"landable_count": {"min": 1}})) == (
+        503, "Find's facts do not hold the body counts yet (migration 033 has not been applied), "
+             "so a search with a body filter cannot be made.")
+    assert ask(pi, request(("Refinery",)))["count"] == 4
+
+
 def test_a_count_that_runs_out_of_time_does_not_take_the_page_with_it(near, monkeypatch):
     async def out_of_time(connection, count_sql, count_params, budget_ms):
         return None
@@ -412,12 +438,13 @@ def production_sized(reach_database):
     connection.execute(
         """
         INSERT INTO v3_state.economy_facts (system_id64, bodies_known, ground_slots, strongest, purest,
-                                           pairs, worked_out_at, x_ly, y_ly, z_ly)
+                                           pairs, worked_out_at, x_ly, y_ly, z_ly, landable_count,
+                                           elw_count)
         SELECT s.system_id64, 1 + mod(s.system_id64, 40)::int, mod(s.system_id64, 30)::int,
                (SELECT array_agg(268435456 + mod(s.system_id64 * n, 1000)) FROM generate_series(1, 7) n),
                (SELECT array_agg(268435456 + mod(s.system_id64 * n, 1000)) FROM generate_series(1, 7) n),
                (SELECT array_agg(8796093022208 + mod(s.system_id64 * n, 1000)) FROM generate_series(1, 21) n),
-               now(), s.x_ly, s.y_ly, s.z_ly
+               now(), s.x_ly, s.y_ly, s.z_ly, mod(s.system_id64, 9)::int, (mod(s.system_id64, 400) = 0)::int
           FROM v3_app.system_search s
         ON CONFLICT (system_id64) DO NOTHING
         """)
@@ -516,6 +543,14 @@ def test_at_the_pis_sizes_the_systems_are_sorted_once_and_the_rules_come_after(
             node["Node Type"] in ("Index Scan", "Index Only Scan") for node in scans), table
     filtered = next(node for node in found if node.get("Filter") == "k.kept")
     assert filtered["Node Type"] == "Subquery Scan" and sorts[0] in list(plan_nodes(filtered))
+    # A body filter is answered by the facts row, under the sort; the look-up
+    # in the search table only finds the system's row.
+    for column in filters or {}:
+        on_facts = [node for node in plan_nodes(sorts[0]) if node.get("Relation Name") == "economy_facts"]
+        assert on_facts and all(column in node.get("Filter", "") for node in on_facts), column
+        assert not any(column in json.dumps(node.get(key, "")) for node in found
+                       if node.get("Relation Name") == "system_search"
+                       for key in ("Filter", "Index Cond")), column
 
     counted = pi_plan(production_sized, *find_economy.count_query(search), mode)
     count_nodes = list(plan_nodes(counted))
@@ -563,6 +598,28 @@ def test_a_page_looks_up_the_rules_for_the_systems_it_reaches_and_no_further(pro
         reads[mode] = (in_sphere, looked_up)
         assert in_sphere > 500 and 10 <= looked_up <= 40, reads
     assert reads["force_generic_plan"] == reads["force_custom_plan"]
+
+
+@pytest.mark.db
+def test_a_filter_few_systems_pass_costs_no_look_up_for_the_systems_it_turns_away(production_sized):
+    """Run for real on the made-up systems, one in 400 of which is given an
+    Earth-like world: the facts rows answer the filter, so the only systems
+    looked up anywhere else are the few that passed it."""
+    from tests.helpers.finder_seed import _prepared, plan_nodes
+
+    search = find_economy.prepare(request(("Extraction",), size=10, body_filters={"elw_count": {"min": 1}}))
+    statement, values = find_economy.page_query(search)
+    with production_sized.transaction(force_rollback=True):
+        rows = _prepared(production_sized, statement, values, "EXPLAIN (ANALYZE, TIMING OFF, FORMAT JSON) ")
+    document = rows[0][0]
+    plan = (json.loads(document) if isinstance(document, str) else document)[0]["Plan"]
+    found = list(plan_nodes(plan))
+    on_facts = [node for node in found if node.get("Relation Name") == "economy_facts"]
+    passed = sum(node["Actual Rows"] * node["Actual Loops"] for node in on_facts)
+    turned_away = sum(node.get("Rows Removed by Filter", 0) * node["Actual Loops"] for node in on_facts)
+    looked_up = max(node["Actual Loops"] for node in found if node.get("Relation Name") == "system_search")
+    assert turned_away > 500 and 0 < passed <= 10, (turned_away, passed)
+    assert plan["Actual Rows"] <= looked_up <= passed
 
 
 def test_the_page_is_read_without_building_a_program_for_it(near, monkeypatch):

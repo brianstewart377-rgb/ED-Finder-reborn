@@ -24,6 +24,19 @@ from edfinder_api.cpe.rules import RULEBOOK_RELEASE
 
 Steps = tuple[tuple[int, int, int], ...]
 
+# The counts Find's body filters use, as the search table's rows have them
+# (``search_economies.BODY_FILTER_COLS``). Each facts row carries a copy
+# (migration 033), so that a filter is answered from the row a search already
+# holds. In the order of the table's columns.
+COUNT_COLUMNS: Final[tuple[str, ...]] = (
+    "landable_count", "terraformable_count", "elw_count", "ww_count", "ammonia_count",
+    "gas_giant_count", "hmc_count", "metal_rich_count", "rocky_count", "rocky_ice_count",
+    "icy_count", "neutron_count", "black_hole_count", "white_dwarf_count", "other_star_count",
+    "ring_count", "walkable_count", "bio_signal_total", "geo_signal_total",
+)
+# The facts row stores each count in two bytes.
+COUNT_MAX: Final = 32767
+
 # A step is (scale, offset, bits): its value times scale, plus offset, must be
 # a whole number from 0 to 2**bits - 1. Fewer third economies count first, so
 # those steps hold minus the count, plus 15. A room step is ground slots (0 to

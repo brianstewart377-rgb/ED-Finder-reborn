@@ -252,8 +252,11 @@ facts for each system in reach up to date as well (`v3_state.economy_facts`,
 `apps/importer/src/spansh_delta/economy_facts.py`; the ratings rebuild, build
 steps 4 and 5). Each row holds how many of the system's bodies we know, its
 predicted ground slots, one number per economy and pair that puts it in Find's
-order, and where the system is: its coordinates and the 32 ly cube of space
-("cell") it is in. Systems whose galaxy rows changed get new rows, beside
+order, where the system is (its coordinates and the 32 ly cube of space,
+"cell", it is in), and, with migration `033`, the 19 counts Find's body
+filters use, copied from the system's search row whenever the facts row is
+written. Systems whose galaxy
+rows changed get new rows, beside
 their scores. The first fill of every system in reach goes on for up to
 2 hours after each run, carrying on where it stopped, until it is done;
 `galaxy_update.py status` says how far it has got. When a fill finishes, the
@@ -261,14 +264,20 @@ rows are put in cell order on disk (`CLUSTER`), so that a search near a system
 reads a few stretches of the table: that writes the table afresh, needs as
 much free disk again as the table takes, and nothing can read the table while
 it runs. When the rulebook changes, a new fill starts from the beginning.
-Without both migrations the scoring says so and carries on as before.
+Without `031` and `032` the scoring says so and carries on as before. Without
+`033` it writes the rows without the counts and says how many; the migration
+gives every row it finds without counts its counts, so the first fill does not
+start again. Migration `033` also adds the tables for the ranked lists that
+the search across the whole band will read (`v3_state.economy_top`); nothing
+fills them yet.
 
 The API reads the table for `POST /api/find/economy`
 (`apps/api/src/find_economy.py`; build step 5): the systems within a distance
 of a point (250 ly at most), in order for one economy (strongest or purest)
-or for a pair. It sorts the systems of the cells the sphere touches, then
-applies Find's rules (claims, reach, body-count filters) to the sorted systems
-one at a time until the page is full. It answers once a fill has finished;
+or for a pair. It takes the systems of the cells the sphere touches that pass
+the body-count filters (the counts are on the facts row), sorts them, then
+applies Find's other rules (claims, reach) to the sorted systems one at a time
+until the page is full. It answers once a fill has finished;
 until then it answers 503 and says how far the fill has got. No page calls it
 yet, and `/api/local/search` is unchanged.
 
