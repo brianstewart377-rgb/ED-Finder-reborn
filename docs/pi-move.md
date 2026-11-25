@@ -530,6 +530,32 @@ In order:
       Pi's own drive are removed. `backup.py` now refuses to run while a
       drive that `/etc/fstab` lists at the backup folder is not attached, so
       the same thing ends in a failed job and an email the same night.
+      (25 Nov) Finished that night. The copies matched the originals byte for
+      byte, the copies on the Pi's own drive were removed (it went from 89%
+      full to 31%), the 12 TB drive is attached at `/mnt/backup` again, and
+      the new `backup.py` is in place. The small backup of 25 Nov, 02:30 UTC,
+      was the first to land on the 12 TB drive by itself. The first full
+      backup (13 Nov) is on both drives; the copy on the Pi's own drive
+      (`/var/backups/edfinder/full`) goes once the 12 TB drive has had a
+      full health check, which has not been run yet.
+      (25 Nov) **The weekly full backup's timer had stopped on 22 Nov.** The
+      loop fixed that day (above) was what stopped it: at 07:00 systemd
+      could not start the job ("Failed to queue unit startup job"), marked
+      the timer failed, and a failed timer never goes off again. The job's
+      unit was put right the same day and the backup run by hand, but nobody
+      restarted the timer, so it would not have gone off on Sunday 29 Nov
+      either. Seen on 25 Nov in `systemctl --failed`. To restart it without
+      starting a full backup at once for the missed Sunday, its record of
+      when it last went off is brought up to date first:
+      `sudo touch -c /var/lib/systemd/timers/stamp-edfinder-backup-full.timer`,
+      then `sudo systemctl restart edfinder-backup-full.timer`. From now on
+      the half-hourly check (`eddn_check.py`) asks systemd whether any of
+      ED-Finder's timers has stopped, and its run fails if one has, so an
+      email follows within the hour.
+      (25 Nov) InfluxDB is not on the Pi any more. The owner removed it some
+      time before, after it was seen using most of one processor core;
+      nothing in ED-Finder used it. systemd went on listing the removed
+      service as failed until `sudo systemctl reset-failed influxdb.service`.
 - [x] (14 Nov) **Find's usual first searches, run after the nightly jobs.**
       A job that reads a lot of the database pushes what Find needs out of
       memory, and the next visitor's first search then waits on the drive.

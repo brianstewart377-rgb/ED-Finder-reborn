@@ -10,6 +10,10 @@ Most of this is checked with Docker's answers played back. The last test
 asks the real Docker about a real container that is unwell, because what
 matters most here is that Docker's answer is read the way Docker gives it.
 CI sets REQUIRE_DOCKER_TESTS=1, so that test cannot be skipped there.
+
+The same run asks systemd whether any of ED-Finder's timers has stopped
+(marked failed), and fails if one has: a stopped timer's job never runs, so
+nothing else would say.
 """
 from __future__ import annotations
 
@@ -46,8 +50,21 @@ class PlayedBack:
         return [arguments for arguments in self.asked if arguments[0] == "restart"]
 
 
-def run(docker: PlayedBack, *argv: str, capsys) -> tuple[int, str]:
-    code = tool.main(list(argv), ask=docker)
+class Timers:
+    """systemd, answering "which of ED-Finder's timers have failed?" with one
+    fixed answer: none of them, unless a test says otherwise."""
+
+    def __init__(self, answer: tuple[int, str] = (0, "")) -> None:
+        self.answer = answer
+        self.asked: list[list[str]] = []
+
+    def __call__(self, arguments):
+        self.asked.append(list(arguments))
+        return self.answer
+
+
+def run(docker: PlayedBack, *argv: str, capsys, timers: Timers | None = None) -> tuple[int, str]:
+    code = tool.main(list(argv), ask=docker, timers=timers or Timers())
     return code, capsys.readouterr().out
 
 
@@ -140,6 +157,82 @@ def test_a_restart_that_fails_is_said(capsys):
     assert "Starting it afresh failed: Error response from daemon: cannot restart container" in said
 
 
+# -- ED-Finder's timers ----------------------------------------------------------------
+
+HEALTHY = (0, "running healthy 0")
+# What the Pi itself printed on 25 November 2026 (systemctl --failed), three
+# days after its weekly full backup's timer had stopped.
+THE_PIS_OWN_LINE = "● edfinder-backup-full.timer loaded    failed failed ED-Finder: back up the whole database"
+
+
+def test_a_timer_that_has_stopped_fails_the_run_and_is_named(capsys):
+    docker, timers = PlayedBack(HEALTHY), Timers((0, THE_PIS_OWN_LINE))
+    code, said = run(docker, capsys=capsys, timers=timers)
+    assert code == 1
+    assert said.splitlines() == [
+        "The listener is running and healthy.",
+        "The timer edfinder-backup-full.timer has stopped: systemd could not start its job and has "
+        "given up on the timer. The job will not run again until the timer is restarted.",
+        "To see why: systemctl status edfinder-backup-full.timer --no-pager",
+        "To restart it (a job whose time was missed then starts at once): "
+        "sudo systemctl restart edfinder-backup-full.timer"]
+    # systemd is asked one thing, which changes nothing: no timer is restarted
+    # from here, and nor is the healthy listener.
+    assert timers.asked == [["list-units", "--type=timer", "--state=failed", "--all", "--plain",
+                             "--no-legend", "--no-pager", "edfinder-*.timer"]]
+    assert docker.restarts == []
+
+
+def test_every_stopped_timer_is_named_once_however_systemd_lists_it(capsys):
+    listed = ("edfinder-galaxy-update.timer loaded failed failed ED-Finder: bring the galaxy up to date\n"
+              "  edfinder-backup-small.timer  loaded  failed  failed  ED-Finder: back up the users\n"
+              "* edfinder-galaxy-update.timer loaded failed failed ED-Finder: bring the galaxy up to date\n"
+              "\n")
+    code, said = run(PlayedBack(HEALTHY), "--look", capsys=capsys, timers=Timers((0, listed)))
+    assert code == 1
+    assert said.count("The timer edfinder-galaxy-update.timer has stopped") == 1
+    assert said.count("The timer edfinder-backup-small.timer has stopped") == 1
+    assert said.index("edfinder-galaxy-update.timer") < said.index("edfinder-backup-small.timer")
+
+
+def test_with_no_timer_stopped_nothing_more_is_said(capsys):
+    timers = Timers((0, ""))
+    code, said = run(PlayedBack(HEALTHY), capsys=capsys, timers=timers)
+    assert (code, said) == (0, "The listener is running and healthy.\n")
+    assert len(timers.asked) == 1
+
+
+def test_a_stopped_timer_and_an_unwell_listener_are_both_said(capsys):
+    docker = PlayedBack((0, "running unhealthy 3"))
+    code, said = run(docker, capsys=capsys, timers=Timers((0, THE_PIS_OWN_LINE)))
+    assert code == 1 and len(docker.restarts) == 1
+    assert "It has been started afresh." in said
+    assert "The timer edfinder-backup-full.timer has stopped" in said
+
+
+@pytest.mark.parametrize("answer, reason", [
+    ((1, "Failed to connect to bus: Host is down"), "Failed to connect to bus: Host is down"),
+    ((127, "systemctl is not installed"), "systemctl is not installed"),
+    ((1, ""), "systemctl gave no reason"),
+])
+def test_when_systemd_cannot_say_the_run_fails_with_the_reason(answer, reason, capsys):
+    code, said = run(PlayedBack(HEALTHY), capsys=capsys, timers=Timers(answer))
+    assert code == 1
+    assert said.splitlines() == ["The listener is running and healthy.",
+                                 "Could not ask systemd about ED-Finder's timers: " + reason]
+
+
+def test_the_real_systemctl_answers_or_says_why_not():
+    """On a machine with systemd it lists the failed ones (none of ours here);
+    on one without, the reason comes back and nothing is raised."""
+    code, printed = tool.systemctl(["list-units", "--type=timer", "--state=failed", "--all", "--plain",
+                                    "--no-legend", "--no-pager", "edfinder-test-no-such-*.timer"])
+    assert isinstance(code, int) and isinstance(printed, str)
+    assert (code, printed) == (0, "") or (code != 0 and printed)
+    well, lines = tool.stopped_timers(lambda arguments: (code, printed))
+    assert well is (code == 0) and bool(lines) is (code != 0)
+
+
 def test_the_timer_runs_it_every_half_hour_and_the_listener_keeps_its_health_check():
     timer = (ROOT / "deploy" / "edfinder-eddn-check.timer").read_text()
     assert "OnCalendar=*-*-* *:07,37:00 UTC" in timer.splitlines()
@@ -165,7 +258,7 @@ def test_the_real_docker_is_read_rightly_about_a_real_unwell_container(monkeypat
         raise AssertionError("the container never became %s; last seen: %r" % (health, seen))
 
     assert tool.look(tool.docker) == ("absent", "none", 0)
-    assert tool.main([], ask=tool.docker) == 1
+    assert tool.main([], ask=tool.docker, timers=Timers()) == 1
     assert "is not on this machine" in capsys.readouterr().out
     try:
         # A container with a health check that fails until a file is made in
@@ -177,11 +270,11 @@ def test_the_real_docker_is_read_rightly_about_a_real_unwell_container(monkeypat
         assert running == "running" and failed >= 1
         started = real_docker("inspect", "--format", "{{.State.StartedAt}}", name)
 
-        assert tool.main(["--look"], ask=tool.docker) == 1
+        assert tool.main(["--look"], ask=tool.docker, timers=Timers()) == 1
         assert "Nothing was changed (--look)." in capsys.readouterr().out
         assert real_docker("inspect", "--format", "{{.State.StartedAt}}", name) == started
 
-        assert tool.main([], ask=tool.docker) == 1
+        assert tool.main([], ask=tool.docker, timers=Timers()) == 1
         assert "It has been started afresh." in capsys.readouterr().out
         assert real_docker("inspect", "--format", "{{.State.StartedAt}}", name) != started
 
@@ -189,13 +282,13 @@ def test_the_real_docker_is_read_rightly_about_a_real_unwell_container(monkeypat
         real_docker("exec", name, "touch", "/tmp/well")
         wait_for("healthy")
         started = real_docker("inspect", "--format", "{{.State.StartedAt}}", name)
-        assert tool.main([], ask=tool.docker) == 0
+        assert tool.main([], ask=tool.docker, timers=Timers()) == 0
         assert capsys.readouterr().out == "The listener is running and healthy.\n"
         assert real_docker("inspect", "--format", "{{.State.StartedAt}}", name) == started
 
         # Stopped by hand: said, and not started.
         real_docker("stop", "-t", "1", name)
-        assert tool.main([], ask=tool.docker) == 1
+        assert tool.main([], ask=tool.docker, timers=Timers()) == 1
         assert "The listener is not running (Docker says: exited)." in capsys.readouterr().out
         assert tool.look(tool.docker)[0] == "exited"
     finally:

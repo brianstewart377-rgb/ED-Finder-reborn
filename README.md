@@ -345,6 +345,13 @@ quiet during the game's weekly maintenance, so one failed run then is
 expected, and the next healthy one clears it. To look without changing
 anything: `sudo python3 /opt/edfinder/eddn_check.py --look`.
 
+The same half-hourly run asks systemd whether any of ED-Finder's timers has
+stopped. A timer that cannot start its job is marked failed and never goes
+off again until it is restarted; its job simply does not run, so nothing
+else reports it (the weekly full backup's timer sat like that on the Pi from
+22 to 25 November 2026). A stopped timer fails the run, which names the
+timer and says how to restart it. Nothing is restarted from there.
+
 ## Backups
 
 `deploy/backup.py` (Python standard library only) backs the database up on

@@ -2,7 +2,8 @@
 # longer working (deploy/eddn_check.py). Docker restarts a container that
 # stops, but not one that is still running and unwell, and the sightings the
 # listener misses cannot be gathered afterwards. A few seconds. Started every
-# half hour by edfinder-eddn-check.timer.
+# half hour by edfinder-eddn-check.timer. The same run says whether any of
+# ED-Finder's timers has stopped (marked failed by systemd), and fails if so.
 #
 # By hand, changing nothing:
 #     sudo python3 /opt/edfinder/eddn_check.py --look
