@@ -1,5 +1,5 @@
 """Find's facts for each system within 500 ly (spansh_delta.economy_facts,
-migrations 031 and 032). Ratings rebuild, build steps 4 and 5.
+migrations 031 to 033). Ratings rebuild, build steps 4 and 5.
 
 The galaxy is the twelve real fixture systems, as in tests/test_reach.py:
 with Sol inhabited, eight of them are within 500 ly. The facts come from the
@@ -8,7 +8,8 @@ number sorts systems exactly as that code's orders do, that the nightly
 scoring keeps the rows up to date, that the first fill can stop and carry on,
 and that each row says where its system is, in coordinates and as a cell
 (edfinder_api.find_cells), with the rows put in cell order on disk when a
-fill finishes.
+fill finishes, and that each row carries the counts Find filters on, the
+same as the system's search row has them.
 
 Runs on PostgreSQL 18 with every migration applied; needs
 RATINGS_V4_VALIDATION_DATABASE_URL, like the other database tests.
@@ -31,6 +32,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "importer" / "src"))
 
 from edfinder_api import find_cells  # noqa: E402
+from edfinder_api.find_numbers import COUNT_COLUMNS, COUNT_MAX  # noqa: E402
+from edfinder_api.ranking.profile import BODY_COUNT_COLUMNS  # noqa: E402
+from edfinder_api.search_economies import BODY_FILTER_COLS  # noqa: E402
 from edfinder_api.cpe.body_facts import (  # noqa: E402
     ECONOMIES,
     PAIRS,
@@ -78,6 +82,7 @@ def test_the_migrations_add_two_empty_tables_and_can_run_again(pi):
     assert pi.one("SELECT count(*) FROM v3_state.economy_facts_fill") == (0,)
     finder_seed.apply_migration(pi.connection, 31)
     finder_seed.apply_migration(pi.connection, 32)
+    finder_seed.apply_migration(pi.connection, 33)
     assert facts.status_lines(pi.connection) == ["Economy facts: no fill has started yet; 0 rows."]
 
 
@@ -107,6 +112,224 @@ def test_migration_032_empties_the_tables_once_only(pi, tmp_path):
     facts.carry_on(pi.connection, pi.schema, report, progress=False)
     assert set(rows(pi)) == WITHIN_500_OF_SOL and report.filled == 8
     assert pi.one("SELECT fill_id FROM v3_state.economy_facts_fill") == (1,)
+
+
+# -- the counts Find filters on (migration 033) ------------------------------------------
+
+COUNTS = ", ".join(COUNT_COLUMNS)
+WITHOUT_COUNTS = "UPDATE v3_state.economy_facts SET " + ", ".join(f"{column} = NULL" for column in COUNT_COLUMNS)
+
+
+def counts_in(pi, relation: str) -> dict[int, tuple]:
+    return {row[0]: tuple(row[1:]) for row in pi.all(f"SELECT system_id64, {COUNTS} FROM {relation}")}
+
+
+def test_the_counts_are_the_ones_finds_filters_use():
+    assert len(COUNT_COLUMNS) == len(set(COUNT_COLUMNS)) == 19
+    assert set(COUNT_COLUMNS) == set(BODY_FILTER_COLS.values()) == set(BODY_COUNT_COLUMNS)
+
+
+def test_each_row_carries_the_counts_as_its_systems_search_row_has_them(pi, tmp_path):
+    filled(pi, tmp_path)
+    stored, shown = counts_in(pi, "v3_state.economy_facts"), counts_in(pi, "v3_app.system_search")
+    assert set(stored) == WITHIN_500_OF_SOL
+    for system_id64, counts in stored.items():
+        assert counts == shown[system_id64], system_id64
+    # The real systems differ, and most of the counts are in use among them.
+    assert len(set(stored.values())) == 8
+    in_use = [column for position, column in enumerate(COUNT_COLUMNS)
+              if any(counts[position] for counts in stored.values())]
+    assert len(in_use) >= 12, in_use
+    # Both tables that carry the counts have them as columns of two bytes.
+    for table in ("economy_facts", "economy_top"):
+        kinds = dict(pi.all(
+            "SELECT column_name, data_type FROM information_schema.columns "
+            "WHERE table_schema = 'v3_state' AND table_name = %s", table))
+        assert {kinds[column] for column in COUNT_COLUMNS} == {"smallint"}, table
+
+
+def test_a_changed_systems_counts_follow_its_search_row_the_same_night(pi, tmp_path):
+    filled(pi, tmp_path)
+    before = counts_in(pi, "v3_state.economy_facts")[SOL]
+    without = deepcopy(pi.records[SOL])
+    ringed = next(body for body in without["bodies"] if body.get("rings") and body.get("type") == "Planet")
+    without["bodies"].remove(ringed)
+    run(pi, tmp_path, [without], made_at=SEPTEMBER + timedelta(days=1))
+    assert waiting(pi).facts.changed == 1
+    after = counts_in(pi, "v3_state.economy_facts")[SOL]
+    assert after == counts_in(pi, "v3_app.system_search")[SOL] and after != before
+    rings = COUNT_COLUMNS.index("ring_count")
+    assert after[rings] < before[rings]
+
+
+def test_a_count_too_big_for_the_row_is_stored_as_the_largest_that_fits(pi, tmp_path, monkeypatch):
+    filled(pi, tmp_path)
+    before = counts_in(pi, "v3_state.economy_facts")[SOL]
+    # As the search table would answer for a system with 40,000 biological
+    # signals (its rows cannot be changed by hand: they are insert-only).
+    assert facts.COUNTS_SQL.count(", bio_signal_total,") == 1
+    monkeypatch.setattr(facts, "COUNTS_SQL", facts.COUNTS_SQL.replace(
+        ", bio_signal_total,", ", 40000 AS bio_signal_total,"))
+    facts.changed(pi.connection, pi.schema, [SOL], facts.FactsReport())
+    after = counts_in(pi, "v3_state.economy_facts")[SOL]
+    signals = COUNT_COLUMNS.index("bio_signal_total")
+    assert after[signals] == COUNT_MAX == 32767
+    assert after[:signals] + after[signals + 1:] == before[:signals] + before[signals + 1:]
+    # The migration's own copy takes each count from its namesake, the same way.
+    migration = (ROOT / "sql/v3/migrations/033_v3_economy_facts_counts_and_lists.sql").read_text()
+    copy = migration[migration.index("UPDATE v3_state.economy_facts f"):]
+    for column in COUNT_COLUMNS:
+        assert copy.count(f"{column} = LEAST(s.{column}, 32767)") == 1, column
+    assert copy.count("LEAST(") == 19 and "FROM v3_app.system_search s" in copy
+
+
+def test_a_system_with_no_search_row_has_a_row_without_counts(pi, tmp_path, monkeypatch):
+    filled(pi, tmp_path)
+    numbers = rows(pi)[SOL]
+    # As the search table would answer if it had no row for Sol.
+    monkeypatch.setattr(facts, "COUNTS_SQL", facts.COUNTS_SQL + f" AND system_id64 <> {SOL}")
+    facts.changed(pi.connection, pi.schema, sorted(WITHIN_500_OF_SOL), facts.FactsReport())
+    stored = counts_in(pi, "v3_state.economy_facts")
+    assert stored[SOL] == (None,) * 19 and rows(pi)[SOL] == numbers
+    assert all(None not in counts for system_id64, counts in stored.items() if system_id64 != SOL)
+
+
+def test_migration_033_gives_the_rows_already_filled_their_counts_and_the_fill_goes_on(pi, tmp_path):
+    """On the Pi the fill was under way when 033 was written. It must not
+    start again: the rows it had written get their counts from the search
+    table, and nothing else about them changes."""
+    filled(pi, tmp_path)
+    kept = "SELECT system_id64, worked_out_at, bodies_known, strongest, cell FROM v3_state.economy_facts ORDER BY 1"
+    fills = "SELECT fill_id, version, systems, finished_at, tidied_at FROM v3_state.economy_facts_fill"
+    counts, rows_before, fills_before = counts_in(pi, "v3_state.economy_facts"), pi.all(kept), pi.all(fills)
+    pi.connection.execute(WITHOUT_COUNTS)
+    assert set(counts_in(pi, "v3_state.economy_facts").values()) == {(None,) * 19}
+
+    finder_seed.apply_migration(pi.connection, 33)
+    assert counts_in(pi, "v3_state.economy_facts") == counts
+    assert pi.all(kept) == rows_before and pi.all(fills) == fills_before
+
+    # Run again, it writes no row again.
+    versions = pi.all("SELECT system_id64, xmin::text, ctid::text FROM v3_state.economy_facts ORDER BY 1")
+    finder_seed.apply_migration(pi.connection, 33)
+    assert pi.all("SELECT system_id64, xmin::text, ctid::text FROM v3_state.economy_facts ORDER BY 1") == versions
+
+    # As it finds a database that has 031 and 032 only.
+    pi.connection.execute("DROP TABLE v3_state.economy_top, v3_state.economy_top_build")
+    pi.connection.execute("ALTER TABLE v3_state.economy_facts "
+                          + ", ".join(f"DROP COLUMN {column}" for column in COUNT_COLUMNS))
+    assert facts.available(pi.connection) and not facts.keeps_counts(pi.connection)
+    finder_seed.apply_migration(pi.connection, 33)
+    assert facts.keeps_counts(pi.connection)
+    assert counts_in(pi, "v3_state.economy_facts") == counts
+    assert pi.all(kept) == rows_before and pi.all(fills) == fills_before
+    assert pi.one("SELECT count(*) FROM v3_state.economy_top") == (0,)
+
+
+def before_033(pi) -> None:
+    """The database as it is with migrations 031 and 032 only."""
+    pi.connection.execute("DROP TABLE v3_state.economy_top, v3_state.economy_top_build")
+    pi.connection.execute("ALTER TABLE v3_state.economy_facts "
+                          + ", ".join(f"DROP COLUMN {column}" for column in COUNT_COLUMNS))
+
+
+def test_until_migration_033_the_rows_are_written_without_counts_and_it_gives_them_theirs(pi, tmp_path):
+    """The build goes live before the migration is applied. A nightly run in
+    between must still keep the rows up to date, and no row may be left
+    without counts once the migration has run."""
+    before_033(pi)
+    report = filled(pi, tmp_path)
+    # Every row the run wrote: the changed systems' and the fill's.
+    assert report.skipped is None and (report.changed, report.filled) == (7, 8)
+    assert report.without_counts == 15 == report.as_dict()["without_counts"]
+    said = "\n".join(report.lines())
+    assert ("  15 of these rows were written without the body counts Find filters on: migration 033 has "
+            "not been applied. It gives them their counts when it is.") in said
+    assert facts.status_lines(pi.connection)[1:] == [
+        "  The rows do not have the body counts Find filters on yet: migration 033 has not been applied."]
+    numbers = rows(pi)
+    assert set(numbers) == WITHIN_500_OF_SOL
+
+    # A system that changes before the migration still gets its new numbers.
+    without = deepcopy(pi.records[SOL])
+    ringed = next(body for body in without["bodies"] if body.get("rings") and body.get("type") == "Planet")
+    without["bodies"].remove(ringed)
+    run(pi, tmp_path, [without], made_at=SEPTEMBER + timedelta(days=1))
+    changed = waiting(pi).facts
+    assert changed.changed == 1 == changed.without_counts
+    assert rows(pi)[SOL] != numbers[SOL]
+    assert rows(pi)[SOL][0] == numbers[SOL][0] - 1
+
+    finder_seed.apply_migration(pi.connection, 33)
+    assert counts_in(pi, "v3_state.economy_facts") == {
+        system_id64: counts for system_id64, counts in counts_in(pi, "v3_app.system_search").items()
+        if system_id64 in WITHIN_500_OF_SOL}
+    assert len(facts.status_lines(pi.connection)) == 1
+
+    # From then on the rows are written with them, and the report says nothing of it.
+    after = facts.FactsReport()
+    facts.changed(pi.connection, pi.schema, sorted(WITHIN_500_OF_SOL), after)
+    assert after.changed == 8 and after.without_counts == 0
+    assert "without_counts" not in after.as_dict() and "without the body counts" not in "\n".join(after.lines())
+
+
+def test_a_row_is_written_with_the_tables_columns_held_as_they_are(pi, tmp_path, monkeypatch):
+    """Migration 033 may be applied while a run is writing rows. A batch
+    decides whether to write the counts with the table held against a change
+    of its columns, so the migration either sees the batch's rows (and gives
+    them their counts) or comes first (and the batch writes them)."""
+    filled(pi, tmp_path)
+    seen = []
+    real = facts.keeps_counts
+
+    def looking(connection):
+        seen.append(connection.execute(
+            "SELECT l.mode FROM pg_locks l WHERE l.pid = pg_backend_pid() AND l.locktype = 'relation' "
+            "AND l.relation = 'v3_state.economy_facts'::regclass ORDER BY 1").fetchall())
+        return real(connection)
+
+    monkeypatch.setattr(facts, "keeps_counts", looking)
+    facts.changed(pi.connection, pi.schema, [SOL], facts.FactsReport())
+    assert seen == [[("RowExclusiveLock",)]]
+    statement = "LOCK TABLE v3_state.economy_facts IN ROW EXCLUSIVE MODE"
+    source = (ROOT / "apps/importer/src/spansh_delta/economy_facts.py").read_text()
+    assert source.count(statement.replace("v3_state.economy_facts", "{TABLE}")) == 1
+
+
+def test_the_list_tables_hold_one_whole_set_at_a_time(pi):
+    """Migration 033's two tables for the search across the band."""
+    import psycopg
+
+    columns = [row[0] for row in pi.all(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'v3_state' "
+        "AND table_name = 'economy_top' ORDER BY ordinal_position")]
+    assert columns == ["build_id", "list_no", "place", "system_id64", "number", "bodies_known",
+                       "ground_slots", *COUNT_COLUMNS]
+    first = pi.one("INSERT INTO v3_state.economy_top_build (version, depth, finished_at, is_current) "
+                   "VALUES ('test/facts-1', 3, now(), true) RETURNING build_id")[0]
+    pi.connection.execute(
+        "INSERT INTO v3_state.economy_top (build_id, list_no, place, system_id64, number, bodies_known, "
+        "ground_slots) VALUES (%s, 36, 1, %s, 9, 4, 9)", (first, SOL))
+    for wrong, why in (
+            # A second set cannot be current beside the first.
+            ("INSERT INTO v3_state.economy_top_build (version, depth, finished_at, is_current) "
+             "VALUES ('test/facts-1', 3, now(), true)", psycopg.errors.UniqueViolation),
+            # A set is not read before it is whole.
+            ("INSERT INTO v3_state.economy_top_build (version, depth, is_current) "
+             "VALUES ('test/facts-1', 3, true)", psycopg.errors.CheckViolation),
+            # One system, one place in a list; and there are 36 lists.
+            (f"INSERT INTO v3_state.economy_top (build_id, list_no, place, system_id64, number, bodies_known, "
+             f"ground_slots) VALUES ({first}, 36, 2, {SOL}, 9, 4, 9)", psycopg.errors.UniqueViolation),
+            (f"INSERT INTO v3_state.economy_top (build_id, list_no, place, system_id64, number, bodies_known, "
+             f"ground_slots) VALUES ({first}, 37, 1, {SOL}, 9, 4, 9)", psycopg.errors.CheckViolation),
+            # A system with nothing to be placed by is not in a list.
+            (f"INSERT INTO v3_state.economy_top (build_id, list_no, place, system_id64, number, bodies_known, "
+             f"ground_slots) VALUES ({first}, 1, 1, {SOL}, 0, 4, 9)", psycopg.errors.CheckViolation)):
+        with pytest.raises(why):
+            pi.connection.execute(wrong)
+    # A set's rows go with it.
+    pi.connection.execute("DELETE FROM v3_state.economy_top_build WHERE build_id = %s", (first,))
+    assert pi.one("SELECT count(*) FROM v3_state.economy_top") == (0,)
 
 
 # -- where each system is ----------------------------------------------------------

@@ -5,10 +5,11 @@ search (``local_search.py``), which it does not change.
 
 A search names one economy, with the order Strongest or Purest, or two
 economies together, and a point with a radius. It reads
-``v3_state.economy_facts`` (migrations 031 and 032), which the nightly
+``v3_state.economy_facts`` (migrations 031 to 033), which the nightly
 scoring keeps (``apps/importer/src/spansh_delta/economy_facts.py``): each
 system's row has one number for where its best body stands in each order
-(``find_numbers.py``), how many of its bodies are known, and where it is.
+(``find_numbers.py``), how many of its bodies are known, where it is, and
+the counts Find's body filters use.
 
 The order of the systems is the design's:
 
@@ -21,13 +22,14 @@ The order of the systems is the design's:
 How it is read:
 
   * The systems come from the facts table alone, by the 32 ly cells the
-    search's sphere touches (``find_cells.py``), and are sorted there.
-  * Find's rules are then applied to the sorted systems one by one, until the
-    page is full: the fake systems, the claim rule, the reach rule, and the
-    body-count filters, which read the search table. So a page costs a few
-    hundred look-ups, not one for every system in the sphere. A filter that
-    few systems pass costs more: the walk goes on until the page is full or
-    the sphere's systems run out.
+    search's sphere touches (``find_cells.py``). The body-count filters are
+    applied there too, to the counts on the facts row itself (migration 033),
+    so a filter costs no look-up however few systems pass it. What is left
+    is sorted.
+  * Find's other rules are then applied to the sorted systems one by one,
+    until the page is full: the fake systems, the claim rule, the reach rule,
+    and that the system has a search row to show. So a page costs a few
+    hundred look-ups, not one for every system in the sphere.
   * The count walks the same systems to the 1,001st match, within a time
     budget (``find_count.count_within``).
 
@@ -40,7 +42,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 import time
-from typing import Any
+from typing import Any, Final
 
 import asyncpg
 from fastapi import HTTPException
@@ -51,6 +53,7 @@ from edfinder_api.cpe.body_facts import ECONOMIES, PAIRS
 from edfinder_api.fake_systems import not_fake_sql
 from edfinder_api.find_count import _bounded_v3_total, count_within, total_from_short_page
 from edfinder_api.find_numbers import (
+    COUNT_COLUMNS,
     LAYOUT,
     VERSION,
     layout_of,
@@ -182,19 +185,34 @@ def _in_sphere(search: EconomySearch, params: _Params) -> tuple[list[str], str]:
     reach = params.add(search.radius_ly * search.radius_ly)
     number = f"f.{search.column}[{int(search.index)}]"
     where = [f"f.cell = ANY({cells}::bigint[])", f"{squared} <= {reach}", f"{number} > 0"]
-    return where, f"sqrt({squared})"
+    return where + count_filters(search.bounds, params, "f."), f"sqrt({squared})"
+
+
+# The largest whole number PostgreSQL's bigint holds.
+_BIGGEST: Final = (1 << 63) - 1
+
+
+def count_filters(bounds: dict[str, int], params: _Params, prefix: str) -> list[str]:
+    """The body-count filters as conditions on a row that carries the counts
+    (the facts table's, or a ranked list's). A row without counts, of a system
+    that has no search row, passes none of them."""
+    conditions = []
+    for key, value in bounds.items():
+        column, operator = key[:-4], {"_min": ">=", "_max": "<="}[key[-4:]]
+        if column not in COUNT_COLUMNS:
+            raise ValueError(f"not a body-count column: {column!r}")
+        # The columns are two bytes wide and a request may ask for any whole
+        # number. Compared as eight-byte numbers, "at least 40,000" finds
+        # nothing and "at most 40,000" everything, instead of failing.
+        asked = max(-_BIGGEST - 1, min(int(value), _BIGGEST))
+        conditions.append(f"{prefix}{column} {operator} {params.add(asked)}::bigint")
+    return conditions
 
 
 def _rules(search: EconomySearch, params: _Params, system_id_sql: str) -> list[str]:
-    """Find's rules for one system: it can still be claimed, it is in reach,
-    it is real, and its search row passes the body-count filters. Each is a
-    look-up by the system's id."""
-    filters = ""
-    for key, value in search.bounds.items():
-        column, operator = key[:-4], {"_min": ">=", "_max": "<="}[key[-4:]]
-        if column not in BODY_COUNT_COLUMNS:
-            raise ValueError(f"not a body-count column: {column!r}")
-        filters += f" AND s.{column} {operator} {params.add(int(value))}"
+    """Find's rules for one system that are not on its facts row: it is real,
+    it can still be claimed, it is in reach, and it has a search row to show.
+    Each is a look-up by the system's id."""
     # Cheapest first: the page applies them to a system in this order, and
     # stops at the first one that fails.
     return [
@@ -203,7 +221,7 @@ def _rules(search: EconomySearch, params: _Params, system_id_sql: str) -> list[s
         in_reach_sql(system_id_sql, search.reach_ly),
         "EXISTS (SELECT 1 FROM v3_app.system_search s "
         f"WHERE s.derived_generation_id = {CURRENT_GENERATION_PIN} "
-        f"AND s.system_id64 = {system_id_sql}{filters})",
+        f"AND s.system_id64 = {system_id_sql})",
     ]
 
 
@@ -374,7 +392,13 @@ async def search_near(
             # a program built for the whole of that work would be time wasted.
             await connection.execute("SET LOCAL jit = off")
             state = await facts_state(connection)
-            rows = await connection.fetch(page_sql, *page_params)
+            try:
+                rows = await connection.fetch(page_sql, *page_params)
+            except asyncpg.exceptions.UndefinedColumnError as error:
+                # A body filter, on a database whose facts rows have no counts yet.
+                raise HTTPException(
+                    503, "Find's facts do not hold the body counts yet (migration 033 has not been "
+                         "applied), so a search with a body filter cannot be made.") from error
             ids = [row["system_id64"] for row in rows]
             details = {found["system_id64"]: found
                        for found in await connection.fetch(DETAILS_SQL, ids)} if ids else {}
