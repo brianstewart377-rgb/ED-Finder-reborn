@@ -7,6 +7,9 @@ One search implementation, as for the other search routes: a request that
 cannot be answered is refused (422) before the database is touched, facts
 that cannot be read yet answer 503 with the reason, and any other failure
 answers 503 as RFC 7807 problem details rather than a made-up page.
+
+``scope`` says where to look: near a point (the default), or across the whole
+band, in the ranked lists the nightly scoring writes.
 """
 import json
 import time
@@ -25,7 +28,7 @@ from edfinder_api.routers.search import _count_budget_ms, _search_unavailable
 router = APIRouter(tags=['search'])
 
 # Bump when what a kept answer holds changes.
-CACHE_VERSION = 'v1'
+CACHE_VERSION = 'v2'
 
 
 def _cache_key(body: dict) -> str:
@@ -48,10 +51,13 @@ async def find_by_economy(
     background_tasks.add_task(inc_metric, 'db_queries')
     started = time.time()
     body = {
+        'scope': req.scope,
         'economies': list(req.economies),
         'order': req.order,
-        'reference_coords': req.reference_coords.model_dump(),
-        'radius_ly': req.radius_ly,
+        'reference_coords': req.reference_coords.model_dump() if req.reference_coords else None,
+        # Near a point, 100 ly where it is left out; across the band there is none.
+        'radius_ly': (_find.RADIUS_DEFAULT_LY if req.radius_ly is None and req.scope == _find.SCOPE_NEAR
+                      else req.radius_ly),
         'reach_ly': req.reach_ly,
         'body_filters': req.body_filters.model_dump(exclude_none=True) if req.body_filters else {},
         'size': req.size,
@@ -64,12 +70,12 @@ async def find_by_economy(
     if cached:
         return cached
     try:
-        result = await _find.search_near(
+        result = await _find.answer(
             body, pool, count_budget_ms=_count_budget_ms(req.wait_for_count))
     except HTTPException:
         raise
     except Exception as exc:
-        log.error('find_economy.search_near failed: type=%s repr=%r sqlstate=%s',
+        log.error('find_economy.answer failed: type=%s repr=%r sqlstate=%s',
                   type(exc).__name__, exc, getattr(exc, 'sqlstate', None), exc_info=True)
         return _search_unavailable(
             f'find by economy: {type(exc).__name__}: {exc}',

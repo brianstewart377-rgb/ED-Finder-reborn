@@ -16,13 +16,21 @@ from edfinder_api.ranking.profile import (
 
 
 class EconomySearchRequest(BaseModel):
-    # One economy, or two for a pair.
-    economies:        list[EconomyName]        = Field(min_length=1, max_length=2)
-    # For one economy: strongest (the default) or purest. A pair has one order.
-    order:            Optional[Literal['strongest', 'purest', 'pair']] = None
-    reference_coords: CoordsModel
-    # How far from the point to look: above 0, at most 250 ly.
-    radius_ly:        float                    = Field(default=100.0, gt=0, le=250)
+    # Where to look: near a point (reference_coords and radius_ly), or across
+    # the whole band, in the ranked lists the nightly scoring writes.
+    scope:            Literal['near', 'band']  = 'near'
+    # One economy, or two for a pair. Across the band it may be empty: the
+    # systems with the most ground slots, then the most known bodies.
+    economies:        list[EconomyName]        = Field(max_length=2)
+    # For one economy: strongest (the default) or purest. A pair has one
+    # order, and so has a search with no economy.
+    order:            Optional[Literal['strongest', 'purest', 'pair', 'ground_slots']] = None
+    # Near: the point to look around. Across the band: where distances are
+    # given from, if anywhere.
+    reference_coords: Optional[CoordsModel]    = None
+    # Near only. How far from the point to look: above 0, at most 250 ly;
+    # 100 where it is left out.
+    radius_ly:        Optional[float]          = Field(default=None, gt=0, le=250)
     # Find's reach rule: within 250 ly of inhabited space (the default) or 500.
     reach_ly:         Literal[250, 500]        = 250
     body_filters:     Optional[BodyFilters]    = None
@@ -94,7 +102,8 @@ class EconomySearchRow(BaseModel):
     id:        str
     name:      str
     coords:    CoordsModel
-    distance:  float
+    # From the search's point. Across the band there may be no point.
+    distance:  Optional[float] = None
     main_star: Optional[str] = None
     claim_status:          Optional[str] = None
     claim_station_seen_at: Optional[str] = None
@@ -105,8 +114,11 @@ class EconomySearchRow(BaseModel):
     # Where the system stands in the asked order: higher is first. Systems
     # with the same number and the same bodies_known are level.
     order_number:  int
-    # Which of the three shapes it has goes with the answer's `order`.
-    best_body:     EconomyStrongestBody | EconomyPurestBody | EconomyPairBody
+    # Across the band: the system's place in its ranked list, 1 for the best.
+    place:         Optional[int] = None
+    # Which of the three shapes it has goes with the answer's `order`. None
+    # where no economy was asked for: the order number is the ground slots.
+    best_body:     EconomyStrongestBody | EconomyPurestBody | EconomyPairBody | None = None
     # The search row's counts.
     body_count:          Optional[int] = None
     station_count:       Optional[int] = None
@@ -146,6 +158,19 @@ class EconomyFactsState(BaseModel):
     updating_systems_done: Optional[int] = None
 
 
+class EconomyListsState(BaseModel):
+    """Across the band: which set of ranked lists the answer was read from."""
+    model_config = ConfigDict(extra='forbid')
+
+    version:    str
+    build_id:   int
+    written_at: str
+    # How many places a list has at most, and how many this search's list
+    # has. The search looked within those places and no further.
+    depth:      int
+    places:     int
+
+
 class EconomySearchResponse(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -158,8 +183,12 @@ class EconomySearchResponse(BaseModel):
     total_is_counted: bool
     query_ms: int
     source:   str
+    scope:     Literal['near', 'band']
     economies: list[EconomyName]
-    order:     Literal['strongest', 'purest', 'pair']
-    radius_ly: float
+    order:     Literal['strongest', 'purest', 'pair', 'ground_slots']
+    # None across the band.
+    radius_ly: Optional[float] = None
     reach_ly:  Literal[250, 500]
     facts:     EconomyFactsState
+    # Across the band only.
+    lists:     Optional[EconomyListsState] = None

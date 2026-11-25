@@ -650,7 +650,9 @@ made or agreed since, each as a reviewed migration after a fresh backup:
   best 20,000 systems each; a few hundred MB). The owner agreed the design on
   25 November. The rows already filled get their counts from the search table
   inside the migration, so the first fill carries on where it was. Deploy the
-  build first, then apply it.
+  build first, then apply it. The scoring writes the lists afresh after each
+  run once the first fill has finished (about 30 November); how long that
+  takes on the Pi has not been measured yet (my estimate is about 5 minutes).
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had

@@ -66,7 +66,7 @@ def ask(galaxy, body: dict, **options) -> dict:
     async def scenario():
         pool = await _api_pool(galaxy.connection)
         try:
-            return await find_economy.search_near(body, pool, **options)
+            return await find_economy.answer(body, pool, **options)
         finally:
             await pool.close()
     return asyncio.run(scenario())
@@ -639,7 +639,7 @@ def test_the_page_is_read_without_building_a_program_for_it(near, monkeypatch):
         try:
             async with pool.acquire() as connection:
                 before = await connection.fetchval("SHOW jit")
-            answer = await find_economy.search_near(request(("Refinery",)), pool)
+            answer = await find_economy.answer(request(("Refinery",)), pool)
             async with pool.acquire() as connection:
                 return before, answer, await connection.fetchval("SHOW jit")
         finally:
@@ -695,7 +695,7 @@ def post(monkeypatch, body: dict, answer=None) -> tuple[int, dict, list]:
 
     asked: list = []
 
-    async def search_near(body, pool, count_budget_ms=None):
+    async def stand_in(body, pool, count_budget_ms=None):
         asked.append((body, count_budget_ms))
         if isinstance(answer, Exception):
             raise answer
@@ -706,7 +706,7 @@ def post(monkeypatch, body: dict, answer=None) -> tuple[int, dict, list]:
 
     app.dependency_overrides[route.get_pool] = lambda: None
     app.dependency_overrides[route.get_redis] = lambda: None
-    monkeypatch.setattr(route._find, "search_near", search_near)
+    monkeypatch.setattr(route._find, "answer", stand_in)
     monkeypatch.setattr(route, "cache_get", no_cache)
     monkeypatch.setattr(route, "cache_set", no_cache)
 

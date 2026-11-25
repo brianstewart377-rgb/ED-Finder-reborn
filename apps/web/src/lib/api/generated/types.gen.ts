@@ -646,6 +646,34 @@ export type EconomyItemV1 = {
 };
 
 /**
+ * EconomyListsState
+ *
+ * Across the band: which set of ranked lists the answer was read from.
+ */
+export type EconomyListsState = {
+    /**
+     * Version
+     */
+    version: string;
+    /**
+     * Build Id
+     */
+    build_id: number;
+    /**
+     * Written At
+     */
+    written_at: string;
+    /**
+     * Depth
+     */
+    depth: number;
+    /**
+     * Places
+     */
+    places: number;
+};
+
+/**
  * EconomyModifierV1
  */
 export type EconomyModifierV1 = {
@@ -760,18 +788,22 @@ export type EconomyPurestBody = {
  */
 export type EconomySearchRequest = {
     /**
+     * Scope
+     */
+    scope?: 'near' | 'band';
+    /**
      * Economies
      */
     economies: Array<'Agriculture' | 'Refinery' | 'Industrial' | 'HighTech' | 'Military' | 'Tourism' | 'Extraction'>;
     /**
      * Order
      */
-    order?: 'strongest' | 'purest' | 'pair' | null;
-    reference_coords: CoordsModel;
+    order?: 'strongest' | 'purest' | 'pair' | 'ground_slots' | null;
+    reference_coords?: CoordsModel | null;
     /**
      * Radius Ly
      */
-    radius_ly?: number;
+    radius_ly?: number | null;
     /**
      * Reach Ly
      */
@@ -824,22 +856,27 @@ export type EconomySearchResponse = {
      */
     source: string;
     /**
+     * Scope
+     */
+    scope: 'near' | 'band';
+    /**
      * Economies
      */
     economies: Array<'Agriculture' | 'Refinery' | 'Industrial' | 'HighTech' | 'Military' | 'Tourism' | 'Extraction'>;
     /**
      * Order
      */
-    order: 'strongest' | 'purest' | 'pair';
+    order: 'strongest' | 'purest' | 'pair' | 'ground_slots';
     /**
      * Radius Ly
      */
-    radius_ly: number;
+    radius_ly?: number | null;
     /**
      * Reach Ly
      */
     reach_ly: 250 | 500;
     facts: EconomyFactsState;
+    lists?: EconomyListsState | null;
 };
 
 /**
@@ -862,7 +899,7 @@ export type EconomySearchRow = {
     /**
      * Distance
      */
-    distance: number;
+    distance?: number | null;
     /**
      * Main Star
      */
@@ -888,9 +925,13 @@ export type EconomySearchRow = {
      */
     order_number: number;
     /**
+     * Place
+     */
+    place?: number | null;
+    /**
      * Best Body
      */
-    best_body: EconomyStrongestBody | EconomyPurestBody | EconomyPairBody;
+    best_body?: EconomyStrongestBody | EconomyPurestBody | EconomyPairBody | null;
     /**
      * Body Count
      */
