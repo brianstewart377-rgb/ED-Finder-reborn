@@ -648,6 +648,31 @@ the switch: nobody uses the site yet, and it would have held up the copy.
 The copy comes first, then keeping reach up to date and Find's 250 ly default,
 then the catch-up, all before the group is invited.
 
+(25 Nov) **Haul moves ahead of the rest of the map** (owner: "Yes move Haul
+up"). The plan's order after the move is the map, then availability in Find,
+then Haul, then BGS. Availability in Find is built (the claim rule and reach),
+and so is the first of the map's three jobs ("show on map"). The order is now:
+the ratings rebuild, which is under way; then Haul; then the map's other two
+jobs (a player's colonies, and build materials on the map); then BGS.
+
+What the owner said he uses is the shopping list in Raven Colonial: click the
+basket, and it shows where to buy what his builds are short of. That is Haul
+here. He also said he "wouldn't mind us having our own EDMC plugin", where the
+plan leaves open whether to start on BGS-Tally's link or write our own; that
+is settled when Haul starts. A program of our own like SRV Survey (a separate
+Windows program that draws over the game) is not planned: the list goes on
+our own site, fed by the plugin.
+
+Where Raven's "where to buy" gets its data, looked up the same night: from
+Spansh, refreshed every hour. Its website's code is public
+(`njthomson/RavenColonialWeb`, GPL-3.0; read, not copied), and the note under
+its market search says so. Spansh has it from players, through EDDN. So
+there are two ways to the same data for us, neither built: the Spansh files
+the Pi takes every night, and our own EDDN listener, which runs already and
+could keep the market messages too. To check before anything is built:
+whether our nightly Spansh files carry each station's market, and what the
+game writes to the journal at a construction site.
+
 ## Not part of the move
 
 The map (Almanac trial), bridge routes, BGS and the BGS-Tally link come after
@@ -1158,6 +1183,9 @@ The map's roadmap, in this order:
    nearby stations sell. We hold each station's type, economy and services,
    not its goods or stock. To check first: whether the Spansh files already
    downloaded each night carry station markets.
+   (25 Nov) Haul now comes before this (see "Changes to the plan since
+   8 November"), and it needs the same two things for its shopping list. So
+   they are built there, and the map's part is then to show them.
 
 Claude's reading of what this leaves out, to be put back only if the owner
 asks: thousands of markers on the map at once, inhabited systems across the
