@@ -555,13 +555,7 @@ async def answer(
             else:
                 page_sql, page_params = page_query(search)
                 count_sql, count_params = count_query(search)
-            try:
-                rows = await connection.fetch(page_sql, *page_params)
-            except asyncpg.exceptions.UndefinedColumnError as error:
-                # A body filter, on a database whose facts rows have no counts yet.
-                raise HTTPException(
-                    503, "Find's facts do not hold the body counts yet (migration 033 has not been "
-                         "applied), so a search with a body filter cannot be made.") from error
+            rows = await connection.fetch(page_sql, *page_params)
             ids = [row["system_id64"] for row in rows]
             details = {found["system_id64"]: found
                        for found in await connection.fetch(DETAILS_SQL, ids)} if ids else {}

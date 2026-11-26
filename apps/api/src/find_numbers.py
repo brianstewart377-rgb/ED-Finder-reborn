@@ -46,8 +46,13 @@ STRONGEST_STEPS: Final[Steps] = ((10, 0, 8), (10, 0, 6), (1, 15, 4), (10, 0, 6),
 PUREST_STEPS: Final[Steps] = ((1, 15, 4), (1, 0, 1), (10, 0, 8), (10, 0, 6), (1, 0, 3), (1, 0, 1))
 PAIR_STEPS: Final[Steps] = ((1, 15, 4), (10, 0, 8), (10, 0, 8), (10, 0, 6), (10, 0, 6), (10, 0, 7),
                             (1, 0, 3), (1, 0, 1))
-# Change this when the layout above, ECONOMIES or PAIRS (cpe/body_facts.py) change.
-LAYOUT: Final[str] = "facts-1"
+# Change this when the layout above, ECONOMIES or PAIRS (cpe/body_facts.py)
+# change, or when what a facts row holds changes. A fill for a new layout
+# writes every row afresh, and Find reads nothing until one has finished, so
+# no search ever meets a row written the old way.
+#   facts-2 (26 November 2026): each row also carries the 19 body counts
+#   above (migration 033). Rows written under facts-1 have none.
+LAYOUT: Final[str] = "facts-2"
 VERSION: Final[str] = f"{RULEBOOK_RELEASE}/{LAYOUT}"
 
 

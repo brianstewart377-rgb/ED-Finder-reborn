@@ -378,34 +378,23 @@ def test_the_search_says_so_until_a_fill_has_finished(pi, tmp_path):
 
     # A new rulebook: its fill is under way, and the old numbers are still read.
     pi.connection.execute("INSERT INTO v3_state.economy_facts_fill (version, systems) "
-                          "VALUES ('a later rulebook/facts-1', 5)")
+                          f"VALUES ('a later rulebook/{find_numbers.LAYOUT}', 5)")
     state = ask(pi, body)["facts"]
     assert (state["version"], state["updating"], state["updating_to"], state["updating_systems_done"]) \
-        == (find_numbers.VERSION, True, "a later rulebook/facts-1", 5)
+        == (find_numbers.VERSION, True, f"a later rulebook/{find_numbers.LAYOUT}", 5)
     pi.connection.execute("UPDATE v3_state.economy_facts_fill SET finished_at = now() WHERE finished_at IS NULL")
     state = ask(pi, body)["facts"]
     # This build still runs the older rulebook: the next nightly run refills.
     assert (state["version"], state["updating"], state["updating_to"]) \
-        == ("a later rulebook/facts-1", True, find_numbers.VERSION)
+        == (f"a later rulebook/{find_numbers.LAYOUT}", True, find_numbers.VERSION)
 
-    # Numbers of another layout cannot be read at all.
-    pi.connection.execute("UPDATE v3_state.economy_facts_fill SET version = 'any rulebook/facts-0'")
+    # Rows of another layout cannot be read at all: the one before this one,
+    # whose rows have no body counts, least of all.
+    pi.connection.execute("UPDATE v3_state.economy_facts_fill SET version = 'any rulebook/facts-1'")
     assert refusal(pi, body) == (503, "Find's facts for each system were worked out for another build "
                                       "of ED-Finder; the next nightly run starts them again.")
     pi.connection.execute("DROP TABLE v3_state.economy_facts, v3_state.economy_facts_fill")
     assert refusal(pi, body) == (503, "Find's facts for each system are not kept in this database yet.")
-
-
-def test_a_filtered_search_says_so_where_the_facts_have_no_counts_yet(pi, tmp_path):
-    """The build can be live a little before migration 033 is applied."""
-    filled(pi, tmp_path)
-    pi.connection.execute("DROP TABLE v3_state.economy_top, v3_state.economy_top_build")
-    pi.connection.execute("ALTER TABLE v3_state.economy_facts "
-                          + ", ".join(f"DROP COLUMN {column}" for column in find_numbers.COUNT_COLUMNS))
-    assert refusal(pi, request(("Refinery",), body_filters={"landable_count": {"min": 1}})) == (
-        503, "Find's facts do not hold the body counts yet (migration 033 has not been applied), "
-             "so a search with a body filter cannot be made.")
-    assert ask(pi, request(("Refinery",)))["count"] == 4
 
 
 def test_a_count_that_runs_out_of_time_does_not_take_the_page_with_it(near, monkeypatch):
@@ -678,7 +667,7 @@ def test_a_number_reads_back_as_the_steps_it_was_made_from():
     for bad in (0, -5, 1, True, 2.5, 1 << 60):
         with pytest.raises(find_numbers.PackError, match="is not a number of this layout"):
             find_numbers.unpack(bad, find_numbers.STRONGEST_STEPS)
-    assert find_numbers.layout_of(find_numbers.VERSION) == find_numbers.LAYOUT == "facts-1"
+    assert find_numbers.layout_of(find_numbers.VERSION) == find_numbers.LAYOUT == "facts-2"
     # The nightly scoring writes with this same layout.
     assert facts.VERSION == find_numbers.VERSION and facts.pack is find_numbers.pack
 

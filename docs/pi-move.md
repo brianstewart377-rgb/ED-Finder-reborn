@@ -644,15 +644,47 @@ made or agreed since, each as a reviewed migration after a fresh backup:
   coordinates, and the 32 ly cube of space it is in), so that Find's search
   near a system reads one stretch of one table. It emptied the table, so the
   first fill started again; about 12 GB once filled.
-- `033` (built 25 November, not yet applied): the 19 counts Find's body
+- `033` (applied 25 November, 20:51 UTC): the 19 counts Find's body
   filters use, on each row of that table (about 13.5 GB once filled), and two
   new tables for Find's ranked lists across the whole band (36 lists of the
   best 20,000 systems each; a few hundred MB). The owner agreed the design on
-  25 November. The rows already filled get their counts from the search table
-  inside the migration, so the first fill carries on where it was. Deploy the
-  build first, then apply it. The scoring writes the lists afresh after each
-  run once the first fill has finished (about 30 November); how long that
-  takes on the Pi has not been measured yet (my estimate is about 5 minutes).
+  25 November. The scoring writes the lists afresh after each run once a fill
+  has finished; how long that takes on the Pi has not been measured yet (my
+  estimate is about 5 minutes).
+
+  **The Pi froze while it was being applied.** As first written, the
+  migration also copied the counts into the 7.4 million rows already filled,
+  in one statement, so that the fill would not have to start again. The
+  columns and tables were saved at 20:51:30. About five minutes into the copy
+  the Pi froze solid; its one-minute watchdog restarted it at 20:58:26. The
+  database replayed 2.4 GB of its journal in 20 seconds, undid the unfinished
+  copy and was ready at 20:59:13; the 12 TB drive was checked and attached
+  again by 20:59:50; nothing failed to come back and nothing was lost.
+
+  Why it froze is not proven, because the Pi keeps its log in memory and the
+  restart wiped it. What is known: the power supply offers the Pi 3 A where a
+  Pi 5 wants 5 A (`/proc/device-tree/chosen/power/max_current` reads 3000);
+  the morning after, `vcgencmd get_throttled` read `0x50000` (low voltage
+  seen since the restart, during ordinary nightly work) and the 5 V rail read
+  4.93 V. The power supply is the most likely cause.
+
+  What was changed (26 November): the copy was taken out of the migration,
+  which now reads and writes no row. The rows get their counts from a new
+  fill instead: the layout of the facts is now `facts-2`, so the nightly fill
+  starts again from the beginning and writes every row with its counts, 500
+  systems at a time as before, and Find answers nothing until that fill has
+  finished. This costs about a day and a half (11 million of 41 million
+  systems had been done); the fill should finish about 2 December. Telling
+  the owner the fill would not have to start again was the mistake: it traded
+  a day and a half for a heavy one-off statement on a Pi whose power supply
+  was already known to be too weak.
+
+  Still to do on the Pi: fit the proper power supply (due 27 November; the
+  owner), and at that restart see that the containers' memory limits are
+  kept; make the Pi's log survive a restart, so that a freeze leaves a
+  record; no heavy one-off job before the new supply is in. The rewrite of
+  the facts table when the fill finishes (`CLUSTER`) is such a job, and falls
+  after the supply is due.
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had

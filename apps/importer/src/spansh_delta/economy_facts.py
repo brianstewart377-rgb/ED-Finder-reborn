@@ -23,8 +23,8 @@ migration 028), ``v3_state.economy_facts`` (migration 031) holds one row:
   * the 19 counts Find filters on (``edfinder_api.find_numbers.COUNT_COLUMNS``;
     migration 033), copied from the system's search row when this row is
     written, so that a search can apply a filter to the row it already holds.
-    Until that migration is applied the rows are written without them, and the
-    migration gives every row it finds without counts its counts.
+    Rows written before that migration have none: the layout that came with
+    it (``facts-2``) starts a new fill, which writes every row again.
 
 A system with no known bodies has ``bodies_known`` 0 and no numbers. Each
 number packs every step of its order into one (``edfinder_api.find_numbers``),
@@ -146,25 +146,21 @@ def system_facts(system_id64: int, rows: SystemRows) -> SystemFacts:
 # -- the tables ---------------------------------------------------------------
 
 
-NOT_KEPT = "not kept in this database (migrations 031 and 032 have not both been applied)"
-NO_COUNTS_YET = "migration 033 has not been applied"
+NOT_KEPT = "not kept in this database (migrations 031, 032 and 033 have not all been applied)"
 
 
 def available(connection: psycopg.Connection[Any]) -> bool:
-    """Whether this database keeps the facts, with where each system is
-    (migrations 031 and 032), and reach (028)."""
+    """Whether this database keeps the facts, with where each system is and
+    the counts Find filters on (migrations 031, 032 and 033), and reach (028).
+
+    All or nothing: a row is never written without its counts, so a finished
+    fill means every row has them."""
+    wanted = ["cell", *COUNT_COLUMNS]
     return connection.execute(
         "SELECT to_regclass(%s) IS NOT NULL AND to_regclass(%s) IS NOT NULL "
-        "AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass(%s) "
-        "AND attname = 'cell' AND NOT attisdropped)", (FILLS, REACH, TABLE)).fetchone()[0]
-
-
-def keeps_counts(connection: psycopg.Connection[Any]) -> bool:
-    """Whether the facts rows have the counts Find filters on (migration 033)."""
-    return connection.execute(
-        "SELECT count(*) = %s FROM pg_attribute WHERE attrelid = to_regclass(%s) "
-        "AND attname = ANY(%s) AND NOT attisdropped",
-        (len(COUNT_COLUMNS), TABLE, list(COUNT_COLUMNS))).fetchone()[0]
+        "AND (SELECT count(*) FROM pg_attribute WHERE attrelid = to_regclass(%s) "
+        "AND attname = ANY(%s) AND NOT attisdropped) = %s",
+        (FILLS, REACH, TABLE, wanted, len(wanted))).fetchone()[0]
 
 
 @dataclass(frozen=True)
@@ -196,18 +192,12 @@ def _start_fill(connection: psycopg.Connection[Any]) -> Fill:
 
 _OWN_COLUMNS = ("bodies_known", "ground_slots", "strongest", "purest", "pairs", "worked_out_at",
                 "x_ly", "y_ly", "z_ly")
-
-
-def _upsert(columns: tuple[str, ...]) -> str:
-    return (f"INSERT INTO {TABLE} (system_id64, {', '.join(columns)}) "
-            f"VALUES ({', '.join(['%s'] * (1 + len(columns)))}) "
-            "ON CONFLICT (system_id64) DO UPDATE SET "
-            + ", ".join(f"{column} = excluded.{column}" for column in columns))
-
-
-UPSERT = _upsert(_OWN_COLUMNS + COUNT_COLUMNS)
-# Where migration 033 has not been applied yet.
-UPSERT_WITHOUT_COUNTS = _upsert(_OWN_COLUMNS)
+UPSERT = (
+    f"INSERT INTO {TABLE} (system_id64, {', '.join(_OWN_COLUMNS + COUNT_COLUMNS)}) "
+    f"VALUES ({', '.join(['%s'] * (1 + len(_OWN_COLUMNS) + len(COUNT_COLUMNS)))}) "
+    "ON CONFLICT (system_id64) DO UPDATE SET "
+    + ", ".join(f"{column} = excluded.{column}" for column in _OWN_COLUMNS + COUNT_COLUMNS)
+)
 POSITIONS_SQL = "SELECT id64, x_ly, y_ly, z_ly FROM {systems} WHERE id64 = ANY(%s::bigint[])"
 # The counts Find filters on, from the systems' search rows as Find serves
 # them. The scoring has just written those rows for the systems it re-scored,
@@ -238,8 +228,6 @@ class FactsReport:
     changed: int = 0
     came_within_reach: int = 0
     filled: int = 0
-    # Rows written without the counts Find filters on (no migration 033 yet).
-    without_counts: int = 0
     failed: dict[int, str] = field(default_factory=dict)
     fill: Fill | None = None
     in_reach: int = 0
@@ -261,8 +249,6 @@ class FactsReport:
                          fill_tidied=self.fill.tidied_at is not None, in_reach=self.in_reach)
         if self.tidy_failed:
             found["tidy_failed"] = self.tidy_failed
-        if self.without_counts:
-            found["without_counts"] = self.without_counts
         return found
 
     def lines(self) -> list[str]:
@@ -278,9 +264,6 @@ class FactsReport:
                row("  could not be worked out:", len(self.failed))]
         for system_id, reason in list(self.failed.items())[:5]:
             out.append(f"      for example system {system_id}: {reason}")
-        if self.without_counts:
-            out.append(f"  {self.without_counts:,} of these rows were written without the body counts Find "
-                       f"filters on: {NO_COUNTS_YET}. It gives them their counts when it is.")
         if self.fill is not None:
             if self.fill.finished_at is None:
                 out.append(f"  The first fill has done {self.fill.systems:,} of {self.in_reach:,} systems "
@@ -321,20 +304,12 @@ def write(connection: psycopg.Connection[Any], schema: str, system_ids: Sequence
         except Exception as error:  # noqa: BLE001  (one odd system must not stop the night)
             report.failed[system_id] = f"{type(error).__name__}: {error}"
     with connection.transaction():
-        # The rows carry the counts once migration 033 has added their columns.
-        # The table's columns are held as they are while that is decided and
-        # the rows are written, so a row either is there for the migration to
-        # give its counts to, or is written with them: never neither.
-        connection.execute(f"LOCK TABLE {TABLE} IN ROW EXCLUSIVE MODE")
-        with_counts = keeps_counts(connection)
         with connection.cursor() as cursor:
-            cursor.executemany(UPSERT if with_counts else UPSERT_WITHOUT_COUNTS, [
+            cursor.executemany(UPSERT, [
                 (item.system_id64, item.bodies_known, item.ground_slots, _list(item.strongest),
                  _list(item.purest), _list(item.pairs), read_at, *position,
-                 *(counts.get(item.system_id64, NO_COUNTS) if with_counts else ()))
+                 *counts.get(item.system_id64, NO_COUNTS))
                 for item, position in found])
-        if not with_counts:
-            report.without_counts += len(found)
         if fill is not None:
             connection.execute(
                 f"UPDATE {FILLS} SET last_system_id64 = %s, systems = systems + %s WHERE fill_id = %s",
@@ -438,7 +413,7 @@ def carry_on(connection: psycopg.Connection[Any], schema: str, report: FactsRepo
 
 def status_lines(connection: psycopg.Connection[Any]) -> list[str]:
     if not available(connection):
-        return ["Economy facts are not kept in this database (migrations 028, 031 and 032)."]
+        return ["Economy facts are not kept in this database (migrations 028, 031, 032 and 033)."]
     fill = latest_fill(connection)
     rows = connection.execute(f"SELECT count(*) FROM {TABLE}").fetchone()[0]
     if fill is None:
@@ -453,11 +428,8 @@ def status_lines(connection: psycopg.Connection[Any]) -> list[str]:
             ", rows in order on disk since " + when(fill.tidied_at) if fill.tidied_at
             else ", rows not yet in order on disk")
     note = "" if fill.version == VERSION else f" (this code runs {VERSION}: a new fill starts with the next run)"
-    lines = [f"Economy facts: the fill for {fill.version} started {when(fill.started_at)}, "
-             f"{state}; {rows:,} rows.{note}"]
-    if not keeps_counts(connection):
-        lines.append(f"  The rows do not have the body counts Find filters on yet: {NO_COUNTS_YET}.")
-    return lines
+    return [f"Economy facts: the fill for {fill.version} started {when(fill.started_at)}, "
+            f"{state}; {rows:,} rows.{note}"]
 
 
 def main(argv: Sequence[str] | None = None) -> int:

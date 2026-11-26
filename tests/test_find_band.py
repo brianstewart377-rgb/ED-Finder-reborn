@@ -300,22 +300,33 @@ def test_the_search_says_so_until_the_lists_have_been_made(pi, tmp_path):
     assert ask(pi, {"economies": ["Refinery"], "reference_coords": AT_SOL, "radius_ly": 250})["count"] == 4
     # Lists written for another layout of the numbers cannot be read by this build.
     assert top.rebuild(pi.connection, progress=False).failed is None
-    pi.connection.execute("UPDATE v3_state.economy_top_build SET version = 'a rulebook/facts-0'")
+    pi.connection.execute("UPDATE v3_state.economy_top_build SET version = 'a rulebook/facts-1'")
     assert refusal(pi, band(("Refinery",))) == (
         503, "Find's lists across the band were made for another build of ED-Finder; the next nightly "
              "run makes them again.")
     # Another rulebook's release with this layout can.
-    pi.connection.execute("UPDATE v3_state.economy_top_build SET version = 'an older rulebook/facts-1'")
-    assert ask(pi, band(("Refinery",)))["lists"]["version"] == "an older rulebook/facts-1"
+    same_layout = f"an older rulebook/{find_numbers.LAYOUT}"
+    pi.connection.execute("UPDATE v3_state.economy_top_build SET version = %s", (same_layout,))
+    assert ask(pi, band(("Refinery",)))["lists"]["version"] == same_layout
 
 
-def test_the_search_says_so_where_migration_033_has_not_been_applied(pi, tmp_path):
-    before_033(pi)
+def test_the_search_says_so_where_the_lists_tables_are_missing(pi, tmp_path):
     filled(pi, tmp_path)
+    pi.connection.execute("DROP TABLE v3_state.economy_top, v3_state.economy_top_build")
     assert refusal(pi, band(("Refinery",))) == (
         503, "Find's lists across the band are not kept in this database yet "
              "(migration 033 has not been applied).")
     assert ask(pi, {"economies": ["Refinery"], "reference_coords": AT_SOL, "radius_ly": 250})["count"] == 4
+
+
+def test_without_migration_033_no_search_answers(pi, tmp_path):
+    """No facts are kept without the counts' columns, so neither search has
+    anything to read, and both say the facts have not been worked out."""
+    before_033(pi)
+    assert filled(pi, tmp_path).skipped is not None
+    for body in (band(("Refinery",)), {"economies": ["Refinery"], "reference_coords": AT_SOL}):
+        assert refusal(pi, body) == (
+            503, "Find's facts for each system have not been worked out yet: the first fill has not started.")
 
 
 def test_the_search_waits_for_the_facts_as_a_search_near_a_point_does(pi):

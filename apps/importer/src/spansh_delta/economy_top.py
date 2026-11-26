@@ -199,11 +199,11 @@ class ListsReport:
 
 
 def kept(connection: psycopg.Connection[Any]) -> bool:
-    """Whether this database has the lists' tables and the counts their rows
-    carry (migration 033)."""
+    """Whether this database has the lists' tables (migration 033) and the
+    facts they are made from."""
     return connection.execute(
         "SELECT to_regclass(%s) IS NOT NULL AND to_regclass(%s) IS NOT NULL", (TABLE, BUILDS)
-    ).fetchone()[0] and economy_facts.keeps_counts(connection)
+    ).fetchone()[0] and economy_facts.available(connection)
 
 
 def facts_ready(connection: psycopg.Connection[Any]) -> bool:

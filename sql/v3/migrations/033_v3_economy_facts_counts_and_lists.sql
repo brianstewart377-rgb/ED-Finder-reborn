@@ -13,12 +13,17 @@
 --    row is written, so a filter is answered from the row already in hand.
 --    About 40 bytes a row: the table goes from about 12 GB to about 13.5 GB.
 --
---    The rows already filled are given their counts here, by one UPDATE from
---    the search table, so the first fill does NOT start again. That statement
---    is the slow part: it writes every row filled so far once more. It runs
---    after the table change has been committed, so nothing waits behind it,
---    and it only touches rows that have no counts yet: run again, it carries
---    on with those. A count above 32,767 is stored as 32,767.
+--    Rows written before this migration have no counts. They get them from
+--    the nightly fill, not from here: the build that writes the counts runs
+--    the facts layout "facts-2", for which a new fill starts and writes every
+--    row again, 500 systems at a time; Find reads nothing until that fill has
+--    finished. A count above 32,767 is stored as 32,767.
+--
+--    As first written (25 November) this file also copied the counts into the
+--    rows already filled, in one UPDATE over millions of rows. On the Pi that
+--    statement was cut off when the Pi froze and restarted (it was running on
+--    too weak a power supply), and the database undid it. It was taken out on
+--    26 November: nothing here now touches a row.
 --
 -- 2. The lists. Across the band there is no point to search around, and the
 --    facts table has 41 million rows: sorting them all for one search would
@@ -37,16 +42,11 @@
 --    it is deleted afterwards. economy_top_build says which version of the
 --    rules a set was made from and how deep its lists go.
 --
--- Apply it AFTER deploying the build that writes the counts. That build
--- writes its rows without counts for as long as this has not been applied,
--- and this gives them theirs, so a nightly run between the two does no harm.
--- The other way round does: a build from before this one would write rows
--- with no counts, or leave a changed system its old ones, after this has run.
---
--- Best applied when no nightly run is under way: one that is writing rows at
--- the same moment can make this stop with an error (nothing is lost; run it
--- again). Nothing that exists is dropped or emptied. Safe to run more than
--- once.
+-- The build that writes the counts keeps no facts at all until this has been
+-- applied, and starts its fill once it has, so the order of the two does not
+-- matter. Nothing that exists is dropped, emptied or rewritten: the table
+-- change only notes the new columns, and takes a moment. Safe to run more
+-- than once.
 
 BEGIN;
 SET LOCAL lock_timeout = '5s';
@@ -132,40 +132,3 @@ COMMENT ON TABLE v3_state.economy_top IS
     'and no economy, the best systems within 500 ly in order, rebuilt after each scoring run.';
 
 COMMIT;
-
--- The rows filled before this migration: their counts, from the search table.
--- The table is measured first, so that PostgreSQL knows every row is waiting
--- for its counts and reads the two tables side by side, and again afterwards,
--- so that searches know how common each count is.
-ANALYZE v3_state.economy_facts;
-
--- The copy takes as long as it takes, whatever time limit the session has.
-SET statement_timeout = 0;
-
-UPDATE v3_state.economy_facts f
-   SET landable_count = LEAST(s.landable_count, 32767),
-       terraformable_count = LEAST(s.terraformable_count, 32767),
-       elw_count = LEAST(s.elw_count, 32767),
-       ww_count = LEAST(s.ww_count, 32767),
-       ammonia_count = LEAST(s.ammonia_count, 32767),
-       gas_giant_count = LEAST(s.gas_giant_count, 32767),
-       hmc_count = LEAST(s.hmc_count, 32767),
-       metal_rich_count = LEAST(s.metal_rich_count, 32767),
-       rocky_count = LEAST(s.rocky_count, 32767),
-       rocky_ice_count = LEAST(s.rocky_ice_count, 32767),
-       icy_count = LEAST(s.icy_count, 32767),
-       neutron_count = LEAST(s.neutron_count, 32767),
-       black_hole_count = LEAST(s.black_hole_count, 32767),
-       white_dwarf_count = LEAST(s.white_dwarf_count, 32767),
-       other_star_count = LEAST(s.other_star_count, 32767),
-       ring_count = LEAST(s.ring_count, 32767),
-       walkable_count = LEAST(s.walkable_count, 32767),
-       bio_signal_total = LEAST(s.bio_signal_total, 32767),
-       geo_signal_total = LEAST(s.geo_signal_total, 32767)
-  FROM v3_app.system_search s
- WHERE s.system_id64 = f.system_id64
-   AND f.landable_count IS NULL;
-
-ANALYZE v3_state.economy_facts;
-
-RESET statement_timeout;
