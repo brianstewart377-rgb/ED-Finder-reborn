@@ -175,12 +175,6 @@ def test_a_count_too_big_for_the_row_is_stored_as_the_largest_that_fits(pi, tmp_
     signals = COUNT_COLUMNS.index("bio_signal_total")
     assert after[signals] == COUNT_MAX == 32767
     assert after[:signals] + after[signals + 1:] == before[:signals] + before[signals + 1:]
-    # The migration's own copy takes each count from its namesake, the same way.
-    migration = (ROOT / "sql/v3/migrations/033_v3_economy_facts_counts_and_lists.sql").read_text()
-    copy = migration[migration.index("UPDATE v3_state.economy_facts f"):]
-    for column in COUNT_COLUMNS:
-        assert copy.count(f"{column} = LEAST(s.{column}, 32767)") == 1, column
-    assert copy.count("LEAST(") == 19 and "FROM v3_app.system_search s" in copy
 
 
 def test_a_system_with_no_search_row_has_a_row_without_counts(pi, tmp_path, monkeypatch):
@@ -194,36 +188,48 @@ def test_a_system_with_no_search_row_has_a_row_without_counts(pi, tmp_path, monk
     assert all(None not in counts for system_id64, counts in stored.items() if system_id64 != SOL)
 
 
-def test_migration_033_gives_the_rows_already_filled_their_counts_and_the_fill_goes_on(pi, tmp_path):
-    """On the Pi the fill was under way when 033 was written. It must not
-    start again: the rows it had written get their counts from the search
-    table, and nothing else about them changes."""
+def test_rows_written_before_the_counts_get_them_from_a_new_fill_and_the_migration_touches_no_row(
+        pi, tmp_path):
+    """The Pi on 26 November 2026: a fill under way for the layout before this
+    one (facts-1), whose rows have no counts. Migration 033 once copied the
+    counts into such rows in one statement; that was too heavy for the Pi, and
+    it now only adds the columns. The scoring starts a fill for this layout
+    instead, and that writes every row again, with its counts."""
     filled(pi, tmp_path)
-    kept = "SELECT system_id64, worked_out_at, bodies_known, strongest, cell FROM v3_state.economy_facts ORDER BY 1"
-    fills = "SELECT fill_id, version, systems, finished_at, tidied_at FROM v3_state.economy_facts_fill"
-    counts, rows_before, fills_before = counts_in(pi, "v3_state.economy_facts"), pi.all(kept), pi.all(fills)
+    counts = counts_in(pi, "v3_state.economy_facts")
+    older = facts.VERSION.rsplit("/", 1)[0] + "/facts-1"
+    assert older != facts.VERSION
     pi.connection.execute(WITHOUT_COUNTS)
+    pi.connection.execute("DELETE FROM v3_state.economy_top_build")
+    pi.connection.execute(
+        "UPDATE v3_state.economy_facts_fill SET version = %s, finished_at = NULL, tidied_at = NULL, "
+        "systems = 3, last_system_id64 = %s", (older, sorted(WITHIN_500_OF_SOL)[2]))
+
+    # The migration reads and writes no row, however often it is run.
+    stored = "SELECT system_id64, xmin::text, ctid::text FROM v3_state.economy_facts ORDER BY 1"
+    versions = pi.all(stored)
+    finder_seed.apply_migration(pi.connection, 33)
+    assert pi.all(stored) == versions
     assert set(counts_in(pi, "v3_state.economy_facts").values()) == {(None,) * 19}
+    migration = (ROOT / "sql/v3/migrations/033_v3_economy_facts_counts_and_lists.sql").read_text()
+    statements = " ".join(line for line in migration.splitlines() if not line.lstrip().startswith("--"))
+    kinds = {" ".join(statement.split()[:2]) for statement in statements.split(";") if statement.strip()}
+    assert kinds == {"BEGIN", "SET LOCAL", "ALTER TABLE", "COMMENT ON", "CREATE TABLE", "CREATE UNIQUE",
+                     "COMMIT"}, kinds
 
-    finder_seed.apply_migration(pi.connection, 33)
+    # The status says a new fill is coming; the next run starts it from the
+    # beginning and carries it through.
+    assert f"(this code runs {facts.VERSION}: a new fill starts with the next run)" in facts.status_lines(
+        pi.connection)[0]
+    report = facts.FactsReport()
+    facts.carry_on(pi.connection, pi.schema, report, progress=False)
+    fill = facts.latest_fill(pi.connection)
+    assert (fill.version, fill.systems, fill.finished_at is not None) == (facts.VERSION, 8, True)
+    assert (report.filled, report.fill_finished_now) == (8, True)
     assert counts_in(pi, "v3_state.economy_facts") == counts
-    assert pi.all(kept) == rows_before and pi.all(fills) == fills_before
-
-    # Run again, it writes no row again.
-    versions = pi.all("SELECT system_id64, xmin::text, ctid::text FROM v3_state.economy_facts ORDER BY 1")
-    finder_seed.apply_migration(pi.connection, 33)
-    assert pi.all("SELECT system_id64, xmin::text, ctid::text FROM v3_state.economy_facts ORDER BY 1") == versions
-
-    # As it finds a database that has 031 and 032 only.
-    pi.connection.execute("DROP TABLE v3_state.economy_top, v3_state.economy_top_build")
-    pi.connection.execute("ALTER TABLE v3_state.economy_facts "
-                          + ", ".join(f"DROP COLUMN {column}" for column in COUNT_COLUMNS))
-    assert facts.available(pi.connection) and not facts.keeps_counts(pi.connection)
-    finder_seed.apply_migration(pi.connection, 33)
-    assert facts.keeps_counts(pi.connection)
-    assert counts_in(pi, "v3_state.economy_facts") == counts
-    assert pi.all(kept) == rows_before and pi.all(fills) == fills_before
-    assert pi.one("SELECT count(*) FROM v3_state.economy_top") == (0,)
+    # The fill it replaced is left as it was, unfinished.
+    assert pi.all("SELECT version, systems, finished_at FROM v3_state.economy_facts_fill ORDER BY fill_id") \
+        == [(older, 3, None), (facts.VERSION, 8, fill.finished_at)]
 
 
 def before_033(pi) -> None:
@@ -233,67 +239,27 @@ def before_033(pi) -> None:
                           + ", ".join(f"DROP COLUMN {column}" for column in COUNT_COLUMNS))
 
 
-def test_until_migration_033_the_rows_are_written_without_counts_and_it_gives_them_theirs(pi, tmp_path):
-    """The build goes live before the migration is applied. A nightly run in
-    between must still keep the rows up to date, and no row may be left
-    without counts once the migration has run."""
+def test_no_row_is_ever_written_without_its_counts(pi, tmp_path):
+    """Without migration 033 the scoring keeps no facts at all, and says so.
+    Once it is applied the fill starts. So a finished fill means every row
+    was written with its counts, whichever of the build and the migration
+    came first."""
     before_033(pi)
+    assert not facts.available(pi.connection)
     report = filled(pi, tmp_path)
-    # Every row the run wrote: the changed systems' and the fill's.
-    assert report.skipped is None and (report.changed, report.filled) == (7, 8)
-    assert report.without_counts == 15 == report.as_dict()["without_counts"]
-    said = "\n".join(report.lines())
-    assert ("  15 of these rows were written without the body counts Find filters on: migration 033 has "
-            "not been applied. It gives them their counts when it is.") in said
-    assert facts.status_lines(pi.connection)[1:] == [
-        "  The rows do not have the body counts Find filters on yet: migration 033 has not been applied."]
-    numbers = rows(pi)
-    assert set(numbers) == WITHIN_500_OF_SOL
-
-    # A system that changes before the migration still gets its new numbers.
-    without = deepcopy(pi.records[SOL])
-    ringed = next(body for body in without["bodies"] if body.get("rings") and body.get("type") == "Planet")
-    without["bodies"].remove(ringed)
-    run(pi, tmp_path, [without], made_at=SEPTEMBER + timedelta(days=1))
-    changed = waiting(pi).facts
-    assert changed.changed == 1 == changed.without_counts
-    assert rows(pi)[SOL] != numbers[SOL]
-    assert rows(pi)[SOL][0] == numbers[SOL][0] - 1
+    assert report.skipped == "not kept in this database (migrations 031, 032 and 033 have not all been applied)"
+    assert rows(pi) == {} and facts.latest_fill(pi.connection) is None
+    assert facts.status_lines(pi.connection) == [
+        "Economy facts are not kept in this database (migrations 028, 031, 032 and 033)."]
 
     finder_seed.apply_migration(pi.connection, 33)
+    assert facts.available(pi.connection)
+    after = waiting(pi).facts
+    assert (after.skipped, after.filled, after.fill_finished_now) == (None, 8, True)
     assert counts_in(pi, "v3_state.economy_facts") == {
         system_id64: counts for system_id64, counts in counts_in(pi, "v3_app.system_search").items()
         if system_id64 in WITHIN_500_OF_SOL}
-    assert len(facts.status_lines(pi.connection)) == 1
-
-    # From then on the rows are written with them, and the report says nothing of it.
-    after = facts.FactsReport()
-    facts.changed(pi.connection, pi.schema, sorted(WITHIN_500_OF_SOL), after)
-    assert after.changed == 8 and after.without_counts == 0
-    assert "without_counts" not in after.as_dict() and "without the body counts" not in "\n".join(after.lines())
-
-
-def test_a_row_is_written_with_the_tables_columns_held_as_they_are(pi, tmp_path, monkeypatch):
-    """Migration 033 may be applied while a run is writing rows. A batch
-    decides whether to write the counts with the table held against a change
-    of its columns, so the migration either sees the batch's rows (and gives
-    them their counts) or comes first (and the batch writes them)."""
-    filled(pi, tmp_path)
-    seen = []
-    real = facts.keeps_counts
-
-    def looking(connection):
-        seen.append(connection.execute(
-            "SELECT l.mode FROM pg_locks l WHERE l.pid = pg_backend_pid() AND l.locktype = 'relation' "
-            "AND l.relation = 'v3_state.economy_facts'::regclass ORDER BY 1").fetchall())
-        return real(connection)
-
-    monkeypatch.setattr(facts, "keeps_counts", looking)
-    facts.changed(pi.connection, pi.schema, [SOL], facts.FactsReport())
-    assert seen == [[("RowExclusiveLock",)]]
-    statement = "LOCK TABLE v3_state.economy_facts IN ROW EXCLUSIVE MODE"
-    source = (ROOT / "apps/importer/src/spansh_delta/economy_facts.py").read_text()
-    assert source.count(statement.replace("v3_state.economy_facts", "{TABLE}")) == 1
+    assert "without" not in "\n".join(after.lines())
 
 
 def test_the_list_tables_hold_one_whole_set_at_a_time(pi):
@@ -592,12 +558,13 @@ def test_a_new_version_starts_a_new_fill_and_rows_out_of_reach_go_when_it_ends(p
     pi.connection.execute(
         "INSERT INTO v3_state.economy_facts (system_id64, bodies_known, ground_slots, worked_out_at, "
         "x_ly, y_ly, z_ly) VALUES (%s, 0, 0, now(), 0, 0, 0)", (outside,))
-    monkeypatch.setattr(facts, "VERSION", "a later rulebook/facts-1")
+    later = "a later rulebook/" + facts.VERSION.rsplit("/", 1)[1]
+    monkeypatch.setattr(facts, "VERSION", later)
     assert "a new fill starts with the next run" in facts.status_lines(pi.connection)[0]
     report = facts.FactsReport()
     facts.carry_on(pi.connection, pi.schema, report, progress=False)
     fill = facts.latest_fill(pi.connection)
-    assert (fill.version, fill.systems, fill.finished_at is not None) == ("a later rulebook/facts-1", 8, True)
+    assert (fill.version, fill.systems, fill.finished_at is not None) == (later, 8, True)
     assert report.deleted_outside_reach == 1 and set(rows(pi)) == WITHIN_500_OF_SOL
     assert pi.one("SELECT count(*) FROM v3_state.economy_facts_fill") == (2,)
 
@@ -624,6 +591,6 @@ def test_without_the_migrations_the_scoring_says_so_and_goes_on(pi, tmp_path):
     run(pi, tmp_path, pi.records.values())
     report = waiting(pi)
     assert report.facts.skipped == (
-        "not kept in this database (migrations 031 and 032 have not both been applied)")
+        "not kept in this database (migrations 031, 032 and 033 have not all been applied)")
     assert "Economy facts: not kept in this database" in "\n".join(report.lines())
     assert report.added + report.changed + report.same == 7

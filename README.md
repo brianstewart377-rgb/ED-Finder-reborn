@@ -247,15 +247,15 @@ too. Where that table exists, the scoring:
 - takes systems further than 500 ly off the waiting list unscored;
 - after the waiting list, scores any system in reach that has no scores yet.
 
-Where migrations `031` and `032` are applied too, the scoring keeps Find's
-facts for each system in reach up to date as well (`v3_state.economy_facts`,
+Where migrations `031`, `032` and `033` are applied too, the scoring keeps
+Find's facts for each system in reach up to date as well
+(`v3_state.economy_facts`,
 `apps/importer/src/spansh_delta/economy_facts.py`; the ratings rebuild, build
 steps 4 and 5). Each row holds how many of the system's bodies we know, its
 predicted ground slots, one number per economy and pair that puts it in Find's
 order, where the system is (its coordinates and the 32 ly cube of space,
-"cell", it is in), and, with migration `033`, the 19 counts Find's body
-filters use, copied from the system's search row whenever the facts row is
-written. Systems whose galaxy
+"cell", it is in), and the 19 counts Find's body filters use, copied from the
+system's search row whenever the facts row is written. Systems whose galaxy
 rows changed get new rows, beside
 their scores. The first fill of every system in reach goes on for up to
 2 hours after each run, carrying on where it stopped, until it is done;
@@ -263,11 +263,13 @@ their scores. The first fill of every system in reach goes on for up to
 rows are put in cell order on disk (`CLUSTER`), so that a search near a system
 reads a few stretches of the table: that writes the table afresh, needs as
 much free disk again as the table takes, and nothing can read the table while
-it runs. When the rulebook changes, a new fill starts from the beginning.
-Without `031` and `032` the scoring says so and carries on as before. Without
-`033` it writes the rows without the counts and says how many; the migration
-gives every row it finds without counts its counts, so the first fill does not
-start again.
+it runs. When the rulebook changes, or what a row holds does (the layout,
+`find_numbers.LAYOUT`), a new fill starts from the beginning, and Find reads
+nothing until a fill for its layout has finished: no search ever meets a row
+written the old way. The layout is `facts-2` since the rows carry the body
+counts. Without all three migrations the scoring keeps no facts, says so and
+carries on as before. Migration `033` itself only adds the columns and the
+list tables; it reads and writes no row.
 
 Once a fill has finished, the scoring also writes Find's ranked lists across
 the whole band afresh after each run (`v3_state.economy_top`, migration `033`;

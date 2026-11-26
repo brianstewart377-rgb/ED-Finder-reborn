@@ -339,18 +339,24 @@ def test_no_lists_are_made_until_a_fill_of_the_facts_has_finished(pi, tmp_path, 
 def test_a_fill_for_another_layout_of_the_numbers_is_not_one_to_make_lists_from(pi, tmp_path):
     filled(pi, tmp_path)
     pi.connection.execute("DELETE FROM v3_state.economy_top_build")
-    pi.connection.execute("UPDATE v3_state.economy_facts_fill SET version = 'an older rulebook/facts-0'")
+    # The layout before this one: its rows have no body counts to list by.
+    pi.connection.execute("UPDATE v3_state.economy_facts_fill SET version = 'an older rulebook/facts-1'")
     assert top.rebuild(pi.connection, progress=False).skipped == top.NOT_YET
     # Another rulebook's release with this layout: the numbers can be compared.
-    pi.connection.execute("UPDATE v3_state.economy_facts_fill SET version = 'an older rulebook/facts-1'")
+    pi.connection.execute("UPDATE v3_state.economy_facts_fill SET version = %s",
+                          (f"an older rulebook/{find_numbers.LAYOUT}",))
     assert top.rebuild(pi.connection, progress=False).skipped is None
 
 
-def test_without_migration_033_the_scoring_says_so_and_goes_on(pi, tmp_path):
+def test_without_migration_033_there_are_no_lists_and_the_scoring_goes_on(pi, tmp_path):
     before_033(pi)
-    report = filled(pi, tmp_path)
-    assert report.fill_finished_now
-    lists = waiting(pi).lists
+    inhabit(pi, SOL, 0, 0, 0)
+    work_out(pi)
+    run(pi, tmp_path, pi.records.values())
+    report = waiting(pi)
+    # No facts are kept without the migration, so there is nothing to list.
+    assert report.facts.skipped is not None and report.lists is None
+    lists = top.rebuild(pi.connection, progress=False)
     assert lists.skipped == "not kept in this database (migration 033 has not been applied)"
     assert lists.as_dict() == {"skipped": lists.skipped}
     assert top.status_lines(pi.connection) == [
