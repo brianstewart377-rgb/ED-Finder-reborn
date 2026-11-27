@@ -6,7 +6,8 @@ home.
 
 The journey is **Find → Look up → Plan → Haul**, with BGS alongside and the
 galaxy map underneath. The full plan is in
-[`docs/plan-2026-11-08.pdf`](docs/plan-2026-11-08.pdf).
+[`docs/plan-2026-11-08.pdf`](docs/plan-2026-11-08.pdf). What is built, what is
+being built now and what comes next is in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Where this came from
 
@@ -22,13 +23,13 @@ reference: its history, PRs and research stay there.
 | `apps/web` | The app: SvelteKit 2, Svelte 5, TypeScript. Almanac's Galaxy-Map draws the galaxy map and Cosmos draws the System Map. |
 | `apps/api` | The API: Python 3.14, FastAPI, asyncpg. |
 | `apps/importer` | Loads the Spansh galaxy dumps into PostgreSQL. |
-| `apps/eddn_v3` | The live EDDN listener (written, not yet switched on). |
+| `apps/eddn_v3` | The live EDDN listener: keeps station sightings. Running on the Pi since 14 November 2026. |
 | `packages` | Shared TypeScript: the generated API client and planner core. |
 | `shared_contracts` | Shared Python used by the API and importer. |
 | `sql/v3` | Database migrations. |
 | `sql/measure` | Read-only scripts that report on the database. |
-| `deploy` | The compose file, the deploy tool, the two nightly jobs and how they report a failure. |
-| `tests` | Python tests for the importer and the database loaders. |
+| `deploy` | The compose files, the deploy tool, the scheduled jobs (galaxy update, system state, backups, the listener's check, Find's warm-up) and how they report a failure. |
+| `tests` | Python tests: the importer, the database loaders, the API's searches and the deploy tools. |
 | `assets` | Asset provenance records. |
 
 ## System state: population, factions and claims
@@ -76,8 +77,8 @@ tool says so and changes nothing.
 
 If a release fails its checks after the switch, the previous one is put back
 automatically. Settings (network, ports, the API settings file) have defaults
-for the current server and can be changed in a `deploy.conf` file beside the
-script; see the top of the script.
+and can be changed in a `deploy.conf` file beside the script; see the top of
+the script.
 
 Before a release goes live the tool also runs three real Find searches against
 it. On a machine whose database has no Finder data yet, put
@@ -131,16 +132,16 @@ needs `spansh_system_state.py` beside it and about 20 GB of free disk space.
 ## Keeping the galaxy fresh
 
 The galaxy itself (systems, bodies, rings, stations) changes too: commanders
-scan new bodies, fleet carriers move. Every night Spansh publishes every system
-that changed in the last 7 days as one file (`galaxy_7days.json.gz`, about
-3 GB). `deploy/galaxy_update.py` (Python standard library only) fetches it and
-applies it:
+scan new bodies, fleet carriers move. Every night Spansh publishes the systems
+that changed, as files reaching back one day, 7 days and 32 days.
+`deploy/galaxy_update.py` (Python standard library only) fetches the one that
+reaches back far enough (see "Which file" below) and applies it:
 
 | Command | What it does |
 |---|---|
 | `check` | Downloads the file and says what would change. Read only: the database is not touched. |
 | `run` | Downloads the file and applies it. If Spansh has nothing new there is nothing to apply. With scoring switched on, it then gives new scores to the systems on the waiting list, either way. |
-| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, how far Find's facts for each system have got (migration `031`), which file each run takes, and the file on disk. |
+| `status` | Shows the last update, how many systems are waiting for new scores, whether scoring is switched on, how far Find's facts for each system have got (migration `031`), when Find's lists across the band were last written (migration `033`), which file each run takes, and the file on disk. |
 | `check-scores` | Works scores out again for the systems of the file on disk, from Spansh's records and from our own rows, and compares them with the stored ones. Read only. |
 | `score` | Gives new scores to the systems on the waiting list. Needs no file. |
 | `reach` | Works out afresh which systems are within 500 ly and 250 ly of an inhabited system. Needs migration `028` (the Pi). |
@@ -247,8 +248,46 @@ too. Where that table exists, the scoring:
 - takes systems further than 500 ly off the waiting list unscored;
 - after the waiting list, scores any system in reach that has no scores yet.
 
-Where migrations `031`, `032` and `033` are applied too, the scoring keeps
-Find's facts for each system in reach up to date as well
+So a new colony counts within a week. The systems it brings within 500 ly lie
+250 to 500 ly from it, far from where anyone colonises next. Working reach out
+afresh stops, changing nothing, if the inhabited systems or the systems in
+reach have dropped by more than a tenth since last time: colonies do not
+vanish, so that would mean the system state is damaged. Without migration
+`028` (a database with no reach, as the old server's was) the scoring takes
+every system on the waiting list, as before.
+
+`check-scores` writes nothing. For the systems of the file on disk whose
+records say what our rows say, it reports three things: whether systems
+nothing has changed get exactly their stored scores and Find row back; whether
+scoring from our own rows gives the same as scoring from Spansh's records; and
+whether each system waiting for new scores can be scored. Its line "only the
+record's stamp differs" counts systems whose scores are identical and whose
+stamp is not. The stamp says which record the scores were made from (a
+fingerprint of it, and the date of a body's class). It differs whenever the
+stored scores were made from our own rows, or Spansh has re-dated a body. It
+is not a score.
+
+`deploy/edfinder-galaxy-update.timer` runs it at 04:30 UTC, after Spansh
+publishes the file (between 02:00 and 03:30 UTC on the days we have looked),
+and again at 16:30 UTC in case the file was late or the first run failed. It
+needs `state_refresh.py` beside it (they share the download code) and
+migrations `026`, `027` and `029` applied. Apply `027` before deploying a build that
+has it: until the column is there the update refuses to run and says so. The
+same goes for `029`, which adds a signal type (a planet's mining locations) to
+the database's list: apply it first, then deploy the build that knows the word. The
+app itself does not mind either way.
+
+The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
+
+## Find by economy: the facts, the lists and the search
+
+This is the ratings rebuild ("Ratings rebuild — design"; where it stands is in
+[`docs/roadmap.md`](docs/roadmap.md)). Find is to stop giving made-up scores:
+you pick one economy or two, and it lists systems by what the game's rules say
+their best body offers. This section is how that is kept and read.
+
+Where migrations `031`, `032` and `033` are applied, the nightly scoring keeps
+Find's facts for each system in reach up to date
 (`v3_state.economy_facts`,
 `apps/importer/src/spansh_delta/economy_facts.py`; the ratings rebuild, build
 steps 4 and 5). Each row holds how many of the system's bodies we know, its
@@ -303,36 +342,10 @@ answer says how deep the list is (`lists.depth`, `lists.places`) and each
 system's place in it, so that a page can say "6 of the best 20,000 for
 Refinery". It answers 503 with the reason until the lists have been written.
 
-So a new colony counts within a week. The systems it brings within 500 ly lie
-250 to 500 ly from it, far from where anyone colonises next. Working reach out
-afresh stops, changing nothing, if the inhabited systems or the systems in
-reach have dropped by more than a tenth since last time: colonies do not
-vanish, so that would mean the system state is damaged. Without migration
-`028` (the current server) the scoring takes every system on the waiting
-list, as before.
-
-`check-scores` writes nothing. For the systems of the file on disk whose
-records say what our rows say, it reports three things: whether systems
-nothing has changed get exactly their stored scores and Find row back; whether
-scoring from our own rows gives the same as scoring from Spansh's records; and
-whether each system waiting for new scores can be scored. Its line "only the
-record's stamp differs" counts systems whose scores are identical and whose
-stamp is not. The stamp says which record the scores were made from (a
-fingerprint of it, and the date of a body's class). It differs whenever the
-stored scores were made from our own rows, or Spansh has re-dated a body. It
-is not a score.
-
-`deploy/edfinder-galaxy-update.timer` runs it at 04:30 UTC, after Spansh
-publishes the file (between 02:00 and 03:30 UTC on the days we have looked),
-and again at 16:30 UTC in case the file was late or the first run failed. It
-needs `state_refresh.py` beside it (they share the download code) and
-migrations `026`, `027` and `029` applied. Apply `027` before deploying a build that
-has it: until the column is there the update refuses to run and says so. The
-same goes for `029`, which adds a signal type (a planet's mining locations) to
-the database's list: apply it first, then deploy the build that knows the word. The
-app itself does not mind either way.
-
-The move to the Raspberry Pi is in [`docs/pi-move.md`](docs/pi-move.md).
+One rule for changes here, learnt on 25 November 2026 (the story is in
+`docs/pi-move.md`, under migration `033`): nothing is done to millions of rows
+in one statement on the Pi. A change to what a row holds gets a new layout
+name, and the nightly fill writes the rows again in its small steps.
 
 ## The EDDN listener (station sightings)
 
@@ -348,7 +361,7 @@ It is separate from the site: its own image, its own container
 of the database (`v3_observe`) as a role that can add sightings and nothing
 else. Stopping it harms nothing else.
 
-Switching it on, on the Pi, once:
+Switching it on, on the Pi, once (done on 14 November 2026):
 
 1. A fresh backup, then migration `030`
    (`sql/v3/migrations/030_v3_observe_station_sightings.sql`), at a quiet
@@ -410,7 +423,9 @@ of thing:
   2026, after the drive's power button was pressed by accident.
 - **When.** `edfinder-backup-small.timer` every night at 02:30 UTC;
   `edfinder-backup-full.timer` on Sundays at 07:00 UTC.
-- **How many.** The newest 14 small ones and the newest 2 full ones. An older
+- **How many.** The newest 14 small ones and the newest 2 full ones unless
+  set otherwise (`EDFINDER_BACKUP_KEEP_SMALL`, `EDFINDER_BACKUP_KEEP_FULL`);
+  the Pi, with its 12 TB drive, keeps 90 small and 8 full. An older
   one is removed only once a new one is safely there. If the drive is too full
   for a new full backup the oldest full ones go first, but never the last one.
   Only files the tool made, by their names, are ever removed.
@@ -438,7 +453,9 @@ sudo systemctl start edfinder-backup-full.service
 Both backups report in like the other nightly jobs (next section), as
 `backup-small` and `backup-full`.
 
-To bring the whole database back, into a new, empty database:
+To bring the whole database back, into a new, empty database (the paths are
+the tool's default folder; on the Pi the backups are under
+`/mnt/backup/edfinder`):
 
 ```bash
 docker exec edfinder-v3-phase4c-full-20260827_r5-postgres createdb -U edfinder_v3 edfinder_restored
@@ -457,8 +474,9 @@ database at its full size has not been tried on the Pi yet: building the
 indexes of 600 million rows there is a day's work, and it needs as much room
 again as the database.
 
-Not built yet: a copy off the machine (a USB drive, and an encrypted copy
-off-site), and a restore test that runs by itself.
+Not built yet: an encrypted copy off-site, and a restore test that runs by
+itself. So the backups cover the loss of the database's drive, and not the
+loss of everything in the house.
 
 ## Hearing when a nightly job fails
 
@@ -546,6 +564,35 @@ sudo python3 /opt/edfinder/pi_report.py
 
 It is the first thing to run before changing any setting for speed, and
 again after, to see what the change did.
+
+Three things about the Pi itself that are worth knowing when something goes
+wrong:
+
+- **It restarts itself if it freezes.** systemd feeds the Pi's hardware
+  watchdog; after one minute without it the Pi is reset. So a Pi that was
+  unreachable for a few minutes and is back may have frozen: `uptime` says how
+  long it has been up.
+- **Its log is kept on disk** (since 27 November 2026;
+  `/etc/systemd/journald.conf.d/zz-edfinder-persistent.conf`, 500 MB at most).
+  Before that it was in memory and a restart wiped it. The log of the start-up
+  before this one:
+
+  ```bash
+  sudo journalctl -b -1 -n 100 --no-pager
+  ```
+
+- **Its power supply has to offer 5 A.** With less, the Pi runs, but dips in
+  voltage under load; it froze on 25 November 2026 on a 3 A supply. Two
+  read-only checks: the first should print `00 00 13 88` (5,000 mA), the
+  second `throttled=0x0` (no low voltage since start-up).
+
+  ```bash
+  od -An -tx1 /proc/device-tree/chosen/power/max_current
+  ```
+
+  ```bash
+  vcgencmd get_throttled
+  ```
 
 ## Running the Python tests
 

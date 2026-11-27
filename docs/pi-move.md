@@ -7,6 +7,31 @@ server on 9 November 2026 unless a line says otherwise.
 Reviewed against the plan and the code on 11 November. What that review added
 is marked "(11 Nov)".
 
+**(27 Nov) Where this page stands.** The move is done: the Pi has served the
+site since 14 November, and the old server ended on 15 November. This page is
+kept as the record of the move and of what has been found and changed on the
+Pi since. What is being built now and what comes next is in
+[`roadmap.md`](roadmap.md).
+
+A line below that says "still to do" is as of its own date. These are the
+ones still open on the Pi on 27 November:
+
+- See that the new power supply holds through a night's work (fitted
+  27 November; "Changes to the plan", under migration `033`).
+- The containers' memory limits are not kept ("What the Pi itself showed").
+- The 12 TB backup drive: a health check; a cover for the caddy's power
+  button; then the spare copy of the first full backup (13 November, on the
+  drive the Pi starts from) can be removed (section 6).
+- Backups do not leave the house: no encrypted copy off-site, no restore test
+  that runs by itself, and no restore of the whole database tried on the Pi
+  (section 6).
+- Section 7 has one unticked line (an uptime check from outside, the
+  error-tracking address, a health page). `pi_report.py` and the reports to
+  healthchecks.io cover part of it; what is left has not been looked at
+  since the move.
+- Section 8's unticked lines were overtaken when the old server ended on
+  15 November.
+
 ## What moves, and what stays behind
 
 | | Size now | On the Pi |
@@ -288,6 +313,7 @@ In order:
       inhabited systems or the systems in reach drop by more than a tenth
       since last time, which would mean a damaged system state.
       Still to do: Find's 250 ly default and its 500 ly choice.
+      (27 Nov) Done since: Find shows 250 ly by default and 500 ly on request.
 - [x] (11 Nov) **The table list.** Every table on the current server, each
       marked move, cut down or leave: 130 tables, 1,015 GB. It is at the end
       of this page.
@@ -486,6 +512,8 @@ In order:
       covers the loss of the database's drive, and not the loss of the
       whole Pi. Still to build: a copy to a USB drive, an encrypted copy
       off-site, and a restore test that runs by itself.
+      (27 Nov) The backups have been on the 12 TB USB drive since
+      24 November (below). The other two are not built.
       A full backup holds every table open for hours, and the state refresh
       needs one table to itself for a moment (it empties `system_stage`). A
       refresh waiting behind a backup would hold up every reader of that
@@ -635,8 +663,9 @@ made or agreed since, each as a reviewed migration after a fresh backup:
 - `025` (10 November): the nightly jobs may change published scores.
 - `026` (10 November): the waiting list of systems that need new scores.
 - `027` (11 November): each body's class, one column on the bodies table.
-- `028` (built 12 November, for the Pi only, not yet applied): which systems
-  are within 500 ly and 250 ly of an inhabited system (three new tables).
+- `028` (built 12 November, for the Pi only; applied there during the move):
+  which systems are within 500 ly and 250 ly of an inhabited system (three
+  new tables).
 - `031` (applied by 24 November): Find's facts for each system within 500 ly,
   for the ratings rebuild (two new tables; about 10 GB once filled). The owner
   agreed the table's design on 23 November.
@@ -733,6 +762,10 @@ listening comes forward: what it hears can only be gathered as it happens.
 the switch: nobody uses the site yet, and it would have held up the copy.
 The copy comes first, then keeping reach up to date and Find's 250 ly default,
 then the catch-up, all before the group is invited.
+
+(27 Nov) The order of work, with what is done and what is next, now has a page
+of its own: [`roadmap.md`](roadmap.md). The entries here stay as the record of
+each decision.
 
 (25 Nov) **Haul moves ahead of the rest of the map** (owner: "Yes move Haul
 up"). The plan's order after the move is the map, then availability in Find,
@@ -1211,7 +1244,8 @@ words:
 
 He did not say the map should show Find's results, and it is not built to.
 
-The map's roadmap, in this order:
+The map's roadmap, in this order (where each stands today is in
+[`roadmap.md`](roadmap.md)):
 
 1. **Show on map.** A system chosen in Find has a "show me on map" button.
    The map flies to it, shows every real star within 15 ly of it in
