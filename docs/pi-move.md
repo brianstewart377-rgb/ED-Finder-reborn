@@ -674,17 +674,36 @@ made or agreed since, each as a reviewed migration after a fresh backup:
   starts again from the beginning and writes every row with its counts, 500
   systems at a time as before, and Find answers nothing until that fill has
   finished. This costs about a day and a half (11 million of 41 million
-  systems had been done); the fill should finish about 2 December. Telling
+  systems had been done when this was built). Telling
   the owner the fill would not have to start again was the mistake: it traded
   a day and a half for a heavy one-off statement on a Pi whose power supply
   was already known to be too weak.
 
-  Still to do on the Pi: fit the proper power supply (due 27 November; the
-  owner), and at that restart see that the containers' memory limits are
-  kept; make the Pi's log survive a restart, so that a freeze leaves a
-  record; no heavy one-off job before the new supply is in. The rewrite of
-  the facts table when the fill finishes (`CLUSTER`) is such a job, and falls
-  after the supply is due.
+  **Done on 27 November (the owner, in one evening):**
+
+  - The proper power supply is fitted. The Pi was shut down cleanly for it
+    (the database told to save its work first) and was back in about five
+    minutes. It now reports 5 A offered (`max_current` 5000, was 3000) and
+    5.11 to 5.12 V on the 5 V rail (was 4.93 V), with no low voltage since
+    start-up. Whether it holds through a night's work is read the next
+    morning (`vcgencmd get_throttled` should say `0x0`).
+  - The Pi's log is now kept on disk, capped at 500 MB
+    (`/etc/systemd/journald.conf.d/zz-edfinder-persistent.conf`), so a
+    freeze or a restart leaves a record. It was in memory only before.
+  - The build with the `facts-2` layout went live at 21:20 UTC (`ce44743`).
+    The old fill had reached 27.3 of 41 million systems by then, because the
+    build was put live a day and a half after it was merged; the new fill
+    starts with the 04:30 run on 28 November and should finish about
+    3 December. The rewrite of the facts table when it finishes (`CLUSTER`)
+    and the first writing of Find's lists then happen on the new supply.
+
+  Still to do on the Pi: the containers' memory limits (below), which need
+  the file the Pi starts from changed and a restart of their own. That was
+  deliberately not done with the power supply: one change at a time, so that
+  if the Pi had not come back the cause would have been clear.
+
+  The rule taken from this: no heavy one-off job on the Pi where the nightly
+  work, in small pieces, can do the same thing.
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had
@@ -1167,10 +1186,12 @@ Recorded for the tests: Maia and Alpha Centauri, from the live site.
   the Pironman 5 Max's dual-drive board has a switch chip of that speed.
   The faster setting is off the list.
 - Memory limits on the containers are not kept: the firmware adds
-  `cgroup_disable=memory` at start-up. To be put right at the restart for
-  the new power supply (the owner has one coming).
-- The power supply has been too weak since the Pi was started: the owner
-  knew, and a proper one is on its way.
+  `cgroup_disable=memory` at start-up. Still to be put right (27 November:
+  left out of the restart for the new power supply on purpose, to change one
+  thing at a time).
+- The power supply had been too weak since the Pi was started: the owner
+  knew. A proper one was fitted on 27 November (see migration `033` above for
+  what the weak one most likely cost).
 - `jit` is on, and the first Find search after a quiet spell took 7.1 s.
   To be looked at after the switch.
 
