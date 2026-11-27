@@ -7,6 +7,31 @@ server on 9 November 2026 unless a line says otherwise.
 Reviewed against the plan and the code on 11 November. What that review added
 is marked "(11 Nov)".
 
+**(27 Nov) Where this page stands.** The move is done: the Pi has served the
+site since 14 November, and the old server ended on 15 November. This page is
+kept as the record of the move and of what has been found and changed on the
+Pi since. What is being built now and what comes next is in
+[`roadmap.md`](roadmap.md).
+
+A line below that says "still to do" is as of its own date. These are the
+ones still open on the Pi on 27 November:
+
+- See that the new power supply holds through a night's work (fitted
+  27 November; "Changes to the plan", under migration `033`).
+- The containers' memory limits are not kept ("What the Pi itself showed").
+- The 12 TB backup drive: a health check; a cover for the caddy's power
+  button; then the spare copy of the first full backup (13 November, on the
+  drive the Pi starts from) can be removed (section 6).
+- Backups do not leave the house: no encrypted copy off-site, no restore test
+  that runs by itself, and no restore of the whole database tried on the Pi
+  (section 6).
+- Section 7 has one unticked line (an uptime check from outside, the
+  error-tracking address, a health page). `pi_report.py` and the reports to
+  healthchecks.io cover part of it; what is left has not been looked at
+  since the move.
+- Section 8's unticked lines were overtaken when the old server ended on
+  15 November.
+
 ## What moves, and what stays behind
 
 | | Size now | On the Pi |
@@ -288,6 +313,7 @@ In order:
       inhabited systems or the systems in reach drop by more than a tenth
       since last time, which would mean a damaged system state.
       Still to do: Find's 250 ly default and its 500 ly choice.
+      (27 Nov) Done since: Find shows 250 ly by default and 500 ly on request.
 - [x] (11 Nov) **The table list.** Every table on the current server, each
       marked move, cut down or leave: 130 tables, 1,015 GB. It is at the end
       of this page.
@@ -486,6 +512,8 @@ In order:
       covers the loss of the database's drive, and not the loss of the
       whole Pi. Still to build: a copy to a USB drive, an encrypted copy
       off-site, and a restore test that runs by itself.
+      (27 Nov) The backups have been on the 12 TB USB drive since
+      24 November (below). The other two are not built.
       A full backup holds every table open for hours, and the state refresh
       needs one table to itself for a moment (it empties `system_stage`). A
       refresh waiting behind a backup would hold up every reader of that
@@ -635,8 +663,9 @@ made or agreed since, each as a reviewed migration after a fresh backup:
 - `025` (10 November): the nightly jobs may change published scores.
 - `026` (10 November): the waiting list of systems that need new scores.
 - `027` (11 November): each body's class, one column on the bodies table.
-- `028` (built 12 November, for the Pi only, not yet applied): which systems
-  are within 500 ly and 250 ly of an inhabited system (three new tables).
+- `028` (built 12 November, for the Pi only; applied there during the move):
+  which systems are within 500 ly and 250 ly of an inhabited system (three
+  new tables).
 - `031` (applied by 24 November): Find's facts for each system within 500 ly,
   for the ratings rebuild (two new tables; about 10 GB once filled). The owner
   agreed the table's design on 23 November.
@@ -674,17 +703,36 @@ made or agreed since, each as a reviewed migration after a fresh backup:
   starts again from the beginning and writes every row with its counts, 500
   systems at a time as before, and Find answers nothing until that fill has
   finished. This costs about a day and a half (11 million of 41 million
-  systems had been done); the fill should finish about 2 December. Telling
+  systems had been done when this was built). Telling
   the owner the fill would not have to start again was the mistake: it traded
   a day and a half for a heavy one-off statement on a Pi whose power supply
   was already known to be too weak.
 
-  Still to do on the Pi: fit the proper power supply (due 27 November; the
-  owner), and at that restart see that the containers' memory limits are
-  kept; make the Pi's log survive a restart, so that a freeze leaves a
-  record; no heavy one-off job before the new supply is in. The rewrite of
-  the facts table when the fill finishes (`CLUSTER`) is such a job, and falls
-  after the supply is due.
+  **Done on 27 November (the owner, in one evening):**
+
+  - The proper power supply is fitted. The Pi was shut down cleanly for it
+    (the database told to save its work first) and was back in about five
+    minutes. It now reports 5 A offered (`max_current` 5000, was 3000) and
+    5.11 to 5.12 V on the 5 V rail (was 4.93 V), with no low voltage since
+    start-up. Whether it holds through a night's work is read the next
+    morning (`vcgencmd get_throttled` should say `0x0`).
+  - The Pi's log is now kept on disk, capped at 500 MB
+    (`/etc/systemd/journald.conf.d/zz-edfinder-persistent.conf`), so a
+    freeze or a restart leaves a record. It was in memory only before.
+  - The build with the `facts-2` layout went live at 21:20 UTC (`ce44743`).
+    The old fill had reached 27.3 of 41 million systems by then, because the
+    build was put live a day and a half after it was merged; the new fill
+    starts with the 04:30 run on 28 November and should finish about
+    3 December. The rewrite of the facts table when it finishes (`CLUSTER`)
+    and the first writing of Find's lists then happen on the new supply.
+
+  Still to do on the Pi: the containers' memory limits (below), which need
+  the file the Pi starts from changed and a restart of their own. That was
+  deliberately not done with the power supply: one change at a time, so that
+  if the Pi had not come back the cause would have been clear.
+
+  The rule taken from this: no heavy one-off job on the Pi where the nightly
+  work, in small pieces, can do the same thing.
 
 (12 Nov) The galaxy map: the owner has chosen the Almanac map, with the
 System Map staying on Babylon, where the plan left the choice open and had
@@ -714,6 +762,10 @@ listening comes forward: what it hears can only be gathered as it happens.
 the switch: nobody uses the site yet, and it would have held up the copy.
 The copy comes first, then keeping reach up to date and Find's 250 ly default,
 then the catch-up, all before the group is invited.
+
+(27 Nov) The order of work, with what is done and what is next, now has a page
+of its own: [`roadmap.md`](roadmap.md). The entries here stay as the record of
+each decision.
 
 (25 Nov) **Haul moves ahead of the rest of the map** (owner: "Yes move Haul
 up"). The plan's order after the move is the map, then availability in Find,
@@ -1167,10 +1219,12 @@ Recorded for the tests: Maia and Alpha Centauri, from the live site.
   the Pironman 5 Max's dual-drive board has a switch chip of that speed.
   The faster setting is off the list.
 - Memory limits on the containers are not kept: the firmware adds
-  `cgroup_disable=memory` at start-up. To be put right at the restart for
-  the new power supply (the owner has one coming).
-- The power supply has been too weak since the Pi was started: the owner
-  knew, and a proper one is on its way.
+  `cgroup_disable=memory` at start-up. Still to be put right (27 November:
+  left out of the restart for the new power supply on purpose, to change one
+  thing at a time).
+- The power supply had been too weak since the Pi was started: the owner
+  knew. A proper one was fitted on 27 November (see migration `033` above for
+  what the weak one most likely cost).
 - `jit` is on, and the first Find search after a quiet spell took 7.1 s.
   To be looked at after the switch.
 
@@ -1190,7 +1244,8 @@ words:
 
 He did not say the map should show Find's results, and it is not built to.
 
-The map's roadmap, in this order:
+The map's roadmap, in this order (where each stands today is in
+[`roadmap.md`](roadmap.md)):
 
 1. **Show on map.** A system chosen in Find has a "show me on map" button.
    The map flies to it, shows every real star within 15 ly of it in
