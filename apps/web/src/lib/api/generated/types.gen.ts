@@ -5052,3 +5052,17 @@ export type SendPluginEventsResponses = {
 };
 
 export type SendPluginEventsResponse = SendPluginEventsResponses[keyof SendPluginEventsResponses];
+
+export type DownloadPluginData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/plugin/download';
+};
+
+export type DownloadPluginResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};

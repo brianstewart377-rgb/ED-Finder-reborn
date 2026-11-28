@@ -75,6 +75,10 @@
 - `apps/api`: Python 3.14, FastAPI, asyncpg. Parameterised SQL only.
 - `apps/importer`: the nightly work (the galaxy update, the scoring, Find's
   facts and lists). It ships inside the API image.
+- `apps/edmc-plugin`: ED-Finder's plugin for EDMC, which members install on
+  their own PCs. It runs in EDMC's own Python (3.13) with only what EDMC
+  provides, and carries its own MIT licence. Its tests are with the other
+  Python tests.
 - Never commit secrets, passwords, tokens, keys or private `.env` files.
 - Nothing in the repo, a pull request or a document may tie a star system, a
   commander's name or a network address to the owner or to any other player.

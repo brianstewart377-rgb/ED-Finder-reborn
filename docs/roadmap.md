@@ -98,8 +98,8 @@ What was decided on 28 November:
 |---|---|---|
 | 1 | The tables (migration `034`) | Built 28 November; applied on the Pi after the next full backup |
 | 2 | Plugin keys (2a) and the address that takes the plugin's data (2b) | Built 28 November |
-| 3 | The plugin | **Next** |
-| 4 | The Haul page: my builds, what each still needs, carrier and hold | To do |
+| 3 | The plugin | Built 28 November |
+| 4 | The Haul page: my builds, what each still needs, carrier and hold | **Next** |
 | 5 | Markets kept each night | To do |
 | 6 | Where to buy and fewest stops | To do |
 | 7 | The carrier figures in full | To do |

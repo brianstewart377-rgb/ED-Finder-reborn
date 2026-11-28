@@ -144,9 +144,31 @@
     </div>
     <p class="identity-panel-copy">
       ED-Finder's plugin for EDMC sends your construction sites' shopping lists
-      and your carrier's cargo to your account. It needs a key: make one here
-      and paste it into the plugin's settings. Make one key for each PC.
+      to your account, and shows the site you are docked at in EDMC's own
+      window. It needs a key: make one here and paste it into the plugin's
+      settings. Make one key for each PC.
     </p>
+    <ol class="plugin-steps" data-testid="plugin-steps">
+      <!-- eslint-disable svelte/no-navigation-without-resolve -- the API's download, not a page of the app -->
+      <li>
+        <a href="/api/v1/plugin/download" download data-testid="plugin-download"
+          >Download the plugin</a
+        > and unzip it.
+      </li>
+      <!-- eslint-enable svelte/no-navigation-without-resolve -->
+      <li>
+        In EDMC open File, Settings, Plugins, press Open, and put the
+        <code>EDFinder</code> folder there. Restart EDMC.
+      </li>
+      <li>
+        Make a key below. In EDMC's Settings, open the ED-Finder tab and paste
+        it.
+      </li>
+      <li>
+        With the game running, press Test connection there, then Send past
+        journals once.
+      </li>
+    </ol>
     {#if notReady}
       <p role="status" data-testid="plugin-keys-not-ready">
         Plugin keys are not ready on this site yet.
