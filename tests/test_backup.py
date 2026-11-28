@@ -237,14 +237,15 @@ def test_a_full_backup_brings_every_row_back(kit, capsys):
     backup = kit.directory / "full" / dumps[0]
     assert stat.S_IMODE(backup.stat().st_mode) == 0o600
     about = json.loads((kit.directory / "full" / (dumps[0] + ".json")).read_text())
-    assert about["kind"] == "full" and about["bytes"] == backup.stat().st_size and about["tables"] == 112
-    assert "DONE:" in said and "112 tables" in said
+    assert about["kind"] == "full" and about["bytes"] == backup.stat().st_size and about["tables"] == 120
+    assert "DONE:" in said and "120 tables" in said
 
     # Bring it back into an empty database, and count.
     live = row_counts(kit.galaxy.conninfo)
     # 106 until migration 030 added the two tables of station sightings, 108
-    # until 031 added the two of Find's facts for each system.
-    assert len(live) == 112
+    # until 031 added the two of Find's facts for each system, 112 until 034
+    # added the eight of Haul.
+    assert len(live) == 120
     # Among them every body of the twelve real systems.
     bodies = sum(len(record["bodies"]) for record in kit.galaxy.records.values())
     assert live[kit.galaxy.schema + ".bodies"] == bodies == 389
@@ -341,9 +342,10 @@ def test_a_small_backup_holds_what_users_have_written_and_the_settings(kit, caps
     folder = kit.directory / "small" / name
     assert sorted(item.name for item in folder.iterdir()) == ["about.json", "settings.tar.gz", "users.dump"]
     about = json.loads((folder / "about.json").read_text())
-    # The 26 tables of the two schemas, as on the real machine.
-    assert about["tables"] == 26 and about["schemas"] == ["v3_identity", "v3_private"]
-    assert "26 tables" in said
+    # The tables of the two schemas: 26 until migration 034 added the plugin
+    # keys and Haul's three private tables.
+    assert about["tables"] == 30 and about["schemas"] == ["v3_identity", "v3_private"]
+    assert "30 tables" in said
 
     # The settings come back byte for byte, in a file only its owner can read.
     assert stat.S_IMODE((folder / "settings.tar.gz").stat().st_mode) == 0o600
@@ -579,7 +581,7 @@ def test_the_list_of_drives_is_read_for_the_backup_folder_only(tmp_path):
 def test_check_and_status_change_nothing_and_say_what_is_there(kit, capsys):
     code, said = kit.run("check", capsys)
     assert code == 0, said
-    assert "The small backup: 26 tables (v3_identity, v3_private)." in said and "READY." in said
+    assert "The small backup: 30 tables (v3_identity, v3_private)." in said and "READY." in said
     assert "Not checked: whether that is the database's own drive" in said
     code, said = kit.run("status", capsys)
     assert code == 0 and said.count("none yet") == 2
