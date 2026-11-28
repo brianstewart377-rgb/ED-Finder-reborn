@@ -2073,6 +2073,32 @@ export type PlanTotalsV1 = {
 };
 
 /**
+ * PluginBatch
+ */
+export type PluginBatch = {
+    /**
+     * Fid
+     */
+    fid: string;
+    /**
+     * Plugin Version
+     */
+    plugin_version: string;
+    /**
+     * Docked
+     */
+    docked?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Events
+     */
+    events: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * PluginKey
  */
 export type PluginKey = {
@@ -2106,6 +2132,36 @@ export type PluginKeyRequest = {
      * Label
      */
     label: string;
+};
+
+/**
+ * PluginReceipt
+ */
+export type PluginReceipt = {
+    /**
+     * Received
+     */
+    received: number;
+    /**
+     * Kept
+     */
+    kept: number;
+    /**
+     * Repeated
+     */
+    repeated: number;
+    /**
+     * Left For Later
+     */
+    left_for_later: number;
+    /**
+     * Refused
+     */
+    refused: number;
+    /**
+     * Reasons
+     */
+    reasons: Array<string>;
 };
 
 /**
@@ -4965,3 +5021,34 @@ export type RevokePluginKeyResponses = {
 };
 
 export type RevokePluginKeyResponse = RevokePluginKeyResponses[keyof RevokePluginKeyResponses];
+
+export type SendPluginEventsData = {
+    body: PluginBatch;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/plugin/events';
+};
+
+export type SendPluginEventsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SendPluginEventsError = SendPluginEventsErrors[keyof SendPluginEventsErrors];
+
+export type SendPluginEventsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PluginReceipt;
+};
+
+export type SendPluginEventsResponse = SendPluginEventsResponses[keyof SendPluginEventsResponses];

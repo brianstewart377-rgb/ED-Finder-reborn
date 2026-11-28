@@ -228,3 +228,14 @@ packages (`apps/web/static/licences/`):
 
 A test compares each of these with the package's own file, so a version change
 that alters a licence or notice fails until the copy is renewed.
+
+## EDDI sample journal lines
+
+`tests/fixtures/haul/eddi-colonisation-samples.jsonl` holds five journal lines
+copied unchanged from the sample lines in the source of
+[EDDI](https://github.com/EDCD/EDDI) (`Events/ColonisationContributionEvent.cs`
+and `Events/ColonisationConstructionDepotEvent.cs`, commit
+`a3572ab7a3a541c4b1834738d1d85c6f69dd4202`). They are used only as test data.
+
+License: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0),
+as stated in EDDI's `LICENSE.md`. Copyright EDDI's contributors.
