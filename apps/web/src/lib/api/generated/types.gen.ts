@@ -1333,6 +1333,19 @@ export type MapViewportSystem = {
 };
 
 /**
+ * NewPluginKey
+ *
+ * The key itself is in ``secret``, here and nowhere else, ever.
+ */
+export type NewPluginKey = {
+    key: PluginKey;
+    /**
+     * Secret
+     */
+    secret: string;
+};
+
+/**
  * OfferReceipt
  */
 export type OfferReceipt = {
@@ -2057,6 +2070,42 @@ export type PlanTotalsV1 = {
      * T3
      */
     t3: number;
+};
+
+/**
+ * PluginKey
+ */
+export type PluginKey = {
+    /**
+     * Plugin Key Id
+     */
+    plugin_key_id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Last Used At
+     */
+    last_used_at?: string | null;
+    /**
+     * Revoked At
+     */
+    revoked_at?: string | null;
+};
+
+/**
+ * PluginKeyRequest
+ */
+export type PluginKeyRequest = {
+    /**
+     * Label
+     */
+    label: string;
 };
 
 /**
@@ -4843,3 +4892,76 @@ export type WithdrawJournalGalaxyContributionResponses = {
 };
 
 export type WithdrawJournalGalaxyContributionResponse = WithdrawJournalGalaxyContributionResponses[keyof WithdrawJournalGalaxyContributionResponses];
+
+export type ListPluginKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/plugin/keys';
+};
+
+export type ListPluginKeysResponses = {
+    /**
+     * Response Listpluginkeys
+     *
+     * Successful Response
+     */
+    200: Array<PluginKey>;
+};
+
+export type ListPluginKeysResponse = ListPluginKeysResponses[keyof ListPluginKeysResponses];
+
+export type CreatePluginKeyData = {
+    body: PluginKeyRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/plugin/keys';
+};
+
+export type CreatePluginKeyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePluginKeyError = CreatePluginKeyErrors[keyof CreatePluginKeyErrors];
+
+export type CreatePluginKeyResponses = {
+    /**
+     * Successful Response
+     */
+    201: NewPluginKey;
+};
+
+export type CreatePluginKeyResponse = CreatePluginKeyResponses[keyof CreatePluginKeyResponses];
+
+export type RevokePluginKeyData = {
+    body?: never;
+    path: {
+        /**
+         * Plugin Key Id
+         */
+        plugin_key_id: string;
+    };
+    query?: never;
+    url: '/api/v1/plugin/keys/{plugin_key_id}';
+};
+
+export type RevokePluginKeyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokePluginKeyError = RevokePluginKeyErrors[keyof RevokePluginKeyErrors];
+
+export type RevokePluginKeyResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RevokePluginKeyResponse = RevokePluginKeyResponses[keyof RevokePluginKeyResponses];
