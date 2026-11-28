@@ -71,6 +71,7 @@ from edfinder_api.routers.v3_journal import router as v3_journal_router
 from edfinder_api.routers.v3_journal_contributions import router as v3_journal_contributions_router
 from edfinder_api.routers.plugin_keys import router as plugin_keys_router
 from edfinder_api.routers.plugin_events import router as plugin_events_router
+from edfinder_api.routers.plugin_download import router as plugin_download_router
 from edfinder_api.share_router import router as share_router
 
 # ---------------------------------------------------------------------------
@@ -325,6 +326,7 @@ app.include_router(v3_journal_router)
 app.include_router(v3_journal_contributions_router)
 app.include_router(plugin_keys_router)
 app.include_router(plugin_events_router)
+app.include_router(plugin_download_router)
 
 
 # ---------------------------------------------------------------------------

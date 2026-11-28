@@ -51,6 +51,17 @@ describe('keys for the EDMC plugin on the Account page', () => {
   });
   afterEach(() => cleanup());
 
+  it('offers the plugin to download, with the steps to install it', async () => {
+    vi.mocked(api.getPluginKeys).mockResolvedValue([]);
+    render(PluginKeysPanel);
+    const link = await screen.findByTestId('plugin-download');
+    expect(link.getAttribute('href')).toBe('/api/v1/plugin/download');
+    expect(link.hasAttribute('download')).toBe(true);
+    expect(
+      screen.getByTestId('plugin-steps').querySelectorAll('li'),
+    ).toHaveLength(4);
+  });
+
   it('shows a new key once, then lists it by name only', async () => {
     vi.mocked(api.getPluginKeys)
       .mockResolvedValueOnce([])
