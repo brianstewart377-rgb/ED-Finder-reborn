@@ -62,38 +62,61 @@ Step 6 also carries: a search near a system with no economy chosen (nearest
 first), the browser journeys for the new search, and the gentle warning on
 cards for bodies near white dwarfs and neutron stars (decision 9).
 
+## Also now: Haul
+
+A shopping list of what your builds are still short of, and where to buy
+each thing, as the shopping list in Raven Colonial does. The owner moved Haul
+up on 25 November ("Yes move Haul up"), and on 28 November agreed its design
+(the document "Haul — design") and decided that its first steps start now,
+while the ratings fill runs. Find's new page (step 6 above) still comes once
+the fill has finished and been measured.
+
+What was decided on 28 November:
+
+- **The list is the game's own.** Each time a player docks at a construction
+  site, the game writes the site's whole list to the journal: for each good,
+  how much is needed and how much has been delivered by everyone. Haul keeps
+  the newest list and never adds up deliveries, so a load hauled with nothing
+  running does not leave it wrong.
+- **Fed by our own plugin for EDMC**, downloaded from the Account page (not
+  listed in EDMC's plugin browser), with a key per member. It sends the
+  journal lines Haul uses, the game's market and cargo files, and EDMC's own
+  copy of the member's carrier cargo from Frontier; a "send past journals"
+  button catches up.
+- **Where to buy** comes from the station markets in the Spansh file the Pi
+  already takes each night (the importer leaves them out today): stations
+  within 50 ly of the build, up to 150 ly, each market's age shown. Fleet
+  carriers are left out as sellers at first.
+- **The member's own carrier**: transfers change its totals at once, and the
+  game's own figures reset them whenever they arrive.
+- **Seven new tables**, agreed: the commodity list, site readings, plugin
+  keys, two market tables and their fill record, and the carrier pair.
+- Builds are private, with a switch to share one with all members (a later
+  step). Estimates for builds not started yet are a later step.
+
+| Step | What | State |
+|---|---|---|
+| 1 | The tables (migration `034`) | **Next** |
+| 2 | Plugin keys and the address that takes the plugin's data | To do |
+| 3 | The plugin | To do |
+| 4 | The Haul page: my builds, what each still needs, carrier and hold | To do |
+| 5 | Markets kept each night | To do |
+| 6 | Where to buy and fewest stops | To do |
+| 7 | The carrier figures in full | To do |
+| 8 | Sharing a build | To do |
+
+The two read-only checks that had to come first were done on 28 November:
+Spansh's stations file carries each station's market, and a construction
+site's needs are only in the docked player's journal (no public feed carries
+them). A survey of 129 other colonisation projects is in the document
+"Colonisation projects on GitHub: what they are and what we can use".
+
 ## Next, in this order
 
-The owner's decision of 25 November ("Yes move Haul up"): Haul comes before
-the rest of the map.
-
-1. **Haul.** A shopping list of what your builds are still short of, and
-   where to buy each thing, as the shopping list in Raven Colonial does. The
-   two read-only checks that had to come first are done (28 November):
-   - **Markets.** The Spansh stations file the Pi already takes each night
-     carries each station's market: the goods, their prices, how much is in
-     stock and when the market was last seen. The importer leaves it out on
-     purpose today. Keeping it needs a new table, so its design comes to the
-     owner first. Many markets are months old, so each one's age is shown.
-   - **A construction site's needs.** The game writes them only to the
-     journal of a player docked at the site, in one event,
-     `ColonisationConstructionDepot` (for each good: how much is needed, how
-     much has been delivered, and the payment). No public feed carries it,
-     so it has to come from members' own PCs.
-
-   How members' journals reach the site is settled in the design: the
-   journal import we already have, the page reading the journal folder in
-   Chrome or Edge, BGS-Tally (a plugin many players already run), or a
-   plugin of our own for EDMC (the owner leaned that way on 25 November). A
-   survey of 129 other colonisation projects, in the document "Colonisation
-   projects on GitHub: what they are and what we can use", suggests the
-   plugin can come last. The design is being written now, while the ratings
-   fill runs. Nothing for Haul is built until the owner has agreed the
-   design and the ratings rebuild is done.
-2. **The map's other two jobs.** All of a player's colonies on the map,
+1. **The map's other two jobs.** All of a player's colonies on the map,
    planned ones too; and the nearby systems that sell what a build needs. The
    second uses what Haul builds.
-3. **BGS.**
+2. **BGS.**
 
 Also agreed, smaller:
 
