@@ -142,6 +142,7 @@ export * from './find';
 export * from './journal';
 export * from './map';
 export * from './plan';
+export * from './plugin';
 export * from './profile-sync';
 export * from './ratings';
 export * from './sol';
