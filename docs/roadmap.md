@@ -89,7 +89,7 @@ What was decided on 28 November:
   carriers are left out as sellers at first.
 - **The member's own carrier**: transfers change its totals at once, and the
   game's own figures reset them whenever they arrive.
-- **Seven new tables**, agreed: the commodity list, site readings, plugin
+- **Eight new tables**, agreed: the commodity list, site readings, plugin
   keys, two market tables and their fill record, and the carrier pair.
 - Builds are private, with a switch to share one with all members (a later
   step). Estimates for builds not started yet are a later step.
