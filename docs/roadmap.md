@@ -1,6 +1,6 @@
 # Roadmap
 
-As it stands on 27 November 2026. The plan this follows is
+As it stands on 28 November 2026. The plan this follows is
 [`plan-2026-11-08.pdf`](plan-2026-11-08.pdf). Where the order has changed
 since, the owner's decision and its date are given here.
 
@@ -68,12 +68,28 @@ The owner's decision of 25 November ("Yes move Haul up"): Haul comes before
 the rest of the map.
 
 1. **Haul.** A shopping list of what your builds are still short of, and
-   where to buy each thing, as Raven Colonial's basket does. Fed by a plugin
-   of our own for EDMC (the owner leans that way; it is settled when Haul
-   starts). Two read-only checks come first: whether the Spansh files the Pi
-   takes each night carry each station's market, and what the game writes to
-   the journal at a construction site. Then a design, for the owner to agree
-   before anything is built.
+   where to buy each thing, as the shopping list in Raven Colonial does. The
+   two read-only checks that had to come first are done (28 November):
+   - **Markets.** The Spansh stations file the Pi already takes each night
+     carries each station's market: the goods, their prices, how much is in
+     stock and when the market was last seen. The importer leaves it out on
+     purpose today. Keeping it needs a new table, so its design comes to the
+     owner first. Many markets are months old, so each one's age is shown.
+   - **A construction site's needs.** The game writes them only to the
+     journal of a player docked at the site, in one event,
+     `ColonisationConstructionDepot` (for each good: how much is needed, how
+     much has been delivered, and the payment). No public feed carries it,
+     so it has to come from members' own PCs.
+
+   How members' journals reach the site is settled in the design: the
+   journal import we already have, the page reading the journal folder in
+   Chrome or Edge, BGS-Tally (a plugin many players already run), or a
+   plugin of our own for EDMC (the owner leaned that way on 25 November). A
+   survey of 129 other colonisation projects, in the document "Colonisation
+   projects on GitHub: what they are and what we can use", suggests the
+   plugin can come last. The design is being written now, while the ratings
+   fill runs. Nothing for Haul is built until the owner has agreed the
+   design and the ratings rebuild is done.
 2. **The map's other two jobs.** All of a player's colonies on the map,
    planned ones too; and the nearby systems that sell what a build needs. The
    second uses what Haul builds.
